@@ -6,9 +6,8 @@
 
 1. **Create the extension directory structure:**
 ```bash
-mkdir -p vscode-biogpu-extension
-cd vscode-biogpu-extension
-mkdir -p syntaxes snippets themes
+cd ~/Documents/Code/biogpu/tools/vscode-biogpu 
+
 ```
 
 2. **Save the files:**

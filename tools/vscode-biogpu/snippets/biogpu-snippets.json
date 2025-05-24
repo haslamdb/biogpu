@@ -1,0 +1,128 @@
+{
+    "Pipeline": {
+        "prefix": "pipeline",
+        "body": [
+            "pipeline ${1:PipelineName} {",
+            "\tinput: {",
+            "\t\t${2:reads}: fastq_file,",
+            "\t\t${3:patient_id}: string",
+            "\t}",
+            "\t",
+            "\toutput: {",
+            "\t\t${4:report}: json",
+            "\t}",
+            "\t",
+            "\t@gpu_kernel",
+            "\tstage ${5:analyze} {",
+            "\t\t${0}",
+            "\t}",
+            "}"
+        ],
+        "description": "Create a new BioGPU pipeline"
+    },
+    "Stage": {
+        "prefix": "stage",
+        "body": [
+            "@gpu_kernel",
+            "stage ${1:stage_name} {",
+            "\trequires: ${2:input_data} from ${3:previous_stage}",
+            "\t",
+            "\t${0}",
+            "\t",
+            "\temit: ${4:output_data}",
+            "}"
+        ],
+        "description": "Create a new pipeline stage"
+    },
+    "FQ Resistance Check": {
+        "prefix": "fqresist",
+        "body": [
+            "# Check for fluoroquinolone resistance",
+            "mutations = scan_mutations(${1:target_reads}, fq_mutations) {",
+            "\tpositions: {",
+            "\t\tgyrA: [83, 87],",
+            "\t\tparC: [80, 84]",
+            "\t},",
+            "\tmax_mismatches: 1,",
+            "\tmin_quality: 30",
+            "}"
+        ],
+        "description": "Scan for fluoroquinolone resistance mutations"
+    },
+    "Parallel Map": {
+        "prefix": "pmap",
+        "body": [
+            "parallel_map(${1:input_data}, ${2:reference}) {",
+            "\talgorithm: ${3:minimap2_gpu},",
+            "\tmin_identity: ${4:0.95},",
+            "\tmin_length: ${5:100}",
+            "}"
+        ],
+        "description": "Parallel mapping operation"
+    },
+    "Filter Reads": {
+        "prefix": "filter",
+        "body": [
+            "filtered_reads = filter_reads(${1:raw_reads}) {",
+            "\tmin_quality: ${2:20},",
+            "\tmin_length: ${3:100},",
+            "\tremove_adapters: ${4:true},",
+            "\tremove_duplicates: ${5:true}",
+            "}"
+        ],
+        "description": "Filter sequence reads"
+    },
+    "Calculate Abundance": {
+        "prefix": "abundance",
+        "body": [
+            "abundance = calculate_abundance(${1:alignments}) {",
+            "\tmethod: \"${2|relative_abundance,tpm,rpkm|}\",",
+            "\tmin_coverage: ${3:0.1},",
+            "\tmin_reads: ${4:10}",
+            "}"
+        ],
+        "description": "Calculate species abundance"
+    },
+    "Clinical Report": {
+        "prefix": "report",
+        "body": [
+            "report = clinical_report_builder() {",
+            "\tsections: [",
+            "\t\tqc_summary(${1:qc_stats}),",
+            "\t\tmicrobiome_overview(${2:abundance}),",
+            "\t\tresistance_findings(${3:mutations})",
+            "\t]",
+            "}"
+        ],
+        "description": "Generate clinical report"
+    },
+    "Foreach Loop": {
+        "prefix": "foreach",
+        "body": [
+            "foreach ${1:item} in ${2:collection} {",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Foreach loop"
+    },
+    "GPU Kernel": {
+        "prefix": "gpu",
+        "body": [
+            "@gpu_kernel(memory: ${1:16GB}, threads: ${2:1024})",
+            "stage ${3:stage_name} {",
+            "\t${0}",
+            "}"
+        ],
+        "description": "GPU kernel decorator with parameters"
+    },
+    "Reference Database": {
+        "prefix": "refdb",
+        "body": [
+            "references: {",
+            "\t${1:microbe_genomes}: genome_database(\"${2:refseq_bacteria_complete}\"),",
+            "\t${3:fq_mutations}: mutation_database(\"${4:fluoroquinolone_qrdr_v2}\")",
+            "}"
+        ],
+        "description": "Define reference databases"
+    }
+}

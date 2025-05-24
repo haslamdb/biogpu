@@ -1,0 +1,7 @@
+.gitignore
+*.vsix
+biogpu-vscode-extension-readme.md
+biogpu-language-0.1.0/
+.git/
+.vscode/
+node_modules/

@@ -1,0 +1,58 @@
+{
+    "name": "biogpu-language",
+    "displayName": "BioGPU Language Support",
+    "description": "Syntax highlighting and snippets for BioGPU - GPU-accelerated bioinformatics DSL",
+    "version": "0.1.0",
+    "publisher": "biogpu-team",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Programming Languages",
+        "Snippets"
+    ],
+    "icon": "images/biogpu-icon.png",
+    "contributes": {
+        "languages": [{
+            "id": "biogpu",
+            "aliases": ["BioGPU", "biogpu"],
+            "extensions": [".biogpu", ".bgpu"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "biogpu",
+            "scopeName": "source.biogpu",
+            "path": "./syntaxes/biogpu.tmLanguage.json"
+        }],
+        "snippets": [
+            {
+                "language": "biogpu",
+                "path": "./snippets/biogpu-snippets.json"
+            }
+        ],
+        "themes": [
+            {
+                "label": "BioGPU Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/biogpu-dark-color-theme.json"
+            }
+        ]
+    },
+    "keywords": [
+        "bioinformatics",
+        "gpu",
+        "cuda",
+        "genomics",
+        "metagenomics",
+        "dsl"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dbhaslam/biogpu.git"
+    },
+    "homepage": "https://github.com/dbhaslam/biogpu#readme",
+    "bugs": {
+        "url": "https://github.com/dbhaslam/biogpu/issues"
+    },
+    "license": "MIT"
+}

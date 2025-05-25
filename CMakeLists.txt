@@ -35,6 +35,15 @@ set(SOURCES
     src/codegen/ast_codegen.cpp
 )
 
+# Algorithm library files
+set(ALGORITHM_SOURCES
+    src/stdlib/algorithms/bloom_cascade.cpp
+    src/stdlib/algorithms/minimizer_classifier.cpp
+    src/stdlib/algorithms/resistance_attribution.cpp
+    src/stdlib/algorithms/resistance_graph.cpp
+    src/stdlib/algorithms/resistance_pssm.cpp
+)
+
 # Add parser source files
 set(PARSER_SOURCES
     src/parser/BioGPULexer.cpp
@@ -53,6 +62,7 @@ set(CUDA_SOURCES
 
 # Combine all sources
 list(APPEND SOURCES ${PARSER_SOURCES})
+list(APPEND SOURCES ${ALGORITHM_SOURCES})
 
 # Create main executable
 add_executable(biogpu ${SOURCES})

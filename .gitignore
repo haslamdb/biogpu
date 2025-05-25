@@ -3,6 +3,10 @@ build/
 cmake-build-*/
 out/
 
+# Genomic data
+data/
+genomes/
+  
 # Compiled files
 *.o
 *.so

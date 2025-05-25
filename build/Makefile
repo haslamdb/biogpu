@@ -226,6 +226,30 @@ biogpu/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/build
 .PHONY : biogpu/fast
 
+src/codegen/ast_codegen.o: src/codegen/ast_codegen.cpp.o
+.PHONY : src/codegen/ast_codegen.o
+
+# target to build an object file
+src/codegen/ast_codegen.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o
+.PHONY : src/codegen/ast_codegen.cpp.o
+
+src/codegen/ast_codegen.i: src/codegen/ast_codegen.cpp.i
+.PHONY : src/codegen/ast_codegen.i
+
+# target to preprocess a source file
+src/codegen/ast_codegen.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.i
+.PHONY : src/codegen/ast_codegen.cpp.i
+
+src/codegen/ast_codegen.s: src/codegen/ast_codegen.cpp.s
+.PHONY : src/codegen/ast_codegen.s
+
+# target to generate assembly for a file
+src/codegen/ast_codegen.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.s
+.PHONY : src/codegen/ast_codegen.cpp.s
+
 src/codegen/llvm_codegen.o: src/codegen/llvm_codegen.cpp.o
 .PHONY : src/codegen/llvm_codegen.o
 
@@ -250,29 +274,149 @@ src/codegen/llvm_codegen.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.s
 .PHONY : src/codegen/llvm_codegen.cpp.s
 
-src/main.o: src/main.cpp.o
-.PHONY : src/main.o
+src/compiler/compiler.o: src/compiler/compiler.cpp.o
+.PHONY : src/compiler/compiler.o
 
 # target to build an object file
-src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.o
-.PHONY : src/main.cpp.o
+src/compiler/compiler.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o
+.PHONY : src/compiler/compiler.cpp.o
 
-src/main.i: src/main.cpp.i
-.PHONY : src/main.i
+src/compiler/compiler.i: src/compiler/compiler.cpp.i
+.PHONY : src/compiler/compiler.i
 
 # target to preprocess a source file
-src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.i
-.PHONY : src/main.cpp.i
+src/compiler/compiler.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.i
+.PHONY : src/compiler/compiler.cpp.i
 
-src/main.s: src/main.cpp.s
-.PHONY : src/main.s
+src/compiler/compiler.s: src/compiler/compiler.cpp.s
+.PHONY : src/compiler/compiler.s
 
 # target to generate assembly for a file
-src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.s
-.PHONY : src/main.cpp.s
+src/compiler/compiler.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.s
+.PHONY : src/compiler/compiler.cpp.s
+
+src/parser/BioGPUBaseVisitor.o: src/parser/BioGPUBaseVisitor.cpp.o
+.PHONY : src/parser/BioGPUBaseVisitor.o
+
+# target to build an object file
+src/parser/BioGPUBaseVisitor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o
+.PHONY : src/parser/BioGPUBaseVisitor.cpp.o
+
+src/parser/BioGPUBaseVisitor.i: src/parser/BioGPUBaseVisitor.cpp.i
+.PHONY : src/parser/BioGPUBaseVisitor.i
+
+# target to preprocess a source file
+src/parser/BioGPUBaseVisitor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.i
+.PHONY : src/parser/BioGPUBaseVisitor.cpp.i
+
+src/parser/BioGPUBaseVisitor.s: src/parser/BioGPUBaseVisitor.cpp.s
+.PHONY : src/parser/BioGPUBaseVisitor.s
+
+# target to generate assembly for a file
+src/parser/BioGPUBaseVisitor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.s
+.PHONY : src/parser/BioGPUBaseVisitor.cpp.s
+
+src/parser/BioGPULexer.o: src/parser/BioGPULexer.cpp.o
+.PHONY : src/parser/BioGPULexer.o
+
+# target to build an object file
+src/parser/BioGPULexer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o
+.PHONY : src/parser/BioGPULexer.cpp.o
+
+src/parser/BioGPULexer.i: src/parser/BioGPULexer.cpp.i
+.PHONY : src/parser/BioGPULexer.i
+
+# target to preprocess a source file
+src/parser/BioGPULexer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.i
+.PHONY : src/parser/BioGPULexer.cpp.i
+
+src/parser/BioGPULexer.s: src/parser/BioGPULexer.cpp.s
+.PHONY : src/parser/BioGPULexer.s
+
+# target to generate assembly for a file
+src/parser/BioGPULexer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.s
+.PHONY : src/parser/BioGPULexer.cpp.s
+
+src/parser/BioGPUParser.o: src/parser/BioGPUParser.cpp.o
+.PHONY : src/parser/BioGPUParser.o
+
+# target to build an object file
+src/parser/BioGPUParser.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o
+.PHONY : src/parser/BioGPUParser.cpp.o
+
+src/parser/BioGPUParser.i: src/parser/BioGPUParser.cpp.i
+.PHONY : src/parser/BioGPUParser.i
+
+# target to preprocess a source file
+src/parser/BioGPUParser.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.i
+.PHONY : src/parser/BioGPUParser.cpp.i
+
+src/parser/BioGPUParser.s: src/parser/BioGPUParser.cpp.s
+.PHONY : src/parser/BioGPUParser.s
+
+# target to generate assembly for a file
+src/parser/BioGPUParser.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.s
+.PHONY : src/parser/BioGPUParser.cpp.s
+
+src/parser/ast.o: src/parser/ast.cpp.o
+.PHONY : src/parser/ast.o
+
+# target to build an object file
+src/parser/ast.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/ast.cpp.o
+.PHONY : src/parser/ast.cpp.o
+
+src/parser/ast.i: src/parser/ast.cpp.i
+.PHONY : src/parser/ast.i
+
+# target to preprocess a source file
+src/parser/ast.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/ast.cpp.i
+.PHONY : src/parser/ast.cpp.i
+
+src/parser/ast.s: src/parser/ast.cpp.s
+.PHONY : src/parser/ast.s
+
+# target to generate assembly for a file
+src/parser/ast.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/ast.cpp.s
+.PHONY : src/parser/ast.cpp.s
+
+src/parser/biogpu_parser.o: src/parser/biogpu_parser.cpp.o
+.PHONY : src/parser/biogpu_parser.o
+
+# target to build an object file
+src/parser/biogpu_parser.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o
+.PHONY : src/parser/biogpu_parser.cpp.o
+
+src/parser/biogpu_parser.i: src/parser/biogpu_parser.cpp.i
+.PHONY : src/parser/biogpu_parser.i
+
+# target to preprocess a source file
+src/parser/biogpu_parser.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.i
+.PHONY : src/parser/biogpu_parser.cpp.i
+
+src/parser/biogpu_parser.s: src/parser/biogpu_parser.cpp.s
+.PHONY : src/parser/biogpu_parser.s
+
+# target to generate assembly for a file
+src/parser/biogpu_parser.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.s
+.PHONY : src/parser/biogpu_parser.cpp.s
 
 # Help Target
 help:
@@ -291,12 +435,30 @@ help:
 	@echo "... intrinsics_gen"
 	@echo "... omp_gen"
 	@echo "... biogpu"
+	@echo "... src/codegen/ast_codegen.o"
+	@echo "... src/codegen/ast_codegen.i"
+	@echo "... src/codegen/ast_codegen.s"
 	@echo "... src/codegen/llvm_codegen.o"
 	@echo "... src/codegen/llvm_codegen.i"
 	@echo "... src/codegen/llvm_codegen.s"
-	@echo "... src/main.o"
-	@echo "... src/main.i"
-	@echo "... src/main.s"
+	@echo "... src/compiler/compiler.o"
+	@echo "... src/compiler/compiler.i"
+	@echo "... src/compiler/compiler.s"
+	@echo "... src/parser/BioGPUBaseVisitor.o"
+	@echo "... src/parser/BioGPUBaseVisitor.i"
+	@echo "... src/parser/BioGPUBaseVisitor.s"
+	@echo "... src/parser/BioGPULexer.o"
+	@echo "... src/parser/BioGPULexer.i"
+	@echo "... src/parser/BioGPULexer.s"
+	@echo "... src/parser/BioGPUParser.o"
+	@echo "... src/parser/BioGPUParser.i"
+	@echo "... src/parser/BioGPUParser.s"
+	@echo "... src/parser/ast.o"
+	@echo "... src/parser/ast.i"
+	@echo "... src/parser/ast.s"
+	@echo "... src/parser/biogpu_parser.o"
+	@echo "... src/parser/biogpu_parser.i"
+	@echo "... src/parser/biogpu_parser.s"
 .PHONY : help
 
 

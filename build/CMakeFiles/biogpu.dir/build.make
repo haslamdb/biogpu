@@ -69,19 +69,19 @@ include CMakeFiles/biogpu.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/biogpu.dir/flags.make
 
-CMakeFiles/biogpu.dir/src/main.cpp.o: CMakeFiles/biogpu.dir/flags.make
-CMakeFiles/biogpu.dir/src/main.cpp.o: /home/david/Documents/Code/biogpu/src/main.cpp
-CMakeFiles/biogpu.dir/src/main.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/biogpu.dir/src/main.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/main.cpp.o -MF CMakeFiles/biogpu.dir/src/main.cpp.o.d -o CMakeFiles/biogpu.dir/src/main.cpp.o -c /home/david/Documents/Code/biogpu/src/main.cpp
+CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o: /home/david/Documents/Code/biogpu/src/compiler/compiler.cpp
+CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o -MF CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o.d -o CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o -c /home/david/Documents/Code/biogpu/src/compiler/compiler.cpp
 
-CMakeFiles/biogpu.dir/src/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/main.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/main.cpp > CMakeFiles/biogpu.dir/src/main.cpp.i
+CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/compiler/compiler.cpp > CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.i
 
-CMakeFiles/biogpu.dir/src/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/main.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/main.cpp -o CMakeFiles/biogpu.dir/src/main.cpp.s
+CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/compiler/compiler.cpp -o CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.s
 
 CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o: CMakeFiles/biogpu.dir/flags.make
 CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o: /home/david/Documents/Code/biogpu/src/codegen/llvm_codegen.cpp
@@ -97,19 +97,115 @@ CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/codegen/llvm_codegen.cpp -o CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.s
 
+CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o: /home/david/Documents/Code/biogpu/src/codegen/ast_codegen.cpp
+CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o -MF CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o.d -o CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o -c /home/david/Documents/Code/biogpu/src/codegen/ast_codegen.cpp
+
+CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/codegen/ast_codegen.cpp > CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.i
+
+CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/codegen/ast_codegen.cpp -o CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.s
+
+CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o: /home/david/Documents/Code/biogpu/src/parser/BioGPULexer.cpp
+CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o -MF CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o.d -o CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o -c /home/david/Documents/Code/biogpu/src/parser/BioGPULexer.cpp
+
+CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/parser/BioGPULexer.cpp > CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.i
+
+CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/parser/BioGPULexer.cpp -o CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.s
+
+CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o: /home/david/Documents/Code/biogpu/src/parser/BioGPUParser.cpp
+CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o -MF CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o.d -o CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o -c /home/david/Documents/Code/biogpu/src/parser/BioGPUParser.cpp
+
+CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/parser/BioGPUParser.cpp > CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.i
+
+CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/parser/BioGPUParser.cpp -o CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.s
+
+CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o: /home/david/Documents/Code/biogpu/src/parser/BioGPUBaseVisitor.cpp
+CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o -MF CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o.d -o CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o -c /home/david/Documents/Code/biogpu/src/parser/BioGPUBaseVisitor.cpp
+
+CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/parser/BioGPUBaseVisitor.cpp > CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.i
+
+CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/parser/BioGPUBaseVisitor.cpp -o CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.s
+
+CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o: /home/david/Documents/Code/biogpu/src/parser/biogpu_parser.cpp
+CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o -MF CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o.d -o CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o -c /home/david/Documents/Code/biogpu/src/parser/biogpu_parser.cpp
+
+CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/parser/biogpu_parser.cpp > CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.i
+
+CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/parser/biogpu_parser.cpp -o CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.s
+
+CMakeFiles/biogpu.dir/src/parser/ast.cpp.o: CMakeFiles/biogpu.dir/flags.make
+CMakeFiles/biogpu.dir/src/parser/ast.cpp.o: /home/david/Documents/Code/biogpu/src/parser/ast.cpp
+CMakeFiles/biogpu.dir/src/parser/ast.cpp.o: CMakeFiles/biogpu.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/biogpu.dir/src/parser/ast.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/biogpu.dir/src/parser/ast.cpp.o -MF CMakeFiles/biogpu.dir/src/parser/ast.cpp.o.d -o CMakeFiles/biogpu.dir/src/parser/ast.cpp.o -c /home/david/Documents/Code/biogpu/src/parser/ast.cpp
+
+CMakeFiles/biogpu.dir/src/parser/ast.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/biogpu.dir/src/parser/ast.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/david/Documents/Code/biogpu/src/parser/ast.cpp > CMakeFiles/biogpu.dir/src/parser/ast.cpp.i
+
+CMakeFiles/biogpu.dir/src/parser/ast.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/biogpu.dir/src/parser/ast.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/david/Documents/Code/biogpu/src/parser/ast.cpp -o CMakeFiles/biogpu.dir/src/parser/ast.cpp.s
+
 # Object files for target biogpu
 biogpu_OBJECTS = \
-"CMakeFiles/biogpu.dir/src/main.cpp.o" \
-"CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o"
+"CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o" \
+"CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o" \
+"CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o" \
+"CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o" \
+"CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o" \
+"CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o" \
+"CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o" \
+"CMakeFiles/biogpu.dir/src/parser/ast.cpp.o"
 
 # External object files for target biogpu
 biogpu_EXTERNAL_OBJECTS =
 
-biogpu: CMakeFiles/biogpu.dir/src/main.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o
 biogpu: CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o
+biogpu: CMakeFiles/biogpu.dir/src/parser/ast.cpp.o
 biogpu: CMakeFiles/biogpu.dir/build.make
 biogpu: CMakeFiles/biogpu.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable biogpu"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX executable biogpu"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/biogpu.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

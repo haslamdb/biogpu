@@ -291,6 +291,9 @@ ZLIB_LIBRARY_DEBUG:FILEPATH=ZLIB_LIBRARY_DEBUG-NOTFOUND
 //Path to a library.
 ZLIB_LIBRARY_RELEASE:FILEPATH=/usr/lib/x86_64-linux-gnu/libz.so
 
+//The directory containing a CMake configuration file for antlr4-runtime.
+antlr4-runtime_DIR:PATH=/usr/lib/x86_64-linux-gnu/cmake/antlr4-runtime
+
 //Path to a library.
 pkgcfg_lib_PC_CURL_curl:FILEPATH=/usr/lib/x86_64-linux-gnu/libcurl.so
 

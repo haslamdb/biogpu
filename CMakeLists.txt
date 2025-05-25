@@ -20,13 +20,28 @@ add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 
+# Find ANTLR
+find_package(antlr4-runtime REQUIRED)
+
 # Project include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(/usr/include/antlr4-runtime)
+include_directories(${CMAKE_SOURCE_DIR}/src/parser)  # For generated headers
 
 # Source files
 set(SOURCES
-    src/main.cpp
+    src/compiler/compiler.cpp
     src/codegen/llvm_codegen.cpp
+    src/codegen/ast_codegen.cpp
+)
+
+# Add parser source files
+set(PARSER_SOURCES
+    src/parser/BioGPULexer.cpp
+    src/parser/BioGPUParser.cpp
+    src/parser/BioGPUBaseVisitor.cpp
+    src/parser/biogpu_parser.cpp
+    src/parser/ast.cpp
 )
 
 # CUDA source files (if any)
@@ -35,6 +50,9 @@ set(CUDA_SOURCES
     # src/kernels/mutation_detection.cu
     # src/kernels/alignment.cu
 )
+
+# Combine all sources
+list(APPEND SOURCES ${PARSER_SOURCES})
 
 # Create main executable
 add_executable(biogpu ${SOURCES})
@@ -46,11 +64,11 @@ if(CUDA_SOURCES)
 endif()
 
 # Link libraries
-target_link_libraries(biogpu LLVM-18)
+target_link_libraries(biogpu LLVM-18 antlr4-runtime)
 
-# Enable warnings
+# Enable warnings (less strict for now)
 target_compile_options(biogpu PRIVATE 
-    -Wall -Wextra -Wpedantic
+    -Wall
     $<$<CONFIG:DEBUG>:-g -O0>
     $<$<CONFIG:RELEASE>:-O3>
 )

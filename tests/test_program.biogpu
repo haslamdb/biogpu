@@ -1,0 +1,51 @@
+# test_program.biogpu
+pipeline FluoroquinoloneResistanceTest {
+    input: {
+        reads: fastq_file,
+        patient_id: string
+    }
+    
+    output: {
+        report: json,
+        mutations: csv
+    }
+    
+    references: {
+        genomes: genome_database("refseq_bacteria"),
+        fq_mutations: mutation_database("fluoroquinolone_qrdr_v2")
+    }
+    
+    @gpu_kernel
+    stage quality_filter {
+        # Filter low quality reads
+        filtered = filter_reads(reads) {
+            min_quality: 20,
+            min_length: 100
+        }
+        emit: filtered
+    }
+    
+    @gpu_kernel
+    stage detect_resistance {
+        # Scan for known resistance mutations
+        mutations = scan_mutations(filtered, fq_mutations) {
+            genes: ["gyrA", "gyrB", "parC", "parE"],
+            min_quality: 30
+        }
+        
+        emit: mutations
+    }
+    
+    stage generate_report {
+        # Create clinical report
+        report {
+            if mutations.high_risk.any() {
+                alert: "Fluoroquinolone resistance detected"
+                recommendation: "Consider alternative antibiotics"
+            }
+            
+            print "Patient: {patient_id}"
+            print "Mutations found: {mutations.count}"
+        }
+    }
+}

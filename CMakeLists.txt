@@ -39,6 +39,7 @@ set(SOURCES
 set(ALGORITHM_SOURCES
     src/stdlib/algorithms/bloom_cascade.cpp
     src/stdlib/algorithms/minimizer_classifier.cpp
+    src/stdlib/algorithms/resistance_attribution.cpp
     src/stdlib/algorithms/resistance_graph.cpp
     src/stdlib/algorithms/resistance_pssm.cpp
 )

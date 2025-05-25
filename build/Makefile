@@ -466,6 +466,30 @@ src/stdlib/algorithms/minimizer_classifier.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.s
 .PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.s
 
+src/stdlib/algorithms/resistance_attribution.o: src/stdlib/algorithms/resistance_attribution.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_attribution.o
+
+# target to build an object file
+src/stdlib/algorithms/resistance_attribution.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.o
+
+src/stdlib/algorithms/resistance_attribution.i: src/stdlib/algorithms/resistance_attribution.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_attribution.i
+
+# target to preprocess a source file
+src/stdlib/algorithms/resistance_attribution.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.i
+
+src/stdlib/algorithms/resistance_attribution.s: src/stdlib/algorithms/resistance_attribution.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_attribution.s
+
+# target to generate assembly for a file
+src/stdlib/algorithms/resistance_attribution.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.s
+
 src/stdlib/algorithms/resistance_graph.o: src/stdlib/algorithms/resistance_graph.cpp.o
 .PHONY : src/stdlib/algorithms/resistance_graph.o
 
@@ -561,6 +585,9 @@ help:
 	@echo "... src/stdlib/algorithms/minimizer_classifier.o"
 	@echo "... src/stdlib/algorithms/minimizer_classifier.i"
 	@echo "... src/stdlib/algorithms/minimizer_classifier.s"
+	@echo "... src/stdlib/algorithms/resistance_attribution.o"
+	@echo "... src/stdlib/algorithms/resistance_attribution.i"
+	@echo "... src/stdlib/algorithms/resistance_attribution.s"
 	@echo "... src/stdlib/algorithms/resistance_graph.o"
 	@echo "... src/stdlib/algorithms/resistance_graph.i"
 	@echo "... src/stdlib/algorithms/resistance_graph.s"

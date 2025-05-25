@@ -19,6 +19,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.o.d"
   "CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.o"
   "CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.o.d"
+  "CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.o"
+  "CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.o.d"
   "CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.o"
   "CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.o.d"
   "CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.o"

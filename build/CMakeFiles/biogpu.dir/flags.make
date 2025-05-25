@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/usr/lib/llvm-18/include -I/usr/local/cuda-12.5/include -I/home/david/Documents/Code/biogpu/include
+CXX_INCLUDES = -I/usr/lib/llvm-18/include -I/home/david/Documents/Code/biogpu/include
 
-CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -Wall -Wextra -Wpedantic
+CXX_FLAGS = -std=gnu++17   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -Wall -Wextra -Wpedantic
 

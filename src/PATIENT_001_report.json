@@ -1,0 +1,24 @@
+{
+  "sample_id": "PATIENT_001",
+  "microbiome": {
+    "abundances": {
+      "E.coli": 0.293,
+      "K.pneumoniae": 0.207,
+      "P.aeruginosa": 0.14,
+      "E.faecalis": 0.118,
+      "A.baumannii": 0.105,
+      "S.aureus": 0.082,
+      "S.maltophilia": 0.055
+    },
+    "diversity": {
+      "shannon": 1.814401049251959,
+      "simpson": 0.8170040000000001,
+      "richness": 7
+    }
+  },
+  "resistance": {
+    "risk_level": "LOW",
+    "mutations": [],
+    "recommendations": []
+  }
+}

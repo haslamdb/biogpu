@@ -1,0 +1,46 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# Compiled files
+*.o
+*.so
+*.a
+*.dll
+*.exe
+*.out
+
+# LLVM/Clang specific
+*.bc
+*.ll
+
+# CUDA
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+
+# IDE files (optional - you might want to track some)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python (for your tools)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/

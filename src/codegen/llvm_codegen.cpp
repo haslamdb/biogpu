@@ -40,19 +40,21 @@ public:
         // DNA Sequence type: { i8*, i32, i8* }
         // Fields: data, length, quality
         dnaSequenceType = llvm::StructType::create(*context, "DNASequence");
-        dnaSequenceType->setBody({
-            llvm::Type::getInt8PtrTy(*context),  // sequence data
+        std::vector<llvm::Type*> dnaFields = {
+            llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(*context)),  // sequence data
             llvm::Type::getInt32Ty(*context),    // length
-            llvm::Type::getInt8PtrTy(*context)   // quality scores
-        });
+            llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(*context))   // quality scores
+        };
+        dnaSequenceType->setBody(dnaFields);
         
         // Genome Database type
         genomeDBType = llvm::StructType::create(*context, "GenomeDB");
-        genomeDBType->setBody({
+        std::vector<llvm::Type*> genomeFields = {
             llvm::PointerType::get(dnaSequenceType, 0),  // sequences array
             llvm::Type::getInt32Ty(*context),            // num sequences
-            llvm::Type::getInt8PtrTy(*context)           // index structure
-        });
+            llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(*context))           // index structure
+        };
+        genomeDBType->setBody(genomeFields);
     }
     
     // Generate CUDA kernel launch function
@@ -65,7 +67,7 @@ public:
         std::vector<llvm::Type*> paramTypes = {
             llvm::PointerType::get(dnaSequenceType, 0),
             llvm::PointerType::get(genomeDBType, 0),
-            llvm::Type::getFloatPtrTy(*context)
+            llvm::PointerType::getUnqual(llvm::Type::getFloatTy(*context))
         };
         
         auto funcType = llvm::FunctionType::get(
@@ -100,17 +102,18 @@ public:
     // Generate Smith-Waterman implementation
     llvm::Function* generateSmithWaterman() {
         // Function signature: i32 smith_waterman(i8*, i32, i8*, i32, i32, i32, i32)
+        std::vector<llvm::Type*> swParamTypes = {
+            llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(*context)),  // seq1
+            llvm::Type::getInt32Ty(*context),    // len1
+            llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(*context)),  // seq2
+            llvm::Type::getInt32Ty(*context),    // len2
+            llvm::Type::getInt32Ty(*context),    // match_score
+            llvm::Type::getInt32Ty(*context),    // mismatch_score
+            llvm::Type::getInt32Ty(*context)     // gap_penalty
+        };
         auto funcType = llvm::FunctionType::get(
             llvm::Type::getInt32Ty(*context),
-            {
-                llvm::Type::getInt8PtrTy(*context),  // seq1
-                llvm::Type::getInt32Ty(*context),    // len1
-                llvm::Type::getInt8PtrTy(*context),  // seq2
-                llvm::Type::getInt32Ty(*context),    // len2
-                llvm::Type::getInt32Ty(*context),    // match_score
-                llvm::Type::getInt32Ty(*context),    // mismatch_score
-                llvm::Type::getInt32Ty(*context)     // gap_penalty
-            },
+            swParamTypes,
             false
         );
         

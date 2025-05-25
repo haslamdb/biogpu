@@ -1,5 +1,5 @@
 #include <iostream>
-#include "llvm_codegen.cpp"  // In practice, use proper headers
+#include "../src/codegen/llvm_codegen.cpp"  // Temporary - should use proper headers
 
 int main() {
     std::cout << "BioGPU Compiler v0.1.0" << std::endl;

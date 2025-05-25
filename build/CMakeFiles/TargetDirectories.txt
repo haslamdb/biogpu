@@ -1,0 +1,7 @@
+/home/david/Documents/Code/biogpu/build/CMakeFiles/intrinsics_gen.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/omp_gen.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/acc_gen.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/RISCVTargetParserTableGen.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/biogpu.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/edit_cache.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/rebuild_cache.dir

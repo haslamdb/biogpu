@@ -418,6 +418,126 @@ src/parser/biogpu_parser.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.s
 .PHONY : src/parser/biogpu_parser.cpp.s
 
+src/stdlib/algorithms/bloom_cascade.o: src/stdlib/algorithms/bloom_cascade.cpp.o
+.PHONY : src/stdlib/algorithms/bloom_cascade.o
+
+# target to build an object file
+src/stdlib/algorithms/bloom_cascade.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.o
+.PHONY : src/stdlib/algorithms/bloom_cascade.cpp.o
+
+src/stdlib/algorithms/bloom_cascade.i: src/stdlib/algorithms/bloom_cascade.cpp.i
+.PHONY : src/stdlib/algorithms/bloom_cascade.i
+
+# target to preprocess a source file
+src/stdlib/algorithms/bloom_cascade.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.i
+.PHONY : src/stdlib/algorithms/bloom_cascade.cpp.i
+
+src/stdlib/algorithms/bloom_cascade.s: src/stdlib/algorithms/bloom_cascade.cpp.s
+.PHONY : src/stdlib/algorithms/bloom_cascade.s
+
+# target to generate assembly for a file
+src/stdlib/algorithms/bloom_cascade.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.s
+.PHONY : src/stdlib/algorithms/bloom_cascade.cpp.s
+
+src/stdlib/algorithms/minimizer_classifier.o: src/stdlib/algorithms/minimizer_classifier.cpp.o
+.PHONY : src/stdlib/algorithms/minimizer_classifier.o
+
+# target to build an object file
+src/stdlib/algorithms/minimizer_classifier.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.o
+.PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.o
+
+src/stdlib/algorithms/minimizer_classifier.i: src/stdlib/algorithms/minimizer_classifier.cpp.i
+.PHONY : src/stdlib/algorithms/minimizer_classifier.i
+
+# target to preprocess a source file
+src/stdlib/algorithms/minimizer_classifier.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.i
+.PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.i
+
+src/stdlib/algorithms/minimizer_classifier.s: src/stdlib/algorithms/minimizer_classifier.cpp.s
+.PHONY : src/stdlib/algorithms/minimizer_classifier.s
+
+# target to generate assembly for a file
+src/stdlib/algorithms/minimizer_classifier.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.s
+.PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.s
+
+src/stdlib/algorithms/resistance_attribution.o: src/stdlib/algorithms/resistance_attribution.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_attribution.o
+
+# target to build an object file
+src/stdlib/algorithms/resistance_attribution.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.o
+
+src/stdlib/algorithms/resistance_attribution.i: src/stdlib/algorithms/resistance_attribution.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_attribution.i
+
+# target to preprocess a source file
+src/stdlib/algorithms/resistance_attribution.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.i
+
+src/stdlib/algorithms/resistance_attribution.s: src/stdlib/algorithms/resistance_attribution.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_attribution.s
+
+# target to generate assembly for a file
+src/stdlib/algorithms/resistance_attribution.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.s
+
+src/stdlib/algorithms/resistance_graph.o: src/stdlib/algorithms/resistance_graph.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_graph.o
+
+# target to build an object file
+src/stdlib/algorithms/resistance_graph.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_graph.cpp.o
+
+src/stdlib/algorithms/resistance_graph.i: src/stdlib/algorithms/resistance_graph.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_graph.i
+
+# target to preprocess a source file
+src/stdlib/algorithms/resistance_graph.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_graph.cpp.i
+
+src/stdlib/algorithms/resistance_graph.s: src/stdlib/algorithms/resistance_graph.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_graph.s
+
+# target to generate assembly for a file
+src/stdlib/algorithms/resistance_graph.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_graph.cpp.s
+
+src/stdlib/algorithms/resistance_pssm.o: src/stdlib/algorithms/resistance_pssm.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_pssm.o
+
+# target to build an object file
+src/stdlib/algorithms/resistance_pssm.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.o
+.PHONY : src/stdlib/algorithms/resistance_pssm.cpp.o
+
+src/stdlib/algorithms/resistance_pssm.i: src/stdlib/algorithms/resistance_pssm.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_pssm.i
+
+# target to preprocess a source file
+src/stdlib/algorithms/resistance_pssm.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.i
+.PHONY : src/stdlib/algorithms/resistance_pssm.cpp.i
+
+src/stdlib/algorithms/resistance_pssm.s: src/stdlib/algorithms/resistance_pssm.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_pssm.s
+
+# target to generate assembly for a file
+src/stdlib/algorithms/resistance_pssm.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.s
+.PHONY : src/stdlib/algorithms/resistance_pssm.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -459,6 +579,21 @@ help:
 	@echo "... src/parser/biogpu_parser.o"
 	@echo "... src/parser/biogpu_parser.i"
 	@echo "... src/parser/biogpu_parser.s"
+	@echo "... src/stdlib/algorithms/bloom_cascade.o"
+	@echo "... src/stdlib/algorithms/bloom_cascade.i"
+	@echo "... src/stdlib/algorithms/bloom_cascade.s"
+	@echo "... src/stdlib/algorithms/minimizer_classifier.o"
+	@echo "... src/stdlib/algorithms/minimizer_classifier.i"
+	@echo "... src/stdlib/algorithms/minimizer_classifier.s"
+	@echo "... src/stdlib/algorithms/resistance_attribution.o"
+	@echo "... src/stdlib/algorithms/resistance_attribution.i"
+	@echo "... src/stdlib/algorithms/resistance_attribution.s"
+	@echo "... src/stdlib/algorithms/resistance_graph.o"
+	@echo "... src/stdlib/algorithms/resistance_graph.i"
+	@echo "... src/stdlib/algorithms/resistance_graph.s"
+	@echo "... src/stdlib/algorithms/resistance_pssm.o"
+	@echo "... src/stdlib/algorithms/resistance_pssm.i"
+	@echo "... src/stdlib/algorithms/resistance_pssm.s"
 .PHONY : help
 
 

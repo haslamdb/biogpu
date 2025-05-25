@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <system_error>
-#include "../src/codegen/llvm_codegen.cpp"  // Should be updated to use proper headers
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/IR/Module.h>
+#include "biogpu/codegen/llvm_codegen.h"  // Use header instead of .cpp
 
 int main(int argc, char* argv[]) {
     std::cout << "BioGPU Compiler v0.1.0" << std::endl;
@@ -32,11 +34,10 @@ int main(int argc, char* argv[]) {
             
             if (!EC) {
                 codegen.getModule()->print(fileStream, nullptr);
+                std::cout << "Generated IR saved to: " << filename << std::endl;
             } else {
                 std::cerr << "Error opening file: " << EC.message() << std::endl;
             }
-            
-            std::cout << "Generated IR saved to: " << filename << std::endl;
             
             // Print summary
             std::cout << "\nGenerated functions:" << std::endl;

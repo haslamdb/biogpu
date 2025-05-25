@@ -5,3 +5,7 @@
 /home/david/Documents/Code/biogpu/build/CMakeFiles/biogpu.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/edit_cache.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/rebuild_cache.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/list_install_components.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/install.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/install/local.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/install/strip.dir

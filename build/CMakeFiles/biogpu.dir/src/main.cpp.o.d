@@ -30,8 +30,6 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
  /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2-decl.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h \
  /usr/include/c++/13/exception /usr/include/c++/13/bits/exception.h \
  /usr/include/c++/13/bits/exception_ptr.h \
  /usr/include/c++/13/bits/exception_defines.h \
@@ -120,22 +118,16 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/include/x86_64-linux-gnu/sys/select.h \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/types/sigset_t.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
- /usr/include/x86_64-linux-gnu/bits/select-decl.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h \
+ /usr/include/alloca.h /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
  /usr/include/c++/13/bits/std_abs.h /usr/include/c++/13/cstdio \
  /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
  /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/13/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/c++/13/cerrno /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /usr/include/c++/13/bits/charconv.h \
@@ -162,77 +154,72 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/include/x86_64-linux-gnu/c++/13/bits/basic_file.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++io.h \
  /usr/include/c++/13/bits/fstream.tcc \
- /home/david/Documents/Code/biogpu/src/../src/codegen/llvm_codegen.cpp \
- /usr/lib/llvm-18/include/llvm/IR/LLVMContext.h \
- /usr/lib/llvm-18/include/llvm-c/Types.h \
- /usr/lib/llvm-18/include/llvm-c/DataTypes.h /usr/include/inttypes.h \
- /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
- /usr/lib/llvm-18/include/llvm-c/ExternC.h \
- /usr/lib/llvm-18/include/llvm/IR/DiagnosticHandler.h \
- /usr/lib/llvm-18/include/llvm/ADT/StringRef.h \
- /usr/lib/llvm-18/include/llvm/ADT/DenseMapInfo.h \
- /usr/include/c++/13/cassert /usr/include/assert.h \
- /usr/include/c++/13/cstdint /usr/include/c++/13/utility \
- /usr/include/c++/13/bits/stl_relops.h \
- /usr/lib/llvm-18/include/llvm/ADT/STLFunctionalExtras.h \
- /usr/lib/llvm-18/include/llvm/ADT/STLForwardCompat.h \
- /usr/include/c++/13/optional \
- /usr/include/c++/13/bits/enable_special_members.h \
- /usr/lib/llvm-18/include/llvm/ADT/iterator_range.h \
- /usr/lib/llvm-18/include/llvm/ADT/ADL.h /usr/include/c++/13/iterator \
- /usr/include/c++/13/bits/stream_iterator.h \
+ /usr/lib/llvm-18/include/llvm/Support/raw_ostream.h \
+ /usr/lib/llvm-18/include/llvm/ADT/SmallVector.h \
  /usr/lib/llvm-18/include/llvm/Support/Compiler.h \
  /usr/lib/llvm-18/include/llvm/Config/llvm-config.h \
+ /usr/lib/llvm-18/include/llvm/Support/type_traits.h \
+ /usr/include/c++/13/utility /usr/include/c++/13/bits/stl_relops.h \
  /usr/include/c++/13/algorithm /usr/include/c++/13/bits/stl_algo.h \
  /usr/include/c++/13/bits/algorithmfwd.h \
  /usr/include/c++/13/bits/stl_heap.h \
  /usr/include/c++/13/bits/uniform_int_dist.h \
  /usr/include/c++/13/bits/stl_tempbuf.h \
  /usr/include/c++/13/pstl/glue_algorithm_defs.h \
- /usr/include/c++/13/pstl/execution_defs.h /usr/include/c++/13/cstring \
- /usr/include/string.h /usr/include/strings.h \
- /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
- /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
- /usr/include/c++/13/limits \
- /usr/lib/llvm-18/include/llvm/Support/CBindingWrapping.h \
- /usr/lib/llvm-18/include/llvm/Support/Casting.h \
- /usr/lib/llvm-18/include/llvm/Support/type_traits.h \
- /usr/include/c++/13/memory /usr/include/c++/13/bits/stl_uninitialized.h \
+ /usr/include/c++/13/pstl/execution_defs.h /usr/include/c++/13/cassert \
+ /usr/include/assert.h /usr/include/c++/13/cstring /usr/include/string.h \
+ /usr/include/strings.h /usr/include/c++/13/functional \
+ /usr/include/c++/13/bits/std_function.h \
+ /usr/include/c++/13/unordered_map \
+ /usr/include/c++/13/bits/unordered_map.h \
+ /usr/include/c++/13/bits/hashtable.h \
+ /usr/include/c++/13/bits/hashtable_policy.h \
+ /usr/include/c++/13/ext/aligned_buffer.h \
+ /usr/include/c++/13/bits/enable_special_members.h \
+ /usr/include/c++/13/bits/node_handle.h \
+ /usr/include/c++/13/bits/erase_if.h /usr/include/c++/13/vector \
+ /usr/include/c++/13/bits/stl_uninitialized.h \
+ /usr/include/c++/13/bits/stl_vector.h \
+ /usr/include/c++/13/bits/stl_bvector.h \
+ /usr/include/c++/13/bits/vector.tcc /usr/include/c++/13/array \
+ /usr/include/c++/13/compare /usr/include/c++/13/iterator \
+ /usr/include/c++/13/bits/stream_iterator.h /usr/include/c++/13/limits \
+ /usr/include/c++/13/memory \
  /usr/include/c++/13/bits/stl_raw_storage_iter.h \
- /usr/include/c++/13/bits/align.h /usr/include/c++/13/bits/unique_ptr.h \
+ /usr/include/c++/13/bits/align.h \
+ /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /usr/include/c++/13/bits/unique_ptr.h \
  /usr/include/c++/13/bits/shared_ptr.h \
  /usr/include/c++/13/bits/shared_ptr_base.h \
  /usr/include/c++/13/bits/allocated_ptr.h \
- /usr/include/c++/13/ext/aligned_buffer.h \
  /usr/include/c++/13/ext/concurrence.h \
  /usr/include/c++/13/bits/shared_ptr_atomic.h \
  /usr/include/c++/13/bits/atomic_base.h \
  /usr/include/c++/13/bits/atomic_lockfree_defines.h \
  /usr/include/c++/13/backward/auto_ptr.h \
  /usr/include/c++/13/pstl/glue_memory_defs.h \
- /usr/lib/llvm-18/include/llvm/IR/FixedMetadataKinds.def \
+ /usr/lib/llvm-18/include/llvm/ADT/StringRef.h \
+ /usr/lib/llvm-18/include/llvm/ADT/DenseMapInfo.h \
+ /usr/include/c++/13/cstdint \
+ /usr/lib/llvm-18/include/llvm/ADT/STLFunctionalExtras.h \
+ /usr/lib/llvm-18/include/llvm/ADT/STLForwardCompat.h \
+ /usr/include/c++/13/optional \
+ /usr/lib/llvm-18/include/llvm/ADT/iterator_range.h \
+ /usr/lib/llvm-18/include/llvm/ADT/ADL.h \
+ /usr/lib/llvm-18/include/llvm/Support/DataTypes.h \
+ /usr/lib/llvm-18/include/llvm-c/DataTypes.h /usr/include/inttypes.h \
  /usr/lib/llvm-18/include/llvm/IR/Module.h \
+ /usr/lib/llvm-18/include/llvm-c/Types.h \
+ /usr/lib/llvm-18/include/llvm-c/ExternC.h \
  /usr/lib/llvm-18/include/llvm/ADT/STLExtras.h \
  /usr/lib/llvm-18/include/llvm/ADT/Hashing.h \
- /usr/lib/llvm-18/include/llvm/Support/DataTypes.h \
  /usr/lib/llvm-18/include/llvm/Support/ErrorHandling.h \
  /usr/lib/llvm-18/include/llvm/Support/SwapByteOrder.h \
  /usr/lib/llvm-18/include/llvm/ADT/bit.h \
  /usr/lib/llvm-18/include/llvm/ADT/iterator.h \
  /usr/lib/llvm-18/include/llvm/Config/abi-breaking.h \
- /usr/include/c++/13/functional /usr/include/c++/13/bits/std_function.h \
- /usr/include/c++/13/unordered_map \
- /usr/include/c++/13/bits/unordered_map.h \
- /usr/include/c++/13/bits/hashtable.h \
- /usr/include/c++/13/bits/hashtable_policy.h \
- /usr/include/c++/13/bits/node_handle.h \
- /usr/include/c++/13/bits/erase_if.h /usr/include/c++/13/vector \
- /usr/include/c++/13/bits/stl_vector.h \
- /usr/include/c++/13/bits/stl_bvector.h \
- /usr/include/c++/13/bits/vector.tcc /usr/include/c++/13/array \
- /usr/include/c++/13/compare \
  /usr/lib/llvm-18/include/llvm/ADT/StringMap.h \
  /usr/lib/llvm-18/include/llvm/ADT/StringMapEntry.h \
  /usr/lib/llvm-18/include/llvm/Support/AllocatorBase.h \
@@ -240,7 +227,6 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/lib/llvm-18/include/llvm/Support/PointerLikeTypeTraits.h \
  /usr/lib/llvm-18/include/llvm/IR/Attributes.h \
  /usr/lib/llvm-18/include/llvm/ADT/ArrayRef.h \
- /usr/lib/llvm-18/include/llvm/ADT/SmallVector.h \
  /usr/lib/llvm-18/include/llvm/ADT/BitmaskEnum.h \
  /usr/lib/llvm-18/include/llvm/Support/MathExtras.h \
  /usr/include/c++/13/climits \
@@ -256,12 +242,13 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/lib/llvm-18/include/llvm/Support/CodeGen.h \
  /usr/lib/llvm-18/include/llvm/Support/ModRef.h \
  /usr/lib/llvm-18/include/llvm/ADT/Sequence.h \
- /usr/lib/llvm-18/include/llvm/Support/raw_ostream.h \
  /usr/lib/llvm-18/include/llvm/IR/Attributes.inc \
  /usr/lib/llvm-18/include/llvm/IR/Comdat.h \
  /usr/lib/llvm-18/include/llvm/ADT/SmallPtrSet.h \
  /usr/lib/llvm-18/include/llvm/ADT/EpochTracker.h \
  /usr/lib/llvm-18/include/llvm/Support/ReverseIteration.h \
+ /usr/lib/llvm-18/include/llvm/Support/CBindingWrapping.h \
+ /usr/lib/llvm-18/include/llvm/Support/Casting.h \
  /usr/lib/llvm-18/include/llvm/IR/DataLayout.h \
  /usr/lib/llvm-18/include/llvm/ADT/APInt.h \
  /usr/lib/llvm-18/include/llvm/IR/DerivedTypes.h \
@@ -293,6 +280,9 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/lib/llvm-18/include/llvm/ADT/PointerUnion.h \
  /usr/lib/llvm-18/include/llvm/IR/Constant.h \
  /usr/lib/llvm-18/include/llvm/IR/User.h \
+ /usr/lib/llvm-18/include/llvm/IR/LLVMContext.h \
+ /usr/lib/llvm-18/include/llvm/IR/DiagnosticHandler.h \
+ /usr/lib/llvm-18/include/llvm/IR/FixedMetadataKinds.def \
  /usr/lib/llvm-18/include/llvm/IR/Metadata.def \
  /usr/lib/llvm-18/include/llvm/IR/Instruction.h \
  /usr/lib/llvm-18/include/llvm/ADT/Bitfields.h \
@@ -309,6 +299,7 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/lib/llvm-18/include/llvm/IR/GlobalIFunc.h \
  /usr/lib/llvm-18/include/llvm/IR/GlobalVariable.h \
  /usr/lib/llvm-18/include/llvm/IR/ProfileSummary.h \
+ /home/david/Documents/Code/biogpu/include/biogpu/codegen/llvm_codegen.h \
  /usr/lib/llvm-18/include/llvm/IR/IRBuilder.h \
  /usr/lib/llvm-18/include/llvm/IR/ConstantFolder.h \
  /usr/lib/llvm-18/include/llvm/IR/Constants.h \
@@ -327,41 +318,4 @@ CMakeFiles/biogpu.dir/src/main.cpp.o: \
  /usr/lib/llvm-18/include/llvm/IR/Instructions.h \
  /usr/lib/llvm-18/include/llvm/IR/CFG.h \
  /usr/lib/llvm-18/include/llvm/ADT/GraphTraits.h \
- /usr/lib/llvm-18/include/llvm/IR/ValueHandle.h \
- /usr/lib/llvm-18/include/llvm/IR/Verifier.h \
- /usr/lib/llvm-18/include/llvm/IR/PassManager.h \
- /usr/lib/llvm-18/include/llvm/ADT/TinyPtrVector.h \
- /usr/lib/llvm-18/include/llvm/IR/PassInstrumentation.h \
- /usr/lib/llvm-18/include/llvm/ADT/Any.h \
- /usr/lib/llvm-18/include/llvm/ADT/FunctionExtras.h \
- /usr/lib/llvm-18/include/llvm/IR/PassManagerInternal.h \
- /usr/lib/llvm-18/include/llvm/Support/CommandLine.h \
- /usr/lib/llvm-18/include/llvm/Support/ManagedStatic.h \
- /usr/include/c++/13/atomic \
- /usr/lib/llvm-18/include/llvm/Support/StringSaver.h \
- /usr/lib/llvm-18/include/llvm/Support/Allocator.h \
- /usr/lib/llvm-18/include/llvm/Support/TimeProfiler.h \
- /usr/lib/llvm-18/include/llvm/Support/Error.h \
- /usr/lib/llvm-18/include/llvm-c/Error.h \
- /usr/lib/llvm-18/include/llvm/Support/Debug.h \
- /usr/lib/llvm-18/include/llvm/Support/ErrorOr.h \
- /usr/lib/llvm-18/include/llvm/Support/Format.h \
- /usr/lib/llvm-18/include/llvm/Support/TypeName.h \
- /usr/include/c++/13/list /usr/include/c++/13/bits/stl_list.h \
- /usr/include/c++/13/bits/list.tcc \
- /usr/lib/llvm-18/include/llvm/Target/TargetMachine.h \
- /usr/lib/llvm-18/include/llvm/Support/PGOOptions.h \
- /usr/lib/llvm-18/include/llvm/ADT/IntrusiveRefCntPtr.h \
- /usr/lib/llvm-18/include/llvm/Target/CGPassBuilderOption.h \
- /usr/lib/llvm-18/include/llvm/Target/TargetOptions.h \
- /usr/lib/llvm-18/include/llvm/MC/MCTargetOptions.h \
- /usr/lib/llvm-18/include/llvm/Support/Compression.h \
- /usr/lib/llvm-18/include/llvm/TargetParser/Triple.h \
- /usr/lib/llvm-18/include/llvm/Support/VersionTuple.h \
- /usr/lib/llvm-18/include/llvm/Support/TargetSelect.h \
- /usr/lib/llvm-18/include/llvm/Config/Targets.def \
- /usr/lib/llvm-18/include/llvm/Config/AsmPrinters.def \
- /usr/lib/llvm-18/include/llvm/Config/AsmParsers.def \
- /usr/lib/llvm-18/include/llvm/Config/Disassemblers.def \
- /usr/lib/llvm-18/include/llvm/Config/TargetMCAs.def \
- /usr/lib/llvm-18/include/llvm/IR/InlineAsm.h
+ /usr/lib/llvm-18/include/llvm/IR/ValueHandle.h

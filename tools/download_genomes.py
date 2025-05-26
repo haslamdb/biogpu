@@ -393,6 +393,96 @@ class NCBIGenomeDownloader:
         
         return contig_df
         
+    def download_plasmid_files(self, limit: int = None) -> pd.DataFrame:
+        """
+        Download plasmid files directly from the plasmid directory.
+        
+        Args:
+            limit: Maximum number of files to download
+            
+        Returns:
+            DataFrame with download results
+        """
+        self.logger.info("\nProcessing plasmid library...")
+        
+        # Create local directory
+        plasmid_dir = self.data_dir / "plasmid"
+        plasmid_dir.mkdir(parents=True, exist_ok=True)
+        
+        # List files in the plasmid directory
+        try:
+            # Use wget to list directory contents
+            list_cmd = [
+                "wget", "-q", "-O-", 
+                f"ftp://{self.ftp_host}/genomes/refseq/plasmid/"
+            ]
+            result = subprocess.run(list_cmd, capture_output=True, text=True, check=True)
+            
+            # Parse for genomic.fna.gz files
+            import re
+            pattern = r'href="[^"]*/(plasmid\.[0-9]+\.[0-9]+\.genomic\.fna\.gz)"'
+            files = re.findall(pattern, result.stdout)
+            
+            self.logger.info(f"Found {len(files)} plasmid files to download")
+            
+            if limit and len(files) > limit:
+                files = files[:limit]
+                self.logger.info(f"Limited to {limit} files")
+            
+            # Download files
+            plasmid_metadata = []
+            for filename in files:
+                local_file = plasmid_dir / filename
+                
+                # Skip if already downloaded
+                if local_file.exists():
+                    self.logger.info(f"Already downloaded: {filename}")
+                    status = 'exists'
+                else:
+                    try:
+                        # Download the file
+                        wget_cmd = [
+                            "wget", "-q", "--show-progress",
+                            f"ftp://{self.ftp_host}/genomes/refseq/plasmid/{filename}",
+                            "-O", str(local_file)
+                        ]
+                        self.logger.info(f"Downloading: {filename}")
+                        subprocess.run(wget_cmd, check=True)
+                        status = 'completed'
+                    except Exception as e:
+                        self.logger.error(f"Failed to download {filename}: {e}")
+                        status = 'failed'
+                        if local_file.exists():
+                            local_file.unlink()
+                
+                # Add to metadata
+                plasmid_metadata.append({
+                    'filename': filename,
+                    'library': 'plasmid',
+                    'local_path': str(local_file),
+                    'download_status': status,
+                    'ftp_url': f"ftp://{self.ftp_host}/genomes/refseq/plasmid/{filename}"
+                })
+            
+            # Create DataFrame and save metadata
+            results_df = pd.DataFrame(plasmid_metadata)
+            metadata_file = plasmid_dir / "plasmid_metadata.csv"
+            results_df.to_csv(metadata_file, index=False)
+            self.logger.info(f"Saved metadata to {metadata_file}")
+            
+            # Summary statistics
+            if len(results_df) > 0:
+                status_counts = results_df['download_status'].value_counts()
+                self.logger.info(f"\nDownload summary for plasmids:")
+                for status, count in status_counts.items():
+                    self.logger.info(f"  {status}: {count}")
+            
+            return results_df
+            
+        except Exception as e:
+            self.logger.error(f"Failed to list plasmid directory: {e}")
+            return pd.DataFrame()
+    
     def create_combined_metadata(self) -> pd.DataFrame:
         """
         Create a combined metadata file for all downloaded libraries.
@@ -400,7 +490,11 @@ class NCBIGenomeDownloader:
         all_metadata = []
         
         for library in self.libraries.keys():
-            metadata_file = self.data_dir / library / "genome_metadata.csv"
+            if library == 'plasmid':
+                metadata_file = self.data_dir / library / "plasmid_metadata.csv"
+            else:
+                metadata_file = self.data_dir / library / "genome_metadata.csv"
+                
             if metadata_file.exists():
                 df = pd.read_csv(metadata_file)
                 all_metadata.append(df)
@@ -433,6 +527,9 @@ Examples:
   
   # Download all viral reference genomes
   python download_genomes.py --library viral
+  
+  # Download plasmid sequences (Note: plasmids are downloaded as bulk files)
+  python download_genomes.py --library plasmid --limit 5
   
   # Create contig mapping for downloaded genomes
   python download_genomes.py --library bacteria --create-mapping
@@ -515,16 +612,20 @@ Examples:
     
     # Download genomes for each library
     for library in args.library:
-        results = downloader.download_library_genomes(
-            library=library,
-            assembly_level=args.assembly_level,
-            limit=args.limit,
-            parallel=args.workers > 1,
-            reference_only=reference_only
-        )
+        if library == 'plasmid':
+            # Special handling for plasmids
+            results = downloader.download_plasmid_files(limit=args.limit)
+        else:
+            results = downloader.download_library_genomes(
+                library=library,
+                assembly_level=args.assembly_level,
+                limit=args.limit,
+                parallel=args.workers > 1,
+                reference_only=reference_only
+            )
         
-        # Create contig mapping if requested
-        if args.create_mapping and not results.empty:
+        # Create contig mapping if requested (skip for plasmids)
+        if args.create_mapping and not results.empty and library != 'plasmid':
             downloader.create_contig_mapping(library)
             
     # Create combined metadata if requested

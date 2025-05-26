@@ -221,7 +221,7 @@ class ResistanceGeneDownloader:
     def find_nucleotide_for_wp_accession(self, accession: str, species: str, gene_name: str) -> Tuple[str, int, int, bool]:
         """Special handling for WP_ RefSeq protein accessions"""
         try:
-            # Method 1: Use IPG (Identical Protein Groups) database
+            # Method 1: Use IPG (Identical Protein Groups) database - IMPROVED
             logger.info(f"Searching IPG database for {accession}")
             search_handle = Entrez.esearch(db="ipg", term=accession)
             search_results = Entrez.read(search_handle)
@@ -229,70 +229,134 @@ class ResistanceGeneDownloader:
             
             if search_results["IdList"]:
                 ipg_id = search_results["IdList"][0]
+                time.sleep(0.5)
                 # Fetch IPG record
                 ipg_handle = Entrez.efetch(db="ipg", id=ipg_id, rettype="xml")
                 ipg_records = Entrez.read(ipg_handle)
                 ipg_handle.close()
                 
-                # Look for nucleotide accessions in IPG record
+                # Look through all protein entries in the IPG
                 best_match = None
+                species_matches = []
+                
                 for report in ipg_records:
                     if "ProteinList" in report:
                         for protein in report["ProteinList"]:
                             if "CDSList" in protein:
                                 for cds in protein["CDSList"]:
-                                    if "accver" in cds and "start" in cds and "stop" in cds:
+                                    if all(k in cds for k in ["accver", "start", "stop"]):
                                         nuc_acc = cds["accver"]
                                         start = int(cds["start"])
                                         stop = int(cds["stop"])
                                         strand = cds.get("strand", "+")
                                         is_complement = strand == "-"
+                                        org = cds.get("org", "")
                                         
-                                        # Prefer complete genomes or chromosomes
+                                        # Check if organism matches
+                                        if species.lower() in org.lower():
+                                            species_matches.append((nuc_acc, start, stop, is_complement))
+                                            logger.info(f"Found species match: {nuc_acc}:{start}..{stop} in {org}")
+                                        
+                                        # Prefer RefSeq complete genomes
                                         if nuc_acc.startswith(("NC_", "NZ_")):
-                                            logger.info(f"Found nucleotide location via IPG: {nuc_acc}:{start}..{stop}")
-                                            return nuc_acc, start, stop, is_complement
-                                        elif not best_match:
-                                            # Store first match as backup
+                                            if not best_match or (species.lower() in org.lower()):
+                                                best_match = (nuc_acc, start, stop, is_complement)
+                                        elif not best_match and not species_matches:
+                                            # Store any match as backup
                                             best_match = (nuc_acc, start, stop, is_complement)
                 
-                # Return best match if no complete genome found
-                if best_match:
-                    logger.info(f"Found nucleotide location via IPG (non-RefSeq): {best_match[0]}:{best_match[1]}..{best_match[2]}")
+                # Return species-specific match if found, otherwise best match
+                if species_matches:
+                    logger.info(f"Using species-specific match: {species_matches[0][0]}")
+                    return species_matches[0]
+                elif best_match:
+                    logger.info(f"Using best available match: {best_match[0]}")
                     return best_match
             
-            # Method 2: Search for the gene name and species
-            logger.info(f"Searching for {gene_name} in {species}")
-            search_term = f"{species}[Organism] AND {gene_name}[Gene Name] AND refseq[Filter]"
-            search_handle = Entrez.esearch(db="nucleotide", term=search_term, retmax=10)
-            search_results = Entrez.read(search_handle)
-            search_handle.close()
+            # Method 2: Try multiple search strategies
+            logger.info(f"Trying alternative search strategies for {gene_name} in {species}")
             
-            if search_results["IdList"]:
-                # Check each result for the gene
-                for nuc_id in search_results["IdList"]:
-                    try:
-                        handle = Entrez.efetch(db="nucleotide", id=nuc_id, rettype="gb", retmode="text")
-                        record = SeqIO.read(handle, "genbank")
-                        handle.close()
+            # Search strategies
+            search_strategies = [
+                # Try exact protein accession search
+                f'{accession}[Protein Accession]',
+                # Try with organism and gene
+                f'"{species}"[Organism] AND {gene_name}[Gene Name]',
+                # Try base gene name without number
+                f'"{species}"[Organism] AND {gene_name.rstrip("0123456789")}[Gene Name]',
+                # Try product name search for qepA
+                f'"{species}"[Organism] AND "qepA" AND "efflux"[Title]' if "qepA" in gene_name else None,
+                # Try all fields search
+                f'{accession}[All Fields]'
+            ]
+            
+            for search_term in [s for s in search_strategies if s]:
+                try:
+                    time.sleep(0.5)
+                    search_handle = Entrez.esearch(db="nucleotide", term=search_term, retmax=20)
+                    search_results = Entrez.read(search_handle)
+                    search_handle.close()
+                    
+                    if search_results["IdList"]:
+                        logger.debug(f"Search '{search_term}' found {len(search_results['IdList'])} results")
                         
-                        # Look for CDS features with the gene name
-                        for feature in record.features:
-                            if feature.type == "CDS":
-                                gene_names = feature.qualifiers.get("gene", []) + feature.qualifiers.get("locus_tag", [])
-                                if any(gene_name.lower() in gn.lower() for gn in gene_names):
-                                    # Check if protein matches
-                                    if "protein_id" in feature.qualifiers:
-                                        prot_id = feature.qualifiers["protein_id"][0]
-                                        if prot_id == accession:
+                        # Check each result
+                        for nuc_id in search_results["IdList"]:
+                            try:
+                                handle = Entrez.efetch(db="nucleotide", id=nuc_id, rettype="gb", retmode="text")
+                                record = SeqIO.read(handle, "genbank")
+                                handle.close()
+                                
+                                # Look for CDS features
+                                for feature in record.features:
+                                    if feature.type == "CDS":
+                                        # Check various identifiers
+                                        protein_ids = feature.qualifiers.get("protein_id", [])
+                                        db_xrefs = feature.qualifiers.get("db_xref", [])
+                                        gene_names = feature.qualifiers.get("gene", [])
+                                        locus_tags = feature.qualifiers.get("locus_tag", [])
+                                        products = feature.qualifiers.get("product", [])
+                                        
+                                        # Check if this CDS corresponds to our protein
+                                        # 1. Direct protein_id match
+                                        if accession in protein_ids:
                                             start = int(feature.location.start) + 1
                                             end = int(feature.location.end)
                                             is_complement = feature.location.strand == -1
-                                            logger.info(f"Found exact match: {record.id}:{start}..{end}")
+                                            logger.info(f"Found exact match in {record.id}:{start}..{end}")
                                             return record.id, start, end, is_complement
-                    except Exception as e:
-                        logger.debug(f"Error checking nucleotide {nuc_id}: {e}")
-                        continue
+                                        
+                                        # 2. Check db_xref for protein accession
+                                        for xref in db_xrefs:
+                                            if f"RefSeq:{accession}" in xref or accession in xref:
+                                                start = int(feature.location.start) + 1
+                                                end = int(feature.location.end)
+                                                is_complement = feature.location.strand == -1
+                                                logger.info(f"Found via db_xref in {record.id}:{start}..{end}")
+                                                return record.id, start, end, is_complement
+                                        
+                                        # 3. Check if gene name matches and organism matches
+                                        all_gene_names = gene_names + locus_tags
+                                        if any(gn.lower() == gene_name.lower() or 
+                                               (gene_name.rstrip("0123456789").lower() in gn.lower()) 
+                                               for gn in all_gene_names):
+                                            if species.lower() in record.annotations.get('organism', '').lower():
+                                                # This might be the right gene
+                                                start = int(feature.location.start) + 1
+                                                end = int(feature.location.end)
+                                                is_complement = feature.location.strand == -1
+                                                logger.info(f"Found by gene name match in {record.id}:{start}..{end}")
+                                                
+                                                # Verify by checking if translation exists
+                                                if "translation" in feature.qualifiers:
+                                                    return record.id, start, end, is_complement
+                                
+                            except Exception as e:
+                                logger.debug(f"Error checking nucleotide {nuc_id}: {e}")
+                                continue
+                                
+                except Exception as e:
+                    logger.debug(f"Search error for '{search_term}': {e}")
         
         except Exception as e:
             logger.error(f"Error in WP accession lookup: {e}")
@@ -503,122 +567,80 @@ class ResistanceGeneDownloader:
                 self.reference_genes[f"{species}_{gene}_{protein_acc}"] = ref_gene
     
     def download_resistance_gene_references(self):
-            """Download reference sequences for plasmid-mediated resistance genes"""
-            logger.info("Downloading reference sequences for resistance genes...")
+        """Download reference sequences for plasmid-mediated resistance genes"""
+        logger.info("Downloading reference sequences for resistance genes...")
+        
+        genes = self.load_resistance_genes()
+        processed_accessions = set()
+        
+        # Track statistics
+        cr_variants_found = 0
+        
+        for gene_info in genes:
+            protein_acc = gene_info['protein_accession']
+            gene_name = gene_info['gene']
             
-            genes = self.load_resistance_genes()
-            processed_accessions = set()
-            
-            # Track statistics
-            cr_variants_found = 0
-            
-            for gene_info in genes:
-                protein_acc = gene_info['protein_accession']
-                gene_name = gene_info['gene']
+            # Skip if already processed
+            if protein_acc in processed_accessions:
+                continue
                 
-                # Skip if already processed
-                if protein_acc in processed_accessions:
-                    continue
-                    
-                processed_accessions.add(protein_acc)
+            processed_accessions.add(protein_acc)
+            
+            # Special handling for potential aac(6')-Ib genes
+            if 'aac' in gene_name.lower() and '6' in gene_name:
+                logger.info(f"Checking potential aac(6')-Ib variant: {gene_name} ({protein_acc})")
                 
-                # Special handling for potential aac(6')-Ib genes
-                if 'aac' in gene_name.lower() and '6' in gene_name:
-                    logger.info(f"Checking potential aac(6')-Ib variant: {gene_name} ({protein_acc})")
-                    
-                    # First, fetch the protein to check if it's a -cr variant
-                    try:
-                        protein_record = self.fetch_protein_record(protein_acc)
-                        if protein_record:
-                            protein_seq = str(protein_record.seq)
-                            
-                            # Check if this is a -cr variant
-                            if self.is_fluoroquinolone_acetyltransferase(gene_name, protein_seq):
-                                logger.info(f"✓ Confirmed -cr variant: {gene_name}")
-                                cr_variants_found += 1
+                # First, fetch the protein to check if it's a -cr variant
+                try:
+                    protein_record = self.fetch_protein_record(protein_acc)
+                    if protein_record:
+                        protein_seq = str(protein_record.seq)
+                        
+                        # Check if this is a -cr variant
+                        if self.is_fluoroquinolone_acetyltransferase(gene_name, protein_seq):
+                            logger.info(f"✓ Confirmed -cr variant: {gene_name}")
+                            cr_variants_found += 1
+                        else:
+                            # Check the annotation for clues
+                            for feature in protein_record.features:
+                                if feature.type == "Protein":
+                                    if "product" in feature.qualifiers:
+                                        product = feature.qualifiers["product"][0]
+                                        if "fluoroquinolone" in product.lower() or "-cr" in product.lower():
+                                            logger.info(f"✓ Confirmed -cr variant by annotation: {product}")
+                                            cr_variants_found += 1
+                                            break
                             else:
-                                # Check the annotation for clues
-                                for feature in protein_record.features:
-                                    if feature.type == "Protein":
-                                        if "product" in feature.qualifiers:
-                                            product = feature.qualifiers["product"][0]
-                                            if "fluoroquinolone" in product.lower() or "-cr" in product.lower():
-                                                logger.info(f"✓ Confirmed -cr variant by annotation: {product}")
-                                                cr_variants_found += 1
-                                                break
-                                else:
-                                    logger.info(f"✗ Not a -cr variant (regular aminoglycoside acetyltransferase)")
-                                    continue  # Skip non-cr variants
-                    except Exception as e:
-                        logger.warning(f"Could not verify if {gene_name} is -cr variant: {e}")
-                
-                # Check if this is any other PMQR gene we want
-                is_pmqr = False
-                for category, gene_list in self.pmqr_genes.items():
-                    if any(gene_name.startswith(g) for g in gene_list):
-                        is_pmqr = True
-                        logger.info(f"Processing PMQR gene ({category}): {gene_info['species']} {gene_name} ({protein_acc})")
-                        break
-                
-                if not is_pmqr and 'aac' not in gene_name.lower():
-                    # Skip if not a PMQR gene we're interested in
-                    continue
-                
-                ref_gene = self.process_protein_accession(
-                    protein_acc,
-                    gene_info['species'],
-                    gene_name,
-                    gene_info
-                )
-                
-                if ref_gene:
-                    key = f"{gene_info['species']}_{gene_name}_{protein_acc}"
-                    self.reference_genes[key] = ref_gene
+                                logger.info(f"✗ Not a -cr variant (regular aminoglycoside acetyltransferase)")
+                                continue  # Skip non-cr variants
+                except Exception as e:
+                    logger.warning(f"Could not verify if {gene_name} is -cr variant: {e}")
             
-            logger.info(f"Found {cr_variants_found} aac(6')-Ib-cr variants")
+            # Check if this is any other PMQR gene we want
+            is_pmqr = False
+            for category, gene_list in self.pmqr_genes.items():
+                if any(gene_name.startswith(g) for g in gene_list):
+                    is_pmqr = True
+                    logger.info(f"Processing PMQR gene ({category}): {gene_info['species']} {gene_name} ({protein_acc})")
+                    break
+            
+            if not is_pmqr and 'aac' not in gene_name.lower():
+                # Skip if not a PMQR gene we're interested in
+                continue
+            
+            ref_gene = self.process_protein_accession(
+                protein_acc,
+                gene_info['species'],
+                gene_name,
+                gene_info
+            )
+            
+            if ref_gene:
+                key = f"{gene_info['species']}_{gene_name}_{protein_acc}"
+                self.reference_genes[key] = ref_gene
         
-    def create_gpu_index(self) -> Dict:
-        """Create GPU-optimized index structures"""
-        logger.info("Creating GPU-optimized index...")
-        
-        # Collect all sequences
-        sequences = []
-        sequence_info = []
-        
-        for key, ref_gene in self.reference_genes.items():
-            # Add full sequence (with flanking)
-            sequences.append(ref_gene.full_sequence)
-            sequence_info.append({
-                'key': key,
-                'species': ref_gene.species,
-                'gene': ref_gene.gene_name,
-                'gene_start_in_seq': len(ref_gene.flanking_5prime),
-                'gene_end_in_seq': len(ref_gene.flanking_5prime) + len(ref_gene.nucleotide_sequence),
-                'mutations': ref_gene.mutations
-            })
-        
-        # Create 2-bit encoded sequences for GPU
-        encoded_sequences = []
-        encoding = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
-        
-        for seq in sequences:
-            encoded = []
-            for i in range(0, len(seq), 16):  # Pack 16 bases into 32 bits
-                chunk = seq[i:i+16]
-                packed = 0
-                for j, base in enumerate(chunk):
-                    if base in encoding:
-                        packed |= (encoding[base] << (2 * j))
-                encoded.append(packed)
-            encoded_sequences.append(np.array(encoded, dtype=np.uint32))
-        
-        return {
-            'sequences': sequences,
-            'encoded_sequences': encoded_sequences,
-            'sequence_info': sequence_info,
-            'num_sequences': len(sequences)
-        }
-
+        logger.info(f"Found {cr_variants_found} aac(6')-Ib-cr variants")
+    
     def search_for_cr_variants(self):
         """
         Actively search NCBI for aac(6')-Ib-cr variants that might be missed
@@ -686,6 +708,48 @@ class ResistanceGeneDownloader:
                 logger.warning(f"Search error for '{term}': {e}")
         
         logger.info(f"Additional -cr variants found through search: {len(found_accessions)}")
+    
+    def create_gpu_index(self) -> Dict:
+        """Create GPU-optimized index structures"""
+        logger.info("Creating GPU-optimized index...")
+        
+        # Collect all sequences
+        sequences = []
+        sequence_info = []
+        
+        for key, ref_gene in self.reference_genes.items():
+            # Add full sequence (with flanking)
+            sequences.append(ref_gene.full_sequence)
+            sequence_info.append({
+                'key': key,
+                'species': ref_gene.species,
+                'gene': ref_gene.gene_name,
+                'gene_start_in_seq': len(ref_gene.flanking_5prime),
+                'gene_end_in_seq': len(ref_gene.flanking_5prime) + len(ref_gene.nucleotide_sequence),
+                'mutations': ref_gene.mutations
+            })
+        
+        # Create 2-bit encoded sequences for GPU
+        encoded_sequences = []
+        encoding = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+        
+        for seq in sequences:
+            encoded = []
+            for i in range(0, len(seq), 16):  # Pack 16 bases into 32 bits
+                chunk = seq[i:i+16]
+                packed = 0
+                for j, base in enumerate(chunk):
+                    if base in encoding:
+                        packed |= (encoding[base] << (2 * j))
+                encoded.append(packed)
+            encoded_sequences.append(np.array(encoded, dtype=np.uint32))
+        
+        return {
+            'sequences': sequences,
+            'encoded_sequences': encoded_sequences,
+            'sequence_info': sequence_info,
+            'num_sequences': len(sequences)
+        }
     
     def save_database(self, output_dir: str):
         """Save the reference database"""
@@ -801,13 +865,12 @@ def main():
     downloader.download_mutation_gene_references()
     downloader.download_resistance_gene_references()
     
-    # Search for additional -cr variants that might be missed
-    if args.search_cr:  # Add this as a command line option
+    # Search for additional -cr variants if requested
+    if args.search_cr:
         downloader.search_for_cr_variants()
     
     # Save database
     downloader.save_database(args.output)    
-
 
     print("\n=== Download Summary ===")
     print(f"Successfully downloaded: {len(downloader.reference_genes)} references")

@@ -154,8 +154,15 @@ class NCBIGenomeDownloader:
         
         # Filter for reference genomes only if requested
         if reference_only:
-            working_df = assembly_df[assembly_df['refseq_category'] == 'reference genome']
-            self.logger.info(f"Found {len(working_df)} reference genomes out of {len(assembly_df)} total assemblies")
+            # Check if there are any reference genomes in this library
+            reference_df = assembly_df[assembly_df['refseq_category'] == 'reference genome']
+            if len(reference_df) > 0:
+                working_df = reference_df
+                self.logger.info(f"Found {len(working_df)} reference genomes out of {len(assembly_df)} total assemblies")
+            else:
+                # For libraries without reference genomes (like viral), use all genomes
+                working_df = assembly_df
+                self.logger.info(f"No reference genomes found in this library. Processing all {len(working_df)} assemblies")
         else:
             working_df = assembly_df
             self.logger.info(f"Processing all {len(working_df)} assemblies")

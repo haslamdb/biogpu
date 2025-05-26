@@ -61,12 +61,47 @@ class ResistanceGeneDownloader:
         # Target genes for fluoroquinolone resistance
         self.target_genes = {'gyrA', 'gyrB', 'parC', 'parE', 'grlA', 'grlB'}
         
+        # Add PMQR genes that we specifically want to capture
+        self.pmqr_genes = {
+            'qnr': ['qnrA', 'qnrB', 'qnrS', 'qnrC', 'qnrD', 'qnrE', 'qnrVC'],
+            'efflux': ['qepA', 'oqxA', 'oqxB'],
+            'acetyltransferase': ['aac(6\')-Ib-cr', 'aac(6\')Ib-cr', 'aac6-Ib-cr']  # Various annotation styles
+        }
+        
         # Gene name variations (some species use different names)
         self.gene_aliases = {
             'grlA': ['parC'],  # In S. aureus, grlA is equivalent to parC
             'grlB': ['parE'],  # In S. aureus, grlB is equivalent to parE
         }
+
+    def is_fluoroquinolone_acetyltransferase(self, gene_name: str, protein_seq: str = None) -> bool:
+        """
+        Identify if this is a fluoroquinolone-modifying acetyltransferase variant.
+        The -cr variant has specific mutations (W102R and D179Y) that confer FQ resistance.
+        """
+        # Check gene name patterns
+        cr_patterns = [
+            'aac(6\')-Ib-cr', 'aac(6\')Ib-cr', 'aac6-Ib-cr', 
+            'aac(6\')-Ib-cr1', 'aac(6\')-Ib-cr2',  # Numbered variants
+            'AAC(6\')-Ib-cr', 'AAC6-Ib-cr'  # Uppercase variants
+        ]
         
+        # Check if gene name matches known -cr patterns
+        gene_lower = gene_name.lower()
+        if any(pattern.lower() in gene_lower for pattern in cr_patterns):
+            return True
+        
+        # If we have the protein sequence, check for characteristic mutations
+        if protein_seq and len(protein_seq) > 179:
+            # The -cr variant has W102R and D179Y mutations
+            # Note: These positions might vary slightly depending on the reference
+            if len(protein_seq) > 102 and protein_seq[101] == 'R':  # 0-based index
+                if len(protein_seq) > 179 and protein_seq[178] == 'Y':
+                    logger.info(f"Detected -cr variant by sequence analysis: W102R and D179Y present")
+                    return True
+        
+        return False
+            
     def load_mutation_data(self) -> Dict[str, List[Dict]]:
         """Load mutation data from CSV"""
         logger.info("Loading mutation data...")
@@ -122,7 +157,7 @@ class ResistanceGeneDownloader:
         return None
     
     def fetch_nucleotide_with_flanking(self, nucleotide_acc: str, start: int, end: int, 
-                                     is_complement: bool = False) -> Tuple[str, str, str]:
+                                        is_complement: bool = False) -> Tuple[str, str, str]:
         """Fetch nucleotide sequence with flanking regions"""
         try:
             # Calculate positions with flanking
@@ -468,42 +503,80 @@ class ResistanceGeneDownloader:
                 self.reference_genes[f"{species}_{gene}_{protein_acc}"] = ref_gene
     
     def download_resistance_gene_references(self):
-        """Download reference sequences for plasmid-mediated resistance genes"""
-        logger.info("Downloading reference sequences for resistance genes...")
-        
-        genes = self.load_resistance_genes()
-        processed_accessions = set()
-        
-        # Group genes by type for better logging
-        plasmid_genes = ['qnr', 'aac', 'qep', 'oqx', 'qnrVC']
-        
-        for gene_info in genes:
-            protein_acc = gene_info['protein_accession']
+            """Download reference sequences for plasmid-mediated resistance genes"""
+            logger.info("Downloading reference sequences for resistance genes...")
             
-            # Skip if already processed
-            if protein_acc in processed_accessions:
-                continue
+            genes = self.load_resistance_genes()
+            processed_accessions = set()
+            
+            # Track statistics
+            cr_variants_found = 0
+            
+            for gene_info in genes:
+                protein_acc = gene_info['protein_accession']
+                gene_name = gene_info['gene']
                 
-            processed_accessions.add(protein_acc)
+                # Skip if already processed
+                if protein_acc in processed_accessions:
+                    continue
+                    
+                processed_accessions.add(protein_acc)
+                
+                # Special handling for potential aac(6')-Ib genes
+                if 'aac' in gene_name.lower() and '6' in gene_name:
+                    logger.info(f"Checking potential aac(6')-Ib variant: {gene_name} ({protein_acc})")
+                    
+                    # First, fetch the protein to check if it's a -cr variant
+                    try:
+                        protein_record = self.fetch_protein_record(protein_acc)
+                        if protein_record:
+                            protein_seq = str(protein_record.seq)
+                            
+                            # Check if this is a -cr variant
+                            if self.is_fluoroquinolone_acetyltransferase(gene_name, protein_seq):
+                                logger.info(f"✓ Confirmed -cr variant: {gene_name}")
+                                cr_variants_found += 1
+                            else:
+                                # Check the annotation for clues
+                                for feature in protein_record.features:
+                                    if feature.type == "Protein":
+                                        if "product" in feature.qualifiers:
+                                            product = feature.qualifiers["product"][0]
+                                            if "fluoroquinolone" in product.lower() or "-cr" in product.lower():
+                                                logger.info(f"✓ Confirmed -cr variant by annotation: {product}")
+                                                cr_variants_found += 1
+                                                break
+                                else:
+                                    logger.info(f"✗ Not a -cr variant (regular aminoglycoside acetyltransferase)")
+                                    continue  # Skip non-cr variants
+                    except Exception as e:
+                        logger.warning(f"Could not verify if {gene_name} is -cr variant: {e}")
+                
+                # Check if this is any other PMQR gene we want
+                is_pmqr = False
+                for category, gene_list in self.pmqr_genes.items():
+                    if any(gene_name.startswith(g) for g in gene_list):
+                        is_pmqr = True
+                        logger.info(f"Processing PMQR gene ({category}): {gene_info['species']} {gene_name} ({protein_acc})")
+                        break
+                
+                if not is_pmqr and 'aac' not in gene_name.lower():
+                    # Skip if not a PMQR gene we're interested in
+                    continue
+                
+                ref_gene = self.process_protein_accession(
+                    protein_acc,
+                    gene_info['species'],
+                    gene_name,
+                    gene_info
+                )
+                
+                if ref_gene:
+                    key = f"{gene_info['species']}_{gene_name}_{protein_acc}"
+                    self.reference_genes[key] = ref_gene
             
-            # Check if this is likely a plasmid gene
-            is_plasmid_gene = any(gene_info['gene'].startswith(pg) for pg in plasmid_genes)
-            if is_plasmid_gene:
-                logger.info(f"Processing plasmid-mediated gene: {gene_info['species']} {gene_info['gene']} ({protein_acc})")
-            else:
-                logger.info(f"Processing {gene_info['species']} {gene_info['gene']} ({protein_acc})")
-            
-            ref_gene = self.process_protein_accession(
-                protein_acc,
-                gene_info['species'],
-                gene_info['gene'],
-                gene_info
-            )
-            
-            if ref_gene:
-                key = f"{gene_info['species']}_{gene_info['gene']}_{protein_acc}"
-                self.reference_genes[key] = ref_gene
-    
+            logger.info(f"Found {cr_variants_found} aac(6')-Ib-cr variants")
+        
     def create_gpu_index(self) -> Dict:
         """Create GPU-optimized index structures"""
         logger.info("Creating GPU-optimized index...")
@@ -545,6 +618,74 @@ class ResistanceGeneDownloader:
             'sequence_info': sequence_info,
             'num_sequences': len(sequences)
         }
+
+    def search_for_cr_variants(self):
+        """
+        Actively search NCBI for aac(6')-Ib-cr variants that might be missed
+        """
+        logger.info("Searching for additional aac(6')-Ib-cr variants...")
+        
+        search_terms = [
+            '"aac(6\')Ib-cr"[Gene Name]',
+            '"aac(6\')-Ib-cr"[Gene Name]',
+            '"fluoroquinolone acetyltransferase"[Title]',
+            'aac6Ib AND fluoroquinolone[Title]'
+        ]
+        
+        found_accessions = set()
+        
+        for term in search_terms:
+            try:
+                search_handle = Entrez.esearch(db="protein", term=term, retmax=100)
+                search_results = Entrez.read(search_handle)
+                search_handle.close()
+                
+                logger.info(f"Search '{term}' found {len(search_results['IdList'])} results")
+                
+                for protein_id in search_results["IdList"]:
+                    if protein_id not in found_accessions:
+                        found_accessions.add(protein_id)
+                        
+                        # Fetch and verify this is really a -cr variant
+                        try:
+                            handle = Entrez.efetch(db="protein", id=protein_id, rettype="gb", retmode="text")
+                            record = SeqIO.read(handle, "genbank")
+                            handle.close()
+                            
+                            # Extract species and gene info
+                            species = record.annotations.get('organism', 'Unknown')
+                            gene_name = None
+                            
+                            for feature in record.features:
+                                if feature.type == "gene" and "gene" in feature.qualifiers:
+                                    gene_name = feature.qualifiers["gene"][0]
+                                    break
+                            
+                            if not gene_name:
+                                gene_name = "aac(6')-Ib-cr"  # Default name
+                            
+                            # Verify it's a -cr variant
+                            if self.is_fluoroquinolone_acetyltransferase(gene_name, str(record.seq)):
+                                logger.info(f"Found -cr variant: {record.id} from {species}")
+                                
+                                # Process this accession
+                                ref_gene = self.process_protein_accession(
+                                    record.id,
+                                    species,
+                                    gene_name
+                                )
+                                
+                                if ref_gene:
+                                    key = f"{species}_{gene_name}_{record.id}"
+                                    self.reference_genes[key] = ref_gene
+                                    
+                        except Exception as e:
+                            logger.warning(f"Error processing {protein_id}: {e}")
+                            
+            except Exception as e:
+                logger.warning(f"Search error for '{term}': {e}")
+        
+        logger.info(f"Additional -cr variants found through search: {len(found_accessions)}")
     
     def save_database(self, output_dir: str):
         """Save the reference database"""
@@ -625,6 +766,7 @@ class ResistanceGeneDownloader:
         logger.info(f"Mutations tracked: {stats['mutations_tracked']}")
         logger.info(f"Resistance genes: {stats['resistance_genes']}")
 
+
 def main():
     """Main function"""
     import argparse
@@ -640,7 +782,9 @@ def main():
                        help='Size of flanking regions to include')
     parser.add_argument('--email', type=str, required=True,
                        help='Your email for NCBI Entrez')
-    
+    parser.add_argument('--search-cr', action='store_true',
+                       help='Actively search for aac(6\')-Ib-cr variants')
+
     args = parser.parse_args()
     
     # Set email for Entrez
@@ -657,9 +801,14 @@ def main():
     downloader.download_mutation_gene_references()
     downloader.download_resistance_gene_references()
     
-    # Save database
-    downloader.save_database(args.output)
+    # Search for additional -cr variants that might be missed
+    if args.search_cr:  # Add this as a command line option
+        downloader.search_for_cr_variants()
     
+    # Save database
+    downloader.save_database(args.output)    
+
+
     print("\n=== Download Summary ===")
     print(f"Successfully downloaded: {len(downloader.reference_genes)} references")
     print(f"Failed downloads: {len(downloader.failed_downloads)}")

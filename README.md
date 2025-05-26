@@ -102,8 +102,7 @@ pipeline FluoroquinoloneResistance {
 ## TODO List
 
 ### 1. Build Microbial Genome Database
-- [ ] Download RefSeq complete bacterial genomes
-- [ ] Create GPU-optimized k-mer index structure
+- [ ] Create GPU-optimized k-mer index structure from downloaded genomes
 - [ ] Implement genome database serialization format
 - [ ] Add support for custom clinical isolate genomes
 - [ ] Build incremental update mechanism

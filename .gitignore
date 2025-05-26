@@ -1,3 +1,19 @@
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+
+# Configuration files
+*.conf
+
+# Cache files
+*.cache
+
 # Build directories
 build/
 cmake-build-*/

@@ -102,16 +102,13 @@ pipeline FluoroquinoloneResistance {
 ## TODO List
 
 ### 1. Build Microbial Genome Database
-- [ ] Create GPU-optimized k-mer index structure from downloaded genomes
+- [ ] Create GPU-optimized k-mer index structure from downloaded genomes in data/genomes
 - [ ] Implement genome database serialization format
 - [ ] Add support for custom clinical isolate genomes
 - [ ] Build incremental update mechanism
 
 ### 2. Build Resistance Gene and Mutation Database
-- [ ] Curate fluoroquinolone resistance mutations from literature
-- [ ] Create QRDR mutation catalog (gyrA S83L, D87N, parC S80I, E84V, etc.)
-- [ ] Include plasmid-mediated resistance genes (qnr variants, aac(6')-Ib-cr)
-- [ ] Design GPU-friendly mutation index structure
+- [ ] Design GPU-friendly mutation index structure from files in data/fq_resistance_db
 - [ ] Implement mutation confidence scoring system
 
 ### 3. Adapt Current CPU Code to GPU
@@ -137,8 +134,8 @@ pipeline FluoroquinoloneResistance {
 
 ### 6. Language Infrastructure
 - [ ] Implement lexer/parser for BioGPU syntax
-- [ ] Create AST representation
-- [ ] Build CUDA code generator
+- [ ] Create AST representation - done I think
+- [ ] Build CUDA code generator - done I think 
 - [ ] Add LLVM-based optimization passes
 - [ ] Implement type system for biological data
 

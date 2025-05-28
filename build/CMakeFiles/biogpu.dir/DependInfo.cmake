@@ -11,6 +11,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/david/Documents/Code/biogpu/src/codegen/ast_codegen.cpp" "CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o.d"
   "/home/david/Documents/Code/biogpu/src/codegen/llvm_codegen.cpp" "CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o.d"
   "/home/david/Documents/Code/biogpu/src/compiler/compiler.cpp" "CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o.d"
+  "/home/david/Documents/Code/biogpu/src/main.cpp" "CMakeFiles/biogpu.dir/src/main.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/main.cpp.o.d"
   "/home/david/Documents/Code/biogpu/src/parser/BioGPUBaseVisitor.cpp" "CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o.d"
   "/home/david/Documents/Code/biogpu/src/parser/BioGPULexer.cpp" "CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o.d"
   "/home/david/Documents/Code/biogpu/src/parser/BioGPUParser.cpp" "CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o" "gcc" "CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o.d"

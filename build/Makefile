@@ -226,6 +226,69 @@ biogpu/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/build
 .PHONY : biogpu/fast
 
+#=============================================================================
+# Target rules for targets named biogpu_kernels
+
+# Build rule for target.
+biogpu_kernels: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 biogpu_kernels
+.PHONY : biogpu_kernels
+
+# fast build rule for target.
+biogpu_kernels/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/build
+.PHONY : biogpu_kernels/fast
+
+#=============================================================================
+# Target rules for targets named test_cuda_kernels
+
+# Build rule for target.
+test_cuda_kernels: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_cuda_kernels
+.PHONY : test_cuda_kernels
+
+# fast build rule for target.
+test_cuda_kernels/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/build
+.PHONY : test_cuda_kernels/fast
+
+#=============================================================================
+# Target rules for targets named test_titanxp
+
+# Build rule for target.
+test_titanxp: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_titanxp
+.PHONY : test_titanxp
+
+# fast build rule for target.
+test_titanxp/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_titanxp.dir/build.make CMakeFiles/test_titanxp.dir/build
+.PHONY : test_titanxp/fast
+
+runtime/kernels/resistance/fq_resistance.o: runtime/kernels/resistance/fq_resistance.cu.o
+.PHONY : runtime/kernels/resistance/fq_resistance.o
+
+# target to build an object file
+runtime/kernels/resistance/fq_resistance.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_resistance.cu.o
+.PHONY : runtime/kernels/resistance/fq_resistance.cu.o
+
+runtime/kernels/resistance/fq_resistance.i: runtime/kernels/resistance/fq_resistance.cu.i
+.PHONY : runtime/kernels/resistance/fq_resistance.i
+
+# target to preprocess a source file
+runtime/kernels/resistance/fq_resistance.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_resistance.cu.i
+.PHONY : runtime/kernels/resistance/fq_resistance.cu.i
+
+runtime/kernels/resistance/fq_resistance.s: runtime/kernels/resistance/fq_resistance.cu.s
+.PHONY : runtime/kernels/resistance/fq_resistance.s
+
+# target to generate assembly for a file
+runtime/kernels/resistance/fq_resistance.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_resistance.cu.s
+.PHONY : runtime/kernels/resistance/fq_resistance.cu.s
+
 src/codegen/ast_codegen.o: src/codegen/ast_codegen.cpp.o
 .PHONY : src/codegen/ast_codegen.o
 
@@ -297,6 +360,30 @@ src/compiler/compiler.s: src/compiler/compiler.cpp.s
 src/compiler/compiler.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.s
 .PHONY : src/compiler/compiler.cpp.s
+
+src/main.o: src/main.cpp.o
+.PHONY : src/main.o
+
+# target to build an object file
+src/main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.o
+.PHONY : src/main.cpp.o
+
+src/main.i: src/main.cpp.i
+.PHONY : src/main.i
+
+# target to preprocess a source file
+src/main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.i
+.PHONY : src/main.cpp.i
+
+src/main.s: src/main.cpp.s
+.PHONY : src/main.s
+
+# target to generate assembly for a file
+src/main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.s
+.PHONY : src/main.cpp.s
 
 src/parser/BioGPUBaseVisitor.o: src/parser/BioGPUBaseVisitor.cpp.o
 .PHONY : src/parser/BioGPUBaseVisitor.o
@@ -538,6 +625,30 @@ src/stdlib/algorithms/resistance_pssm.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.s
 .PHONY : src/stdlib/algorithms/resistance_pssm.cpp.s
 
+tests/test_cuda_kernels.o: tests/test_cuda_kernels.cpp.o
+.PHONY : tests/test_cuda_kernels.o
+
+# target to build an object file
+tests/test_cuda_kernels.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/tests/test_cuda_kernels.cpp.o
+.PHONY : tests/test_cuda_kernels.cpp.o
+
+tests/test_cuda_kernels.i: tests/test_cuda_kernels.cpp.i
+.PHONY : tests/test_cuda_kernels.i
+
+# target to preprocess a source file
+tests/test_cuda_kernels.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/tests/test_cuda_kernels.cpp.i
+.PHONY : tests/test_cuda_kernels.cpp.i
+
+tests/test_cuda_kernels.s: tests/test_cuda_kernels.cpp.s
+.PHONY : tests/test_cuda_kernels.s
+
+# target to generate assembly for a file
+tests/test_cuda_kernels.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/tests/test_cuda_kernels.cpp.s
+.PHONY : tests/test_cuda_kernels.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -554,7 +665,13 @@ help:
 	@echo "... acc_gen"
 	@echo "... intrinsics_gen"
 	@echo "... omp_gen"
+	@echo "... test_titanxp"
 	@echo "... biogpu"
+	@echo "... biogpu_kernels"
+	@echo "... test_cuda_kernels"
+	@echo "... runtime/kernels/resistance/fq_resistance.o"
+	@echo "... runtime/kernels/resistance/fq_resistance.i"
+	@echo "... runtime/kernels/resistance/fq_resistance.s"
 	@echo "... src/codegen/ast_codegen.o"
 	@echo "... src/codegen/ast_codegen.i"
 	@echo "... src/codegen/ast_codegen.s"
@@ -564,6 +681,9 @@ help:
 	@echo "... src/compiler/compiler.o"
 	@echo "... src/compiler/compiler.i"
 	@echo "... src/compiler/compiler.s"
+	@echo "... src/main.o"
+	@echo "... src/main.i"
+	@echo "... src/main.s"
 	@echo "... src/parser/BioGPUBaseVisitor.o"
 	@echo "... src/parser/BioGPUBaseVisitor.i"
 	@echo "... src/parser/BioGPUBaseVisitor.s"
@@ -594,6 +714,9 @@ help:
 	@echo "... src/stdlib/algorithms/resistance_pssm.o"
 	@echo "... src/stdlib/algorithms/resistance_pssm.i"
 	@echo "... src/stdlib/algorithms/resistance_pssm.s"
+	@echo "... tests/test_cuda_kernels.o"
+	@echo "... tests/test_cuda_kernels.i"
+	@echo "... tests/test_cuda_kernels.s"
 .PHONY : help
 
 

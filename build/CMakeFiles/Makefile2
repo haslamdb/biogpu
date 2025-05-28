@@ -64,6 +64,8 @@ CMAKE_BINARY_DIR = /home/david/Documents/Code/biogpu/build
 
 # The main recursive "all" target.
 all: CMakeFiles/biogpu.dir/all
+all: CMakeFiles/biogpu_kernels.dir/all
+all: CMakeFiles/test_cuda_kernels.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -76,6 +78,9 @@ clean: CMakeFiles/omp_gen.dir/clean
 clean: CMakeFiles/acc_gen.dir/clean
 clean: CMakeFiles/RISCVTargetParserTableGen.dir/clean
 clean: CMakeFiles/biogpu.dir/clean
+clean: CMakeFiles/biogpu_kernels.dir/clean
+clean: CMakeFiles/test_cuda_kernels.dir/clean
+clean: CMakeFiles/test_titanxp.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -186,15 +191,15 @@ CMakeFiles/RISCVTargetParserTableGen.dir/clean:
 # Target rules for target CMakeFiles/biogpu.dir
 
 # All Build rule for target.
-CMakeFiles/biogpu.dir/all:
+CMakeFiles/biogpu.dir/all: CMakeFiles/biogpu_kernels.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14 "Built target biogpu"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 "Built target biogpu"
 .PHONY : CMakeFiles/biogpu.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/biogpu.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 14
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/biogpu.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
 .PHONY : CMakeFiles/biogpu.dir/rule
@@ -207,6 +212,84 @@ biogpu: CMakeFiles/biogpu.dir/rule
 CMakeFiles/biogpu.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/clean
 .PHONY : CMakeFiles/biogpu.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/biogpu_kernels.dir
+
+# All Build rule for target.
+CMakeFiles/biogpu_kernels.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=16,17 "Built target biogpu_kernels"
+.PHONY : CMakeFiles/biogpu_kernels.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/biogpu_kernels.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/biogpu_kernels.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
+.PHONY : CMakeFiles/biogpu_kernels.dir/rule
+
+# Convenience name for target.
+biogpu_kernels: CMakeFiles/biogpu_kernels.dir/rule
+.PHONY : biogpu_kernels
+
+# clean rule for target.
+CMakeFiles/biogpu_kernels.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/clean
+.PHONY : CMakeFiles/biogpu_kernels.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/test_cuda_kernels.dir
+
+# All Build rule for target.
+CMakeFiles/test_cuda_kernels.dir/all: CMakeFiles/biogpu_kernels.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=18,19 "Built target test_cuda_kernels"
+.PHONY : CMakeFiles/test_cuda_kernels.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_cuda_kernels.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 4
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_cuda_kernels.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
+.PHONY : CMakeFiles/test_cuda_kernels.dir/rule
+
+# Convenience name for target.
+test_cuda_kernels: CMakeFiles/test_cuda_kernels.dir/rule
+.PHONY : test_cuda_kernels
+
+# clean rule for target.
+CMakeFiles/test_cuda_kernels.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/clean
+.PHONY : CMakeFiles/test_cuda_kernels.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/test_titanxp.dir
+
+# All Build rule for target.
+CMakeFiles/test_titanxp.dir/all: CMakeFiles/test_cuda_kernels.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_titanxp.dir/build.make CMakeFiles/test_titanxp.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_titanxp.dir/build.make CMakeFiles/test_titanxp.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=20 "Built target test_titanxp"
+.PHONY : CMakeFiles/test_titanxp.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_titanxp.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 5
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_titanxp.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
+.PHONY : CMakeFiles/test_titanxp.dir/rule
+
+# Convenience name for target.
+test_titanxp: CMakeFiles/test_titanxp.dir/rule
+.PHONY : test_titanxp
+
+# clean rule for target.
+CMakeFiles/test_titanxp.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_titanxp.dir/build.make CMakeFiles/test_titanxp.dir/clean
+.PHONY : CMakeFiles/test_titanxp.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

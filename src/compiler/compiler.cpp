@@ -83,6 +83,7 @@ private:
 } // namespace biogpu
 
 // Main entry point
+#if 0  // Disabled - main is in src/main.cpp
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <command> [options]" << std::endl;
@@ -152,3 +153,4 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 }
+#endif

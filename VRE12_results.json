@@ -1,0 +1,10 @@
+{
+  "sample": "data/test_fastq/VRE12_R1.fastq.gz",
+  "mutations": [
+
+  ],
+  "summary": {
+    "total_reads": 23365390,
+    "mutations_found": 0
+  }
+}

@@ -12,6 +12,8 @@
 #define BLOCK_SIZE 256
 #define MAX_CANDIDATES_PER_READ 64
 #define MAX_MUTATIONS_PER_GENE 20
+#define MAX_SEQUENCES 1000
+#define MAX_RESULTS_PER_READ 32
 
 // Base encoding
 #define BASE_A 0
@@ -134,6 +136,8 @@ public:
     ~FQMutationDetectorCUDA();
     
     void loadIndex(const char* index_path);
+    void loadClinicalDatabase(const char* base_path);
+    // void loadIndexHDF5(const char* index_path); // Removed - using binary format
     void processReads(const char* r1_path, const char* r2_path, const char* output_path);
 };
 

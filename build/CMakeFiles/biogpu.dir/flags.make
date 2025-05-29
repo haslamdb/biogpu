@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/usr/lib/llvm-18/include -I/home/david/Documents/Code/biogpu/include -I/usr/include/antlr4-runtime -I/home/david/Documents/Code/biogpu/src/parser -I/usr/local/cuda-12.5/targets/x86_64-linux/include
 
-CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -Wall -O3
+CXX_FLAGS = -std=gnu++17   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -Wall
 

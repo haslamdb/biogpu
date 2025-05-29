@@ -101,15 +101,18 @@ pipeline FluoroquinoloneResistance {
 
 ## TODO List
 
+### 2. Build Resistance Gene and Mutation Database
+- [ ] Design GPU-friendly mutation index structure from files in data/fq_resistance_db
+- [ ] We need to design a simplified data structure so we can build a simplified index
+- [ ] We do have a somewhat working draft which can be invoked with: ./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5 data/test_fastq/synthetic_reads_R1.fastq.gz  data/test_fastq/synthetic_reads_R2.fastq.gz  synthetic_fq_results.json
+- [ ] we've fixed the first part of the process (pulling out matching kmers, but the second part fails during mapping)
+- [ ] Implement mutation confidence scoring system
+
 ### 1. Build Microbial Genome Database
 - [ ] Create GPU-optimized k-mer index structure from downloaded genomes in data/genomes
 - [ ] Implement genome database serialization format
 - [ ] Add support for custom clinical isolate genomes
 - [ ] Build incremental update mechanism
-
-### 2. Build Resistance Gene and Mutation Database
-- [ ] Design GPU-friendly mutation index structure from files in data/fq_resistance_db
-- [ ] Implement mutation confidence scoring system
 
 ### 3. Adapt Current CPU Code to GPU
 - [ ] Port sequence alignment algorithms to CUDA

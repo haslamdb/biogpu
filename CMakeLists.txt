@@ -65,6 +65,8 @@ set(PARSER_SOURCES
 # CUDA runtime kernel files
 set(CUDA_SOURCES
     runtime/kernels/resistance/fq_resistance.cu
+    runtime/kernels/resistance/fq_mutation_detector.cu
+    runtime/kernels/resistance/fq_pipeline_wrapper.cu
     # Add other .cu files here when implemented
     # runtime/kernels/alignment/sequence_alignment.cu
     # runtime/kernels/indexing/kmer_index.cu
@@ -196,6 +198,34 @@ if(TARGET test_fq_detection)
         DEPENDS test_fq_detection  
         COMMENT "Benchmarking fluoroquinolone resistance detection"
     )
+endif()
+
+# Add FQ mutation detection pipeline executable
+add_executable(fq_pipeline_gpu
+    runtime/kernels/resistance/fq_pipeline_host.cpp
+    runtime/kernels/resistance/fq_mutation_detector.cu
+    runtime/kernels/resistance/fq_pipeline_wrapper.cu
+)
+
+set_target_properties(fq_pipeline_gpu PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+target_link_libraries(fq_pipeline_gpu
+    z  # for zlib (FASTQ.gz reading)
+    cudart
+    cuda
+)
+
+# Find HDF5
+find_package(HDF5 COMPONENTS C CXX)
+if(HDF5_FOUND)
+    target_include_directories(fq_pipeline_gpu PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(fq_pipeline_gpu ${HDF5_LIBRARIES})
+else()
+    # Manual HDF5 linking for systems where find_package doesn't work well
+    target_link_libraries(fq_pipeline_gpu hdf5_serial hdf5_cpp_serial)
 endif()
 
 # Tests

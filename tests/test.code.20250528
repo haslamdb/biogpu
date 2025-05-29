@@ -1,0 +1,1 @@
+./build/fq_pipeline_gpu data/indices/fq_mutations /media/david/BackupNAS/Data/MSSData/Human/RawHumanSequenceFiles/BMTPU_R1.fastq.gz /media/david/BackupNAS/Data/MSSData/Human/RawHumanSequenceFiles/BMTPU_R2.fastq.gz BMTPU_fq_results.json

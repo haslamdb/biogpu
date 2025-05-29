@@ -39,8 +39,8 @@ CMAKE_BUILD_TYPE:STRING=Release
 //Enable/Disable color output during build.
 CMAKE_COLOR_MAKEFILE:BOOL=ON
 
-//CUDA architectures
-CMAKE_CUDA_ARCHITECTURES:STRING=52
+//No help, variable specified on the command line.
+CMAKE_CUDA_ARCHITECTURES:UNINITIALIZED=61;70;75;80;86
 
 //CUDA compiler
 CMAKE_CUDA_COMPILER:FILEPATH=/usr/local/cuda-12.5/bin/nvcc
@@ -257,6 +257,40 @@ FFI_LIBRARIES:FILEPATH=/usr/lib/x86_64-linux-gnu/libffi.so
 
 //Path to a library.
 FFI_STATIC_LIBRARIES:FILEPATH=/usr/lib/x86_64-linux-gnu/libffi.a
+
+//HDF5 CXX Wrapper compiler.  Used only to detect HDF5 compile
+// flags.
+HDF5_CXX_COMPILER_EXECUTABLE:FILEPATH=/usr/local/miniconda3/bin/h5c++
+
+//Path to a file.
+HDF5_CXX_INCLUDE_DIR:PATH=/usr/include/hdf5/serial
+
+//HDF5 C Wrapper compiler.  Used only to detect HDF5 compile flags.
+HDF5_C_COMPILER_EXECUTABLE:FILEPATH=/usr/local/miniconda3/bin/h5cc
+
+//Path to a file.
+HDF5_C_INCLUDE_DIR:PATH=/usr/include/hdf5/serial
+
+//HDF5 file differencing tool.
+HDF5_DIFF_EXECUTABLE:FILEPATH=/usr/local/miniconda3/bin/h5diff
+
+//The directory containing a CMake configuration file for HDF5.
+HDF5_DIR:PATH=HDF5_DIR-NOTFOUND
+
+//HDF5 library compiled with parallel IO support
+HDF5_IS_PARALLEL:BOOL=FALSE
+
+//Path to a library.
+HDF5_hdf5_LIBRARY_DEBUG:FILEPATH=HDF5_hdf5_LIBRARY_DEBUG-NOTFOUND
+
+//Path to a library.
+HDF5_hdf5_LIBRARY_RELEASE:FILEPATH=/usr/lib/x86_64-linux-gnu/hdf5/serial/libhdf5.so
+
+//Path to a library.
+HDF5_hdf5_cpp_LIBRARY_DEBUG:FILEPATH=HDF5_hdf5_cpp_LIBRARY_DEBUG-NOTFOUND
+
+//Path to a library.
+HDF5_hdf5_cpp_LIBRARY_RELEASE:FILEPATH=/usr/lib/x86_64-linux-gnu/hdf5/serial/libhdf5_cpp.so
 
 //Path to a file.
 LIBXML2_INCLUDE_DIR:PATH=/usr/include/libxml2
@@ -495,6 +529,8 @@ FFI_STATIC_LIBRARIES-ADVANCED:INTERNAL=1
 FIND_PACKAGE_MESSAGE_DETAILS_CURL:INTERNAL=[/usr/lib/x86_64-linux-gnu/libcurl.so][/usr/include/x86_64-linux-gnu][c ][v8.5.0()]
 //Details about finding FFI
 FIND_PACKAGE_MESSAGE_DETAILS_FFI:INTERNAL=[/usr/lib/x86_64-linux-gnu/libffi.so][1][v()]
+//Details about finding HDF5
+FIND_PACKAGE_MESSAGE_DETAILS_HDF5:INTERNAL=[/usr/lib/x86_64-linux-gnu/hdf5/serial/libhdf5.so;/usr/lib/x86_64-linux-gnu/hdf5/serial/libhdf5_cpp.so;/usr/lib/x86_64-linux-gnu/hdf5/serial/libhdf5.so][/usr/include/hdf5/serial][cfound components: C CXX ][v1.10.10()]
 //Details about finding LibXml2
 FIND_PACKAGE_MESSAGE_DETAILS_LibXml2:INTERNAL=[/usr/lib/x86_64-linux-gnu/libxml2.so][/usr/include/libxml2][v2.9.14()]
 //Details about finding PYTHON
@@ -514,6 +550,32 @@ HAVE_FFI_CALL:INTERNAL=1
 //ADVANCED property for variable: HAVE_FFI_H
 HAVE_FFI_H-ADVANCED:INTERNAL=1
 HAVE_FFI_H:INTERNAL=1
+//ADVANCED property for variable: HDF5_CXX_COMPILER_EXECUTABLE
+HDF5_CXX_COMPILER_EXECUTABLE-ADVANCED:INTERNAL=1
+//Result of TRY_COMPILE
+HDF5_CXX_COMPILER_NO_INTERROGATE:INTERNAL=FALSE
+//ADVANCED property for variable: HDF5_CXX_INCLUDE_DIR
+HDF5_CXX_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_C_COMPILER_EXECUTABLE
+HDF5_C_COMPILER_EXECUTABLE-ADVANCED:INTERNAL=1
+//Result of TRY_COMPILE
+HDF5_C_COMPILER_NO_INTERROGATE:INTERNAL=FALSE
+//ADVANCED property for variable: HDF5_C_INCLUDE_DIR
+HDF5_C_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_DIFF_EXECUTABLE
+HDF5_DIFF_EXECUTABLE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_DIR
+HDF5_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_IS_PARALLEL
+HDF5_IS_PARALLEL-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_hdf5_LIBRARY_DEBUG
+HDF5_hdf5_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_hdf5_LIBRARY_RELEASE
+HDF5_hdf5_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_hdf5_cpp_LIBRARY_DEBUG
+HDF5_hdf5_cpp_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: HDF5_hdf5_cpp_LIBRARY_RELEASE
+HDF5_hdf5_cpp_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: LIBXML2_INCLUDE_DIR
 LIBXML2_INCLUDE_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: LIBXML2_LIBRARY

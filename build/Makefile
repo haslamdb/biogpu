@@ -265,6 +265,97 @@ test_titanxp/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_titanxp.dir/build.make CMakeFiles/test_titanxp.dir/build
 .PHONY : test_titanxp/fast
 
+#=============================================================================
+# Target rules for targets named fq_pipeline_gpu
+
+# Build rule for target.
+fq_pipeline_gpu: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 fq_pipeline_gpu
+.PHONY : fq_pipeline_gpu
+
+# fast build rule for target.
+fq_pipeline_gpu/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/build
+.PHONY : fq_pipeline_gpu/fast
+
+runtime/kernels/resistance/fq_mutation_detector.o: runtime/kernels/resistance/fq_mutation_detector.cu.o
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.o
+
+# target to build an object file
+runtime/kernels/resistance/fq_mutation_detector.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_mutation_detector.cu.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.o
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.o
+
+runtime/kernels/resistance/fq_mutation_detector.i: runtime/kernels/resistance/fq_mutation_detector.cu.i
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.i
+
+# target to preprocess a source file
+runtime/kernels/resistance/fq_mutation_detector.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_mutation_detector.cu.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.i
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.i
+
+runtime/kernels/resistance/fq_mutation_detector.s: runtime/kernels/resistance/fq_mutation_detector.cu.s
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.s
+
+# target to generate assembly for a file
+runtime/kernels/resistance/fq_mutation_detector.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_mutation_detector.cu.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.s
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.s
+
+runtime/kernels/resistance/fq_pipeline_host.o: runtime/kernels/resistance/fq_pipeline_host.cpp.o
+.PHONY : runtime/kernels/resistance/fq_pipeline_host.o
+
+# target to build an object file
+runtime/kernels/resistance/fq_pipeline_host.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.o
+.PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.o
+
+runtime/kernels/resistance/fq_pipeline_host.i: runtime/kernels/resistance/fq_pipeline_host.cpp.i
+.PHONY : runtime/kernels/resistance/fq_pipeline_host.i
+
+# target to preprocess a source file
+runtime/kernels/resistance/fq_pipeline_host.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.i
+.PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.i
+
+runtime/kernels/resistance/fq_pipeline_host.s: runtime/kernels/resistance/fq_pipeline_host.cpp.s
+.PHONY : runtime/kernels/resistance/fq_pipeline_host.s
+
+# target to generate assembly for a file
+runtime/kernels/resistance/fq_pipeline_host.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.s
+.PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.s
+
+runtime/kernels/resistance/fq_pipeline_wrapper.o: runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
+.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.o
+
+# target to build an object file
+runtime/kernels/resistance/fq_pipeline_wrapper.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
+.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
+
+runtime/kernels/resistance/fq_pipeline_wrapper.i: runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
+.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.i
+
+# target to preprocess a source file
+runtime/kernels/resistance/fq_pipeline_wrapper.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
+.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
+
+runtime/kernels/resistance/fq_pipeline_wrapper.s: runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
+.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.s
+
+# target to generate assembly for a file
+runtime/kernels/resistance/fq_pipeline_wrapper.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
+.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
+
 runtime/kernels/resistance/fq_resistance.o: runtime/kernels/resistance/fq_resistance.cu.o
 .PHONY : runtime/kernels/resistance/fq_resistance.o
 
@@ -668,7 +759,17 @@ help:
 	@echo "... test_titanxp"
 	@echo "... biogpu"
 	@echo "... biogpu_kernels"
+	@echo "... fq_pipeline_gpu"
 	@echo "... test_cuda_kernels"
+	@echo "... runtime/kernels/resistance/fq_mutation_detector.o"
+	@echo "... runtime/kernels/resistance/fq_mutation_detector.i"
+	@echo "... runtime/kernels/resistance/fq_mutation_detector.s"
+	@echo "... runtime/kernels/resistance/fq_pipeline_host.o"
+	@echo "... runtime/kernels/resistance/fq_pipeline_host.i"
+	@echo "... runtime/kernels/resistance/fq_pipeline_host.s"
+	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.o"
+	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.i"
+	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.s"
 	@echo "... runtime/kernels/resistance/fq_resistance.o"
 	@echo "... runtime/kernels/resistance/fq_resistance.i"
 	@echo "... runtime/kernels/resistance/fq_resistance.s"

@@ -204,7 +204,7 @@ class FluoroquinoloneResistanceDB:
         return profiles
         
     def create_gpu_optimized_structures(self):
-        """Create GPU-optimized data structures for fast lookup"""
+        """Create GPU-optimized data structures for exact mutation detection"""
         # Create mutation lookup table
         num_mutations = len(self.mutations)
         
@@ -245,6 +245,87 @@ class FluoroquinoloneResistanceDB:
             'gene_mapping': gene_to_id,
             'aa_encoding': aa_to_code
         }
+    
+    def create_target_regions(self) -> Dict[str, Dict]:
+        """Create target regions for exact alignment focusing on QRDRs"""
+        target_regions = {}
+        
+        for qrdr in self.qrdr_regions:
+            key = f"{qrdr.species}_{qrdr.gene}"
+            
+            # Calculate nucleotide positions (codon * 3)
+            nt_start = (qrdr.start_codon - 1) * 3
+            nt_end = qrdr.end_codon * 3
+            
+            # Add flanking regions for better alignment (50bp each side)
+            flank_size = 50
+            
+            target_regions[key] = {
+                'gene': qrdr.gene,
+                'species': qrdr.species,
+                'protein_start': qrdr.start_codon,
+                'protein_end': qrdr.end_codon,
+                'nucleotide_start': nt_start - flank_size,
+                'nucleotide_end': nt_end + flank_size,
+                'critical_codons': qrdr.critical_positions,
+                'mutations': []
+            }
+            
+            # Add known mutations for this region
+            for mutation in self.mutations:
+                if (mutation.gene == qrdr.gene and 
+                    mutation.species == qrdr.species and
+                    qrdr.start_codon <= mutation.position <= qrdr.end_codon):
+                    
+                    target_regions[key]['mutations'].append({
+                        'position': mutation.position,
+                        'wild_type': mutation.wild_type,
+                        'mutant': mutation.mutant,
+                        'resistance_level': mutation.resistance_level,
+                        'codon_position': mutation.position - qrdr.start_codon
+                    })
+        
+        return target_regions
+    
+    def create_alignment_templates(self) -> Dict[str, np.ndarray]:
+        """Create pre-computed alignment scoring matrices for GPU"""
+        templates = {}
+        
+        # DNA substitution matrix for exact matching
+        # Higher penalties for mutations at critical positions
+        dna_match = 2
+        dna_mismatch = -3
+        gap_open = -5
+        gap_extend = -2
+        
+        # Create base scoring matrix
+        base_matrix = np.full((4, 4), dna_mismatch, dtype=np.float32)
+        np.fill_diagonal(base_matrix, dna_match)
+        
+        templates['base_scoring'] = base_matrix
+        templates['gap_open'] = gap_open
+        templates['gap_extend'] = gap_extend
+        
+        # Create position-specific scoring adjustments for critical codons
+        for key, region in self.create_target_regions().items():
+            if region['mutations']:
+                # Create position weight matrix
+                region_length = region['nucleotide_end'] - region['nucleotide_start']
+                position_weights = np.ones(region_length, dtype=np.float32)
+                
+                # Increase weight at mutation positions
+                for mutation in region['mutations']:
+                    codon_nt_pos = (mutation['position'] - 1) * 3
+                    rel_pos = codon_nt_pos - region['nucleotide_start'] + 50  # Account for flank
+                    
+                    # Weight the entire codon
+                    for i in range(3):
+                        if 0 <= rel_pos + i < region_length:
+                            position_weights[rel_pos + i] = 2.0  # Double weight for critical positions
+                
+                templates[f"{key}_weights"] = position_weights
+        
+        return templates
         
     def save_database(self, output_dir: str):
         """Save the complete resistance database"""
@@ -275,14 +356,34 @@ class FluoroquinoloneResistanceDB:
             **gpu_data
         )
         
+        # Save target regions for exact alignment
+        target_regions = self.create_target_regions()
+        with open(output_path / 'target_regions.json', 'w') as f:
+            json.dump(target_regions, f, indent=2)
+            
+        # Save alignment templates
+        alignment_templates = self.create_alignment_templates()
+        np.savez(
+            output_path / 'alignment_templates.npz',
+            **alignment_templates
+        )
+        
         # Save summary statistics
         stats = {
             'total_mutations': len(self.mutations),
             'total_genes': len(self.genes),
             'total_species': len(self.species_set),
+            'total_target_regions': len(target_regions),
             'species_list': sorted(list(self.species_set)),
             'gene_families': sorted(list(set(g.gene_family for g in self.genes))),
-            'mutation_genes': sorted(list(set(m.gene for m in self.mutations)))
+            'mutation_genes': sorted(list(set(m.gene for m in self.mutations))),
+            'alignment_params': {
+                'match_score': 2,
+                'mismatch_penalty': -3,
+                'gap_open': -5,
+                'gap_extend': -2,
+                'critical_position_weight': 2.0
+            }
         }
         
         with open(output_path / 'database_stats.json', 'w') as f:

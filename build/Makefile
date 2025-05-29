@@ -329,33 +329,6 @@ runtime/kernels/resistance/fq_pipeline_host.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.s
 .PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.s
 
-runtime/kernels/resistance/fq_pipeline_wrapper.o: runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.o
-
-# target to build an object file
-runtime/kernels/resistance/fq_pipeline_wrapper.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-
-runtime/kernels/resistance/fq_pipeline_wrapper.i: runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.i
-
-# target to preprocess a source file
-runtime/kernels/resistance/fq_pipeline_wrapper.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-
-runtime/kernels/resistance/fq_pipeline_wrapper.s: runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.s
-
-# target to generate assembly for a file
-runtime/kernels/resistance/fq_pipeline_wrapper.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-
 runtime/kernels/resistance/fq_resistance.o: runtime/kernels/resistance/fq_resistance.cu.o
 .PHONY : runtime/kernels/resistance/fq_resistance.o
 
@@ -767,9 +740,6 @@ help:
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.o"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.i"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.s"
-	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.o"
-	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.i"
-	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.s"
 	@echo "... runtime/kernels/resistance/fq_resistance.o"
 	@echo "... runtime/kernels/resistance/fq_resistance.i"
 	@echo "... runtime/kernels/resistance/fq_resistance.s"

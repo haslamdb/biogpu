@@ -66,7 +66,6 @@ set(PARSER_SOURCES
 set(CUDA_SOURCES
     runtime/kernels/resistance/fq_resistance.cu
     runtime/kernels/resistance/fq_mutation_detector.cu
-    runtime/kernels/resistance/fq_pipeline_wrapper.cu
     # Add other .cu files here when implemented
     # runtime/kernels/alignment/sequence_alignment.cu
     # runtime/kernels/indexing/kmer_index.cu
@@ -204,8 +203,6 @@ endif()
 add_executable(fq_pipeline_gpu
     runtime/kernels/resistance/fq_pipeline_host.cpp
     runtime/kernels/resistance/fq_mutation_detector.cu
-    runtime/kernels/resistance/fq_pipeline_wrapper.cu
-    runtime/kernels/resistance/fq_simple_loader.cu
 )
 
 set_target_properties(fq_pipeline_gpu PROPERTIES

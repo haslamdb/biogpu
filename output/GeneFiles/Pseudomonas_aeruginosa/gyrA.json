@@ -1,0 +1,1902 @@
+[
+  {
+    "accession": "PQ876360.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA-30 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 219,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 219,
+        "strand": 1,
+        "nucleotide_sequence": "TCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTG",
+        "protein_sequence": "SARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADL",
+        "length_nt": 219,
+        "length_aa": 73
+      }
+    ]
+  },
+  {
+    "accession": "PQ876359.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA-28 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 231,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 231,
+        "strand": 1,
+        "nucleotide_sequence": "TCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACC",
+        "protein_sequence": "SARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKET",
+        "length_nt": 231,
+        "length_aa": 77
+      }
+    ]
+  },
+  {
+    "accession": "PQ855419.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA-1 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 231,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 231,
+        "strand": 1,
+        "nucleotide_sequence": "TCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACC",
+        "protein_sequence": "SARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKET",
+        "length_nt": 231,
+        "length_aa": 77
+      }
+    ]
+  },
+  {
+    "accession": "PQ112359.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain AMRG2 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 342,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 342,
+        "strand": 1,
+        "nucleotide_sequence": "AAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGGCACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAACCCGTCGACTGGGTGCCCAACTACGATGGCACCGAGCAGATCCCGGCGGTCATGCCGACCAAGATTCCCAACCTGCTGGTCAACGGTTCCAGCGGTATCGCCGTGGGCATG",
+        "protein_sequence": "KSARVVGDVIGKYHPHGDIAVYGTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKEPVDWVPNYDGTEQIPAVMPTKIPNLLVNGSSGIAVGM",
+        "length_nt": 342,
+        "length_aa": 114
+      }
+    ]
+  },
+  {
+    "accession": "PP544852.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA32 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 315,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 315,
+        "strand": 1,
+        "nucleotide_sequence": "GGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 315,
+        "length_aa": 105
+      }
+    ]
+  },
+  {
+    "accession": "PP544851.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA31 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 315,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 315,
+        "strand": 1,
+        "nucleotide_sequence": "GGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 315,
+        "length_aa": 105
+      }
+    ]
+  },
+  {
+    "accession": "PP544850.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA30 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544849.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA29 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 309,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 309,
+        "strand": 1,
+        "nucleotide_sequence": "AAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "KPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 309,
+        "length_aa": 103
+      }
+    ]
+  },
+  {
+    "accession": "PP544848.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA28 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 321,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 321,
+        "strand": 1,
+        "nucleotide_sequence": "CGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "RDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 321,
+        "length_aa": 107
+      }
+    ]
+  },
+  {
+    "accession": "PP544847.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA27 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544846.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA26 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 333,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 333,
+        "strand": 1,
+        "nucleotide_sequence": "CTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 333,
+        "length_aa": 111
+      }
+    ]
+  },
+  {
+    "accession": "PP544845.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA25 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 315,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 315,
+        "strand": 1,
+        "nucleotide_sequence": "GGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 315,
+        "length_aa": 105
+      }
+    ]
+  },
+  {
+    "accession": "PP544844.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA24 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 318,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 318,
+        "strand": 1,
+        "nucleotide_sequence": "GACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "DGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 318,
+        "length_aa": 106
+      }
+    ]
+  },
+  {
+    "accession": "PP544843.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA23 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 324,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 324,
+        "strand": 1,
+        "nucleotide_sequence": "GCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "ARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 324,
+        "length_aa": 108
+      }
+    ]
+  },
+  {
+    "accession": "PP544842.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA22 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 339,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 339,
+        "strand": 1,
+        "nucleotide_sequence": "CGGGCCCTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "RALPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 339,
+        "length_aa": 113
+      }
+    ]
+  },
+  {
+    "accession": "PP544841.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA21 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544840.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA20 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 315,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 315,
+        "strand": 1,
+        "nucleotide_sequence": "GGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 315,
+        "length_aa": 105
+      }
+    ]
+  },
+  {
+    "accession": "PP544839.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA19 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 306,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 306,
+        "strand": 1,
+        "nucleotide_sequence": "CCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "PVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 306,
+        "length_aa": 102
+      }
+    ]
+  },
+  {
+    "accession": "PP544838.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA18 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544837.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA17 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 306,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 306,
+        "strand": 1,
+        "nucleotide_sequence": "CCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "PVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 306,
+        "length_aa": 102
+      }
+    ]
+  },
+  {
+    "accession": "PP544836.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA16 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 318,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 318,
+        "strand": 1,
+        "nucleotide_sequence": "GACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "DGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 318,
+        "length_aa": 106
+      }
+    ]
+  },
+  {
+    "accession": "PP544835.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA15 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 309,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 309,
+        "strand": 1,
+        "nucleotide_sequence": "AAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "KPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 309,
+        "length_aa": 103
+      }
+    ]
+  },
+  {
+    "accession": "PP544834.1",
+    "organism": "Pseudomonas aeruginosa PA14",
+    "description": "Pseudomonas aeruginosa PA14 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 306,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 306,
+        "strand": 1,
+        "nucleotide_sequence": "CCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "PVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 306,
+        "length_aa": 102
+      }
+    ]
+  },
+  {
+    "accession": "PP544833.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA13 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544832.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA12 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 315,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 315,
+        "strand": 1,
+        "nucleotide_sequence": "GGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 315,
+        "length_aa": 105
+      }
+    ]
+  },
+  {
+    "accession": "PP544831.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA11 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544830.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA10 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 309,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 309,
+        "strand": 1,
+        "nucleotide_sequence": "AAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "KPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 309,
+        "length_aa": 103
+      }
+    ]
+  },
+  {
+    "accession": "PP544829.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA9 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 339,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 339,
+        "strand": 1,
+        "nucleotide_sequence": "CGGGCCCTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "RALPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 339,
+        "length_aa": 113
+      }
+    ]
+  },
+  {
+    "accession": "PP544828.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA8 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 312,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 312,
+        "strand": 1,
+        "nucleotide_sequence": "CTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 312,
+        "length_aa": 104
+      }
+    ]
+  },
+  {
+    "accession": "PP544826.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA6 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 339,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 339,
+        "strand": 1,
+        "nucleotide_sequence": "CGGGCCCTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "RALPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 339,
+        "length_aa": 113
+      }
+    ]
+  },
+  {
+    "accession": "PP544825.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA5 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 321,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 321,
+        "strand": 1,
+        "nucleotide_sequence": "CGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "RDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 321,
+        "length_aa": 107
+      }
+    ]
+  },
+  {
+    "accession": "PP544824.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA4 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 333,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 333,
+        "strand": 1,
+        "nucleotide_sequence": "CTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "LPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 333,
+        "length_aa": 111
+      }
+    ]
+  },
+  {
+    "accession": "PP544823.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA3 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 345,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 345,
+        "strand": 1,
+        "nucleotide_sequence": "GTCGGGCGGGCCCTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "VGRALPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 345,
+        "length_aa": 115
+      }
+    ]
+  },
+  {
+    "accession": "PP544822.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA2 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 318,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 318,
+        "strand": 1,
+        "nucleotide_sequence": "GACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCTGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "DGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 318,
+        "length_aa": 106
+      }
+    ]
+  },
+  {
+    "accession": "PP544821.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain PA1 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 342,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 342,
+        "strand": 1,
+        "nucleotide_sequence": "GGGCGGGCCCTGCCGGATGCACGTGACGGCCTGAAGCCGGTGCACCGCCGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GRALPDARDGLKPVHRRVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 342,
+        "length_aa": 114
+      }
+    ]
+  },
+  {
+    "accession": "PP501828.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain WS10 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 346,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 346,
+        "strand": 1,
+        "nucleotide_sequence": "GAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAATGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACTGGGTGCCCAACTACGATGGCACCGAGCAGATCCCGGCGGTCATGCCGACCAAGATTCCCAACCTGCTGGTCA",
+        "protein_sequence": "ELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEMRMAKLAHELLADLEKETVDWVPNYDGTEQIPAVMPTKIPNLLV",
+        "length_nt": 346,
+        "length_aa": 115
+      }
+    ]
+  },
+  {
+    "accession": "OR251377.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain RVH25 GyrA (gyrA) gene, partial cds",
+    "sequence_length": 291,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "GyrA",
+        "start": 0,
+        "end": 291,
+        "strand": 1,
+        "nucleotide_sequence": "GTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAGACCGTCGAC",
+        "protein_sequence": "VLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 291,
+        "length_aa": 97
+      }
+    ]
+  },
+  {
+    "accession": "OR251376.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain RVH24 GyrA (gyrA) gene, partial cds",
+    "sequence_length": 292,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "GyrA",
+        "start": 0,
+        "end": 292,
+        "strand": 1,
+        "nucleotide_sequence": "GTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCAACT",
+        "protein_sequence": "VLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVN",
+        "length_nt": 292,
+        "length_aa": 97
+      }
+    ]
+  },
+  {
+    "accession": "OR251375.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain RVH23 GyrA (gyrA) gene, partial cds",
+    "sequence_length": 287,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "GyrA",
+        "start": 0,
+        "end": 287,
+        "strand": 1,
+        "nucleotide_sequence": "TGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAGCCGTC",
+        "protein_sequence": "LYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKEAV",
+        "length_nt": 287,
+        "length_aa": 95
+      }
+    ]
+  },
+  {
+    "accession": "OR251374.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain RVH22 GyrA (gyrA) gene, partial cds",
+    "sequence_length": 291,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "GyrA",
+        "start": 0,
+        "end": 291,
+        "strand": 1,
+        "nucleotide_sequence": "TGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAGACCGTCGACT",
+        "protein_sequence": "LYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 291,
+        "length_aa": 96
+      }
+    ]
+  },
+  {
+    "accession": "OR237981.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain RVH21 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 292,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 292,
+        "strand": 1,
+        "nucleotide_sequence": "GTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACT",
+        "protein_sequence": "VLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 292,
+        "length_aa": 97
+      }
+    ]
+  },
+  {
+    "accession": "OR232170.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain RVH20 GyrA (gyrA) gene, partial cds",
+    "sequence_length": 292,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "GyrA",
+        "start": 0,
+        "end": 292,
+        "strand": 1,
+        "nucleotide_sequence": "GTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACT",
+        "protein_sequence": "VLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 292,
+        "length_aa": 97
+      }
+    ]
+  },
+  {
+    "accession": "MW446535.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-68 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 274,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 274,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCG",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKET",
+        "length_nt": 274,
+        "length_aa": 91
+      }
+    ]
+  },
+  {
+    "accession": "MW446534.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-66 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 204,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 204,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACAACATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDNIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAA",
+        "length_nt": 204,
+        "length_aa": 68
+      }
+    ]
+  },
+  {
+    "accession": "MW446533.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-65 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACAATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446532.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-64 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 268,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 268,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGG",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEK",
+        "length_nt": 268,
+        "length_aa": 89
+      }
+    ]
+  },
+  {
+    "accession": "MW446531.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-63 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446530.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-62 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 240,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 240,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLA",
+        "length_nt": 240,
+        "length_aa": 80
+      }
+    ]
+  },
+  {
+    "accession": "MW446529.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-61 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 259,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 259,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTCGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCGGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCCGACT",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLAD",
+        "length_nt": 259,
+        "length_aa": 86
+      }
+    ]
+  },
+  {
+    "accession": "MW446528.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-59 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 204,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 204,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAA",
+        "length_nt": 204,
+        "length_aa": 68
+      }
+    ]
+  },
+  {
+    "accession": "MW446527.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-58 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 204,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 204,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTACACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVHGQGNFGSVDGDNAAA",
+        "length_nt": 204,
+        "length_aa": 68
+      }
+    ]
+  },
+  {
+    "accession": "MW446526.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-57 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446525.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-55 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446524.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-54 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 258,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 258,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGAC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLAD",
+        "length_nt": 258,
+        "length_aa": 86
+      }
+    ]
+  },
+  {
+    "accession": "MW446523.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-53 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 258,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 258,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGAC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLAD",
+        "length_nt": 258,
+        "length_aa": 86
+      }
+    ]
+  },
+  {
+    "accession": "MW446522.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-49 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446521.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-43 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446520.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-40 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446519.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-38 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446518.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-36 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 280,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 280,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACT",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 280,
+        "length_aa": 93
+      }
+    ]
+  },
+  {
+    "accession": "MW446517.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-35 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 267,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 267,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAG",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEK",
+        "length_nt": 267,
+        "length_aa": 89
+      }
+    ]
+  },
+  {
+    "accession": "MW446516.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-34 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446515.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-33 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 258,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 258,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGAC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLAD",
+        "length_nt": 258,
+        "length_aa": 86
+      }
+    ]
+  },
+  {
+    "accession": "MW446514.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-29 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 265,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 265,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 265,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446513.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-28 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 245,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 245,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGAGACAACGCCGCAGCCATGCCATACACCGAAGTGCGTATGGCCAAGCTGGCCCACGA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMPYTEVRMAKLAH",
+        "length_nt": 245,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MW446512.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-26 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 242,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 242,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLA",
+        "length_nt": 242,
+        "length_aa": 80
+      }
+    ]
+  },
+  {
+    "accession": "MW446511.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-25 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 207,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 207,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATG",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAM",
+        "length_nt": 207,
+        "length_aa": 69
+      }
+    ]
+  },
+  {
+    "accession": "MW446510.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain ARD-24 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 216,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 216,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYT",
+        "length_nt": 216,
+        "length_aa": 72
+      }
+    ]
+  },
+  {
+    "accession": "MW446509.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-23 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 266,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 266,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLE",
+        "length_nt": 266,
+        "length_aa": 88
+      }
+    ]
+  },
+  {
+    "accession": "MW446508.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-20 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 258,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 258,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGAC",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLAD",
+        "length_nt": 258,
+        "length_aa": 86
+      }
+    ]
+  },
+  {
+    "accession": "MW446507.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-18 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 271,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 271,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAA",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKE",
+        "length_nt": 271,
+        "length_aa": 90
+      }
+    ]
+  },
+  {
+    "accession": "MW446506.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain IRN-5 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 229,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 229,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGG",
+        "protein_sequence": "MSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRM",
+        "length_nt": 229,
+        "length_aa": 76
+      }
+    ]
+  },
+  {
+    "accession": "OL795529.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF94 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795528.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF93 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795527.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF91 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795526.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF90 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795525.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF89 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795524.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF88 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795523.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF87 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795522.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF86 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 206,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 206,
+        "strand": 1,
+        "nucleotide_sequence": "TACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "YHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 206,
+        "length_aa": 68
+      }
+    ]
+  },
+  {
+    "accession": "OL795521.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF85 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795520.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF84 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795519.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF83 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795518.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF82 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795517.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF81 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795516.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF80 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795515.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF79 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACTTCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDFAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795514.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF78 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795513.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF77 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795512.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF76 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACCACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDHAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795511.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF75 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795510.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF73 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795509.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF72 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795508.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF71 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795507.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF70 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 210,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 210,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGAC",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 210,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795506.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF69 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795505.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF68 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACACCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDTAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795504.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF67 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 212,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 212,
+        "strand": 1,
+        "nucleotide_sequence": "GGTAAGTACCACCCGCACGGCGACATCGCGGTCTACAACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCATGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "GKYHPHGDIAVYNTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 212,
+        "length_aa": 70
+      }
+    ]
+  },
+  {
+    "accession": "OL795503.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain MF66 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 202,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 202,
+        "strand": 1,
+        "nucleotide_sequence": "ACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACCACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACCGTCGACAA",
+        "protein_sequence": "PHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDHAAAMRYTEVRMAKLAHELLADLEKETVD",
+        "length_nt": 202,
+        "length_aa": 66
+      }
+    ]
+  },
+  {
+    "accession": "MT919524.1",
+    "organism": "Pseudomonas aeruginosa",
+    "description": "Pseudomonas aeruginosa strain L22 DNA gyrase subunit A (gyrA) gene, partial cds",
+    "sequence_length": 288,
+    "gene_features": [
+      {
+        "gene_name": "gyrA",
+        "product": "DNA gyrase subunit A",
+        "start": 0,
+        "end": 288,
+        "strand": 1,
+        "nucleotide_sequence": "CGTGTGCTTTATGCCATGAGCGAGCTGGGCAACGACTGGAACAAGCCCTACAAGAAATCCGCCCGTGTGGTCGGCGACGTGATCGGTAAGTACCACCCGCACGGCGACATCGCGGTCTACGACACCATCGTGCGCATGGCGCAGCCGTTCTCGCTGCGCTACATGCTGGTAGACGGCCAGGGCAACTTCGGTTCGGTGGACGGCGACAACGCCGCAGCCATGCGATACACCGAAGTGCGCATGGCCAAGCTGGCCCACGAACTGCTGGCGGACCTGGAAAAGGAAACC",
+        "protein_sequence": "RVLYAMSELGNDWNKPYKKSARVVGDVIGKYHPHGDIAVYDTIVRMAQPFSLRYMLVDGQGNFGSVDGDNAAAMRYTEVRMAKLAHELLADLEKET",
+        "length_nt": 288,
+        "length_aa": 96
+      }
+    ]
+  }
+]

@@ -5,3 +5,9 @@ python ncbi_sequence_downloader.py \
     --email dbhaslam@gmail.com  \
     --max-per-gene 300
 
+
+# Convert GenBank files to GPU-ready binary format
+python src/python/convert_sequences_gpu.py \
+    output/GeneFiles \
+    data/Known_Quinolone_Changes.csv \
+    data/gpu_resistance_db

@@ -1,6 +1,5 @@
 #include "fq_mutation_detector.cuh"
-#include <hdf5.h>
-#include <hdf5_hl.h>
+// HDF5 no longer needed - using binary format
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -41,6 +40,8 @@ struct SimpleFQIndex {
 };
 
 // Load simplified index from HDF5
+// COMMENTED OUT - This function loads HDF5 format, we now use binary format
+/*
 SimpleFQIndex loadSimpleIndex(const char* filename) {
     SimpleFQIndex index = {};
     
@@ -290,6 +291,8 @@ void convertToGPUIndex(const SimpleFQIndex& simple_index, FQMutationDetectorCUDA
 }
 
 // Updated loadIndex function for FQMutationDetectorCUDA
+// COMMENTED OUT - Using the version in fq_mutation_detector.cu that loads binary format
+/*
 void FQMutationDetectorCUDA::loadIndex(const char* index_path) {
     DEBUG_PRINT("Loading index using simplified loader: %s", index_path);
     
@@ -323,3 +326,4 @@ void FQMutationDetectorCUDA::loadIndex(const char* index_path) {
     std::cerr << "Total reference length: " << total_ref_length << std::endl;
     std::cerr << "========================================\n" << std::endl;
 }
+*/

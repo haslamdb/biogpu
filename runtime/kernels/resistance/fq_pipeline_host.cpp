@@ -4,7 +4,7 @@
 #include <string>
 #include <cstring>
 #include <zlib.h>
-#include <hdf5.h>
+// HDF5 no longer needed - using binary format
 #include <cuda_runtime.h>
 #include "fq_mutation_detector.cuh"
 

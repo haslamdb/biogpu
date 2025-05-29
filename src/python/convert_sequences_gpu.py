@@ -169,7 +169,7 @@ class GenBankToGPUConverter:
                 gene_entry = {
                     'gene_name': gene_name,
                     'sequences': [],
-                    'consensus_qrdr': None,
+                    'sequence_diversity': None,  # Changed from consensus_qrdr
                     'mutations': mutation_map.get(organism, {}).get(gene_name, [])
                 }
                 
@@ -195,7 +195,7 @@ class GenBankToGPUConverter:
                         
                         gene_entry['sequences'].append(sequence_entry)
                         
-                        # Generate k-mers for screening
+                        # Generate k-mers from ALL sequences for comprehensive coverage
                         nt_sequence = feature.get('nucleotide_sequence', '')
                         if nt_sequence:
                             kmers = self.generate_kmers(nt_sequence, self.kmer_length)
@@ -206,12 +206,14 @@ class GenBankToGPUConverter:
                                         'organism_id': organism_id,
                                         'gene': gene_name,
                                         'sequence_id': seq_idx,
-                                        'kmer_sequence': kmer
+                                        'kmer_sequence': kmer,
+                                        'accession': seq_data.get('accession', ''),
+                                        'variant_info': qrdr_info  # Include variant info
                                     })
                 
-                # Build consensus QRDR sequence
+                # Analyze sequence diversity (keep all variants)
                 if qrdr_sequences:
-                    gene_entry['consensus_qrdr'] = self.build_consensus_sequence(qrdr_sequences)
+                    gene_entry['sequence_diversity'] = self.analyze_sequence_diversity(qrdr_sequences)
                 
                 organism_entry['genes'][gene_name] = gene_entry
             
@@ -223,25 +225,33 @@ class GenBankToGPUConverter:
         
         return organism_db, kmer_index
     
-    def build_consensus_sequence(self, sequences):
-        """Build consensus sequence from multiple aligned sequences"""
+    def analyze_sequence_diversity(self, sequences):
+        """Analyze sequence diversity without building consensus"""
         if not sequences:
             return None
         
-        # Find the most common sequence (simple approach)
-        # In production, you'd want proper multiple sequence alignment
+        # Keep all unique sequences with their frequencies
         seq_counts = defaultdict(int)
         for seq in sequences:
             seq_counts[seq] += 1
         
-        consensus = max(seq_counts.keys(), key=lambda k: seq_counts[k])
-        confidence = seq_counts[consensus] / len(sequences)
+        # Sort by frequency (most common first)
+        sorted_sequences = sorted(seq_counts.items(), key=lambda x: x[1], reverse=True)
+        
+        # Calculate diversity metrics
+        total_seqs = len(sequences)
+        unique_seqs = len(seq_counts)
+        most_common_freq = sorted_sequences[0][1] / total_seqs if sorted_sequences else 0
         
         return {
-            'sequence': consensus,
-            'confidence': confidence,
-            'variant_count': len(seq_counts),
-            'total_sequences': len(sequences)
+            'all_sequences': [{'sequence': seq, 'count': count, 'frequency': count/total_seqs} 
+                            for seq, count in sorted_sequences],
+            'diversity_stats': {
+                'total_sequences': total_seqs,
+                'unique_sequences': unique_seqs,
+                'diversity_index': unique_seqs / total_seqs,  # Simpson's diversity
+                'most_common_frequency': most_common_freq
+            }
         }
     
     def save_binary_database(self, organism_db, kmer_index, output_dir):
@@ -268,16 +278,19 @@ class GenBankToGPUConverter:
                     f.write(struct.pack('I', len(gene_bytes)))
                     f.write(gene_bytes)
                     
-                    # Consensus QRDR sequence
-                    if gene_data['consensus_qrdr']:
-                        qrdr_seq = gene_data['consensus_qrdr']['sequence']
-                        qrdr_bytes = qrdr_seq.encode('utf-8')
-                        f.write(struct.pack('I', len(qrdr_bytes)))
-                        f.write(qrdr_bytes)
-                        f.write(struct.pack('f', gene_data['consensus_qrdr']['confidence']))
+                    # All QRDR sequences (preserve diversity)
+                    if gene_data['sequence_diversity']:
+                        all_qrdr_seqs = gene_data['sequence_diversity']['all_sequences']
+                        f.write(struct.pack('I', len(all_qrdr_seqs)))
+                        
+                        for seq_info in all_qrdr_seqs:
+                            seq_bytes = seq_info['sequence'].encode('utf-8')
+                            f.write(struct.pack('I', len(seq_bytes)))
+                            f.write(seq_bytes)
+                            f.write(struct.pack('I', seq_info['count']))
+                            f.write(struct.pack('f', seq_info['frequency']))
                     else:
-                        f.write(struct.pack('I', 0))  # No QRDR sequence
-                        f.write(struct.pack('f', 0.0))
+                        f.write(struct.pack('I', 0))  # No QRDR sequences
                     
                     # Mutations
                     mutations = gene_data['mutations']
@@ -330,7 +343,7 @@ class GenBankToGPUConverter:
                 org_summary['genes'][gene_name] = {
                     'num_sequences': len(gene_data['sequences']),
                     'num_mutations': len(gene_data['mutations']),
-                    'has_consensus_qrdr': gene_data['consensus_qrdr'] is not None
+                    'sequence_diversity': gene_data['sequence_diversity']['diversity_stats'] if gene_data['sequence_diversity'] else None
                 }
             
             summary['organisms'].append(org_summary)

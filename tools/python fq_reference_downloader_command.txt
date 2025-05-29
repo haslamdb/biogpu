@@ -1,0 +1,6 @@
+python fq_reference_downloader.py \
+    --mutations tools/Quinolone_resistance_mutation_table.csv \
+    --genes tools/Quinolone_resistance_gene_table.csv \
+    --output data/fq_reference_db \
+    --flanking 500 \
+    --email your.dbhaslam@interface-labs.com

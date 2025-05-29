@@ -1277,3 +1277,101 @@ events:
       
       /usr/local/miniconda3/bin/h5c++: 1: eval: x86_64-conda-linux-gnu-c++: not found
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:238 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:608 (_HDF5_test_regular_compiler_C)"
+      - "CMakeLists.txt:222 (find_package)"
+    directories:
+      source: "/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5"
+      binary: "/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5"
+    cmakeVariables:
+      CMAKE_CUDA_ARCHITECTURES: "61;70;75;80;86"
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/lib/llvm-18/cmake"
+    buildResult:
+      variable: "HDF5_C_COMPILER_NO_INTERROGATE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /bin/gmake -f Makefile cmTC_89147/fast
+        gmake[1]: Entering directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5'
+        /bin/gmake  -f CMakeFiles/cmTC_89147.dir/build.make CMakeFiles/cmTC_89147.dir/build
+        gmake[2]: Entering directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5'
+        Building CXX object CMakeFiles/cmTC_89147.dir/cmake_hdf5_test.cxx.o
+        /bin/c++   -std=gnu++17 -o CMakeFiles/cmTC_89147.dir/cmake_hdf5_test.cxx.o -c /home/david/Documents/Code/biogpu/build/CMakeFiles/hdf5/cmake_hdf5_test.cxx
+        /home/david/Documents/Code/biogpu/build/CMakeFiles/hdf5/cmake_hdf5_test.cxx:1:10: fatal error: hdf5.h: No such file or directory
+            1 | #include <hdf5.h>
+              |          ^~~~~~~~
+        compilation terminated.
+        gmake[2]: *** [CMakeFiles/cmTC_89147.dir/build.make:78: CMakeFiles/cmTC_89147.dir/cmake_hdf5_test.cxx.o] Error 1
+        gmake[2]: Leaving directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5'
+        gmake[1]: *** [Makefile:127: cmTC_89147/fast] Error 2
+        gmake[1]: Leaving directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-gUybM5'
+        
+      exitCode: 2
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:360 (message)"
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:658 (_HDF5_invoke_compiler)"
+      - "CMakeLists.txt:222 (find_package)"
+    message: |
+      HDF5 C compiler wrapper is unable to compile a minimal HDF5 program.
+      
+      /usr/local/miniconda3/bin/h5cc: 1: eval: x86_64-conda-linux-gnu-cc: not found
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:284 (try_compile)"
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:614 (_HDF5_test_regular_compiler_CXX)"
+      - "CMakeLists.txt:222 (find_package)"
+    directories:
+      source: "/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5"
+      binary: "/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5"
+    cmakeVariables:
+      CMAKE_CUDA_ARCHITECTURES: "61;70;75;80;86"
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/lib/llvm-18/cmake"
+    buildResult:
+      variable: "HDF5_CXX_COMPILER_NO_INTERROGATE"
+      cached: true
+      stdout: |
+        Change Dir: '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /bin/gmake -f Makefile cmTC_e0b50/fast
+        gmake[1]: Entering directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5'
+        /bin/gmake  -f CMakeFiles/cmTC_e0b50.dir/build.make CMakeFiles/cmTC_e0b50.dir/build
+        gmake[2]: Entering directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5'
+        Building CXX object CMakeFiles/cmTC_e0b50.dir/cmake_hdf5_test.cxx.o
+        /bin/c++   -std=gnu++17 -o CMakeFiles/cmTC_e0b50.dir/cmake_hdf5_test.cxx.o -c /home/david/Documents/Code/biogpu/build/CMakeFiles/hdf5/cmake_hdf5_test.cxx
+        /home/david/Documents/Code/biogpu/build/CMakeFiles/hdf5/cmake_hdf5_test.cxx:1:10: fatal error: H5Cpp.h: No such file or directory
+            1 | #include <H5Cpp.h>
+              |          ^~~~~~~~~
+        compilation terminated.
+        gmake[2]: *** [CMakeFiles/cmTC_e0b50.dir/build.make:78: CMakeFiles/cmTC_e0b50.dir/cmake_hdf5_test.cxx.o] Error 1
+        gmake[2]: Leaving directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5'
+        gmake[1]: *** [Makefile:127: cmTC_e0b50/fast] Error 2
+        gmake[1]: Leaving directory '/home/david/Documents/Code/biogpu/build/CMakeFiles/CMakeScratch/TryCompile-oDaxe5'
+        
+      exitCode: 2
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:360 (message)"
+      - "/usr/share/cmake-3.28/Modules/FindHDF5.cmake:658 (_HDF5_invoke_compiler)"
+      - "CMakeLists.txt:222 (find_package)"
+    message: |
+      HDF5 CXX compiler wrapper is unable to compile a minimal HDF5 program.
+      
+      /usr/local/miniconda3/bin/h5c++: 1: eval: x86_64-conda-linux-gnu-c++: not found
+...

@@ -1,3 +1,7 @@
- python src/python/download_ncbi_20250529.py --mutations_csv data/Known_Quinolone_Resistance_Mutations.csv
- --efflux_csv  data/Known_Efflux_Pump_Genes_for_Quinolone_Resistance.csv output_sequences --email
-  dbhaslam@gmail.com --max-per-genome 100
+python ncbi_sequence_downloader.py \
+    data/Known_Quinolone_Changes.csv \
+    data/Known_Efflux_Pump_Genes.csv \
+    data/downloaded_sequences \
+    --email dbhaslam@gmail.com  \
+    --max-per-gene 300
+

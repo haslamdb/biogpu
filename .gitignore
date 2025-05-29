@@ -22,6 +22,8 @@ out/
 # Genomic data
 data/
 genomes/
+*fastq
+*fastq.gz
   
 # Compiled files
 *.o

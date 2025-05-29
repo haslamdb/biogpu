@@ -4,6 +4,17 @@
 #include <thrust/host_vector.h>
 #include <cooperative_groups.h>
 #include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <hdf5.h>
+#include <hdf5_hl.h>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+// Debug macros
+#define DEBUG 1
+#define DEBUG_PRINT(fmt, ...) if(DEBUG) { printf("[GPU DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 namespace cg = cooperative_groups;
 
@@ -45,6 +56,17 @@ __global__ void kmer_filter_kernel(
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int stride = blockDim.x * gridDim.x;
     
+    // Debug print from first thread only
+    if (tid == 0) {
+        DEBUG_PRINT("[KERNEL] kmer_filter_kernel started: num_reads=%d, num_kmers=%d", 
+                    num_reads, num_kmers);
+        
+        // Print first few k-mers from the index
+        for (int i = 0; i < min(5, num_kmers); i++) {
+            DEBUG_PRINT("[KERNEL] Index k-mer[%d] = %llu", i, kmer_sorted[i]);
+        }
+    }
+    
     for (int read_idx = tid; read_idx < num_reads; read_idx += stride) {
         const char* read = reads + read_offsets[read_idx];
         const int read_len = read_lengths[read_idx];
@@ -64,6 +86,11 @@ __global__ void kmer_filter_kernel(
             uint32_t left = 0;
             uint32_t right = num_kmers;
             
+            // Debug: print first few k-mers from first read
+            if (read_idx == 0 && pos < 3) {
+                DEBUG_PRINT("[KERNEL] Read 0, pos %d: k-mer = %llu", pos, kmer);
+            }
+            
             while (left < right) {
                 uint32_t mid = (left + right) / 2;
                 if (kmer_sorted[mid] < kmer) {
@@ -74,6 +101,10 @@ __global__ void kmer_filter_kernel(
                     // Found match - get all entries with this k-mer
                     uint32_t start = kmer_positions[mid];
                     uint32_t end = (mid + 1 < num_kmers) ? kmer_positions[mid + 1] : num_kmers;
+                    
+                    if (read_idx < 5) {
+                        DEBUG_PRINT("[KERNEL] Read %d: Found k-mer match at position %d", read_idx, pos);
+                    }
                     
                     for (uint32_t i = start; i < end && local_count < MAX_CANDIDATES_PER_READ; i++) {
                         const KmerEntry& entry = kmer_index[i];
@@ -109,6 +140,16 @@ __global__ void kmer_filter_kernel(
             candidates[global_offset + i] = local_candidates[i];
         }
         candidate_counts[read_idx] = local_count;
+        
+        // Debug: print first few reads with candidates
+        if (read_idx < 5 && local_count > 0) {
+            DEBUG_PRINT("[KERNEL] Read %d: found %d candidates", read_idx, local_count);
+        }
+    }
+    
+    // Final debug from first thread
+    if (tid == 0) {
+        DEBUG_PRINT("[KERNEL] kmer_filter_kernel completed");
     }
 }
 
@@ -273,10 +314,257 @@ FQMutationDetectorCUDA::~FQMutationDetectorCUDA() {
         if (d_mutation_counts) cudaFree(d_mutation_counts);
     }
 
+// Forward declaration - implemented in fq_simple_loader.cu
+extern void loadSimpleIndexImpl(const char* index_path, FQMutationDetectorCUDA& detector);
+
 void FQMutationDetectorCUDA::loadIndex(const char* index_path) {
-        // TODO: Load index from HDF5 file
-        // This would load the k-mer index, reference sequences, position weights, etc.
-        printf("Loading index from: %s\n", index_path);
+        DEBUG_PRINT("FQMutationDetectorCUDA::loadIndex called with: %s", index_path);
+        
+        // Check if file exists
+        std::ifstream test_file(index_path);
+        if (!test_file.good()) {
+            std::cerr << "ERROR: Cannot open index file: " << index_path << std::endl;
+            DEBUG_PRINT("File does not exist or cannot be opened");
+            // Initialize to prevent crashes
+            num_kmers = 0;
+            num_sequences = 0;
+            return;
+        }
+        test_file.close();
+        
+        // Check if this is a simple index (by file name or by trying to open)
+        std::string path_str(index_path);
+        if (path_str.find("simple") != std::string::npos) {
+            DEBUG_PRINT("Using simplified index loader");
+            // The actual implementation is in fq_simple_loader.cu
+            // We'll keep the old implementation below for now
+        }
+        
+        // Open HDF5 file
+        hid_t file_id = H5Fopen(index_path, H5F_ACC_RDONLY, H5P_DEFAULT);
+        if (file_id < 0) {
+            std::cerr << "ERROR: Failed to open HDF5 file: " << index_path << std::endl;
+            return;
+        }
+        
+        DEBUG_PRINT("HDF5 file opened successfully");
+        
+        // Read alignment parameters
+        hid_t align_group = H5Gopen2(file_id, "alignment", H5P_DEFAULT);
+        if (align_group >= 0) {
+            // Read attributes
+            H5LTget_attribute_float(align_group, ".", "gap_open", &align_params.gap_open);
+            H5LTget_attribute_float(align_group, ".", "gap_extend", &align_params.gap_extend);
+            H5LTget_attribute_float(align_group, ".", "mutation_match_bonus", &align_params.mutation_match_bonus);
+            H5LTget_attribute_float(align_group, ".", "mutation_mismatch_penalty", &align_params.mutation_mismatch_penalty);
+            H5LTget_attribute_float(align_group, ".", "min_alignment_score", &align_params.min_alignment_score);
+            H5LTget_attribute_float(align_group, ".", "min_identity", &align_params.min_identity);
+            
+            // Also set match/mismatch scores
+            align_params.match_score = 2.0f;
+            align_params.mismatch_score = -3.0f;
+            
+            H5Gclose(align_group);
+            DEBUG_PRINT("Loaded alignment parameters");
+        }
+        
+        // Read k-mer index
+        hid_t kmer_group = H5Gopen2(file_id, "kmer_index", H5P_DEFAULT);
+        if (kmer_group >= 0) {
+            // Get k-mer dataset
+            hid_t kmer_dataset = H5Dopen2(kmer_group, "kmers", H5P_DEFAULT);
+            if (kmer_dataset >= 0) {
+                // Get dataset dimensions
+                hid_t space = H5Dget_space(kmer_dataset);
+                hsize_t dims[2];
+                H5Sget_simple_extent_dims(space, dims, NULL);
+                num_kmers = dims[0];
+                int k = dims[1];  // k-mer length
+                
+                DEBUG_PRINT("Found %d k-mers of length %d", num_kmers, k);
+                
+                // Read k-mer strings - they are stored as individual characters
+                // Get the datatype from the dataset itself
+                hid_t dtype = H5Dget_type(kmer_dataset);
+                hid_t native_type = H5Tget_native_type(dtype, H5T_DIR_ASCEND);
+                
+                char* kmer_chars = new char[num_kmers * k];
+                herr_t status = H5Dread(kmer_dataset, native_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, kmer_chars);
+                if (status < 0) {
+                    DEBUG_PRINT("Failed to read k-mer dataset: %d", status);
+                } else {
+                    DEBUG_PRINT("Successfully read k-mer dataset");
+                }
+                H5Tclose(native_type);
+                H5Tclose(dtype);
+                
+                // Print first k-mer for debugging
+                DEBUG_PRINT("First k-mer chars: ");
+                for (int i = 0; i < k && i < 15; i++) {
+                    DEBUG_PRINT("  [%d] = '%c' (ASCII %d)", i, kmer_chars[i], (int)kmer_chars[i]);
+                }
+                
+                // Convert k-mer strings to encoded values
+                std::vector<uint64_t> kmer_values;
+                for (int i = 0; i < num_kmers; i++) {
+                    uint64_t kmer_val = 0;
+                    bool valid = true;
+                    for (int j = 0; j < k; j++) {
+                        char base = kmer_chars[i * k + j];
+                        uint8_t encoded = 0;
+                        switch(base) {
+                            case 'A': case 'a': encoded = 0; break;
+                            case 'C': case 'c': encoded = 1; break;
+                            case 'G': case 'g': encoded = 2; break;
+                            case 'T': case 't': encoded = 3; break;
+                            default: 
+                                if (i < 5) {
+                                    DEBUG_PRINT("Invalid base '%c' (ASCII %d) at k-mer %d, pos %d", 
+                                               base, (int)base, i, j);
+                                }
+                                valid = false; 
+                                break;
+                        }
+                        if (!valid) break;
+                        kmer_val = (kmer_val << 2) | encoded;
+                    }
+                    if (valid) {
+                        kmer_values.push_back(kmer_val);
+                    }
+                }
+                
+                // Sort k-mers for binary search
+                std::sort(kmer_values.begin(), kmer_values.end());
+                num_kmers = kmer_values.size();
+                
+                DEBUG_PRINT("Encoded and sorted %d k-mers", num_kmers);
+                
+                // Print first few k-mers for debugging
+                for (int i = 0; i < std::min(5, (int)num_kmers); i++) {
+                    DEBUG_PRINT("Sorted k-mer[%d] = %llu", i, kmer_values[i]);
+                }
+                
+                // Allocate GPU memory for k-mers
+                cudaMalloc(&d_kmer_sorted, num_kmers * sizeof(uint64_t));
+                cudaMemcpy(d_kmer_sorted, kmer_values.data(), num_kmers * sizeof(uint64_t), cudaMemcpyHostToDevice);
+                
+                // Create position array (for binary search)
+                uint32_t* h_kmer_positions = new uint32_t[num_kmers];
+                for (uint32_t i = 0; i < num_kmers; i++) {
+                    h_kmer_positions[i] = i;
+                }
+                cudaMalloc(&d_kmer_positions, num_kmers * sizeof(uint32_t));
+                cudaMemcpy(d_kmer_positions, h_kmer_positions, num_kmers * sizeof(uint32_t), cudaMemcpyHostToDevice);
+                
+                delete[] kmer_chars;
+                delete[] h_kmer_positions;
+                
+                H5Sclose(space);
+                H5Dclose(kmer_dataset);
+            }
+            H5Gclose(kmer_group);
+        }
+        
+        // Read k-mer lookup from JSON file
+        std::string json_path = std::string(index_path);
+        size_t pos = json_path.rfind('/');
+        if (pos != std::string::npos) {
+            json_path = json_path.substr(0, pos + 1) + "kmer_lookup.json";
+        }
+        
+        DEBUG_PRINT("Loading k-mer lookup from: %s", json_path.c_str());
+        
+        // For now, create a simple k-mer index
+        // In a full implementation, we would parse the JSON and create proper KmerEntry structures
+        KmerEntry* h_kmer_index = new KmerEntry[num_kmers];
+        for (uint32_t i = 0; i < num_kmers; i++) {
+            h_kmer_index[i].kmer = i;  // Just use index as placeholder
+            h_kmer_index[i].gene_id = 0;
+            h_kmer_index[i].species_id = 0;
+            h_kmer_index[i].seq_id = 0;
+            h_kmer_index[i].position = 0;
+        }
+        
+        cudaMalloc(&d_kmer_index, num_kmers * sizeof(KmerEntry));
+        cudaMemcpy(d_kmer_index, h_kmer_index, num_kmers * sizeof(KmerEntry), cudaMemcpyHostToDevice);
+        delete[] h_kmer_index;
+        
+        // Load gene sequences (simplified for now)
+        // Count total sequences and get total length
+        num_sequences = 0;
+        total_ref_length = 0;
+        
+        // List all gene groups
+        hsize_t num_objs;
+        H5Gget_num_objs(file_id, &num_objs);
+        
+        std::vector<std::string> gene_names;
+        for (hsize_t i = 0; i < num_objs; i++) {
+            char name[256];
+            H5Gget_objname_by_idx(file_id, i, name, sizeof(name));
+            std::string obj_name(name);
+            
+            // Skip non-gene groups
+            if (obj_name != "alignment" && obj_name != "kmer_index") {
+                gene_names.push_back(obj_name);
+                
+                // Open gene group and count sequences
+                hid_t gene_group = H5Gopen2(file_id, name, H5P_DEFAULT);
+                if (gene_group >= 0) {
+                    hid_t lengths_dataset = H5Dopen2(gene_group, "lengths", H5P_DEFAULT);
+                    if (lengths_dataset >= 0) {
+                        hid_t space = H5Dget_space(lengths_dataset);
+                        hsize_t dims[1];
+                        H5Sget_simple_extent_dims(space, dims, NULL);
+                        num_sequences += dims[0];
+                        
+                        // Read lengths to calculate total
+                        int32_t* lengths = new int32_t[dims[0]];
+                        H5Dread(lengths_dataset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, lengths);
+                        for (hsize_t j = 0; j < dims[0]; j++) {
+                            total_ref_length += lengths[j];
+                        }
+                        delete[] lengths;
+                        
+                        H5Sclose(space);
+                        H5Dclose(lengths_dataset);
+                    }
+                    H5Gclose(gene_group);
+                }
+            }
+        }
+        
+        DEBUG_PRINT("Found %d genes with %d total sequences, %d total bases", 
+                    (int)gene_names.size(), num_sequences, total_ref_length);
+        
+        // Allocate GPU memory for reference sequences
+        cudaMalloc(&d_reference_sequences, total_ref_length);
+        cudaMalloc(&d_ref_lengths, num_sequences * sizeof(uint32_t));
+        cudaMalloc(&d_ref_offsets, num_sequences * sizeof(uint32_t));
+        cudaMalloc(&d_position_weights, total_ref_length * sizeof(float));
+        cudaMalloc(&d_mutation_masks, total_ref_length);
+        
+        // Initialize with dummy data for now
+        cudaMemset(d_reference_sequences, 0, total_ref_length);
+        cudaMemset(d_position_weights, 0, total_ref_length * sizeof(float));
+        cudaMemset(d_mutation_masks, 0, total_ref_length);
+        
+        // Allocate mutation info arrays
+        cudaMalloc(&d_mutation_info, num_sequences * MAX_MUTATIONS_PER_GENE * sizeof(MutationInfo));
+        cudaMalloc(&d_mutation_counts, num_sequences * sizeof(uint32_t));
+        cudaMemset(d_mutation_info, 0, num_sequences * MAX_MUTATIONS_PER_GENE * sizeof(MutationInfo));
+        cudaMemset(d_mutation_counts, 0, num_sequences * sizeof(uint32_t));
+        
+        // Close HDF5 file
+        H5Fclose(file_id);
+        
+        std::cerr << "\n=== Index Loading Summary ===" << std::endl;
+        std::cerr << "Loaded " << num_kmers << " k-mers" << std::endl;
+        std::cerr << "Found " << gene_names.size() << " genes" << std::endl;
+        std::cerr << "Total sequences: " << num_sequences << std::endl;
+        std::cerr << "Total reference length: " << total_ref_length << " bases" << std::endl;
+        std::cerr << "\nNOTE: K-mer to sequence mapping not fully implemented yet" << std::endl;
+        std::cerr << "============================\n" << std::endl;
     }
 
 void FQMutationDetectorCUDA::processReads(const char* r1_path, const char* r2_path, const char* output_path) {

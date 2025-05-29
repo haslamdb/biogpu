@@ -1,5 +1,5 @@
 {
-  "sample": "/media/david/BackupNAS/Data/MSSData/Human/RawHumanSequenceFiles/VRE12_R1.fastq.gz",
+  "sample": "data/test_fastq/VRE12_R1.fastq.gz",
   "mutations": [
 
   ],

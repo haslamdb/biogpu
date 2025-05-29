@@ -205,6 +205,7 @@ add_executable(fq_pipeline_gpu
     runtime/kernels/resistance/fq_pipeline_host.cpp
     runtime/kernels/resistance/fq_mutation_detector.cu
     runtime/kernels/resistance/fq_pipeline_wrapper.cu
+    runtime/kernels/resistance/fq_simple_loader.cu
 )
 
 set_target_properties(fq_pipeline_gpu PROPERTIES
@@ -219,13 +220,13 @@ target_link_libraries(fq_pipeline_gpu
 )
 
 # Find HDF5
-find_package(HDF5 COMPONENTS C CXX)
+find_package(HDF5 COMPONENTS C CXX HL)
 if(HDF5_FOUND)
     target_include_directories(fq_pipeline_gpu PRIVATE ${HDF5_INCLUDE_DIRS})
-    target_link_libraries(fq_pipeline_gpu ${HDF5_LIBRARIES})
+    target_link_libraries(fq_pipeline_gpu ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 else()
     # Manual HDF5 linking for systems where find_package doesn't work well
-    target_link_libraries(fq_pipeline_gpu hdf5_serial hdf5_cpp_serial)
+    target_link_libraries(fq_pipeline_gpu hdf5_serial hdf5_cpp_serial hdf5_hl)
 endif()
 
 # Tests

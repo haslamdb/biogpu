@@ -24,6 +24,16 @@ data/
 genomes/
 *fastq
 *fastq.gz
+
+# Test results and large binary files
+tests/pipeline_test_results/
+*.bin
+kmer_index.bin
+sequences.bin
+
+# Large index files
+*.idx
+*_index/
   
 # Compiled files
 *.o

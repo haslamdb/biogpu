@@ -1,12 +1,8 @@
-/home/david/Documents/Code/biogpu/build/CMakeFiles/intrinsics_gen.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/omp_gen.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/acc_gen.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/RISCVTargetParserTableGen.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/biogpu.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/biogpu_kernels.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/test_cuda_kernels.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/test_titanxp.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/fq_pipeline_gpu.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/fq_pipeline_gpu_enhanced.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/test_enhanced_pipeline.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/validate_kmer_index.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/test_synthetic_data.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/run_complete_test.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/edit_cache.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/rebuild_cache.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/list_install_components.dir

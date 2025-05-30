@@ -3,6 +3,7 @@
 
 #include <cuda_runtime.h>
 #include <stdint.h>
+#include <string>
 
 // Constants
 #define KMER_LENGTH 15
@@ -75,35 +76,29 @@ struct AlignmentResult {
 };
 
 // Forward declarations for kernels
-__global__ void kmer_filter_kernel(
+__global__ void enhanced_kmer_filter_kernel(
     const char* reads,
     const int* read_lengths,
     const int* read_offsets,
     const KmerEntry* kmer_index,
-    const uint64_t* kmer_sorted,
-    const uint32_t* kmer_positions,
-    const uint32_t num_kmers,
+    const uint64_t* sorted_kmers,
+    const uint32_t* kmer_start_positions,
+    const uint32_t num_unique_kmers,
+    const uint32_t total_kmer_entries,
     const int num_reads,
+    const int kmer_length,
     CandidateMatch* candidates,
     uint32_t* candidate_counts,
     const uint32_t max_candidates_per_read
 );
 
-__global__ void position_weighted_alignment_kernel(
+__global__ void simple_alignment_kernel(
     const char* reads,
     const int* read_lengths,
     const int* read_offsets,
     const CandidateMatch* candidates,
     const uint32_t* candidate_counts,
     const uint32_t max_candidates_per_read,
-    const char* reference_sequences,
-    const uint32_t* ref_lengths,
-    const uint32_t* ref_offsets,
-    const float* position_weights,
-    const uint8_t* mutation_masks,
-    const MutationInfo* mutation_info,
-    const uint32_t* mutation_counts,
-    const AlignmentParams params,
     const int num_reads,
     AlignmentResult* results,
     uint32_t* result_count
@@ -136,8 +131,7 @@ public:
     ~FQMutationDetectorCUDA();
     
     void loadIndex(const char* index_path);
-    void loadClinicalDatabase(const char* base_path);
-    // void loadIndexHDF5(const char* index_path); // Removed - using binary format
+    void loadBinaryIndex(const std::string& index_dir);
     void processReads(const char* r1_path, const char* r2_path, const char* output_path);
 };
 

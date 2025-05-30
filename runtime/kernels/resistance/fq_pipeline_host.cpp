@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <map>
 #include <cstring>
 #include <zlib.h>
 // HDF5 no longer needed - using binary format
@@ -312,21 +313,36 @@ public:
                 cudaMemcpy(results.data(), d_results, num_results * sizeof(AlignmentResult), 
                           cudaMemcpyDeviceToHost);
                 
-                // Output mutations found
+                // Group results by read_id to avoid duplicates
+                std::map<int, AlignmentResult> best_results_per_read;
+                
                 for (const auto& result : results) {
                     if (result.num_mutations_detected > 0) {
-                        if (!first_mutation) output << ",\n";
-                        output << "    {\n";
-                        output << "      \"read_pair\": " << (result.read_id + total_reads) << ",\n";
-                        output << "      \"gene_id\": " << result.gene_id << ",\n";
-                        output << "      \"species_id\": " << result.species_id << ",\n";
-                        output << "      \"alignment_score\": " << result.alignment_score << ",\n";
-                        output << "      \"identity\": " << result.identity << ",\n";
-                        output << "      \"mutations_detected\": " << (int)result.num_mutations_detected << "\n";
-                        output << "    }";
-                        first_mutation = false;
-                        total_mutations++;
+                        int read_pair_id = result.read_id + total_reads;
+                        
+                        // Keep the result with highest alignment score for each read
+                        if (best_results_per_read.find(read_pair_id) == best_results_per_read.end() ||
+                            result.alignment_score > best_results_per_read[read_pair_id].alignment_score) {
+                            best_results_per_read[read_pair_id] = result;
+                            best_results_per_read[read_pair_id].read_id = read_pair_id; // Update to global read ID
+                        }
                     }
+                }
+                
+                // Output deduplicated mutations
+                for (const auto& pair : best_results_per_read) {
+                    const auto& result = pair.second;
+                    if (!first_mutation) output << ",\n";
+                    output << "    {\n";
+                    output << "      \"read_pair\": " << result.read_id << ",\n";
+                    output << "      \"gene_id\": " << result.gene_id << ",\n";
+                    output << "      \"species_id\": " << result.species_id << ",\n";
+                    output << "      \"alignment_score\": " << result.alignment_score << ",\n";
+                    output << "      \"identity\": " << result.identity << ",\n";
+                    output << "      \"mutations_detected\": " << (int)result.num_mutations_detected << "\n";
+                    output << "    }";
+                    first_mutation = false;
+                    total_mutations++;
                 }
             }
             

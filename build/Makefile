@@ -162,76 +162,89 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named fq_pipeline_gpu_enhanced
+# Target rules for targets named fq_pipeline_gpu
 
 # Build rule for target.
-fq_pipeline_gpu_enhanced: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 fq_pipeline_gpu_enhanced
-.PHONY : fq_pipeline_gpu_enhanced
+fq_pipeline_gpu: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 fq_pipeline_gpu
+.PHONY : fq_pipeline_gpu
 
 # fast build rule for target.
-fq_pipeline_gpu_enhanced/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/build
-.PHONY : fq_pipeline_gpu_enhanced/fast
+fq_pipeline_gpu/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/build
+.PHONY : fq_pipeline_gpu/fast
 
 #=============================================================================
-# Target rules for targets named test_enhanced_pipeline
+# Target rules for targets named debug_ids
 
 # Build rule for target.
-test_enhanced_pipeline: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_enhanced_pipeline
-.PHONY : test_enhanced_pipeline
+debug_ids: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 debug_ids
+.PHONY : debug_ids
 
 # fast build rule for target.
-test_enhanced_pipeline/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_enhanced_pipeline.dir/build.make CMakeFiles/test_enhanced_pipeline.dir/build
-.PHONY : test_enhanced_pipeline/fast
+debug_ids/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/build
+.PHONY : debug_ids/fast
 
 #=============================================================================
-# Target rules for targets named validate_kmer_index
+# Target rules for targets named build_kmer_index
 
 # Build rule for target.
-validate_kmer_index: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 validate_kmer_index
-.PHONY : validate_kmer_index
+build_kmer_index: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 build_kmer_index
+.PHONY : build_kmer_index
 
 # fast build rule for target.
-validate_kmer_index/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_kmer_index.dir/build.make CMakeFiles/validate_kmer_index.dir/build
-.PHONY : validate_kmer_index/fast
+build_kmer_index/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/build_kmer_index.dir/build.make CMakeFiles/build_kmer_index.dir/build
+.PHONY : build_kmer_index/fast
 
 #=============================================================================
-# Target rules for targets named test_synthetic_data
+# Target rules for targets named test_gpu_pipeline
 
 # Build rule for target.
-test_synthetic_data: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_synthetic_data
-.PHONY : test_synthetic_data
+test_gpu_pipeline: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_gpu_pipeline
+.PHONY : test_gpu_pipeline
 
 # fast build rule for target.
-test_synthetic_data/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_synthetic_data.dir/build.make CMakeFiles/test_synthetic_data.dir/build
-.PHONY : test_synthetic_data/fast
+test_gpu_pipeline/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_gpu_pipeline.dir/build.make CMakeFiles/test_gpu_pipeline.dir/build
+.PHONY : test_gpu_pipeline/fast
 
 #=============================================================================
-# Target rules for targets named run_complete_test
+# Target rules for targets named debug_index
 
 # Build rule for target.
-run_complete_test: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 run_complete_test
-.PHONY : run_complete_test
+debug_index: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 debug_index
+.PHONY : debug_index
 
 # fast build rule for target.
-run_complete_test/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_complete_test.dir/build.make CMakeFiles/run_complete_test.dir/build
-.PHONY : run_complete_test/fast
+debug_index/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_index.dir/build.make CMakeFiles/debug_index.dir/build
+.PHONY : debug_index/fast
+
+#=============================================================================
+# Target rules for targets named validate_index
+
+# Build rule for target.
+validate_index: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 validate_index
+.PHONY : validate_index
+
+# fast build rule for target.
+validate_index/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_index.dir/build.make CMakeFiles/validate_index.dir/build
+.PHONY : validate_index/fast
 
 runtime/kernels/resistance/fixed_kmer_screening.o: runtime/kernels/resistance/fixed_kmer_screening.cu.o
 .PHONY : runtime/kernels/resistance/fixed_kmer_screening.o
 
 # target to build an object file
 runtime/kernels/resistance/fixed_kmer_screening.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.o
 .PHONY : runtime/kernels/resistance/fixed_kmer_screening.cu.o
 
 runtime/kernels/resistance/fixed_kmer_screening.i: runtime/kernels/resistance/fixed_kmer_screening.cu.i
@@ -239,7 +252,7 @@ runtime/kernels/resistance/fixed_kmer_screening.i: runtime/kernels/resistance/fi
 
 # target to preprocess a source file
 runtime/kernels/resistance/fixed_kmer_screening.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.i
 .PHONY : runtime/kernels/resistance/fixed_kmer_screening.cu.i
 
 runtime/kernels/resistance/fixed_kmer_screening.s: runtime/kernels/resistance/fixed_kmer_screening.cu.s
@@ -247,15 +260,39 @@ runtime/kernels/resistance/fixed_kmer_screening.s: runtime/kernels/resistance/fi
 
 # target to generate assembly for a file
 runtime/kernels/resistance/fixed_kmer_screening.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.s
 .PHONY : runtime/kernels/resistance/fixed_kmer_screening.cu.s
+
+runtime/kernels/resistance/fq_mutation_detector.o: runtime/kernels/resistance/fq_mutation_detector.cu.o
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.o
+
+# target to build an object file
+runtime/kernels/resistance/fq_mutation_detector.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.o
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.o
+
+runtime/kernels/resistance/fq_mutation_detector.i: runtime/kernels/resistance/fq_mutation_detector.cu.i
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.i
+
+# target to preprocess a source file
+runtime/kernels/resistance/fq_mutation_detector.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.i
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.i
+
+runtime/kernels/resistance/fq_mutation_detector.s: runtime/kernels/resistance/fq_mutation_detector.cu.s
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.s
+
+# target to generate assembly for a file
+runtime/kernels/resistance/fq_mutation_detector.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.s
+.PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.s
 
 runtime/kernels/resistance/fq_pipeline_host.o: runtime/kernels/resistance/fq_pipeline_host.cpp.o
 .PHONY : runtime/kernels/resistance/fq_pipeline_host.o
 
 # target to build an object file
 runtime/kernels/resistance/fq_pipeline_host.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.o
 .PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.o
 
 runtime/kernels/resistance/fq_pipeline_host.i: runtime/kernels/resistance/fq_pipeline_host.cpp.i
@@ -263,7 +300,7 @@ runtime/kernels/resistance/fq_pipeline_host.i: runtime/kernels/resistance/fq_pip
 
 # target to preprocess a source file
 runtime/kernels/resistance/fq_pipeline_host.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.i
 .PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.i
 
 runtime/kernels/resistance/fq_pipeline_host.s: runtime/kernels/resistance/fq_pipeline_host.cpp.s
@@ -271,8 +308,32 @@ runtime/kernels/resistance/fq_pipeline_host.s: runtime/kernels/resistance/fq_pip
 
 # target to generate assembly for a file
 runtime/kernels/resistance/fq_pipeline_host.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.s
 .PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.s
+
+tests/debug_gene_species_ids.o: tests/debug_gene_species_ids.cpp.o
+.PHONY : tests/debug_gene_species_ids.o
+
+# target to build an object file
+tests/debug_gene_species_ids.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/tests/debug_gene_species_ids.cpp.o
+.PHONY : tests/debug_gene_species_ids.cpp.o
+
+tests/debug_gene_species_ids.i: tests/debug_gene_species_ids.cpp.i
+.PHONY : tests/debug_gene_species_ids.i
+
+# target to preprocess a source file
+tests/debug_gene_species_ids.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/tests/debug_gene_species_ids.cpp.i
+.PHONY : tests/debug_gene_species_ids.cpp.i
+
+tests/debug_gene_species_ids.s: tests/debug_gene_species_ids.cpp.s
+.PHONY : tests/debug_gene_species_ids.s
+
+# target to generate assembly for a file
+tests/debug_gene_species_ids.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/tests/debug_gene_species_ids.cpp.s
+.PHONY : tests/debug_gene_species_ids.cpp.s
 
 # Help Target
 help:
@@ -286,17 +347,24 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
-	@echo "... run_complete_test"
-	@echo "... test_enhanced_pipeline"
-	@echo "... test_synthetic_data"
-	@echo "... validate_kmer_index"
-	@echo "... fq_pipeline_gpu_enhanced"
+	@echo "... build_kmer_index"
+	@echo "... debug_index"
+	@echo "... test_gpu_pipeline"
+	@echo "... validate_index"
+	@echo "... debug_ids"
+	@echo "... fq_pipeline_gpu"
 	@echo "... runtime/kernels/resistance/fixed_kmer_screening.o"
 	@echo "... runtime/kernels/resistance/fixed_kmer_screening.i"
 	@echo "... runtime/kernels/resistance/fixed_kmer_screening.s"
+	@echo "... runtime/kernels/resistance/fq_mutation_detector.o"
+	@echo "... runtime/kernels/resistance/fq_mutation_detector.i"
+	@echo "... runtime/kernels/resistance/fq_mutation_detector.s"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.o"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.i"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.s"
+	@echo "... tests/debug_gene_species_ids.o"
+	@echo "... tests/debug_gene_species_ids.i"
+	@echo "... tests/debug_gene_species_ids.s"
 .PHONY : help
 
 

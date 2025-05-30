@@ -1,8 +1,9 @@
-/home/david/Documents/Code/biogpu/build/CMakeFiles/fq_pipeline_gpu_enhanced.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/test_enhanced_pipeline.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/validate_kmer_index.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/test_synthetic_data.dir
-/home/david/Documents/Code/biogpu/build/CMakeFiles/run_complete_test.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/fq_pipeline_gpu.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/debug_ids.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/build_kmer_index.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/test_gpu_pipeline.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/debug_index.dir
+/home/david/Documents/Code/biogpu/build/CMakeFiles/validate_index.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/edit_cache.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/rebuild_cache.dir
 /home/david/Documents/Code/biogpu/build/CMakeFiles/list_install_components.dir

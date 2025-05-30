@@ -201,14 +201,27 @@ class EnhancedKmerIndexBuilder:
         kmer_to_sequences = defaultdict(list)  # kmer -> list of (org_id, gene, seq_id, pos)
         all_sequences = []  # Store all sequences for reference
         
+        # Create ID mappings to fix gene_id == species_id bug
+        species_to_id = {}
+        gene_to_id = {}
+        next_species_id = 0
+        next_gene_id = 0
+        
         organism_id = 0
         global_seq_id = 0
         
         for organism, genes in sequence_data.items():
             logger.info(f"  Processing {organism}...")
             
+            # Assign species ID
+            if organism not in species_to_id:
+                species_to_id[organism] = next_species_id
+                next_species_id += 1
+            species_id = species_to_id[organism]
+            
             organism_entry = {
                 'organism_id': organism_id,
+                'species_id': species_id,
                 'species_name': organism,
                 'genes': {},
                 'total_sequences': 0,
@@ -219,10 +232,17 @@ class EnhancedKmerIndexBuilder:
                 if not sequences:
                     continue
                 
+                # Assign gene ID
+                if gene_name not in gene_to_id:
+                    gene_to_id[gene_name] = next_gene_id
+                    next_gene_id += 1
+                gene_id = gene_to_id[gene_name]
+                
                 logger.info(f"    {gene_name}: processing {len(sequences)} sequences")
                 
                 gene_entry = {
                     'gene_name': gene_name,
+                    'gene_id': gene_id,
                     'sequences': [],
                     'mutations': mutation_map.get(organism, {}).get(gene_name, []),
                     'qrdr_sequences': [],
@@ -276,6 +296,8 @@ class EnhancedKmerIndexBuilder:
                             if encoded_kmer is not None:
                                 kmer_info = {
                                     'organism_id': organism_id,
+                                    'species_id': species_id,
+                                    'gene_id': gene_id,
                                     'gene_name': gene_name,
                                     'global_seq_id': global_seq_id,
                                     'local_seq_id': seq_idx,
@@ -311,7 +333,7 @@ class EnhancedKmerIndexBuilder:
         logger.info(f"  {self.stats['unique_kmers']} unique k-mers")
         logger.info(f"  {self.stats['qrdr_sequences_found']} QRDR sequences")
         
-        return organism_db, kmer_to_sequences, all_sequences
+        return organism_db, kmer_to_sequences, all_sequences, species_to_id, gene_to_id
     
     def create_debug_reports(self, organism_db, kmer_to_sequences, all_sequences, output_dir):
         """Create comprehensive debug reports"""
@@ -393,7 +415,7 @@ class EnhancedKmerIndexBuilder:
         
         logger.info(f"Debug reports saved to {debug_dir}")
     
-    def save_binary_index(self, organism_db, kmer_to_sequences, all_sequences, output_dir):
+    def save_binary_index(self, organism_db, kmer_to_sequences, all_sequences, output_dir, species_to_id, gene_to_id):
         """Save index in binary format for GPU loading"""
         logger.info("Saving binary index...")
         
@@ -408,8 +430,8 @@ class EnhancedKmerIndexBuilder:
             for seq_info in kmer_to_sequences[encoded_kmer]:
                 kmer_entries.append({
                     'kmer': encoded_kmer,
-                    'gene_id': seq_info['organism_id'],  # Using organism_id as gene_id for now
-                    'species_id': seq_info['organism_id'],
+                    'gene_id': seq_info['gene_id'],       # Proper gene ID
+                    'species_id': seq_info['species_id'], # Proper species ID
                     'seq_id': seq_info['global_seq_id'],
                     'position': seq_info['position']
                 })
@@ -462,7 +484,9 @@ class EnhancedKmerIndexBuilder:
             'num_unique_kmers': len(sorted_kmers),
             'statistics': self.stats,
             'organisms': [{'id': org['organism_id'], 'name': org['species_name']} 
-                         for org in organism_db]
+                         for org in organism_db],
+            'species_id_mapping': species_to_id,
+            'gene_id_mapping': gene_to_id
         }
         
         metadata_path = os.path.join(output_dir, 'index_metadata.json')
@@ -538,7 +562,7 @@ class EnhancedKmerIndexBuilder:
         mutation_map = self.map_mutation_positions(mutations_df)
         
         # Build comprehensive index
-        organism_db, kmer_to_sequences, all_sequences = self.build_comprehensive_index(
+        organism_db, kmer_to_sequences, all_sequences, species_to_id, gene_to_id = self.build_comprehensive_index(
             sequence_data, mutation_map
         )
         
@@ -547,7 +571,7 @@ class EnhancedKmerIndexBuilder:
         
         # Save binary index
         kmer_path, seq_path, metadata_path = self.save_binary_index(
-            organism_db, kmer_to_sequences, all_sequences, output_dir
+            organism_db, kmer_to_sequences, all_sequences, output_dir, species_to_id, gene_to_id
         )
         
         # Validate index

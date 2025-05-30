@@ -97,7 +97,8 @@ __global__ void simple_alignment_kernel(
             
             // Simple scoring based on k-mer hits
             float score = candidate.kmer_hits * 10.0f;
-            float identity = (float)candidate.kmer_hits / (read_len / KMER_LENGTH);
+            float max_possible_kmers = max(1.0f, (float)(read_len - KMER_LENGTH + 1));
+            float identity = min(1.0f, (float)candidate.kmer_hits / max_possible_kmers);
             
             // Check if alignment passes threshold (simplified)
             if (score >= 20.0f && identity >= 0.1f) {

@@ -1,0 +1,2 @@
+  ./fq_pipeline_gpu ../data/fq_resistance_index ../data/test_fastq/VRE12_R1.fastq.gz ../data/test_fastq/VRE12_R2.fastq.gz vre12_results_fixed.json
+

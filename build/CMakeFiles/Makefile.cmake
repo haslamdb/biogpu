@@ -44,9 +44,10 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/fq_pipeline_gpu_enhanced.dir/DependInfo.cmake"
-  "CMakeFiles/test_enhanced_pipeline.dir/DependInfo.cmake"
-  "CMakeFiles/validate_kmer_index.dir/DependInfo.cmake"
-  "CMakeFiles/test_synthetic_data.dir/DependInfo.cmake"
-  "CMakeFiles/run_complete_test.dir/DependInfo.cmake"
+  "CMakeFiles/fq_pipeline_gpu.dir/DependInfo.cmake"
+  "CMakeFiles/debug_ids.dir/DependInfo.cmake"
+  "CMakeFiles/build_kmer_index.dir/DependInfo.cmake"
+  "CMakeFiles/test_gpu_pipeline.dir/DependInfo.cmake"
+  "CMakeFiles/debug_index.dir/DependInfo.cmake"
+  "CMakeFiles/validate_index.dir/DependInfo.cmake"
   )

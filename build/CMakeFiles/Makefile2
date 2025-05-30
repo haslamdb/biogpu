@@ -63,7 +63,8 @@ CMAKE_BINARY_DIR = /home/david/Documents/Code/biogpu/build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/fq_pipeline_gpu_enhanced.dir/all
+all: CMakeFiles/fq_pipeline_gpu.dir/all
+all: CMakeFiles/debug_ids.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -71,142 +72,169 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/fq_pipeline_gpu_enhanced.dir/clean
-clean: CMakeFiles/test_enhanced_pipeline.dir/clean
-clean: CMakeFiles/validate_kmer_index.dir/clean
-clean: CMakeFiles/test_synthetic_data.dir/clean
-clean: CMakeFiles/run_complete_test.dir/clean
+clean: CMakeFiles/fq_pipeline_gpu.dir/clean
+clean: CMakeFiles/debug_ids.dir/clean
+clean: CMakeFiles/build_kmer_index.dir/clean
+clean: CMakeFiles/test_gpu_pipeline.dir/clean
+clean: CMakeFiles/debug_index.dir/clean
+clean: CMakeFiles/validate_index.dir/clean
 .PHONY : clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/fq_pipeline_gpu_enhanced.dir
+# Target rules for target CMakeFiles/fq_pipeline_gpu.dir
 
 # All Build rule for target.
-CMakeFiles/fq_pipeline_gpu_enhanced.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=1,2,3,4 "Built target fq_pipeline_gpu_enhanced"
-.PHONY : CMakeFiles/fq_pipeline_gpu_enhanced.dir/all
+CMakeFiles/fq_pipeline_gpu.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=5,6,7,8,9 "Built target fq_pipeline_gpu"
+.PHONY : CMakeFiles/fq_pipeline_gpu.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/fq_pipeline_gpu_enhanced.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 4
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/fq_pipeline_gpu_enhanced.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
-.PHONY : CMakeFiles/fq_pipeline_gpu_enhanced.dir/rule
-
-# Convenience name for target.
-fq_pipeline_gpu_enhanced: CMakeFiles/fq_pipeline_gpu_enhanced.dir/rule
-.PHONY : fq_pipeline_gpu_enhanced
-
-# clean rule for target.
-CMakeFiles/fq_pipeline_gpu_enhanced.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu_enhanced.dir/build.make CMakeFiles/fq_pipeline_gpu_enhanced.dir/clean
-.PHONY : CMakeFiles/fq_pipeline_gpu_enhanced.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/test_enhanced_pipeline.dir
-
-# All Build rule for target.
-CMakeFiles/test_enhanced_pipeline.dir/all: CMakeFiles/fq_pipeline_gpu_enhanced.dir/all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_enhanced_pipeline.dir/build.make CMakeFiles/test_enhanced_pipeline.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_enhanced_pipeline.dir/build.make CMakeFiles/test_enhanced_pipeline.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=6 "Built target test_enhanced_pipeline"
-.PHONY : CMakeFiles/test_enhanced_pipeline.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/test_enhanced_pipeline.dir/rule: cmake_check_build_system
+CMakeFiles/fq_pipeline_gpu.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 5
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_enhanced_pipeline.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/fq_pipeline_gpu.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
-.PHONY : CMakeFiles/test_enhanced_pipeline.dir/rule
+.PHONY : CMakeFiles/fq_pipeline_gpu.dir/rule
 
 # Convenience name for target.
-test_enhanced_pipeline: CMakeFiles/test_enhanced_pipeline.dir/rule
-.PHONY : test_enhanced_pipeline
+fq_pipeline_gpu: CMakeFiles/fq_pipeline_gpu.dir/rule
+.PHONY : fq_pipeline_gpu
 
 # clean rule for target.
-CMakeFiles/test_enhanced_pipeline.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_enhanced_pipeline.dir/build.make CMakeFiles/test_enhanced_pipeline.dir/clean
-.PHONY : CMakeFiles/test_enhanced_pipeline.dir/clean
+CMakeFiles/fq_pipeline_gpu.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/clean
+.PHONY : CMakeFiles/fq_pipeline_gpu.dir/clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/validate_kmer_index.dir
+# Target rules for target CMakeFiles/debug_ids.dir
 
 # All Build rule for target.
-CMakeFiles/validate_kmer_index.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_kmer_index.dir/build.make CMakeFiles/validate_kmer_index.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_kmer_index.dir/build.make CMakeFiles/validate_kmer_index.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=8 "Built target validate_kmer_index"
-.PHONY : CMakeFiles/validate_kmer_index.dir/all
+CMakeFiles/debug_ids.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=2,3 "Built target debug_ids"
+.PHONY : CMakeFiles/debug_ids.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/validate_kmer_index.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 1
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/validate_kmer_index.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
-.PHONY : CMakeFiles/validate_kmer_index.dir/rule
-
-# Convenience name for target.
-validate_kmer_index: CMakeFiles/validate_kmer_index.dir/rule
-.PHONY : validate_kmer_index
-
-# clean rule for target.
-CMakeFiles/validate_kmer_index.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_kmer_index.dir/build.make CMakeFiles/validate_kmer_index.dir/clean
-.PHONY : CMakeFiles/validate_kmer_index.dir/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/test_synthetic_data.dir
-
-# All Build rule for target.
-CMakeFiles/test_synthetic_data.dir/all: CMakeFiles/validate_kmer_index.dir/all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_synthetic_data.dir/build.make CMakeFiles/test_synthetic_data.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_synthetic_data.dir/build.make CMakeFiles/test_synthetic_data.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=7 "Built target test_synthetic_data"
-.PHONY : CMakeFiles/test_synthetic_data.dir/all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/test_synthetic_data.dir/rule: cmake_check_build_system
+CMakeFiles/debug_ids.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_synthetic_data.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/debug_ids.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
-.PHONY : CMakeFiles/test_synthetic_data.dir/rule
+.PHONY : CMakeFiles/debug_ids.dir/rule
 
 # Convenience name for target.
-test_synthetic_data: CMakeFiles/test_synthetic_data.dir/rule
-.PHONY : test_synthetic_data
+debug_ids: CMakeFiles/debug_ids.dir/rule
+.PHONY : debug_ids
 
 # clean rule for target.
-CMakeFiles/test_synthetic_data.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_synthetic_data.dir/build.make CMakeFiles/test_synthetic_data.dir/clean
-.PHONY : CMakeFiles/test_synthetic_data.dir/clean
+CMakeFiles/debug_ids.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/clean
+.PHONY : CMakeFiles/debug_ids.dir/clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/run_complete_test.dir
+# Target rules for target CMakeFiles/build_kmer_index.dir
 
 # All Build rule for target.
-CMakeFiles/run_complete_test.dir/all: CMakeFiles/fq_pipeline_gpu_enhanced.dir/all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_complete_test.dir/build.make CMakeFiles/run_complete_test.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_complete_test.dir/build.make CMakeFiles/run_complete_test.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=5 "Built target run_complete_test"
-.PHONY : CMakeFiles/run_complete_test.dir/all
+CMakeFiles/build_kmer_index.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/build_kmer_index.dir/build.make CMakeFiles/build_kmer_index.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/build_kmer_index.dir/build.make CMakeFiles/build_kmer_index.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=1 "Built target build_kmer_index"
+.PHONY : CMakeFiles/build_kmer_index.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/run_complete_test.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 5
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/run_complete_test.dir/all
+CMakeFiles/build_kmer_index.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 1
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/build_kmer_index.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
-.PHONY : CMakeFiles/run_complete_test.dir/rule
+.PHONY : CMakeFiles/build_kmer_index.dir/rule
 
 # Convenience name for target.
-run_complete_test: CMakeFiles/run_complete_test.dir/rule
-.PHONY : run_complete_test
+build_kmer_index: CMakeFiles/build_kmer_index.dir/rule
+.PHONY : build_kmer_index
 
 # clean rule for target.
-CMakeFiles/run_complete_test.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/run_complete_test.dir/build.make CMakeFiles/run_complete_test.dir/clean
-.PHONY : CMakeFiles/run_complete_test.dir/clean
+CMakeFiles/build_kmer_index.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/build_kmer_index.dir/build.make CMakeFiles/build_kmer_index.dir/clean
+.PHONY : CMakeFiles/build_kmer_index.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/test_gpu_pipeline.dir
+
+# All Build rule for target.
+CMakeFiles/test_gpu_pipeline.dir/all: CMakeFiles/fq_pipeline_gpu.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_gpu_pipeline.dir/build.make CMakeFiles/test_gpu_pipeline.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_gpu_pipeline.dir/build.make CMakeFiles/test_gpu_pipeline.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=10 "Built target test_gpu_pipeline"
+.PHONY : CMakeFiles/test_gpu_pipeline.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_gpu_pipeline.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 6
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_gpu_pipeline.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
+.PHONY : CMakeFiles/test_gpu_pipeline.dir/rule
+
+# Convenience name for target.
+test_gpu_pipeline: CMakeFiles/test_gpu_pipeline.dir/rule
+.PHONY : test_gpu_pipeline
+
+# clean rule for target.
+CMakeFiles/test_gpu_pipeline.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_gpu_pipeline.dir/build.make CMakeFiles/test_gpu_pipeline.dir/clean
+.PHONY : CMakeFiles/test_gpu_pipeline.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/debug_index.dir
+
+# All Build rule for target.
+CMakeFiles/debug_index.dir/all: CMakeFiles/debug_ids.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_index.dir/build.make CMakeFiles/debug_index.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_index.dir/build.make CMakeFiles/debug_index.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=4 "Built target debug_index"
+.PHONY : CMakeFiles/debug_index.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/debug_index.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 3
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/debug_index.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
+.PHONY : CMakeFiles/debug_index.dir/rule
+
+# Convenience name for target.
+debug_index: CMakeFiles/debug_index.dir/rule
+.PHONY : debug_index
+
+# clean rule for target.
+CMakeFiles/debug_index.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_index.dir/build.make CMakeFiles/debug_index.dir/clean
+.PHONY : CMakeFiles/debug_index.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/validate_index.dir
+
+# All Build rule for target.
+CMakeFiles/validate_index.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_index.dir/build.make CMakeFiles/validate_index.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_index.dir/build.make CMakeFiles/validate_index.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/david/Documents/Code/biogpu/build/CMakeFiles --progress-num=11 "Built target validate_index"
+.PHONY : CMakeFiles/validate_index.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/validate_index.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 1
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/validate_index.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/david/Documents/Code/biogpu/build/CMakeFiles 0
+.PHONY : CMakeFiles/validate_index.dir/rule
+
+# Convenience name for target.
+validate_index: CMakeFiles/validate_index.dir/rule
+.PHONY : validate_index
+
+# clean rule for target.
+CMakeFiles/validate_index.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_index.dir/build.make CMakeFiles/validate_index.dir/clean
+.PHONY : CMakeFiles/validate_index.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

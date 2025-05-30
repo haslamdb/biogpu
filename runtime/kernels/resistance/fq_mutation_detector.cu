@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <hdf5.h>
-#include <hdf5_hl.h>
+// #include <hdf5.h>  // Not needed for current implementation
+// #include <hdf5_hl.h>
 #include <vector>
 #include <string>
 #include <algorithm>

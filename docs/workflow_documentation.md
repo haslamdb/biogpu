@@ -82,6 +82,9 @@ This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquin
 ### Stage 0: Data Acquisition
 **Purpose**: Download reference sequences for resistance genes from multiple species
 
+The `output/GeneFiles` directory serves as the reference sequence database for the fluoroquinolone resistance detection pipeline.
+
+**How it's created**:
 ```bash
 # Download sequences from NCBI
 python src/python/download_ncbi_20250529.py \
@@ -92,12 +95,18 @@ python src/python/download_ncbi_20250529.py \
     --max-per-gene 300
 ```
 
+**Role in workflow**:
+1. Downloads GenBank sequences for resistance genes (gyrA, gyrB, parC, parE, efflux pumps, etc.) across multiple species
+2. Saves JSON files with sequences, annotations, and metadata
+3. Feeds into the k-mer index builder (`enhanced_kmer_builder.py`)
+4. Creates the binary index used by the GPU resistance detection pipeline
+
 **Output**: 
 - `output/GeneFiles/[Species]/[gene].json` files
-- Contains: GenBank sequences with CDS features for gyrA, gyrB, parC, parE, etc.
+- Contains: GenBank sequences with CDS features for resistance genes
+- Each JSON file includes sequence data, gene annotations, and species metadata
 
 **Source Rationale**: Need comprehensive sequence database across multiple species to detect resistance genes in metagenomic samples
-
 ---
 
 ### Stage 1: Build K-mer Index

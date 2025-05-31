@@ -291,7 +291,7 @@ pipeline FluoroquinoloneResistance {
     - Robust to sequencing errors
     - Can detect chimeric reads through poor extension scores
 
-#### Translated Search Implementation
+#### Translated Search Implementation (for FQ resistance testing)
 - [ ] **Nucleotide-to-peptide alignment**: Implement 6-frame translation search
   - **Preprocessing Phase**:
     - [ ] CPU-based 6-frame translation (all 3 forward + 3 reverse frames)

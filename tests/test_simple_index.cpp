@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "../runtime/kernels/resistance/fq_mutation_detector.cuh"
+#include "../src/kernels/resistance/fq_mutation_detector.cuh"
 
 // Test program for simplified index
 int main(int argc, char** argv) {

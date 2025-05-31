@@ -167,8 +167,163 @@ pipeline FluoroquinoloneResistance {
 
 ### 3. Algorithm Enhancements
 
+#### K-mer Matching with Extension (Kraken2-style)
+- [ ] **Three-phase k-mer matching algorithm**: Implement prefilter → match → extension workflow
+  - **Phase 1: Bloom Filter Pre-screening**:
+    - [ ] Space-efficient probabilistic filtering to eliminate non-matching k-mers
+    - [ ] Multiple hash functions (typically 4-6) for low false positive rate
+    - [ ] GPU implementation using bit arrays in shared memory
+    - [ ] Target: <1% false positive rate with 4GB filter size
+    ```cuda
+    // Bloom filter structure
+    struct BloomFilter {
+        uint64_t* bit_array;
+        size_t size_bits;
+        int num_hash_functions;
+        
+        __device__ bool possibly_contains(uint64_t kmer) {
+            for (int i = 0; i < num_hash_functions; i++) {
+                uint64_t hash = murmur_hash(kmer, i);
+                if (!test_bit(bit_array, hash % size_bits))
+                    return false;
+            }
+            return true;  // Possibly in set (may be false positive)
+        }
+    };
+    ```
+  
+  - **Phase 2: K-mer Matching with Minimizers**:
+    - [ ] Extract minimizers from reads (smallest k-mer in window)
+    - [ ] Match against pre-built genome k-mer index
+    - [ ] Handle multiple genome matches (LCA resolution)
+    - [ ] GPU kernel for parallel k-mer lookup
+    ```cuda
+    struct KmerHit {
+        uint32_t read_position;
+        uint32_t genome_id;
+        uint32_t genome_position;
+        float initial_score;
+    };
+    ```
+  
+  - **Phase 3: Extension and Verification**:
+    - [ ] Extend matches by checking surrounding k-mers
+    - [ ] Score based on consecutive matches and match density
+    - [ ] Resolve ambiguous assignments using extension scores
+    - [ ] Early termination for poor matches
+    ```cuda
+    __global__ void extend_kmer_matches(
+        const char* reads,
+        const KmerHit* initial_hits,
+        const GenomeIndex* genome_index,
+        ExtendedMatch* best_matches
+    ) {
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+        KmerHit hit = initial_hits[tid];
+        
+        const int EXTENSION_LENGTH = 100;  // Check 100bp each direction
+        const int K = 31;
+        const int STEP = 5;  // Check every 5th k-mer
+        
+        float best_score = 0;
+        int consecutive_matches = 0;
+        
+        // Extend in both directions
+        for (int offset = -EXTENSION_LENGTH; offset <= EXTENSION_LENGTH; offset += STEP) {
+            uint64_t read_kmer = extract_kmer(reads, hit.read_position + offset, K);
+            uint64_t genome_kmer = extract_kmer(genome_index, hit.genome_id, 
+                                              hit.genome_position + offset, K);
+            
+            if (read_kmer == genome_kmer) {
+                consecutive_matches++;
+                best_score += 1.0;
+            } else {
+                best_score -= 0.5;  // Penalize mismatches
+                consecutive_matches = 0;
+            }
+            
+            // Bonus for long consecutive matches
+            if (consecutive_matches > 5) {
+                best_score += 2.0;
+            }
+        }
+        
+        best_matches[tid].score = best_score;
+        best_matches[tid].genome_id = hit.genome_id;
+    }
+    ```
+  
+  - **BioGPU DSL Implementation**:
+    ```biogpu
+    @gpu_kernel
+    stage rapid_profile_with_extension {
+        # Step 1: Bloom filter pre-screening
+        potential_kmers = bloom_filter_check(reads) {
+            filter_size: 4GB,
+            hash_functions: 4,
+            false_positive_rate: 0.01
+        }
+        
+        # Step 2: K-mer matching with minimizers
+        initial_matches = kmer_match(reads, genome_index) {
+            k: 31,
+            minimizer_window: 15,
+            use_bloom_filter: potential_kmers
+        }
+        
+        # Step 3: Extension and verification
+        verified_matches = extend_matches(reads, initial_matches, genome_index) {
+            extension_length: 100,
+            scoring: {
+                match: 1.0,
+                mismatch: -0.5,
+                consecutive_bonus: 2.0
+            },
+            min_extension_score: 10.0
+        }
+        
+        # Step 4: Resolve ambiguous assignments
+        final_assignments = resolve_taxonomy(verified_matches) {
+            method: "weighted_lca",  # Or "best_hit"
+            min_confidence: 0.8
+        }
+    }
+    ```
+  
+  - **Performance Optimizations**:
+    - [ ] Coalesced memory access by grouping similar k-mer hits
+    - [ ] Shared memory caching of genome regions during extension
+    - [ ] Warp-level primitives for score aggregation
+    - [ ] Early termination when extension score drops below threshold
+  
+  - **Advantages over simple k-mer matching**:
+    - Higher accuracy by verifying initial matches
+    - Better strain-level resolution
+    - Robust to sequencing errors
+    - Can detect chimeric reads through poor extension scores
+
 #### Translated Search Implementation
 - [ ] **Nucleotide-to-peptide alignment**: Implement 6-frame translation search
+  - **Preprocessing Phase**:
+    - [ ] CPU-based 6-frame translation (all 3 forward + 3 reverse frames)
+    - [ ] SIMD optimization for codon lookup tables
+    - [ ] Optional GPU translation kernel for very large datasets
+    - [ ] K-mer pre-filtering to reduce search space
+  - **GPU Kernel Design**:
+    - [ ] Parallel alignment of translated peptides vs AMR protein database
+    - [ ] Tiled loading of reference proteins into shared memory
+    - [ ] Banded Smith-Waterman for efficient protein alignment
+    - [ ] Early termination when alignment score drops below threshold
+  - **Memory Optimization**:
+    - [ ] Single large device buffer allocation with manual management
+    - [ ] Pinned memory for efficient host-GPU transfers
+    - [ ] Texture memory for BLOSUM62 substitution matrix
+    - [ ] Coalesced memory access patterns for peptide sequences
+  - **Specific Tools and Techniques**:
+    - [ ] Build system: CMake + NVCC integration
+    - [ ] Profiling: Nsight Compute for kernel optimization
+    - [ ] Debugging: CUDA-GDB for kernel debugging, valgrind for host code
+    - [ ] Performance targets: Process 1M translated frames in <30 seconds
 - [ ] **Codon-aware alignment**: Optimize for protein-coding sequences
 - [ ] **Stop codon handling**: Proper translation boundary detection
 - [ ] **Genetic code variations**: Support alternative genetic codes for different organisms
@@ -292,6 +447,172 @@ pipeline FluoroquinoloneResistance {
 - [ ] Implement plasmid reconstruction
 - [ ] Machine learning for novel resistance prediction
 - [ ] Integration with structural biology for resistance mechanism analysis
+
+### 17. GUI Development and User Interface
+
+#### Web-Based Clinical Interface (Recommended)
+- [ ] **Frontend Framework**: React or Vue.js for responsive clinical interface
+  - [ ] Component library: Material-UI or Ant Design for professional look
+  - [ ] Real-time updates: WebSocket connection for progress monitoring
+  - [ ] Interactive visualizations: Plotly.js for results display
+  - [ ] File management: Drag-and-drop upload with resumable transfers
+
+- [ ] **Backend API**: FastAPI or Flask for Python integration
+  - [ ] REST endpoints for job submission and status
+  - [ ] WebSocket support for real-time progress streaming
+  - [ ] Job queue management with Celery or RQ
+  - [ ] Authentication: OAuth2/SAML for hospital SSO integration
+  ```python
+  # Example API structure
+  @app.post("/api/v1/analysis")
+  async def submit_analysis(
+      files: List[UploadFile],
+      config: AnalysisConfig,
+      user: User = Depends(get_current_user)
+  ):
+      job_id = await biogpu_queue.submit(files, config, user)
+      return {"job_id": job_id, "status": "queued"}
+  
+  @app.websocket("/ws/pipeline/{job_id}")
+  async def pipeline_progress(websocket: WebSocket, job_id: str):
+      await websocket.accept()
+      async for update in monitor_job(job_id):
+          await websocket.send_json(update)
+  ```
+
+#### Desktop Application Alternative
+- [ ] **PyQt6 Implementation**: Native desktop app for offline use
+  - [ ] Wizard-style interface for clinical users
+  - [ ] Local file browser with batch processing support
+  - [ ] Embedded results viewer with PDF export
+  - [ ] System tray integration for background processing
+  ```python
+  class BiogpuWizard(QWizard):
+      pages = [
+          FileSelectionPage(),      # FASTQ file selection
+          AnalysisConfigPage(),     # Resistance panels, settings
+          GPUSelectionPage(),       # GPU device and memory
+          ReviewPage(),             # Confirm settings
+          ProgressPage(),           # Real-time monitoring
+          ResultsPage()             # Interactive results
+      ]
+  ```
+
+#### Streamlit Prototype (Quick Development)
+- [ ] **Rapid prototyping interface**: For testing and development
+  - [ ] Simple file upload interface
+  - [ ] Checkbox-based analysis selection
+  - [ ] Real-time progress tracking
+  - [ ] Interactive results display
+  ```python
+  # Streamlit app structure
+  st.set_page_config(page_title="BioGPU Clinical", layout="wide")
+  
+  # Sidebar: Configuration
+  with st.sidebar:
+      uploaded_files = st.file_uploader("FASTQ Files", accept_multiple_files=True)
+      analysis_type = st.multiselect("Resistance Panels", 
+          ["Fluoroquinolones", "Carbapenems", "Aminoglycosides"])
+      
+  # Main: Results display
+  if st.button("Run Analysis"):
+      progress = st.progress(0)
+      status = st.empty()
+      # Run pipeline with progress updates
+  ```
+
+#### Remote Data Streaming
+- [ ] **S3/Cloud Storage Integration**:
+  - [ ] Direct streaming from S3 buckets without local download
+  - [ ] Support for presigned URLs for secure access
+  - [ ] Chunked transfer with retry logic
+  - [ ] Progress tracking for large files
+  ```python
+  async def stream_from_s3(bucket: str, key: str, pipeline: BiogpuPipeline):
+      s3_client = aioboto3.client('s3')
+      async with s3_client.get_object(Bucket=bucket, Key=key) as response:
+          async for chunk in response['Body'].iter_chunks(chunk_size=1024*1024):
+              await pipeline.feed_data(chunk)
+  ```
+
+- [ ] **HTTP/HTTPS Streaming**:
+  - [ ] Support for remote FASTQ URLs
+  - [ ] Resume capability for interrupted transfers
+  - [ ] Bandwidth throttling for shared networks
+  - [ ] Certificate validation for secure transfers
+
+- [ ] **Real-time Sequencer Integration**:
+  - [ ] Direct connection to Illumina/ONT sequencers
+  - [ ] Live basecalling integration
+  - [ ] Real-time quality metrics
+  - [ ] Early stopping based on results
+
+#### GUI Feature Implementation
+- [ ] **Dynamic DSL Generation**:
+  - [ ] Convert GUI selections to BioGPU DSL code
+  - [ ] Validation of parameter combinations
+  - [ ] Template system for common workflows
+  - [ ] Custom DSL editor with syntax highlighting
+  ```python
+  def generate_dsl_from_gui(config: GUIConfig) -> str:
+      template = DSLTemplate()
+      template.add_input(config.input_files, config.remote_urls)
+      template.add_analysis(config.selected_panels)
+      template.add_gpu_settings(config.gpu_device, config.batch_size)
+      return template.render()
+  ```
+
+- [ ] **Progress Monitoring System**:
+  - [ ] Real-time read count updates
+  - [ ] Per-stage progress tracking
+  - [ ] ETA calculation based on throughput
+  - [ ] Resource usage monitoring (GPU, memory)
+  - [ ] Error handling with retry options
+
+- [ ] **Results Visualization**:
+  - [ ] Interactive microbiome composition charts (Plotly)
+  - [ ] Resistance gene heatmaps with clustering
+  - [ ] Phylogenetic trees for strain identification
+  - [ ] Clinical interpretation summary
+  - [ ] Export to PDF/HTML reports
+
+#### Security and Compliance Features
+- [ ] **HIPAA Compliance**:
+  - [ ] End-to-end encryption for data transfer
+  - [ ] Audit logging for all operations
+  - [ ] Role-based access control (RBAC)
+  - [ ] Automatic PHI de-identification option
+  ```python
+  class HIPAACompliantGUI:
+      def __init__(self):
+          self.encryption = AES256Encryption()
+          self.audit_logger = ComplianceLogger()
+          self.access_control = RBACManager()
+      
+      def process_patient_data(self, data, user):
+          self.audit_logger.log(user, "data_access", data.metadata)
+          encrypted = self.encryption.encrypt(data)
+          return self.pipeline.process(encrypted)
+  ```
+
+- [ ] **Clinical Integration**:
+  - [ ] HL7/FHIR message generation
+  - [ ] LIS system connectors
+  - [ ] Automated result routing
+  - [ ] Clinical decision support alerts
+
+#### Performance Optimizations
+- [ ] **Efficient Data Transfer**:
+  - [ ] Zero-copy streaming to GPU
+  - [ ] Compressed transfer formats
+  - [ ] Parallel upload/download streams
+  - [ ] Smart caching for repeated analyses
+
+- [ ] **Responsive UI Design**:
+  - [ ] Non-blocking UI updates
+  - [ ] Progressive result loading
+  - [ ] Cancelable operations
+  - [ ] Background job management
 
 ## Getting Started
 

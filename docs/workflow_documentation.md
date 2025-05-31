@@ -9,70 +9,71 @@ This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquin
 
 ---
 
-● 📁 Project Structure
+## 📁 Project Structure
 
-  biogpu/
-  ├── data/
-  │   ├── Known_Quinolone_Changes.csv      # Source: Literature-curated FQ mutations
-  │   ├── Known_Efflux_Pump_Genes.csv      # Source: CARD database efflux genes
-  │   ├── genomes/                         # Downloaded from NCBI (bacteria/, fungi/, plasmids/, viral/)
-  │   │   ├── bacteria/                    # Bacterial reference genomes
-  │   │   ├── fungi/                       # Fungal genomes
-  │   │   ├── plasmids/                    # Plasmid sequences
-  │   │   └── viral/                       # Viral genomes
-  │   ├── gpu_resistance_db/               # ❌ Created but NOT USED (mutations.pkl, genes.pkl, etc.)
-  │   ├── fq_resistance_index/             # ✅ ACTIVELY USED k-mer index
-  │   │   ├── kmer_index.bin              # Binary k-mer hash table (15-mers)
-  │   │   ├── sequences.bin               # Reference sequence database
-  │   │   ├── index_metadata.json         # Index metadata and statistics
-  │   │   └── debug/                      # Validation and analysis files
-  │   └── resistance_db/                   # Alternative resistance database format
-  ├── output/
-  │   └── GeneFiles/                       # JSON files per species/gene (input for kmer builder)
-  │       ├── Escherichia_coli/           # E. coli resistance genes
-  │       ├── Pseudomonas_aeruginosa/     # P. aeruginosa resistance genes
-  │       └── [other species]/            # Additional organism gene files
-  ├── runtime/                             # ✅ PRODUCTION CODE (used by CMake)
-  │   └── kernels/resistance/
-  │       ├── kmer_screening.cu           # Stage 1: K-mer filtering (GPU)
-  │       ├── fq_mutation_detector.cu     # Stage 2: Alignment/mutation detection (GPU)
-  │       ├── fq_mutation_detector.cuh    # CUDA header definitions
-  │       └── fq_pipeline_host.cpp        # Main pipeline orchestrator (CPU)
-  ├── src/                                 # Development/experimental versions
-  │   ├── kernels/resistance/             # Development CUDA kernels (not used in build)
-  │   ├── python/                         # Python tools and builders
-  │   │   ├── enhanced_kmer_builder.py    # ✅ K-mer index builder (called by CMake)
-  │   │   ├── download_ncbi_20250529.py   # NCBI sequence downloader
-  │   │   ├── generate_synthetic_reads.py # Test data generator
-  │   │   └── index_validator.py          # Index validation tool
-  │   └── compiler/                       # BioGPU language compiler components
-  ├── backup_scripts/
-  │   └── tools/
-  │       ├── build_fq_resistance_db_adapted.py  # Mutation DB builder (adapted for CSV)
-  │       ├── parse_quinolone_mutations.R        # ✅ ORIGINAL mutation CSV creator
-  │       ├── build_kmer_index.py               # Alternative k-mer builders
-  │       └── [other database builders]         # Additional build tools
-  ├── include/biogpu/                      # Header files for C++/CUDA compilation
-  ├── tests/                               # Test scripts and validation tools
-  │   ├── debug_gene_species_ids.cpp      # Debug tool for ID assignments
-  │   └── [test files]                    # Validation and integration tests
-  ├── CMakeLists.txt                       # ✅ Build system (uses /runtime/ kernels)
-  └── build/                               # Build artifacts (created by CMake)
-      ├── fq_pipeline_gpu                 # Main executable
-      └── debug_ids                       # Debug utilities
+```
+biogpu/
+├── data/
+│   ├── Known_Quinolone_Changes.csv      # Source: Literature-curated FQ mutations
+│   ├── Known_Efflux_Pump_Genes.csv      # Source: CARD database efflux genes
+│   ├── genomes/                         # Downloaded from NCBI (bacteria/, fungi/, plasmids/, viral/)
+│   │   ├── bacteria/                    # Bacterial reference genomes
+│   │   ├── fungi/                       # Fungal genomes
+│   │   ├── plasmids/                    # Plasmid sequences
+│   │   └── viral/                       # Viral genomes
+│   ├── gpu_resistance_db/               # ❌ Created but NOT USED (mutations.pkl, genes.pkl, etc.)
+│   ├── fq_resistance_index/             # ✅ ACTIVELY USED k-mer index
+│   │   ├── kmer_index.bin              # Binary k-mer hash table (15-mers)
+│   │   ├── sequences.bin               # Reference sequence database
+│   │   ├── index_metadata.json         # Index metadata and statistics
+│   │   └── debug/                      # Validation and analysis files
+│   └── resistance_db/                   # Alternative resistance database format
+├── output/
+│   └── GeneFiles/                       # JSON files per species/gene (input for kmer builder)
+│       ├── Escherichia_coli/           # E. coli resistance genes
+│       ├── Pseudomonas_aeruginosa/     # P. aeruginosa resistance genes
+│       └── [other species]/            # Additional organism gene files
+├── runtime/                             # ✅ PRODUCTION CODE (used by CMake)
+│   └── kernels/resistance/
+│       ├── kmer_screening.cu           # Stage 1: K-mer filtering (GPU)
+│       ├── fq_mutation_detector.cu     # Stage 2: Alignment/mutation detection (GPU)
+│       ├── fq_mutation_detector.cuh    # CUDA header definitions
+│       └── fq_pipeline_host.cpp        # Main pipeline orchestrator (CPU)
+├── src/                                 # Development/experimental versions
+│   ├── kernels/resistance/             # Development CUDA kernels (not used in build)
+│   ├── python/                         # Python tools and builders
+│   │   ├── enhanced_kmer_builder.py    # ✅ K-mer index builder (called by CMake)
+│   │   ├── download_ncbi_20250529.py   # NCBI sequence downloader
+│   │   ├── generate_synthetic_reads.py # Test data generator
+│   │   └── index_validator.py          # Index validation tool
+│   └── compiler/                       # BioGPU language compiler components
+├── backup_scripts/
+│   └── tools/
+│       ├── build_fq_resistance_db_adapted.py  # Mutation DB builder (adapted for CSV)
+│       ├── parse_quinolone_mutations.R        # ✅ ORIGINAL mutation CSV creator
+│       ├── build_kmer_index.py               # Alternative k-mer builders
+│       └── [other database builders]         # Additional build tools
+├── include/biogpu/                      # Header files for C++/CUDA compilation
+├── tests/                               # Test scripts and validation tools
+│   ├── debug_gene_species_ids.cpp      # Debug tool for ID assignments
+│   └── [test files]                    # Validation and integration tests
+├── CMakeLists.txt                       # ✅ Build system (uses /runtime/ kernels)
+└── build/                               # Build artifacts (created by CMake)
+    ├── fq_pipeline_gpu                 # Main executable
+    └── debug_ids                       # Debug utilities
 
-  Key Build Relationships:
+Key Build Relationships:
 
-  ✅ Active Pipeline (CMake builds):
-  - Source: /runtime/kernels/resistance/
-  - Executable: build/fq_pipeline_gpu
-  - Index Builder: src/python/enhanced_kmer_builder.py
-  - Data Input: data/fq_resistance_index/kmer_index.bin
+✅ Active Pipeline (CMake builds):
+- Source: /runtime/kernels/resistance/
+- Executable: build/fq_pipeline_gpu
+- Index Builder: src/python/enhanced_kmer_builder.py
+- Data Input: data/fq_resistance_index/kmer_index.bin
 
-  🔧 Development/Backup:
-  - Development kernels: /src/kernels/resistance/ (not compiled)
-  - Database builders: /backup_scripts/tools/ (Python/R scripts)
-  - Unused database: data/gpu_resistance_db/ (rich mutation data, not integrated)
+🔧 Development/Backup:
+- Development kernels: /src/kernels/resistance/ (not compiled)
+- Database builders: /backup_scripts/tools/ (Python/R scripts)
+- Unused database: data/gpu_resistance_db/ (rich mutation data, not integrated)
 ```
 
 ---
@@ -107,6 +108,7 @@ python src/python/download_ncbi_20250529.py \
 - Each JSON file includes sequence data, gene annotations, and species metadata
 
 **Source Rationale**: Need comprehensive sequence database across multiple species to detect resistance genes in metagenomic samples
+
 ---
 
 ### Stage 1: Build K-mer Index
@@ -324,16 +326,6 @@ cmake .. && make -j8
 
 ---
 
-## 📚 References
-
-### Data Sources
-- CARD Database: Comprehensive Antibiotic Resistance Database
-- NCBI RefSeq: Reference genome sequences
-- Literature: Curated FQ resistance mutations
-
-### Key Papers
-- [Add relevant papers on FQ resistance]
-- [GPU acceleration of sequence analysis]
 
 ### Technical Documentation
 - CUDA Programming Guide
@@ -343,7 +335,7 @@ cmake .. && make -j8
 
 ## 🤝 Contributors
 - David Haslam - Pipeline architecture, clinical integration
-- [Add other contributors]
+-
 
 ---
 

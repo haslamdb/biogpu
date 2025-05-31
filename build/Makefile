@@ -162,110 +162,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named intrinsics_gen
-
-# Build rule for target.
-intrinsics_gen: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 intrinsics_gen
-.PHONY : intrinsics_gen
-
-# fast build rule for target.
-intrinsics_gen/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/intrinsics_gen.dir/build.make CMakeFiles/intrinsics_gen.dir/build
-.PHONY : intrinsics_gen/fast
-
-#=============================================================================
-# Target rules for targets named omp_gen
-
-# Build rule for target.
-omp_gen: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 omp_gen
-.PHONY : omp_gen
-
-# fast build rule for target.
-omp_gen/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/omp_gen.dir/build.make CMakeFiles/omp_gen.dir/build
-.PHONY : omp_gen/fast
-
-#=============================================================================
-# Target rules for targets named acc_gen
-
-# Build rule for target.
-acc_gen: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 acc_gen
-.PHONY : acc_gen
-
-# fast build rule for target.
-acc_gen/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/acc_gen.dir/build.make CMakeFiles/acc_gen.dir/build
-.PHONY : acc_gen/fast
-
-#=============================================================================
-# Target rules for targets named RISCVTargetParserTableGen
-
-# Build rule for target.
-RISCVTargetParserTableGen: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 RISCVTargetParserTableGen
-.PHONY : RISCVTargetParserTableGen
-
-# fast build rule for target.
-RISCVTargetParserTableGen/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/RISCVTargetParserTableGen.dir/build.make CMakeFiles/RISCVTargetParserTableGen.dir/build
-.PHONY : RISCVTargetParserTableGen/fast
-
-#=============================================================================
-# Target rules for targets named biogpu
-
-# Build rule for target.
-biogpu: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 biogpu
-.PHONY : biogpu
-
-# fast build rule for target.
-biogpu/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/build
-.PHONY : biogpu/fast
-
-#=============================================================================
-# Target rules for targets named biogpu_kernels
-
-# Build rule for target.
-biogpu_kernels: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 biogpu_kernels
-.PHONY : biogpu_kernels
-
-# fast build rule for target.
-biogpu_kernels/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/build
-.PHONY : biogpu_kernels/fast
-
-#=============================================================================
-# Target rules for targets named test_cuda_kernels
-
-# Build rule for target.
-test_cuda_kernels: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_cuda_kernels
-.PHONY : test_cuda_kernels
-
-# fast build rule for target.
-test_cuda_kernels/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/build
-.PHONY : test_cuda_kernels/fast
-
-#=============================================================================
-# Target rules for targets named test_titanxp
-
-# Build rule for target.
-test_titanxp: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_titanxp
-.PHONY : test_titanxp
-
-# fast build rule for target.
-test_titanxp/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_titanxp.dir/build.make CMakeFiles/test_titanxp.dir/build
-.PHONY : test_titanxp/fast
-
-#=============================================================================
 # Target rules for targets named fq_pipeline_gpu
 
 # Build rule for target.
@@ -278,12 +174,100 @@ fq_pipeline_gpu/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/build
 .PHONY : fq_pipeline_gpu/fast
 
+#=============================================================================
+# Target rules for targets named debug_ids
+
+# Build rule for target.
+debug_ids: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 debug_ids
+.PHONY : debug_ids
+
+# fast build rule for target.
+debug_ids/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/build
+.PHONY : debug_ids/fast
+
+#=============================================================================
+# Target rules for targets named build_kmer_index
+
+# Build rule for target.
+build_kmer_index: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 build_kmer_index
+.PHONY : build_kmer_index
+
+# fast build rule for target.
+build_kmer_index/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/build_kmer_index.dir/build.make CMakeFiles/build_kmer_index.dir/build
+.PHONY : build_kmer_index/fast
+
+#=============================================================================
+# Target rules for targets named test_gpu_pipeline
+
+# Build rule for target.
+test_gpu_pipeline: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_gpu_pipeline
+.PHONY : test_gpu_pipeline
+
+# fast build rule for target.
+test_gpu_pipeline/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_gpu_pipeline.dir/build.make CMakeFiles/test_gpu_pipeline.dir/build
+.PHONY : test_gpu_pipeline/fast
+
+#=============================================================================
+# Target rules for targets named debug_index
+
+# Build rule for target.
+debug_index: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 debug_index
+.PHONY : debug_index
+
+# fast build rule for target.
+debug_index/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_index.dir/build.make CMakeFiles/debug_index.dir/build
+.PHONY : debug_index/fast
+
+#=============================================================================
+# Target rules for targets named validate_index
+
+# Build rule for target.
+validate_index: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 validate_index
+.PHONY : validate_index
+
+# fast build rule for target.
+validate_index/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/validate_index.dir/build.make CMakeFiles/validate_index.dir/build
+.PHONY : validate_index/fast
+
+runtime/kernels/resistance/fixed_kmer_screening.o: runtime/kernels/resistance/fixed_kmer_screening.cu.o
+.PHONY : runtime/kernels/resistance/fixed_kmer_screening.o
+
+# target to build an object file
+runtime/kernels/resistance/fixed_kmer_screening.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.o
+.PHONY : runtime/kernels/resistance/fixed_kmer_screening.cu.o
+
+runtime/kernels/resistance/fixed_kmer_screening.i: runtime/kernels/resistance/fixed_kmer_screening.cu.i
+.PHONY : runtime/kernels/resistance/fixed_kmer_screening.i
+
+# target to preprocess a source file
+runtime/kernels/resistance/fixed_kmer_screening.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.i
+.PHONY : runtime/kernels/resistance/fixed_kmer_screening.cu.i
+
+runtime/kernels/resistance/fixed_kmer_screening.s: runtime/kernels/resistance/fixed_kmer_screening.cu.s
+.PHONY : runtime/kernels/resistance/fixed_kmer_screening.s
+
+# target to generate assembly for a file
+runtime/kernels/resistance/fixed_kmer_screening.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fixed_kmer_screening.cu.s
+.PHONY : runtime/kernels/resistance/fixed_kmer_screening.cu.s
+
 runtime/kernels/resistance/fq_mutation_detector.o: runtime/kernels/resistance/fq_mutation_detector.cu.o
 .PHONY : runtime/kernels/resistance/fq_mutation_detector.o
 
 # target to build an object file
 runtime/kernels/resistance/fq_mutation_detector.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_mutation_detector.cu.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.o
 .PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.o
 
@@ -292,7 +276,6 @@ runtime/kernels/resistance/fq_mutation_detector.i: runtime/kernels/resistance/fq
 
 # target to preprocess a source file
 runtime/kernels/resistance/fq_mutation_detector.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_mutation_detector.cu.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.i
 .PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.i
 
@@ -301,7 +284,6 @@ runtime/kernels/resistance/fq_mutation_detector.s: runtime/kernels/resistance/fq
 
 # target to generate assembly for a file
 runtime/kernels/resistance/fq_mutation_detector.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_mutation_detector.cu.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_mutation_detector.cu.s
 .PHONY : runtime/kernels/resistance/fq_mutation_detector.cu.s
 
@@ -329,416 +311,29 @@ runtime/kernels/resistance/fq_pipeline_host.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_host.cpp.s
 .PHONY : runtime/kernels/resistance/fq_pipeline_host.cpp.s
 
-runtime/kernels/resistance/fq_pipeline_wrapper.o: runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.o
+tests/debug_gene_species_ids.o: tests/debug_gene_species_ids.cpp.o
+.PHONY : tests/debug_gene_species_ids.o
 
 # target to build an object file
-runtime/kernels/resistance/fq_pipeline_wrapper.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.o
+tests/debug_gene_species_ids.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/tests/debug_gene_species_ids.cpp.o
+.PHONY : tests/debug_gene_species_ids.cpp.o
 
-runtime/kernels/resistance/fq_pipeline_wrapper.i: runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.i
-
-# target to preprocess a source file
-runtime/kernels/resistance/fq_pipeline_wrapper.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.i
-
-runtime/kernels/resistance/fq_pipeline_wrapper.s: runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.s
-
-# target to generate assembly for a file
-runtime/kernels/resistance/fq_pipeline_wrapper.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/fq_pipeline_gpu.dir/build.make CMakeFiles/fq_pipeline_gpu.dir/runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-.PHONY : runtime/kernels/resistance/fq_pipeline_wrapper.cu.s
-
-runtime/kernels/resistance/fq_resistance.o: runtime/kernels/resistance/fq_resistance.cu.o
-.PHONY : runtime/kernels/resistance/fq_resistance.o
-
-# target to build an object file
-runtime/kernels/resistance/fq_resistance.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_resistance.cu.o
-.PHONY : runtime/kernels/resistance/fq_resistance.cu.o
-
-runtime/kernels/resistance/fq_resistance.i: runtime/kernels/resistance/fq_resistance.cu.i
-.PHONY : runtime/kernels/resistance/fq_resistance.i
+tests/debug_gene_species_ids.i: tests/debug_gene_species_ids.cpp.i
+.PHONY : tests/debug_gene_species_ids.i
 
 # target to preprocess a source file
-runtime/kernels/resistance/fq_resistance.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_resistance.cu.i
-.PHONY : runtime/kernels/resistance/fq_resistance.cu.i
+tests/debug_gene_species_ids.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/tests/debug_gene_species_ids.cpp.i
+.PHONY : tests/debug_gene_species_ids.cpp.i
 
-runtime/kernels/resistance/fq_resistance.s: runtime/kernels/resistance/fq_resistance.cu.s
-.PHONY : runtime/kernels/resistance/fq_resistance.s
-
-# target to generate assembly for a file
-runtime/kernels/resistance/fq_resistance.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu_kernels.dir/build.make CMakeFiles/biogpu_kernels.dir/runtime/kernels/resistance/fq_resistance.cu.s
-.PHONY : runtime/kernels/resistance/fq_resistance.cu.s
-
-src/codegen/ast_codegen.o: src/codegen/ast_codegen.cpp.o
-.PHONY : src/codegen/ast_codegen.o
-
-# target to build an object file
-src/codegen/ast_codegen.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.o
-.PHONY : src/codegen/ast_codegen.cpp.o
-
-src/codegen/ast_codegen.i: src/codegen/ast_codegen.cpp.i
-.PHONY : src/codegen/ast_codegen.i
-
-# target to preprocess a source file
-src/codegen/ast_codegen.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.i
-.PHONY : src/codegen/ast_codegen.cpp.i
-
-src/codegen/ast_codegen.s: src/codegen/ast_codegen.cpp.s
-.PHONY : src/codegen/ast_codegen.s
+tests/debug_gene_species_ids.s: tests/debug_gene_species_ids.cpp.s
+.PHONY : tests/debug_gene_species_ids.s
 
 # target to generate assembly for a file
-src/codegen/ast_codegen.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/ast_codegen.cpp.s
-.PHONY : src/codegen/ast_codegen.cpp.s
-
-src/codegen/llvm_codegen.o: src/codegen/llvm_codegen.cpp.o
-.PHONY : src/codegen/llvm_codegen.o
-
-# target to build an object file
-src/codegen/llvm_codegen.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.o
-.PHONY : src/codegen/llvm_codegen.cpp.o
-
-src/codegen/llvm_codegen.i: src/codegen/llvm_codegen.cpp.i
-.PHONY : src/codegen/llvm_codegen.i
-
-# target to preprocess a source file
-src/codegen/llvm_codegen.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.i
-.PHONY : src/codegen/llvm_codegen.cpp.i
-
-src/codegen/llvm_codegen.s: src/codegen/llvm_codegen.cpp.s
-.PHONY : src/codegen/llvm_codegen.s
-
-# target to generate assembly for a file
-src/codegen/llvm_codegen.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/codegen/llvm_codegen.cpp.s
-.PHONY : src/codegen/llvm_codegen.cpp.s
-
-src/compiler/compiler.o: src/compiler/compiler.cpp.o
-.PHONY : src/compiler/compiler.o
-
-# target to build an object file
-src/compiler/compiler.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.o
-.PHONY : src/compiler/compiler.cpp.o
-
-src/compiler/compiler.i: src/compiler/compiler.cpp.i
-.PHONY : src/compiler/compiler.i
-
-# target to preprocess a source file
-src/compiler/compiler.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.i
-.PHONY : src/compiler/compiler.cpp.i
-
-src/compiler/compiler.s: src/compiler/compiler.cpp.s
-.PHONY : src/compiler/compiler.s
-
-# target to generate assembly for a file
-src/compiler/compiler.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/compiler/compiler.cpp.s
-.PHONY : src/compiler/compiler.cpp.s
-
-src/main.o: src/main.cpp.o
-.PHONY : src/main.o
-
-# target to build an object file
-src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.o
-.PHONY : src/main.cpp.o
-
-src/main.i: src/main.cpp.i
-.PHONY : src/main.i
-
-# target to preprocess a source file
-src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.i
-.PHONY : src/main.cpp.i
-
-src/main.s: src/main.cpp.s
-.PHONY : src/main.s
-
-# target to generate assembly for a file
-src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/main.cpp.s
-.PHONY : src/main.cpp.s
-
-src/parser/BioGPUBaseVisitor.o: src/parser/BioGPUBaseVisitor.cpp.o
-.PHONY : src/parser/BioGPUBaseVisitor.o
-
-# target to build an object file
-src/parser/BioGPUBaseVisitor.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.o
-.PHONY : src/parser/BioGPUBaseVisitor.cpp.o
-
-src/parser/BioGPUBaseVisitor.i: src/parser/BioGPUBaseVisitor.cpp.i
-.PHONY : src/parser/BioGPUBaseVisitor.i
-
-# target to preprocess a source file
-src/parser/BioGPUBaseVisitor.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.i
-.PHONY : src/parser/BioGPUBaseVisitor.cpp.i
-
-src/parser/BioGPUBaseVisitor.s: src/parser/BioGPUBaseVisitor.cpp.s
-.PHONY : src/parser/BioGPUBaseVisitor.s
-
-# target to generate assembly for a file
-src/parser/BioGPUBaseVisitor.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUBaseVisitor.cpp.s
-.PHONY : src/parser/BioGPUBaseVisitor.cpp.s
-
-src/parser/BioGPULexer.o: src/parser/BioGPULexer.cpp.o
-.PHONY : src/parser/BioGPULexer.o
-
-# target to build an object file
-src/parser/BioGPULexer.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.o
-.PHONY : src/parser/BioGPULexer.cpp.o
-
-src/parser/BioGPULexer.i: src/parser/BioGPULexer.cpp.i
-.PHONY : src/parser/BioGPULexer.i
-
-# target to preprocess a source file
-src/parser/BioGPULexer.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.i
-.PHONY : src/parser/BioGPULexer.cpp.i
-
-src/parser/BioGPULexer.s: src/parser/BioGPULexer.cpp.s
-.PHONY : src/parser/BioGPULexer.s
-
-# target to generate assembly for a file
-src/parser/BioGPULexer.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPULexer.cpp.s
-.PHONY : src/parser/BioGPULexer.cpp.s
-
-src/parser/BioGPUParser.o: src/parser/BioGPUParser.cpp.o
-.PHONY : src/parser/BioGPUParser.o
-
-# target to build an object file
-src/parser/BioGPUParser.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.o
-.PHONY : src/parser/BioGPUParser.cpp.o
-
-src/parser/BioGPUParser.i: src/parser/BioGPUParser.cpp.i
-.PHONY : src/parser/BioGPUParser.i
-
-# target to preprocess a source file
-src/parser/BioGPUParser.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.i
-.PHONY : src/parser/BioGPUParser.cpp.i
-
-src/parser/BioGPUParser.s: src/parser/BioGPUParser.cpp.s
-.PHONY : src/parser/BioGPUParser.s
-
-# target to generate assembly for a file
-src/parser/BioGPUParser.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/BioGPUParser.cpp.s
-.PHONY : src/parser/BioGPUParser.cpp.s
-
-src/parser/ast.o: src/parser/ast.cpp.o
-.PHONY : src/parser/ast.o
-
-# target to build an object file
-src/parser/ast.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/ast.cpp.o
-.PHONY : src/parser/ast.cpp.o
-
-src/parser/ast.i: src/parser/ast.cpp.i
-.PHONY : src/parser/ast.i
-
-# target to preprocess a source file
-src/parser/ast.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/ast.cpp.i
-.PHONY : src/parser/ast.cpp.i
-
-src/parser/ast.s: src/parser/ast.cpp.s
-.PHONY : src/parser/ast.s
-
-# target to generate assembly for a file
-src/parser/ast.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/ast.cpp.s
-.PHONY : src/parser/ast.cpp.s
-
-src/parser/biogpu_parser.o: src/parser/biogpu_parser.cpp.o
-.PHONY : src/parser/biogpu_parser.o
-
-# target to build an object file
-src/parser/biogpu_parser.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.o
-.PHONY : src/parser/biogpu_parser.cpp.o
-
-src/parser/biogpu_parser.i: src/parser/biogpu_parser.cpp.i
-.PHONY : src/parser/biogpu_parser.i
-
-# target to preprocess a source file
-src/parser/biogpu_parser.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.i
-.PHONY : src/parser/biogpu_parser.cpp.i
-
-src/parser/biogpu_parser.s: src/parser/biogpu_parser.cpp.s
-.PHONY : src/parser/biogpu_parser.s
-
-# target to generate assembly for a file
-src/parser/biogpu_parser.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/parser/biogpu_parser.cpp.s
-.PHONY : src/parser/biogpu_parser.cpp.s
-
-src/stdlib/algorithms/bloom_cascade.o: src/stdlib/algorithms/bloom_cascade.cpp.o
-.PHONY : src/stdlib/algorithms/bloom_cascade.o
-
-# target to build an object file
-src/stdlib/algorithms/bloom_cascade.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.o
-.PHONY : src/stdlib/algorithms/bloom_cascade.cpp.o
-
-src/stdlib/algorithms/bloom_cascade.i: src/stdlib/algorithms/bloom_cascade.cpp.i
-.PHONY : src/stdlib/algorithms/bloom_cascade.i
-
-# target to preprocess a source file
-src/stdlib/algorithms/bloom_cascade.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.i
-.PHONY : src/stdlib/algorithms/bloom_cascade.cpp.i
-
-src/stdlib/algorithms/bloom_cascade.s: src/stdlib/algorithms/bloom_cascade.cpp.s
-.PHONY : src/stdlib/algorithms/bloom_cascade.s
-
-# target to generate assembly for a file
-src/stdlib/algorithms/bloom_cascade.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/bloom_cascade.cpp.s
-.PHONY : src/stdlib/algorithms/bloom_cascade.cpp.s
-
-src/stdlib/algorithms/minimizer_classifier.o: src/stdlib/algorithms/minimizer_classifier.cpp.o
-.PHONY : src/stdlib/algorithms/minimizer_classifier.o
-
-# target to build an object file
-src/stdlib/algorithms/minimizer_classifier.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.o
-.PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.o
-
-src/stdlib/algorithms/minimizer_classifier.i: src/stdlib/algorithms/minimizer_classifier.cpp.i
-.PHONY : src/stdlib/algorithms/minimizer_classifier.i
-
-# target to preprocess a source file
-src/stdlib/algorithms/minimizer_classifier.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.i
-.PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.i
-
-src/stdlib/algorithms/minimizer_classifier.s: src/stdlib/algorithms/minimizer_classifier.cpp.s
-.PHONY : src/stdlib/algorithms/minimizer_classifier.s
-
-# target to generate assembly for a file
-src/stdlib/algorithms/minimizer_classifier.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/minimizer_classifier.cpp.s
-.PHONY : src/stdlib/algorithms/minimizer_classifier.cpp.s
-
-src/stdlib/algorithms/resistance_attribution.o: src/stdlib/algorithms/resistance_attribution.cpp.o
-.PHONY : src/stdlib/algorithms/resistance_attribution.o
-
-# target to build an object file
-src/stdlib/algorithms/resistance_attribution.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.o
-.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.o
-
-src/stdlib/algorithms/resistance_attribution.i: src/stdlib/algorithms/resistance_attribution.cpp.i
-.PHONY : src/stdlib/algorithms/resistance_attribution.i
-
-# target to preprocess a source file
-src/stdlib/algorithms/resistance_attribution.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.i
-.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.i
-
-src/stdlib/algorithms/resistance_attribution.s: src/stdlib/algorithms/resistance_attribution.cpp.s
-.PHONY : src/stdlib/algorithms/resistance_attribution.s
-
-# target to generate assembly for a file
-src/stdlib/algorithms/resistance_attribution.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_attribution.cpp.s
-.PHONY : src/stdlib/algorithms/resistance_attribution.cpp.s
-
-src/stdlib/algorithms/resistance_graph.o: src/stdlib/algorithms/resistance_graph.cpp.o
-.PHONY : src/stdlib/algorithms/resistance_graph.o
-
-# target to build an object file
-src/stdlib/algorithms/resistance_graph.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.o
-.PHONY : src/stdlib/algorithms/resistance_graph.cpp.o
-
-src/stdlib/algorithms/resistance_graph.i: src/stdlib/algorithms/resistance_graph.cpp.i
-.PHONY : src/stdlib/algorithms/resistance_graph.i
-
-# target to preprocess a source file
-src/stdlib/algorithms/resistance_graph.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.i
-.PHONY : src/stdlib/algorithms/resistance_graph.cpp.i
-
-src/stdlib/algorithms/resistance_graph.s: src/stdlib/algorithms/resistance_graph.cpp.s
-.PHONY : src/stdlib/algorithms/resistance_graph.s
-
-# target to generate assembly for a file
-src/stdlib/algorithms/resistance_graph.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_graph.cpp.s
-.PHONY : src/stdlib/algorithms/resistance_graph.cpp.s
-
-src/stdlib/algorithms/resistance_pssm.o: src/stdlib/algorithms/resistance_pssm.cpp.o
-.PHONY : src/stdlib/algorithms/resistance_pssm.o
-
-# target to build an object file
-src/stdlib/algorithms/resistance_pssm.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.o
-.PHONY : src/stdlib/algorithms/resistance_pssm.cpp.o
-
-src/stdlib/algorithms/resistance_pssm.i: src/stdlib/algorithms/resistance_pssm.cpp.i
-.PHONY : src/stdlib/algorithms/resistance_pssm.i
-
-# target to preprocess a source file
-src/stdlib/algorithms/resistance_pssm.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.i
-.PHONY : src/stdlib/algorithms/resistance_pssm.cpp.i
-
-src/stdlib/algorithms/resistance_pssm.s: src/stdlib/algorithms/resistance_pssm.cpp.s
-.PHONY : src/stdlib/algorithms/resistance_pssm.s
-
-# target to generate assembly for a file
-src/stdlib/algorithms/resistance_pssm.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/biogpu.dir/build.make CMakeFiles/biogpu.dir/src/stdlib/algorithms/resistance_pssm.cpp.s
-.PHONY : src/stdlib/algorithms/resistance_pssm.cpp.s
-
-tests/test_cuda_kernels.o: tests/test_cuda_kernels.cpp.o
-.PHONY : tests/test_cuda_kernels.o
-
-# target to build an object file
-tests/test_cuda_kernels.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/tests/test_cuda_kernels.cpp.o
-.PHONY : tests/test_cuda_kernels.cpp.o
-
-tests/test_cuda_kernels.i: tests/test_cuda_kernels.cpp.i
-.PHONY : tests/test_cuda_kernels.i
-
-# target to preprocess a source file
-tests/test_cuda_kernels.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/tests/test_cuda_kernels.cpp.i
-.PHONY : tests/test_cuda_kernels.cpp.i
-
-tests/test_cuda_kernels.s: tests/test_cuda_kernels.cpp.s
-.PHONY : tests/test_cuda_kernels.s
-
-# target to generate assembly for a file
-tests/test_cuda_kernels.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_cuda_kernels.dir/build.make CMakeFiles/test_cuda_kernels.dir/tests/test_cuda_kernels.cpp.s
-.PHONY : tests/test_cuda_kernels.cpp.s
+tests/debug_gene_species_ids.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/debug_ids.dir/build.make CMakeFiles/debug_ids.dir/tests/debug_gene_species_ids.cpp.s
+.PHONY : tests/debug_gene_species_ids.cpp.s
 
 # Help Target
 help:
@@ -752,72 +347,24 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
-	@echo "... RISCVTargetParserTableGen"
-	@echo "... acc_gen"
-	@echo "... intrinsics_gen"
-	@echo "... omp_gen"
-	@echo "... test_titanxp"
-	@echo "... biogpu"
-	@echo "... biogpu_kernels"
+	@echo "... build_kmer_index"
+	@echo "... debug_index"
+	@echo "... test_gpu_pipeline"
+	@echo "... validate_index"
+	@echo "... debug_ids"
 	@echo "... fq_pipeline_gpu"
-	@echo "... test_cuda_kernels"
+	@echo "... runtime/kernels/resistance/fixed_kmer_screening.o"
+	@echo "... runtime/kernels/resistance/fixed_kmer_screening.i"
+	@echo "... runtime/kernels/resistance/fixed_kmer_screening.s"
 	@echo "... runtime/kernels/resistance/fq_mutation_detector.o"
 	@echo "... runtime/kernels/resistance/fq_mutation_detector.i"
 	@echo "... runtime/kernels/resistance/fq_mutation_detector.s"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.o"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.i"
 	@echo "... runtime/kernels/resistance/fq_pipeline_host.s"
-	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.o"
-	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.i"
-	@echo "... runtime/kernels/resistance/fq_pipeline_wrapper.s"
-	@echo "... runtime/kernels/resistance/fq_resistance.o"
-	@echo "... runtime/kernels/resistance/fq_resistance.i"
-	@echo "... runtime/kernels/resistance/fq_resistance.s"
-	@echo "... src/codegen/ast_codegen.o"
-	@echo "... src/codegen/ast_codegen.i"
-	@echo "... src/codegen/ast_codegen.s"
-	@echo "... src/codegen/llvm_codegen.o"
-	@echo "... src/codegen/llvm_codegen.i"
-	@echo "... src/codegen/llvm_codegen.s"
-	@echo "... src/compiler/compiler.o"
-	@echo "... src/compiler/compiler.i"
-	@echo "... src/compiler/compiler.s"
-	@echo "... src/main.o"
-	@echo "... src/main.i"
-	@echo "... src/main.s"
-	@echo "... src/parser/BioGPUBaseVisitor.o"
-	@echo "... src/parser/BioGPUBaseVisitor.i"
-	@echo "... src/parser/BioGPUBaseVisitor.s"
-	@echo "... src/parser/BioGPULexer.o"
-	@echo "... src/parser/BioGPULexer.i"
-	@echo "... src/parser/BioGPULexer.s"
-	@echo "... src/parser/BioGPUParser.o"
-	@echo "... src/parser/BioGPUParser.i"
-	@echo "... src/parser/BioGPUParser.s"
-	@echo "... src/parser/ast.o"
-	@echo "... src/parser/ast.i"
-	@echo "... src/parser/ast.s"
-	@echo "... src/parser/biogpu_parser.o"
-	@echo "... src/parser/biogpu_parser.i"
-	@echo "... src/parser/biogpu_parser.s"
-	@echo "... src/stdlib/algorithms/bloom_cascade.o"
-	@echo "... src/stdlib/algorithms/bloom_cascade.i"
-	@echo "... src/stdlib/algorithms/bloom_cascade.s"
-	@echo "... src/stdlib/algorithms/minimizer_classifier.o"
-	@echo "... src/stdlib/algorithms/minimizer_classifier.i"
-	@echo "... src/stdlib/algorithms/minimizer_classifier.s"
-	@echo "... src/stdlib/algorithms/resistance_attribution.o"
-	@echo "... src/stdlib/algorithms/resistance_attribution.i"
-	@echo "... src/stdlib/algorithms/resistance_attribution.s"
-	@echo "... src/stdlib/algorithms/resistance_graph.o"
-	@echo "... src/stdlib/algorithms/resistance_graph.i"
-	@echo "... src/stdlib/algorithms/resistance_graph.s"
-	@echo "... src/stdlib/algorithms/resistance_pssm.o"
-	@echo "... src/stdlib/algorithms/resistance_pssm.i"
-	@echo "... src/stdlib/algorithms/resistance_pssm.s"
-	@echo "... tests/test_cuda_kernels.o"
-	@echo "... tests/test_cuda_kernels.i"
-	@echo "... tests/test_cuda_kernels.s"
+	@echo "... tests/debug_gene_species_ids.o"
+	@echo "... tests/debug_gene_species_ids.i"
+	@echo "... tests/debug_gene_species_ids.s"
 .PHONY : help
 
 

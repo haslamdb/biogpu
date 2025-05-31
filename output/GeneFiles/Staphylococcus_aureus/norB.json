@@ -1,0 +1,21 @@
+[
+  {
+    "accession": "MN013174.1",
+    "organism": "Staphylococcus aureus",
+    "description": "Staphylococcus aureus strain S16 multidrug efflux MFS transporter (norB) gene, partial cds",
+    "sequence_length": 279,
+    "gene_features": [
+      {
+        "gene_name": "norB",
+        "product": "multidrug efflux MFS transporter",
+        "start": 0,
+        "end": 279,
+        "strand": 1,
+        "nucleotide_sequence": "ACACTCGGATGCAAGAAACCAATGTTAATTGGAACAGGAGTTCTTATTGTCGGAGAATGTCTCATTTCATTAACTTTCTTGCCAGAAATATTGTATGTCATTTGTTGTATTATAGGTTATTTATTCTTTGGTTTAGGACTAGGGATATATGCTACACCATCAACAGATACAGCAATTGCAAATGCACCGTTAGAAAAAGTAGGCGTTGCTGCAGGTATCTATAAAATGGCTTCTGCATTAGGTGGAGCATTTGGCGTCGCATTGAGTGGTGCAGTATAT",
+        "protein_sequence": "TLGCKKPMLIGTGVLIVGECLISLTFLPEILYVICCIIGYLFFGLGLGIYATPSTDTAIANAPLEKVGVAAGIYKMASALGGAFGVALSGAVY",
+        "length_nt": 279,
+        "length_aa": 93
+      }
+    ]
+  }
+]

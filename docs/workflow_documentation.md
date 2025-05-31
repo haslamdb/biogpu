@@ -14,8 +14,8 @@ This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquin
 ```
 biogpu/
 ├── data/
-│   ├── Known_Quinolone_Changes.csv      # Source: Literature-curated FQ mutations
-│   ├── Known_Efflux_Pump_Genes.csv      # Source: CARD database efflux genes
+│   ├── Known_Quinolone_Changes.csv      # Source: (https://www.ncbi.nlm.nih.gov/pathogens/microbigge//#Quinolone%20AND%20Point)
+│   ├── Known_Efflux_Pump_Genes.csv      # built using /src/R/parse_quinolone_mutations.R
 │   ├── genomes/                         # Downloaded from NCBI (bacteria/, fungi/, plasmids/, viral/)
 │   │   ├── bacteria/                    # Bacterial reference genomes
 │   │   ├── fungi/                       # Fungal genomes
@@ -41,6 +41,8 @@ biogpu/
 │       └── fq_pipeline_host.cpp        # Main pipeline orchestrator (CPU)
 ├── src/                                 # Development/experimental versions
 │   ├── kernels/resistance/             # Development CUDA kernels (not used in build)
+│   ├── R/                              # R tools
+│   │   ├── parse_quinolone_mutations.R # ✅parse files downloaded from MicroBIGG-E
 │   ├── python/                         # Python tools and builders
 │   │   ├── enhanced_kmer_builder.py    # ✅ K-mer index builder (called by CMake)
 │   │   ├── download_ncbi_20250529.py   # NCBI sequence downloader

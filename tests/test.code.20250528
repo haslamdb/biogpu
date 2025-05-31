@@ -6,4 +6,4 @@
 ./build/fq_pipeline_gpu data/gpu_resistance_db data/test_fastq/synthetic_reads_R1.fastq.gz data/test_fastq/synthetic_reads_R2.fastq.gz synthetic_fq_results.json 
 
 
-./build/fq_pipeline_gpu data/gpu_resistance_db data/test_fastq/new_synthetic_data_R1.fastq.gz data/test_fastq/ynthetic_data_R2.fastq.gz synthetic_results.json 
+./build/production/fq_pipeline_gpu data/gpu_resistance_db data/test_fastq/new_synthetic_data_R1.fastq.gz data/test_fastq/ynthetic_data_R2.fastq.gz synthetic_results.json 

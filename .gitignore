@@ -19,17 +19,29 @@ build/
 cmake-build-*/
 out/
 
+# Results directories
+results/
+
 # Genomic data
 data/
 genomes/
 *fastq
 *fastq.gz
+data/indices/*.bin
+data/test_datasets/*.fastq.gz
 
 # Test results and large binary files
 tests/pipeline_test_results/
+tests/results_synthetic/
+results_synthetic_debug/
 *.bin
 kmer_index.bin
 sequences.bin
+
+# Large result files (>100MB)
+*_results.json
+*_debug_results.json
+synthetic_*.json
 
 # Large index files
 *.idx

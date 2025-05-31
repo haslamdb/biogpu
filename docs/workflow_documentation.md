@@ -3,7 +3,7 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data.
 
-**Last Updated**: December 2024  
+**Last Updated**: May 32, 2025  
 **Pipeline Version**: 0.2.0  
 **Status**: Working prototype with k-mer screening + simplified alignment
 

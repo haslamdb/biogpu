@@ -4,7 +4,7 @@
 
 BioGPU is a domain-specific programming language and computational framework designed to accelerate microbial community profiling and antimicrobial resistance (AMR) detection using GPU computing. Initially focused on fluoroquinolone resistance detection through mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes, BioGPU aims to provide real-time metagenomic analysis capabilities for clinical decision-making.
 
-## Project Status: ✅ **PRODUCTION READY**
+## Project Status: ✅ **Almost PRODUCTION READY**
 
 The BioGPU pipeline has been successfully tested with synthetic and real metagenomic data, demonstrating:
 - **High performance**: Processing ~1M reads efficiently with 10K read batches
@@ -19,7 +19,7 @@ The BioGPU pipeline has been successfully tested with synthetic and real metagen
 2. **Fluoroquinolone Resistance Detection**: Identify known resistance mutations in quinolone resistance-determining regions (QRDRs) and plasmid-mediated resistance genes
 3. **Clinical Integration**: Generate actionable reports linking detected resistance to specific organisms with confidence scores for informed treatment decisions
 
-### Technical Innovation
+### Technical Features
 - Native GPU acceleration for bioinformatics operations
 - Domain-specific language that abstracts GPU complexity while maintaining performance
 - Automatic optimization of sequence alignment algorithms for GPU architecture
@@ -105,10 +105,8 @@ pipeline FluoroquinoloneResistance {
 
 ## Clinical Applications
 
-### 🧬 **Ready for Clinical Deployment**
-- **Real-time C. difficile resistance screening**: Specialized pediatric infectious disease applications
-- **Pediatric UTI pathogen resistance profiling**: Rapid identification for treatment decisions
-- **ICU outbreak investigation**: Track emergence and spread of resistant organisms
+### 🧬 **Clinical Deployment**
+- **Real-time FQ resistance screening**: Specialized pediatric infectious disease applications
 - **Antimicrobial stewardship support**: Evidence-based therapy guidance
 
 ### 📊 **Validated Performance Metrics**
@@ -119,7 +117,7 @@ pipeline FluoroquinoloneResistance {
 
 ## Performance Targets
 
-- ✅ Process 10 million reads in <2 minutes on single GPU
+- ✅ Process >10 million reads in <2 minutes on single GPU
 - ✅ >99% sensitivity for known resistance mutations
 - ✅ >95% accuracy in organism-resistance attribution
 - ✅ Support for real-time analysis during sequencing
@@ -129,6 +127,7 @@ pipeline FluoroquinoloneResistance {
 ### 1. Production Optimization and Clinical Integration
 
 #### Immediate Workflow Optimizations
+- [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and S aureus
 - [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
 - [ ] **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
 - [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems

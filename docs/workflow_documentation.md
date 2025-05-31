@@ -291,9 +291,8 @@ cmake .. && make -j8
 ## 🎯 Next Steps Priority
 
 ### Immediate (Version 0.3.0)
-1. [ ] Fix CMakeLists.txt reference: `fixed_kmer_screening.cu` → `kmer_screening.cu`
-2. [ ] Add Bloom filter pre-screening
-3. [ ] Implement species tracking through pipeline
+1. [ ] Add Bloom filter pre-screening
+2. [ ] Implement species tracking through pipeline
 
 ### Short-term (Version 0.4.0)
 4. [ ] Add C++ loaders for mutation database

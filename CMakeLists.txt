@@ -28,7 +28,7 @@ link_directories(/usr/local/cuda/targets/x86_64-linux/lib)
 
 # FQ pipeline CUDA sources - includes ALL necessary kernels
 set(FQ_CUDA_SOURCES
-    runtime/kernels/resistance/fixed_kmer_screening.cu
+    runtime/kernels/resistance/kmer_screening.cu
     runtime/kernels/resistance/fq_mutation_detector.cu  # Contains identity calculation fix
 )
 

@@ -367,10 +367,10 @@ pipeline FluoroquinoloneResistance {
 - [ ] **Data encryption**: End-to-end security for sensitive medical data
 
 ### 7. Build Resistance Gene and Mutation Database
-- [x] Design GPU-friendly mutation index structure from files in data/fq_resistance_db
-- [x] Simplified data structure and index building
-- [x] Working draft: `./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5`
-- [x] Fixed k-mer matching phase
+- [ ] ✅ **COMPLETED**: Design GPU-friendly mutation index structure from files in data/fq_resistance_db
+- [ ] ✅ **COMPLETED**: Simplified data structure and index building
+- [ ] ✅ **COMPLETED**: Working draft: `./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5`
+- [ ] ✅ **COMPLETED**: Fixed k-mer matching phase
 - [ ] ✅ **COMPLETED**: Mapping phase optimization (67% success rate achieved)
 - [ ] Implement mutation confidence scoring system
 

@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
+#include <iomanip>
 #include <cstring>
 #include <zlib.h>
 #include <chrono>
@@ -311,7 +313,9 @@ private:
         int total_reads_processed = 0;
         int reads_passed_bloom = 0;
         int reads_with_candidates = 0;
+        int reads_with_kmer_hits = 0;  // Reads retained after k-mer enrichment
         int total_protein_matches = 0;
+        int reads_with_sw_alignments = 0;  // Reads with Smith-Waterman alignments
         int resistance_mutations_found = 0;
         int qrdr_alignments = 0;
         int high_confidence_matches = 0;
@@ -320,6 +324,10 @@ private:
         int total_protein_resistance_found = 0;
         int total_smith_waterman_alignments = 0;
     } enhanced_stats;
+    
+    // Store top Smith-Waterman results for analysis
+    std::vector<ProteinMatch> top_sw_matches;
+    std::set<int> reads_with_sw_results;  // Track unique reads with SW results
     
 public:
     EnhancedFQResistancePipeline(bool use_translated_search = false, bool use_smith_waterman = false) 
@@ -557,7 +565,7 @@ public:
         DEBUG_PRINT("Starting enhanced paired read processing with diagnostic reporting");
         
         // Initialize diagnostic reporting
-        initializeDiagnosticReporting(output_path);
+        // initializeDiagnosticReporting(output_path);
         
         // Create HDF5 output file
         std::string hdf5_path = output_path.substr(0, output_path.find_last_of('.')) + ".h5";
@@ -583,7 +591,7 @@ public:
         output << "  \"sample\": \"" << r1_path << "\",\n";
         output << "  \"hdf5_output\": \"" << hdf5_path << "\",\n";
         output << "  \"pipeline_version\": \"0.4.0-enhanced-diagnostics\",\n";
-        output << "  \"diagnostic_reporting\": true,\n";
+        output << "  \"diagnostic_reporting\": false,\n";
         output << "  \"translated_search_enabled\": " << (enable_translated_search ? "true" : "false") << ",\n";
         output << "  \"smith_waterman_enabled\": " << (enable_smith_waterman ? "true" : "false") << ",\n";
         output << "  \"protein_kmer_size\": 5,\n";
@@ -787,9 +795,11 @@ public:
                                      batch1.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
                 
                 int total_candidates_r1 = 0;
+                int reads_with_kmer_hits_r1 = 0;
                 for (int i = 0; i < batch1.num_reads; i++) {
                     if (h_pair_passes[i] && h_candidate_counts_r1[i] > 0) {
                         total_candidates_r1 += h_candidate_counts_r1[i];
+                        reads_with_kmer_hits_r1++;
                     }
                 }
                 
@@ -861,9 +871,11 @@ public:
                                      batch2.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
                 
                 int total_candidates_r2 = 0;
+                int reads_with_kmer_hits_r2 = 0;
                 for (int i = 0; i < batch2.num_reads; i++) {
                     if (h_pair_passes[i] && h_candidate_counts_r2[i] > 0) {
                         total_candidates_r2 += h_candidate_counts_r2[i];
+                        reads_with_kmer_hits_r2++;
                     }
                 }
                 
@@ -920,6 +932,16 @@ public:
                 enhanced_stats.total_candidates_found += total_candidates_r1 + total_candidates_r2;
                 enhanced_stats.reads_with_candidates += reads_passed_bloom_combined;
                 
+                // Count unique read pairs with k-mer hits (either R1 or R2 has hits)
+                int read_pairs_with_kmer_hits = 0;
+                for (int i = 0; i < batch1.num_reads; i++) {
+                    if ((h_pair_passes[i] && h_candidate_counts_r1[i] > 0) || 
+                        (h_pair_passes[i] && h_candidate_counts_r2[i] > 0)) {
+                        read_pairs_with_kmer_hits++;
+                    }
+                }
+                enhanced_stats.reads_with_kmer_hits += read_pairs_with_kmer_hits;
+                
                 // =========================
                 // Stage 3: Enhanced 5-mer Translated Search (if enabled)
                 // =========================
@@ -957,30 +979,38 @@ public:
                                     for (uint32_t j = 0; j < h_protein_match_counts[i]; j++) {
                                         ProteinMatch& pm = h_protein_matches[i * max_protein_matches_per_read + j];
                                         
-                                        enhanced_stats.total_protein_matches++;
+                                        if (pm.used_smith_waterman) {
+                                            enhanced_stats.total_protein_matches++;
+                                        }
                                         
                                         // Enhanced mutation analysis
                                         int resistance_muts = mutation_analyzer.detectResistanceMutations(pm);
                                         enhanced_stats.resistance_mutations_found += resistance_muts;
                                         
-                                        // Check if covers resistance region
-                                        if (mutation_analyzer.coversResistanceRegion(pm)) {
+                                        // Check if covers resistance region (Smith-Waterman only)
+                                        if (pm.used_smith_waterman && mutation_analyzer.coversResistanceRegion(pm)) {
                                             enhanced_stats.qrdr_alignments++;
                                         }
                                         
-                                        // Track high confidence matches
-                                        if (pm.identity >= 0.95f && pm.alignment_score >= 50.0f) {
+                                        // Track high confidence matches (Smith-Waterman only)
+                                        if (pm.used_smith_waterman && pm.identity >= 0.95f && pm.alignment_score >= 50.0f) {
                                             enhanced_stats.high_confidence_matches++;
                                         }
                                         
                                         if (pm.used_smith_waterman) {
                                             enhanced_stats.total_smith_waterman_alignments++;
+                                            
+                                            // Store for top 10 display
+                                            top_sw_matches.push_back(pm);
+                                            
+                                            // Track unique reads with SW results (R1)
+                                            reads_with_sw_results.insert(pm.read_id + enhanced_stats.total_reads_processed - batch1.num_reads);
                                         }
                                         
                                         // Add to diagnostic report (all matches for analysis)
-                                        if (diagnostic_reporter) {
-                                            add_protein_match_to_report(diagnostic_reporter, &pm);
-                                        }
+                                        // if (diagnostic_reporter) {
+                                        //     add_protein_match_to_report(diagnostic_reporter, &pm);
+                                        // }
                                         
                                         // Check if any mutations are at resistance positions
                                         bool has_resistance = false;
@@ -1036,30 +1066,38 @@ public:
                                     for (uint32_t j = 0; j < h_protein_match_counts[i]; j++) {
                                         ProteinMatch& pm = h_protein_matches[i * max_protein_matches_per_read + j];
                                         
-                                        enhanced_stats.total_protein_matches++;
+                                        if (pm.used_smith_waterman) {
+                                            enhanced_stats.total_protein_matches++;
+                                        }
                                         
                                         // Enhanced mutation analysis
                                         int resistance_muts = mutation_analyzer.detectResistanceMutations(pm);
                                         enhanced_stats.resistance_mutations_found += resistance_muts;
                                         
-                                        // Check if covers resistance region
-                                        if (mutation_analyzer.coversResistanceRegion(pm)) {
+                                        // Check if covers resistance region (Smith-Waterman only)
+                                        if (pm.used_smith_waterman && mutation_analyzer.coversResistanceRegion(pm)) {
                                             enhanced_stats.qrdr_alignments++;
                                         }
                                         
-                                        // Track high confidence matches
-                                        if (pm.identity >= 0.95f && pm.alignment_score >= 50.0f) {
+                                        // Track high confidence matches (Smith-Waterman only)
+                                        if (pm.used_smith_waterman && pm.identity >= 0.95f && pm.alignment_score >= 50.0f) {
                                             enhanced_stats.high_confidence_matches++;
                                         }
                                         
                                         if (pm.used_smith_waterman) {
                                             enhanced_stats.total_smith_waterman_alignments++;
+                                            
+                                            // Store for top 10 display
+                                            top_sw_matches.push_back(pm);
+                                            
+                                            // Track unique reads with SW results (R2)
+                                            reads_with_sw_results.insert(pm.read_id + enhanced_stats.total_reads_processed - batch2.num_reads);
                                         }
                                         
                                         // Add to diagnostic report
-                                        if (diagnostic_reporter) {
-                                            add_protein_match_to_report(diagnostic_reporter, &pm);
-                                        }
+                                        // if (diagnostic_reporter) {
+                                        //     add_protein_match_to_report(diagnostic_reporter, &pm);
+                                        // }
                                         
                                         // Check for resistance
                                         bool has_resistance = false;
@@ -1109,16 +1147,16 @@ public:
             }
             
             // Update diagnostic statistics periodically
-            if (diagnostic_reporter && enhanced_stats.total_reads_processed % 50000 == 0) {
-                update_pipeline_statistics(
-                    diagnostic_reporter,
-                    enhanced_stats.total_reads_processed,
-                    enhanced_stats.reads_passed_bloom,
-                    enhanced_stats.reads_with_candidates,
-                    enhanced_stats.total_protein_matches,
-                    enhanced_stats.resistance_mutations_found
-                );
-            }
+            // if (diagnostic_reporter && enhanced_stats.total_reads_processed % 50000 == 0) {
+            //     update_pipeline_statistics(
+            //         diagnostic_reporter,
+            //         enhanced_stats.total_reads_processed,
+            //         enhanced_stats.reads_passed_bloom,
+            //         enhanced_stats.reads_with_candidates,
+            //         enhanced_stats.total_protein_matches,
+            //         enhanced_stats.resistance_mutations_found
+            //     );
+            // }
             
             // Cleanup batch memory
             delete[] batch1.sequences;
@@ -1144,6 +1182,17 @@ public:
         auto pipeline_end = std::chrono::high_resolution_clock::now();
         auto total_time = std::chrono::duration_cast<std::chrono::seconds>(pipeline_end - pipeline_start).count();
         
+        // Update final Smith-Waterman read count
+        enhanced_stats.reads_with_sw_alignments = reads_with_sw_results.size();
+        
+        // Sort top Smith-Waterman matches by alignment score
+        if (!top_sw_matches.empty()) {
+            std::sort(top_sw_matches.begin(), top_sw_matches.end(),
+                     [](const ProteinMatch& a, const ProteinMatch& b) {
+                         return a.alignment_score > b.alignment_score;
+                     });
+        }
+        
         // Finalize HDF5 output
         hdf5_writer->finalize(output_path);
         
@@ -1153,7 +1202,9 @@ public:
         output << "    \"total_reads\": " << enhanced_stats.total_reads_processed << ",\n";
         output << "    \"reads_passed_bloom\": " << enhanced_stats.reads_passed_bloom << ",\n";
         output << "    \"reads_with_candidates\": " << enhanced_stats.reads_with_candidates << ",\n";
+        output << "    \"reads_with_kmer_hits\": " << enhanced_stats.reads_with_kmer_hits << ",\n";
         output << "    \"protein_matches\": " << enhanced_stats.total_protein_matches << ",\n";
+        output << "    \"reads_with_sw_alignments\": " << enhanced_stats.reads_with_sw_alignments << ",\n";
         output << "    \"resistance_mutations_found\": " << enhanced_stats.resistance_mutations_found << ",\n";
         output << "    \"qrdr_alignments\": " << enhanced_stats.qrdr_alignments << ",\n";
         output << "    \"high_confidence_matches\": " << enhanced_stats.high_confidence_matches << ",\n";
@@ -1174,19 +1225,19 @@ public:
         output.close();
         
         // Generate final diagnostic report
-        if (diagnostic_reporter) {
-            update_pipeline_statistics(
-                diagnostic_reporter,
-                enhanced_stats.total_reads_processed,
-                enhanced_stats.reads_passed_bloom,
-                enhanced_stats.reads_with_candidates,
-                enhanced_stats.total_protein_matches,
-                enhanced_stats.resistance_mutations_found
-            );
-            
-            generate_diagnostic_report(diagnostic_reporter);
-            std::cout << "\nDiagnostic report generated. Check *_diagnostic.txt file for detailed analysis." << std::endl;
-        }
+        // if (diagnostic_reporter) {
+        //     update_pipeline_statistics(
+        //         diagnostic_reporter,
+        //         enhanced_stats.total_reads_processed,
+        //         enhanced_stats.reads_passed_bloom,
+        //         enhanced_stats.reads_with_candidates,
+        //         enhanced_stats.total_protein_matches,
+        //         enhanced_stats.resistance_mutations_found
+        //     );
+        //     
+        //     generate_diagnostic_report(diagnostic_reporter);
+        //     std::cout << "\nDiagnostic report generated. Check *_diagnostic.txt file for detailed analysis." << std::endl;
+        // }
         
         // Enhanced final summary
         std::cout << "\n=== ENHANCED PROCESSING COMPLETE ===" << std::endl;
@@ -1194,13 +1245,28 @@ public:
         std::cout << "Filter performance:" << std::endl;
         std::cout << "  Bloom filter retention: " << enhanced_stats.reads_passed_bloom 
                   << " (" << (100.0 * enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed) << "%)" << std::endl;
-        std::cout << "  Reads with candidates: " << enhanced_stats.reads_with_candidates << std::endl;
+        std::cout << "  Reads with k-mer hits: " << enhanced_stats.reads_with_kmer_hits << std::endl;
         
         std::cout << "Protein analysis:" << std::endl;
         std::cout << "  Total protein matches: " << enhanced_stats.total_protein_matches << std::endl;
+        std::cout << "  Reads with Smith-Waterman alignments: " << enhanced_stats.reads_with_sw_alignments << std::endl;
         std::cout << "  QRDR region alignments: " << enhanced_stats.qrdr_alignments << std::endl;
         std::cout << "  High confidence matches: " << enhanced_stats.high_confidence_matches << std::endl;
         std::cout << "  Resistance mutations detected: " << enhanced_stats.resistance_mutations_found << std::endl;
+        
+        // Display top 10 Smith-Waterman matches
+        if (!top_sw_matches.empty() && enable_smith_waterman) {
+            std::cout << "\nTop 10 Smith-Waterman matches (sorted by alignment score):" << std::endl;
+            int num_to_show = std::min(10, (int)top_sw_matches.size());
+            for (int i = 0; i < num_to_show; i++) {
+                const auto& match = top_sw_matches[i];
+                std::cout << "  " << (i + 1) << ". Read " << match.read_id 
+                         << ", Gene " << match.gene_id 
+                         << ", Score: " << std::fixed << std::setprecision(1) << match.alignment_score
+                         << ", Identity: " << std::fixed << std::setprecision(1) << (match.identity * 100) << "%"
+                         << ", Mutations: " << (int)match.num_mutations << std::endl;
+            }
+        }
         
         if (enhanced_stats.resistance_mutations_found > 0) {
             std::cout << "\n🚨 RESISTANCE DETECTED: " << enhanced_stats.resistance_mutations_found << " mutations found" << std::endl;

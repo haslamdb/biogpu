@@ -19,7 +19,7 @@
 namespace cg = cooperative_groups;
 
 // Debug macros
-#define DEBUG_TRANS 1
+#define DEBUG_TRANS 0
 #define DEBUG_PRINT(fmt, ...) if(DEBUG_TRANS) { printf("[TRANS DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 // Enhanced constants for 5-mer approach
@@ -31,7 +31,7 @@ namespace cg = cooperative_groups;
 #define MIN_SEED_HITS 2            // Require multiple k-mer hits for extension
 #define EXTENSION_THRESHOLD 15     // Minimum amino acids for valid match
 #define MIN_IDENTITY_THRESHOLD 0.6f // Minimum 60% identity for valid protein match (lowered for more hits)
-#define SW_SCORE_THRESHOLD 10.0f   // Threshold for Smith-Waterman alignment (lowered further for more hits)
+#define SW_SCORE_THRESHOLD 80.0f   // Threshold for Smith-Waterman alignment
 #define AA_ALPHABET_SIZE 24
 
 // Genetic code table (standard code)

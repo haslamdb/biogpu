@@ -53,6 +53,7 @@ biogpu/
 │   ├── python/                         # Python tools and builders
 │   │   ├── enhanced_kmer_builder.py    # ✅ K-mer index builder (called by CMake)
 │   │   ├── build_protein_resistance_db.py # ✅ Protein database builder for translated search
+│   │   ├── build_wildtype_protein_db.py   # ✅ Wildtype protein database builder for Smith-Waterman alignment
 │   │   ├── download_ncbi_20250529.py   # NCBI sequence downloader
 │   │   ├── generate_synthetic_reads.py # Test data generator
 │   │   └── index_validator.py          # Index validation tool
@@ -358,7 +359,7 @@ cmake .. && make -j8
 5. [✅] Implement 5-mer protein k-mer indexing with Smith-Waterman alignment
 
 ### Short-term (Version 0.5.0)
-6. [ ] Add mutant protein variants to database (key for resistance detection)
+6. [✅] Add wildtype protein database for Smith-Waterman alignment: build_wildtype_protein_db.py
 7. [ ] Implement species tracking through pipeline
 8. [ ] Add C++ loaders for mutation database
 9. [ ] Optimize identity thresholds for resistance vs. wild-type discrimination

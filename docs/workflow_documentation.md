@@ -262,8 +262,9 @@ make -j8
 - **HDF5 Output**: Structured output format for downstream analysis
 
 **Current Limitations**:
+- No called mutants in the output. This may be a problem with determining location in the protein or.
+- Protein database contains only mutant references (no wt variants)
 - Nucleotide pipeline uses simple k-mer counting (no full alignment)
-- Protein database contains only wild-type references (no mutant variants)
 - High identity threshold (90%) may miss divergent resistance variants
 - No integration between nucleotide and protein pipelines
 

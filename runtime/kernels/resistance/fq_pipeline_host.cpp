@@ -1,3 +1,6 @@
+// fq_pipeline_host.cpp
+// Main host code for FQ resistance detection pipeline with translated search support
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -37,6 +40,42 @@ extern "C" {
     
     bool bloom_filter_has_rc(void* filter);
 }
+
+// Include translated search declarations
+extern "C" {
+    void* create_translated_search_engine(int batch_size);
+    void destroy_translated_search_engine(void* engine);
+    int load_protein_database(void* engine, const char* db_path);
+    int search_translated_reads(
+        void* engine,
+        const char* d_reads,
+        const int* d_read_lengths,
+        const int* d_read_offsets,
+        const bool* d_reads_to_process,
+        int num_reads,
+        void* results,
+        uint32_t* result_counts
+    );
+}
+
+// Include ProteinMatch structure from translated_search.cu
+struct ProteinMatch {
+    uint32_t read_id;
+    int8_t frame;
+    uint32_t protein_id;
+    uint32_t gene_id;
+    uint32_t species_id;
+    uint16_t query_start;
+    uint16_t ref_start;
+    uint16_t match_length;
+    float alignment_score;
+    float identity;
+    uint8_t num_mutations;
+    uint8_t mutation_positions[10];
+    char ref_aas[10];
+    char query_aas[10];
+    float blosum_scores[10];
+};
 
 // Debug macros
 #define DEBUG 1
@@ -137,13 +176,20 @@ private:
     bool* d_bloom_passes_r2;
     int* d_bloom_kmers_r1;
     int* d_bloom_kmers_r2;
-    int* d_bloom_debug_stats;  // New: statistics collection
+    int* d_bloom_debug_stats;
     
-    // Results
+    // Results for nucleotide search
     CandidateMatch* d_candidates;
     uint32_t* d_candidate_counts;
     AlignmentResult* d_results;
     uint32_t* d_result_count;
+    
+    // Translated search engine and results
+    void* translated_search_engine;
+    ProteinMatch* d_protein_matches;
+    uint32_t* d_protein_match_counts;
+    bool enable_translated_search;
+    std::string protein_db_path;
     
     // HDF5 writer
     HDF5AlignmentWriter* hdf5_writer;
@@ -151,22 +197,27 @@ private:
     // Batch parameters
     const int batch_size = 10000;
     const int max_read_length = 300;
-    const int bloom_min_kmers = 3;  // Minimum k-mers to pass Bloom filter
-    const int kmer_length = 15;     // K-mer size
+    const int bloom_min_kmers = 3;
+    const int kmer_length = 15;
+    const int max_protein_matches_per_read = 32;
     
     FQMutationDetectorCUDA detector;
-    std::string current_index_path;  // Store index path for HDF5 initialization
+    std::string current_index_path;
     
     // Statistics
     int total_reads_processed = 0;
     int total_reads_passed_bloom = 0;
     int total_candidates_found = 0;
     int total_mutations_found = 0;
+    int total_protein_matches_found = 0;
+    int total_protein_resistance_found = 0;
     
 public:
-    FQResistancePipeline() {
+    FQResistancePipeline(bool use_translated_search = false) 
+        : enable_translated_search(use_translated_search) {
         DEBUG_PRINT("Initializing FQ Resistance Pipeline with Bloom Filter");
         DEBUG_PRINT("Batch size: %d, Max read length: %d", batch_size, max_read_length);
+        DEBUG_PRINT("Translated search: %s", enable_translated_search ? "ENABLED" : "DISABLED");
         
         // Initialize HDF5 writer to null
         hdf5_writer = nullptr;
@@ -178,6 +229,25 @@ public:
             exit(1);
         }
         DEBUG_PRINT("Bloom filter created successfully");
+        
+        // Initialize translated search engine if enabled
+        translated_search_engine = nullptr;
+        d_protein_matches = nullptr;
+        d_protein_match_counts = nullptr;
+        
+        if (enable_translated_search) {
+            translated_search_engine = create_translated_search_engine(batch_size);
+            if (!translated_search_engine) {
+                std::cerr << "ERROR: Failed to create translated search engine" << std::endl;
+                exit(1);
+            }
+            DEBUG_PRINT("Translated search engine created successfully");
+            
+            // Allocate memory for protein search results
+            CUDA_CHECK(cudaMalloc(&d_protein_matches, 
+                                  batch_size * max_protein_matches_per_read * sizeof(ProteinMatch)));
+            CUDA_CHECK(cudaMalloc(&d_protein_match_counts, batch_size * sizeof(uint32_t)));
+        }
         
         // Allocate GPU memory for batch processing
         size_t read_buffer_size = batch_size * max_read_length;
@@ -195,9 +265,9 @@ public:
         CUDA_CHECK(cudaMalloc(&d_bloom_passes_r2, batch_size * sizeof(bool)));
         CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r1, batch_size * sizeof(int)));
         CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r2, batch_size * sizeof(int)));
-        CUDA_CHECK(cudaMalloc(&d_bloom_debug_stats, 4 * sizeof(int)));  // New: debug stats
+        CUDA_CHECK(cudaMalloc(&d_bloom_debug_stats, 4 * sizeof(int)));
         
-        // Allocate memory for results
+        // Allocate memory for nucleotide search results
         size_t candidates_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(CandidateMatch);
         size_t results_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(AlignmentResult);
         DEBUG_PRINT("Allocating GPU memory: candidates = %zu bytes, results = %zu bytes", 
@@ -215,6 +285,11 @@ public:
         // Destroy HDF5 writer
         if (hdf5_writer) {
             delete hdf5_writer;
+        }
+        
+        // Destroy translated search engine
+        if (translated_search_engine) {
+            destroy_translated_search_engine(translated_search_engine);
         }
         
         // Destroy Bloom filter
@@ -238,6 +313,23 @@ public:
         cudaFree(d_candidate_counts);
         cudaFree(d_results);
         cudaFree(d_result_count);
+        
+        if (d_protein_matches) cudaFree(d_protein_matches);
+        if (d_protein_match_counts) cudaFree(d_protein_match_counts);
+    }
+    
+    void setProteinDatabase(const std::string& db_path) {
+        protein_db_path = db_path;
+        if (translated_search_engine && !protein_db_path.empty()) {
+            DEBUG_PRINT("Loading protein database from: %s", protein_db_path.c_str());
+            int result = load_protein_database(translated_search_engine, protein_db_path.c_str());
+            if (result != 0) {
+                std::cerr << "WARNING: Failed to load protein database" << std::endl;
+                enable_translated_search = false;
+            } else {
+                std::cout << "Protein database loaded successfully" << std::endl;
+            }
+        }
     }
     
     void loadIndex(const std::string& index_path) {
@@ -265,7 +357,6 @@ public:
                 std::cout << "WARNING: Bloom filter does not contain RC k-mers. Rebuilding..." << std::endl;
                 // Force rebuild with RC
                 if (detector.d_kmer_sorted && detector.num_kmers > 0) {
-                    // IMPORTANT: build_bloom_filter_from_index now includes RC k-mers by default
                     if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
                         std::cout << "Bloom filter rebuilt with RC k-mers" << std::endl;
                         save_bloom_filter(bloom_filter, bloom_path.c_str());
@@ -277,7 +368,6 @@ public:
             std::cout << "Building Bloom filter from k-mer index (with RC k-mers)..." << std::endl;
             
             if (detector.d_kmer_sorted && detector.num_kmers > 0) {
-                // NOTE: build_bloom_filter_from_index now includes RC k-mers by default
                 if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
                     std::cout << "Bloom filter built successfully with " << detector.num_kmers << " k-mers (including RC)" << std::endl;
                     
@@ -353,6 +443,10 @@ public:
         output << "{\n";
         output << "  \"sample\": \"" << r1_path << "\",\n";
         output << "  \"hdf5_output\": \"" << hdf5_path << "\",\n";
+        output << "  \"translated_search_enabled\": " << (enable_translated_search ? "true" : "false") << ",\n";
+        if (enable_translated_search && !protein_db_path.empty()) {
+            output << "  \"protein_database\": \"" << protein_db_path << "\",\n";
+        }
         output << "  \"mutations\": [\n";
         
         bool first_mutation = true;
@@ -408,6 +502,9 @@ public:
             // Reset result counter
             CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
             CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch1.num_reads * sizeof(uint32_t)));
+            if (enable_translated_search) {
+                CUDA_CHECK(cudaMemset(d_protein_match_counts, 0, batch1.num_reads * sizeof(uint32_t)));
+            }
             
             DEBUG_PRINT("GPU transfer completed");
             
@@ -677,6 +774,122 @@ public:
                 
                 total_candidates_found += total_candidates_r1 + total_candidates_r2;
                 
+                // =========================
+                // Stage 3: Translated Search (if enabled)
+                // =========================
+                if (enable_translated_search && translated_search_engine) {
+                    auto trans_start = std::chrono::high_resolution_clock::now();
+                    DEBUG_PRINT("Stage 3: 6-frame translated search");
+                    
+                    // Search both R1 and R2
+                    int trans_result = search_translated_reads(
+                        translated_search_engine,
+                        d_reads_r1, d_lengths_r1, d_offsets_r1,
+                        d_bloom_passes_r1,  // Only search reads that passed bloom
+                        batch1.num_reads,
+                        d_protein_matches,
+                        d_protein_match_counts
+                    );
+                    
+                    if (trans_result == 0) {
+                        // Get protein match counts
+                        std::vector<uint32_t> h_protein_match_counts(batch1.num_reads);
+                        CUDA_CHECK(cudaMemcpy(h_protein_match_counts.data(), d_protein_match_counts,
+                                             batch1.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+                        
+                        // Count total matches
+                        int batch_protein_matches = 0;
+                        for (int i = 0; i < batch1.num_reads; i++) {
+                            if (h_pair_passes[i]) {
+                                batch_protein_matches += h_protein_match_counts[i];
+                            }
+                        }
+                        
+                        if (batch_protein_matches > 0) {
+                            // Copy protein matches to host
+                            std::vector<ProteinMatch> h_protein_matches(batch1.num_reads * max_protein_matches_per_read);
+                            CUDA_CHECK(cudaMemcpy(h_protein_matches.data(), d_protein_matches,
+                                                 batch1.num_reads * max_protein_matches_per_read * sizeof(ProteinMatch),
+                                                 cudaMemcpyDeviceToHost));
+                            
+                            // Add to HDF5
+                            hdf5_writer->addTranslatedResults(h_protein_matches.data(), h_protein_match_counts.data(),
+                                                            batch1.num_reads, total_reads_processed);
+                            
+                            // Count resistance mutations
+                            for (int i = 0; i < batch1.num_reads; i++) {
+                                if (h_pair_passes[i] && h_protein_match_counts[i] > 0) {
+                                    for (uint32_t j = 0; j < h_protein_match_counts[i]; j++) {
+                                        const ProteinMatch& pm = h_protein_matches[i * max_protein_matches_per_read + j];
+                                        total_protein_matches_found++;
+                                        
+                                        // Check if any mutations are at resistance positions
+                                        bool has_resistance = false;
+                                        for (int m = 0; m < pm.num_mutations; m++) {
+                                            if (pm.gene_id == 0 && (pm.mutation_positions[m] == 83 || pm.mutation_positions[m] == 87)) {
+                                                has_resistance = true;
+                                                break;
+                                            }
+                                            if (pm.gene_id == 1 && (pm.mutation_positions[m] == 80 || pm.mutation_positions[m] == 84)) {
+                                                has_resistance = true;
+                                                break;
+                                            }
+                                        }
+                                        if (has_resistance) {
+                                            total_protein_resistance_found++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        DEBUG_PRINT("R1 translated search: %d protein matches found", batch_protein_matches);
+                    }
+                    
+                    // Also search R2 (optional, could skip for speed)
+                    CUDA_CHECK(cudaMemset(d_protein_match_counts, 0, batch2.num_reads * sizeof(uint32_t)));
+                    
+                    trans_result = search_translated_reads(
+                        translated_search_engine,
+                        d_reads_r2, d_lengths_r2, d_offsets_r2,
+                        d_bloom_passes_r2,
+                        batch2.num_reads,
+                        d_protein_matches,
+                        d_protein_match_counts
+                    );
+                    
+                    if (trans_result == 0) {
+                        std::vector<uint32_t> h_protein_match_counts(batch2.num_reads);
+                        CUDA_CHECK(cudaMemcpy(h_protein_match_counts.data(), d_protein_match_counts,
+                                             batch2.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+                        
+                        int batch_protein_matches_r2 = 0;
+                        for (int i = 0; i < batch2.num_reads; i++) {
+                            if (h_pair_passes[i]) {
+                                batch_protein_matches_r2 += h_protein_match_counts[i];
+                            }
+                        }
+                        
+                        if (batch_protein_matches_r2 > 0) {
+                            std::vector<ProteinMatch> h_protein_matches(batch2.num_reads * max_protein_matches_per_read);
+                            CUDA_CHECK(cudaMemcpy(h_protein_matches.data(), d_protein_matches,
+                                                 batch2.num_reads * max_protein_matches_per_read * sizeof(ProteinMatch),
+                                                 cudaMemcpyDeviceToHost));
+                            
+                            hdf5_writer->addTranslatedResults(h_protein_matches.data(), h_protein_match_counts.data(),
+                                                            batch2.num_reads, total_reads_processed);
+                            
+                            total_protein_matches_found += batch_protein_matches_r2;
+                        }
+                        
+                        DEBUG_PRINT("R2 translated search: %d protein matches found", batch_protein_matches_r2);
+                    }
+                    
+                    auto trans_end = std::chrono::high_resolution_clock::now();
+                    auto trans_time = std::chrono::duration_cast<std::chrono::microseconds>(trans_end - trans_start).count();
+                    DEBUG_PRINT("Translated search completed (%.1f ms)", trans_time / 1000.0);
+                }
+                
                 // Output combined results to JSON
                 for (const auto& pair : best_results_per_read_pair) {
                     const auto& result = pair.second;
@@ -688,7 +901,7 @@ public:
                     output << "      \"alignment_score\": " << result.alignment_score << ",\n";
                     output << "      \"identity\": " << result.identity << ",\n";
                     output << "      \"mutations_detected\": " << (int)result.num_mutations_detected << ",\n";
-                    output << "      \"source\": \"" << (result.start_pos < 1000 ? "R1" : "R2") << "\"\n";  // Heuristic to track source
+                    output << "      \"source\": \"" << (result.start_pos < 1000 ? "R1" : "R2") << "\"\n";
                     output << "    }";
                     first_mutation = false;
                     total_mutations_found++;
@@ -709,6 +922,9 @@ public:
             if (total_reads_processed % 100000 == 0) {
                 std::cout << "Processed " << total_reads_processed << " read pairs..." << std::endl;
                 std::cout << "  Bloom filter pass rate: " << (100.0 * total_reads_passed_bloom / total_reads_processed) << "%" << std::endl;
+                if (enable_translated_search) {
+                    std::cout << "  Protein matches found: " << total_protein_matches_found << std::endl;
+                }
             }
         }
         
@@ -726,6 +942,10 @@ public:
         output << "    \"bloom_reduction\": " << (100.0 * (total_reads_processed - total_reads_passed_bloom) / total_reads_processed) << ",\n";
         output << "    \"total_candidates\": " << total_candidates_found << ",\n";
         output << "    \"mutations_found\": " << total_mutations_found << ",\n";
+        if (enable_translated_search) {
+            output << "    \"protein_matches_found\": " << total_protein_matches_found << ",\n";
+            output << "    \"protein_resistance_found\": " << total_protein_resistance_found << ",\n";
+        }
         output << "    \"processing_time_seconds\": " << total_time << "\n";
         output << "  }\n";
         output << "}\n";
@@ -740,6 +960,10 @@ public:
                   << " (" << (100.0 * (total_reads_processed - total_reads_passed_bloom) / total_reads_processed) << "%)" << std::endl;
         std::cout << "Candidates found: " << total_candidates_found << std::endl;
         std::cout << "Mutations found: " << total_mutations_found << std::endl;
+        if (enable_translated_search) {
+            std::cout << "Protein matches: " << total_protein_matches_found << std::endl;
+            std::cout << "Protein resistance mutations: " << total_protein_resistance_found << std::endl;
+        }
         std::cout << "Total time: " << total_time << " seconds" << std::endl;
         std::cout << "Throughput: " << (total_reads_processed / (double)total_time) << " reads/second" << std::endl;
         std::cout << "\nHDF5 output: " << hdf5_path << std::endl;
@@ -748,14 +972,14 @@ public:
 
 // Main entry point
 int main(int argc, char** argv) {
-    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter RC Support and HDF5) ===");
+    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter RC Support, HDF5, and Translated Search) ===");
     DEBUG_PRINT("Command line: argc=%d", argc);
     for (int i = 0; i < argc; i++) {
         DEBUG_PRINT("  argv[%d] = %s", i, argv[i]);
     }
     
-    if (argc != 5) {
-        std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> <output.json>" << std::endl;
+    if (argc < 5 || argc > 8) {
+        std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> <output.json> [--enable-translated-search] [--protein-db <path>]" << std::endl;
         return 1;
     }
     
@@ -764,13 +988,36 @@ int main(int argc, char** argv) {
     std::string r2_path = argv[3];
     std::string output_path = argv[4];
     
+    // Check for optional translated search flags
+    bool enable_translated_search = false;
+    std::string protein_db_path;
+    
+    for (int i = 5; i < argc; i++) {
+        if (std::string(argv[i]) == "--enable-translated-search") {
+            enable_translated_search = true;
+        } else if (std::string(argv[i]) == "--protein-db" && i + 1 < argc) {
+            protein_db_path = argv[i + 1];
+            i++; // Skip next argument
+        }
+    }
+    
     // Get input paths from user if files are on adjacent drive
-    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.3.2) ===" << std::endl;
-    std::cout << "Features: Bloom filter with RC support + K-mer enrichment + Alignment + HDF5 output" << std::endl;
+    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.4.0) ===" << std::endl;
+    std::cout << "Features: Bloom filter with RC support + K-mer enrichment + Alignment + HDF5 output";
+    if (enable_translated_search) {
+        std::cout << " + Translated search";
+    }
+    std::cout << std::endl;
     std::cout << "Index: " << index_path << std::endl;
     std::cout << "R1 reads: " << r1_path << std::endl;
     std::cout << "R2 reads: " << r2_path << std::endl;
     std::cout << "Output: " << output_path << std::endl;
+    if (enable_translated_search) {
+        std::cout << "Translated search: ENABLED" << std::endl;
+        if (!protein_db_path.empty()) {
+            std::cout << "Protein database: " << protein_db_path << std::endl;
+        }
+    }
     
     // Check input files exist
     DEBUG_PRINT("Checking input files...");
@@ -821,10 +1068,15 @@ int main(int argc, char** argv) {
     // Run pipeline
     try {
         DEBUG_PRINT("Creating pipeline instance");
-        FQResistancePipeline pipeline;
+        FQResistancePipeline pipeline(enable_translated_search);
         
         DEBUG_PRINT("Loading index");
         pipeline.loadIndex(index_path);
+        
+        // Load protein database if provided
+        if (enable_translated_search && !protein_db_path.empty()) {
+            pipeline.setProteinDatabase(protein_db_path);
+        }
         
         DEBUG_PRINT("Starting paired read processing");
         pipeline.processPairedReads(r1_path, r2_path, output_path);

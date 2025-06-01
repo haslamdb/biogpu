@@ -44,6 +44,10 @@ sequences.bin
 *_debug_results.json
 synthetic_*.json
 
+# HDF5 files (often large)
+*.h5
+*.hdf5
+
 # Large index files
 *.idx
 *_index/

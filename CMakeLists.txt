@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(BioGPU VERSION 0.3.1 LANGUAGES CXX CUDA)
+project(BioGPU VERSION 0.4.0 LANGUAGES CXX CUDA)
 
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)
@@ -45,7 +45,7 @@ set_target_properties(bloom_filter PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
-# HDF5 alignment writer library
+# HDF5 alignment writer library (updated with translated search support)
 add_library(hdf5_writer STATIC
     runtime/kernels/resistance/hdf5_alignment_writer.cpp
 )
@@ -53,6 +53,16 @@ add_library(hdf5_writer STATIC
 target_link_libraries(hdf5_writer
     ${HDF5_LIBRARIES}
     ${HDF5_CXX_LIBRARIES}
+)
+
+# NEW: Translated search library
+add_library(translated_search STATIC
+    runtime/kernels/resistance/translated_search.cu
+)
+
+set_target_properties(translated_search PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
 # ===========================
@@ -92,15 +102,16 @@ target_compile_options(fq_pipeline_gpu PRIVATE
     >
 )
 
-# Link libraries for FQ pipeline
+# Link libraries for FQ pipeline (added translated_search)
 target_link_libraries(fq_pipeline_gpu
-    bloom_filter   # Add Bloom filter library
-    hdf5_writer    # Add HDF5 writer library
-    z              # for zlib (FASTQ.gz reading)
+    bloom_filter         # Bloom filter library
+    hdf5_writer         # HDF5 writer library
+    translated_search   # NEW: Translated search library
+    z                   # for zlib (FASTQ.gz reading)
     cudart
     cuda
-    ${HDF5_LIBRARIES}      # Add HDF5 libraries
-    ${HDF5_CXX_LIBRARIES}  # Add HDF5 C++ libraries
+    ${HDF5_LIBRARIES}      # HDF5 libraries
+    ${HDF5_CXX_LIBRARIES}  # HDF5 C++ libraries
 )
 
 # Add HDF5 definitions
@@ -142,6 +153,22 @@ target_link_libraries(test_hdf5_reader
     ${HDF5_CXX_LIBRARIES}
 )
 
+# NEW: Test program for translated search
+add_executable(test_translated_search
+    tests/test_translated_search.cu
+)
+
+set_target_properties(test_translated_search PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+target_link_libraries(test_translated_search
+    translated_search
+    cudart
+    cuda
+)
+
 # ===========================
 # Development Targets
 # ===========================
@@ -154,6 +181,15 @@ add_custom_target(build_kmer_index
             ${CMAKE_SOURCE_DIR}/data/fq_resistance_index
             --kmer-length 15
     COMMENT "Building enhanced k-mer index"
+)
+
+# NEW: Build protein resistance database
+add_custom_target(build_protein_db
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/build_protein_resistance_db.py
+            ${CMAKE_SOURCE_DIR}/data/fq_genes
+            ${CMAKE_SOURCE_DIR}/data/Known_Quinolone_Changes.csv
+            ${CMAKE_SOURCE_DIR}/data/protein_resistance_db
+    COMMENT "Building protein resistance database for translated search"
 )
 
 # Test Bloom filter functionality
@@ -187,25 +223,33 @@ add_custom_target(test_hdf5
     COMMENT "Testing HDF5 output reading and visualization"
 )
 
+# NEW: Test translated search functionality
+add_custom_target(test_translation
+    COMMAND ./test_translated_search
+    DEPENDS test_translated_search
+    COMMENT "Testing 6-frame translation and protein search"
+)
+
 # ===========================
 # Installation Rules
 # ===========================
 
-# Install executables
-install(TARGETS fq_pipeline_gpu debug_ids test_bloom_filter test_hdf5_reader
+# Install executables (added test_translated_search)
+install(TARGETS fq_pipeline_gpu debug_ids test_bloom_filter test_hdf5_reader test_translated_search
     RUNTIME DESTINATION bin
 )
 
-# Install libraries
-install(TARGETS bloom_filter hdf5_writer
+# Install libraries (added translated_search)
+install(TARGETS bloom_filter hdf5_writer translated_search
     ARCHIVE DESTINATION lib
 )
 
-# Install Python scripts
+# Install Python scripts (added protein DB builder)
 install(PROGRAMS
     ${CMAKE_SOURCE_DIR}/src/python/read_hdf5_alignments.py
     ${CMAKE_SOURCE_DIR}/src/python/enhanced_kmer_builder.py
     ${CMAKE_SOURCE_DIR}/src/python/index_validator.py
+    ${CMAKE_SOURCE_DIR}/src/python/build_protein_resistance_db.py
     DESTINATION bin
 )
 
@@ -218,22 +262,25 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 message(STATUS "")
 message(STATUS "BioGPU Configuration Summary:")
-message(STATUS "  Version: ${PROJECT_VERSION} (added HDF5 support)")
+message(STATUS "  Version: ${PROJECT_VERSION} (added translated search support)")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  CUDA Standard: ${CMAKE_CUDA_STANDARD}")
 message(STATUS "  CUDA Architectures: 61;70;75;80;86 (includes Titan Xp)")
 message(STATUS "  HDF5 Version: ${HDF5_VERSION}")
 message(STATUS "")
 message(STATUS "Build targets:")
-message(STATUS "  fq_pipeline_gpu    - GPU-accelerated FQ resistance detection with Bloom filter and HDF5")
+message(STATUS "  fq_pipeline_gpu    - GPU-accelerated FQ resistance detection with translated search")
 message(STATUS "  debug_ids          - Debug gene/species ID assignments")
 message(STATUS "  test_bloom_filter  - Test Bloom filter implementation")
 message(STATUS "  test_hdf5_reader   - Test HDF5 alignment reading")
+message(STATUS "  test_translated_search - Test 6-frame translation and protein search")
 message(STATUS "")
 message(STATUS "Development targets:")
 message(STATUS "  build_kmer_index - Build k-mer index from gene files")
+message(STATUS "  build_protein_db - Build protein database for translated search")
 message(STATUS "  validate_index   - Validate index with synthetic data")
 message(STATUS "  test_bloom       - Run Bloom filter tests")
 message(STATUS "  debug_index      - Debug gene/species ID assignments")
 message(STATUS "  test_hdf5        - Test HDF5 output reading and visualization")
+message(STATUS "  test_translation - Test 6-frame translation functionality")
 message(STATUS "")

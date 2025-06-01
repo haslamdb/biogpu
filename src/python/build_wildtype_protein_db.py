@@ -17,6 +17,7 @@ import pandas as pd
 import argparse
 from datetime import datetime
 import hashlib
+import re
 
 class WildTypeProteinDatabaseBuilder:
     def __init__(self, input_source, output_dir, use_fasta=False):
@@ -147,14 +148,47 @@ class WildTypeProteinDatabaseBuilder:
         print(f"  Total: {self.stats['total_sequences']} wild-type protein sequences selected")
     
     def load_fasta_sequences(self):
-        """Load protein sequences from FASTA file"""
-        print(f"\nLoading protein sequences from FASTA file: {self.input_source}")
+        """Load protein sequences from FASTA files in species subdirectories"""
+        print(f"\nLoading protein sequences from species directories: {self.input_source}")
         
         species_id = 0
-        gene_id = 0
         
+        # Check if input is a single FASTA file or directory with species subdirectories
+        if os.path.isfile(self.input_source):
+            # Single FASTA file - use original logic but extract species from filename
+            species_name = os.path.splitext(os.path.basename(self.input_source))[0]
+            self.species_map[species_id] = species_name
+            self._process_fasta_file(self.input_source, species_name, species_id)
+        else:
+            # Directory with species subdirectories
+            for species_dir in sorted(os.listdir(self.input_source)):
+                species_path = os.path.join(self.input_source, species_dir)
+                if not os.path.isdir(species_path):
+                    continue
+                
+                species_name = species_dir
+                self.species_map[species_id] = species_name
+                print(f"  Processing species: {species_name}")
+                
+                # Process all FASTA files in this species directory
+                fasta_files = [f for f in os.listdir(species_path) if f.endswith('.fasta') or f.endswith('.fa')]
+                
+                for fasta_file in sorted(fasta_files):
+                    fasta_path = os.path.join(species_path, fasta_file)
+                    self._process_fasta_file(fasta_path, species_name, species_id)
+                
+                if fasta_files:  # Only increment species_id if we found FASTA files
+                    species_id += 1
+        
+        self.stats['species_count'] = len(self.species_map)
+        self.stats['gene_count'] = len(self.gene_map)
+        self.stats['unique_proteins'] = len(self.proteins)
+        print(f"  Total: {self.stats['total_sequences']} protein sequences loaded from FASTA files")
+    
+    def _process_fasta_file(self, fasta_path, species_name, species_id):
+        """Process a single FASTA file for a given species"""
         try:
-            with open(self.input_source, 'r') as f:
+            with open(fasta_path, 'r') as f:
                 current_header = None
                 current_sequence = ""
                 
@@ -163,9 +197,7 @@ class WildTypeProteinDatabaseBuilder:
                     if line.startswith('>'):
                         # Process previous entry if exists
                         if current_header and current_sequence:
-                            self.process_fasta_entry(current_header, current_sequence, species_id, gene_id)
-                            species_id += 1
-                            gene_id += 1
+                            self.process_fasta_entry(current_header, current_sequence, species_name, species_id)
                         
                         # Start new entry
                         current_header = line[1:]  # Remove '>'
@@ -175,24 +207,17 @@ class WildTypeProteinDatabaseBuilder:
                 
                 # Process last entry
                 if current_header and current_sequence:
-                    self.process_fasta_entry(current_header, current_sequence, species_id, gene_id)
+                    self.process_fasta_entry(current_header, current_sequence, species_name, species_id)
         
         except Exception as e:
-            print(f"Error reading FASTA file: {e}")
-            return
-        
-        self.stats['species_count'] = len(self.species_map)
-        self.stats['gene_count'] = len(self.gene_map)
-        self.stats['unique_proteins'] = len(self.proteins)
-        print(f"  Total: {self.stats['total_sequences']} protein sequences loaded from FASTA")
+            print(f"    Warning: Could not process {fasta_path}: {e}")
     
-    def process_fasta_entry(self, header, sequence, species_id, gene_id):
+    def process_fasta_entry(self, header, sequence, species_name, species_id):
         """Process a single FASTA entry and extract gene/species info"""
         # Parse header - expecting format like:
         # sp|P20083|PARE_ECOLI DNA topoisomerase 4 subunit B OS=Escherichia coli (strain K12) OX=83333 GN=parE PE=1 SV=3
         
         gene_name = "unknown"
-        species_name = "unknown"
         accession = "unknown"
         
         # Extract gene name from GN= field
@@ -203,15 +228,13 @@ class WildTypeProteinDatabaseBuilder:
                 gn_end = len(header)
             gene_name = header[gn_start:gn_end]
         
-        # Extract species from OS= field
-        if "OS=" in header:
-            os_start = header.find("OS=") + 3
-            os_end = header.find(" OX=", os_start)
-            if os_end == -1:
-                os_end = header.find(" ", os_start)
-                if os_end == -1:
-                    os_end = len(header)
-            species_name = header[os_start:os_end].replace(" ", "_").replace("(", "").replace(")", "")
+        # If no GN field, try to infer from header (common patterns)
+        if gene_name == "unknown":
+            # Look for common gene name patterns in the header
+            # Match common patterns like "gyrA", "parE", etc.
+            gene_match = re.search(r'\b(gyr[AB]|par[CE]|acrA|acrB|tolC)\b', header, re.IGNORECASE)
+            if gene_match:
+                gene_name = gene_match.group(1).lower()
         
         # Extract accession from sp|accession| or similar
         if "|" in header:
@@ -226,10 +249,15 @@ class WildTypeProteinDatabaseBuilder:
         if len(clean_sequence) < 20 or 'X' in clean_sequence:
             return
         
-        # Update maps
-        if species_id not in self.species_map:
-            self.species_map[species_id] = species_name
-        if gene_id not in self.gene_map:
+        # Find or create gene_id
+        gene_id = None
+        for gid, gname in self.gene_map.items():
+            if gname == gene_name:
+                gene_id = gid
+                break
+        
+        if gene_id is None:
+            gene_id = len(self.gene_map)
             self.gene_map[gene_id] = gene_name
         
         protein_entry = {
@@ -248,7 +276,7 @@ class WildTypeProteinDatabaseBuilder:
         self.proteins.append(protein_entry)
         self.stats['total_sequences'] += 1
         
-        print(f"  Added {species_name} {gene_name}: {len(clean_sequence)} aa")
+        print(f"    Added {species_name} {gene_name}: {len(clean_sequence)} aa")
     
     def select_wildtype_sequence(self, data, gene_name, species_name):
         """Select the best wild-type sequence from multiple entries"""
@@ -458,8 +486,8 @@ def main():
     
     # Validate inputs
     if args.fasta:
-        if not os.path.isfile(args.input_source):
-            print(f"Error: {args.input_source} is not a file")
+        if not (os.path.isfile(args.input_source) or os.path.isdir(args.input_source)):
+            print(f"Error: {args.input_source} is not a file or directory")
             sys.exit(1)
     else:
         if not os.path.isdir(args.input_source):

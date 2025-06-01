@@ -2,7 +2,7 @@
 BioGPU PIPELINE DIAGNOSTIC REPORT
 ================================
 
-Generated: Sun Jun  1 12:46:49 2025
+Generated: Sun Jun  1 12:55:03 2025
 Pipeline Version: 0.4.0 (Enhanced Translated Search)
 Features: Bloom Filter + 15-mer nucleotide + 5-mer protein + Smith-Waterman
 
@@ -10,13 +10,13 @@ PIPELINE STATISTICS
 ===================
 
 Read Processing:
-  Total input reads:                10000
-  After Bloom filter:                9153 (91.5%)
-  After k-mer enrichment:            9153 (91.5%)
+  Total input reads:              1000000
+  After Bloom filter:              916047 (91.6%)
+  After k-mer enrichment:          916047 (91.6%)
 
 Protein Search Results:
-  Total protein alignments:         91862
-  Protein hit rate:                 918.6%
+  Total protein alignments:       9550063
+  Protein hit rate:                 955.0%
   Smith-Waterman alignments:            0
 
 Mutation Detection:
@@ -24,101 +24,101 @@ Mutation Detection:
   QRDR mutations found:                  0
 
 Filter Efficiency:
-  Bloom filter removed:                847 (8.5%)
+  Bloom filter removed:              83953 (8.4%)
   K-mer filter removed:                  0 (0.0%)
 
 TOP PROTEIN ALIGNMENTS
 ======================
 
-Alignment #1 - gyrA (Score: 200.0, Identity: 333.3%)
-Read 1893, Frame -1, Protein 1104
-Position 255-284:
-No mutations detected in this alignment.
-
-Alignment region:
-Query:  [0-29] (Perfect match - no sequence differences)
-Ref:    [255-284] (Perfect match)
-
-Alignment #2 - gyrA (Score: 200.0, Identity: 333.3%)
-Read 1886, Frame -1, Protein 1062
-Position 486-515:
-No mutations detected in this alignment.
-
-Alignment region:
-Query:  [0-29] (Perfect match - no sequence differences)
-Ref:    [486-515] (Perfect match)
-
-Alignment #3 - gyrA (Score: 200.0, Identity: 400.0%)
-Read 6667, Frame 2, Protein 1104
-Position 599-623:
+Alignment #1 - gyrA (Score: 200.0, Identity: 400.0%)
+Read 1800, Frame -3, Protein 1104
+Position 428-452:
 No mutations detected in this alignment.
 
 Alignment region:
 Query:  [0-24] (Perfect match - no sequence differences)
-Ref:    [599-623] (Perfect match)
+Ref:    [428-452] (Perfect match)
 
-Alignment #4 - gyrA (Score: 200.0, Identity: 400.0%)
-Read 6667, Frame 2, Protein 1103
-Position 599-623:
-No mutations detected in this alignment.
-
-Alignment region:
-Query:  [0-24] (Perfect match - no sequence differences)
-Ref:    [599-623] (Perfect match)
-
-Alignment #5 - gyrA (Score: 200.0, Identity: 400.0%)
-Read 6667, Frame 2, Protein 1102
-Position 599-623:
-No mutations detected in this alignment.
-
-Alignment region:
-Query:  [0-24] (Perfect match - no sequence differences)
-Ref:    [599-623] (Perfect match)
-
-Alignment #6 - gyrA (Score: 200.0, Identity: 333.3%)
-Read 1889, Frame -3, Protein 1103
-Position 252-281:
-No mutations detected in this alignment.
-
-Alignment region:
-Query:  [2-31] (Perfect match - no sequence differences)
-Ref:    [252-281] (Perfect match)
-
-Alignment #7 - gyrA (Score: 200.0, Identity: 333.3%)
-Read 1889, Frame -3, Protein 1104
-Position 252-281:
-No mutations detected in this alignment.
-
-Alignment region:
-Query:  [2-31] (Perfect match - no sequence differences)
-Ref:    [252-281] (Perfect match)
-
-Alignment #8 - gyrA (Score: 200.0, Identity: 416.7%)
-Read 2616, Frame 2, Protein 1102
-Position 476-499:
+Alignment #2 - gyrA (Score: 200.0, Identity: 416.7%)
+Read 1817, Frame -2, Protein 1103
+Position 266-289:
 No mutations detected in this alignment.
 
 Alignment region:
 Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [476-499] (Perfect match)
+Ref:    [266-289] (Perfect match)
 
-Alignment #9 - gyrA (Score: 200.0, Identity: 416.7%)
-Read 2616, Frame 2, Protein 1103
-Position 476-499:
+Alignment #3 - gyrA (Score: 200.0, Identity: 344.8%)
+Read 1810, Frame -1, Protein 523
+Position 509-537:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [476-499] (Perfect match)
+Query:  [0-28] (Perfect match - no sequence differences)
+Ref:    [509-537] (Perfect match)
+
+Alignment #4 - gyrA (Score: 200.0, Identity: 344.8%)
+Read 1810, Frame -1, Protein 518
+Position 509-537:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-28] (Perfect match - no sequence differences)
+Ref:    [509-537] (Perfect match)
+
+Alignment #5 - gyrA (Score: 200.0, Identity: 344.8%)
+Read 1810, Frame -1, Protein 515
+Position 509-537:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-28] (Perfect match - no sequence differences)
+Ref:    [509-537] (Perfect match)
+
+Alignment #6 - gyrA (Score: 200.0, Identity: 344.8%)
+Read 1810, Frame -1, Protein 514
+Position 509-537:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-28] (Perfect match - no sequence differences)
+Ref:    [509-537] (Perfect match)
+
+Alignment #7 - gyrA (Score: 200.0, Identity: 344.8%)
+Read 1810, Frame -1, Protein 513
+Position 509-537:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-28] (Perfect match - no sequence differences)
+Ref:    [509-537] (Perfect match)
+
+Alignment #8 - gyrA (Score: 200.0, Identity: 384.6%)
+Read 1807, Frame -3, Protein 1109
+Position 302-327:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [20-45] (Perfect match - no sequence differences)
+Ref:    [302-327] (Perfect match)
+
+Alignment #9 - gyrA (Score: 200.0, Identity: 384.6%)
+Read 1807, Frame -3, Protein 1108
+Position 302-327:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [20-45] (Perfect match - no sequence differences)
+Ref:    [302-327] (Perfect match)
 
 Alignment #10 - gyrA (Score: 200.0, Identity: 416.7%)
-Read 2616, Frame 2, Protein 1104
-Position 476-499:
+Read 1807, Frame -3, Protein 1109
+Position 282-305:
 No mutations detected in this alignment.
 
 Alignment region:
 Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [476-499] (Perfect match)
+Ref:    [282-305] (Perfect match)
 
 
 MUTATION ANALYSIS

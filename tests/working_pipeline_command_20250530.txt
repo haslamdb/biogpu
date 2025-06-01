@@ -18,7 +18,7 @@ python src/python/build_protein_resistance_db.py \
     --protein-db data/protein_resistance_db
 
 
-./build/fq_pipeline_gpu_enhanced \
+./build/fq_pipeline_gpu \
     data/fq_resistance_index \
     small_R1.fastq.gz \
     small_R2.fastq.gz \

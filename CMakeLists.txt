@@ -105,19 +105,19 @@ set(FQ_HOST_SOURCES
 )
 
 # Create enhanced FQ pipeline executable with diagnostic support
-add_executable(fq_pipeline_gpu_enhanced
+add_executable(fq_pipeline_gpu
     ${FQ_HOST_SOURCES}
     ${FQ_CUDA_SOURCES}
 )
 
 # Set CUDA properties for enhanced FQ pipeline
-set_target_properties(fq_pipeline_gpu_enhanced PROPERTIES
+set_target_properties(fq_pipeline_gpu PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"  # Include Titan Xp (61)
 )
 
 # Enhanced CUDA-specific compile options
-target_compile_options(fq_pipeline_gpu_enhanced PRIVATE
+target_compile_options(fq_pipeline_gpu PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         --use_fast_math
         --generate-line-info
@@ -129,7 +129,7 @@ target_compile_options(fq_pipeline_gpu_enhanced PRIVATE
 )
 
 # Link libraries for enhanced FQ pipeline with diagnostic support
-target_link_libraries(fq_pipeline_gpu_enhanced
+target_link_libraries(fq_pipeline_gpu
     bloom_filter                # Bloom filter library
     hdf5_writer                # Enhanced HDF5 writer library
     translated_search          # Enhanced translated search library with 5-mer + SW
@@ -144,44 +144,8 @@ target_link_libraries(fq_pipeline_gpu_enhanced
 )
 
 # Add HDF5 definitions
-target_compile_definitions(fq_pipeline_gpu_enhanced PRIVATE ${HDF5_DEFINITIONS})
-
-# Create backwards-compatible executable (without diagnostic features)
-add_executable(fq_pipeline_gpu
-    runtime/kernels/resistance/fq_pipeline_host.cpp
-    ${FQ_CUDA_SOURCES}
-)
-
-set_target_properties(fq_pipeline_gpu PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_compile_options(fq_pipeline_gpu PRIVATE
-    $<$<COMPILE_LANGUAGE:CUDA>:
-        --use_fast_math
-        --generate-line-info
-        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
-        --ptxas-options=-v
-        --maxrregcount=64
-        -O3
-    >
-)
-
-target_link_libraries(fq_pipeline_gpu
-    bloom_filter
-    hdf5_writer
-    translated_search
-    kmer_screening
-    diagnostic_reporter
-    z
-    cudart
-    cuda
-    ${HDF5_LIBRARIES}
-    ${HDF5_CXX_LIBRARIES}
-)
-
 target_compile_definitions(fq_pipeline_gpu PRIVATE ${HDF5_DEFINITIONS})
+
 
 # ===========================
 # Test and Debug Executables
@@ -351,8 +315,7 @@ add_custom_target(analyze_diagnostics
 
 # Install enhanced executables
 install(TARGETS 
-    fq_pipeline_gpu_enhanced   # NEW: Enhanced version with diagnostics
-    fq_pipeline_gpu           # Original version for compatibility
+    fq_pipeline_gpu           # Enhanced version with full diagnostics
     debug_ids 
     test_bloom_filter 
     test_hdf5_reader 

@@ -2,7 +2,7 @@
 BioGPU PIPELINE DIAGNOSTIC REPORT
 ================================
 
-Generated: Sun Jun  1 14:37:42 2025
+Generated: Sun Jun  1 17:13:33 2025
 Pipeline Version: 0.4.0 (Enhanced Translated Search)
 Features: Bloom Filter + 15-mer nucleotide + 5-mer protein + Smith-Waterman
 
@@ -15,9 +15,9 @@ Read Processing:
   After k-mer enrichment:          916047 (91.6%)
 
 Protein Search Results:
-  Total protein alignments:       8529874
-  Protein hit rate:                 853.0%
-  Smith-Waterman alignments:          618
+  Total protein alignments:       1869737
+  Protein hit rate:                 187.0%
+  Smith-Waterman alignments:         6148
 
 Mutation Detection:
   Total mutations found:                0
@@ -30,95 +30,105 @@ Filter Efficiency:
 TOP PROTEIN ALIGNMENTS
 ======================
 
-Alignment #1 - Unknown (Score: 200.0, Identity: 384.6%)
-Read 6162, Frame -3, Protein 77
-Position 558-583:
+Alignment #1 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 5630, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-25] (Perfect match - no sequence differences)
-Ref:    [558-583] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #2 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 6157, Frame 3, Protein 16
-Position 192-215:
+Alignment #2 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 2416, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [192-215] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #3 - Unknown (Score: 200.0, Identity: 400.0%)
-Read 8918, Frame 3, Protein 77
-Position 601-625:
+Alignment #3 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 2415, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-24] (Perfect match - no sequence differences)
-Ref:    [601-625] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #4 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 6157, Frame -2, Protein 27
-Position 290-313:
+Alignment #4 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 7866, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [290-313] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #5 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 6157, Frame -2, Protein 39
-Position 290-313:
+Alignment #5 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 7865, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [290-313] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #6 - Unknown (Score: 200.0, Identity: 357.1%)
-Read 6157, Frame -2, Protein 75
-Position 290-317:
+Alignment #6 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 4600, Frame -1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-27] (Perfect match - no sequence differences)
-Ref:    [290-317] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #7 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 8918, Frame 3, Protein 75
-Position 601-624:
+Alignment #7 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 9224, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [601-624] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #8 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 8918, Frame 3, Protein 39
-Position 601-624:
+Alignment #8 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 9205, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [601-624] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #9 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 8917, Frame 2, Protein 75
-Position 141-164:
+Alignment #9 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 9206, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [1-24] (Perfect match - no sequence differences)
-Ref:    [141-164] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
-Alignment #10 - Unknown (Score: 200.0, Identity: 416.7%)
-Read 8917, Frame 2, Protein 27
-Position 140-163:
+Alignment #10 - gyrA (Score: 271.0, Identity: 100.0%)
+Read 2991, Frame 1, Protein 0
+*** SMITH-WATERMAN ALIGNMENT ***
+Position 65-114:
 No mutations detected in this alignment.
 
 Alignment region:
-Query:  [0-23] (Perfect match - no sequence differences)
-Ref:    [140-163] (Perfect match)
+Query:  [0-49] (Perfect match - no sequence differences)
+Ref:    [65-114] (Perfect match)
 
 
 MUTATION ANALYSIS
@@ -137,8 +147,8 @@ QRDR RESISTANCE ANALYSIS
 ========================
 
 QRDR Coverage:
-  gyrA QRDR: ❌ NOT COVERED
-  parC QRDR: ❌ NOT COVERED
+  gyrA QRDR: ✓ COVERED
+  parC QRDR: ✓ COVERED
   gyrB QRDR: ❌ NOT COVERED
   parE QRDR: ❌ NOT COVERED
 

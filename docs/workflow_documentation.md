@@ -291,7 +291,7 @@ cmake .. && make -j8
 ## 🎯 Next Steps Priority
 
 ### Immediate (Version 0.3.0)
-1. [ ] Add Bloom filter pre-screening
+1. [ ✅] Add Bloom filter pre-screening : 5/31/25:  bloom_filter.cu, bloom_filter_integration.cpp
 2. [ ] Implement species tracking through pipeline
 
 ### Short-term (Version 0.4.0)

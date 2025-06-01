@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cuda_runtime.h>
 #include "fq_mutation_detector.cuh"
+#include "hdf5_alignment_writer.h"
 
 // Include Bloom filter declarations
 extern "C" {
@@ -127,6 +128,9 @@ private:
     AlignmentResult* d_results;
     uint32_t* d_result_count;
     
+    // HDF5 writer
+    HDF5AlignmentWriter* hdf5_writer;
+    
     // Batch parameters
     const int batch_size = 10000;
     const int max_read_length = 300;
@@ -134,6 +138,7 @@ private:
     const int kmer_length = 15;     // K-mer size
     
     FQMutationDetectorCUDA detector;
+    std::string current_index_path;  // Store index path for HDF5 initialization
     
     // Statistics
     int total_reads_processed = 0;
@@ -145,6 +150,9 @@ public:
     FQResistancePipeline() {
         DEBUG_PRINT("Initializing FQ Resistance Pipeline with Bloom Filter");
         DEBUG_PRINT("Batch size: %d, Max read length: %d", batch_size, max_read_length);
+        
+        // Initialize HDF5 writer to null
+        hdf5_writer = nullptr;
         
         // Create Bloom filter
         bloom_filter = create_bloom_filter(kmer_length);
@@ -186,6 +194,11 @@ public:
     }
     
     ~FQResistancePipeline() {
+        // Destroy HDF5 writer
+        if (hdf5_writer) {
+            delete hdf5_writer;
+        }
+        
         // Destroy Bloom filter
         if (bloom_filter) {
             destroy_bloom_filter(bloom_filter);
@@ -210,6 +223,9 @@ public:
     
     void loadIndex(const std::string& index_path) {
         DEBUG_PRINT("Loading index from: %s", index_path.c_str());
+        
+        // Store index path for HDF5 initialization
+        current_index_path = index_path;
         
         // Load k-mer index
         detector.loadIndex(index_path.c_str());
@@ -278,6 +294,12 @@ public:
         DEBUG_PRINT("R2: %s", r2_path.c_str());
         DEBUG_PRINT("Output: %s", output_path.c_str());
         
+        // Create HDF5 output file
+        std::string hdf5_path = output_path.substr(0, output_path.find_last_of('.')) + ".h5";
+        hdf5_writer = new HDF5AlignmentWriter(hdf5_path);
+        hdf5_writer->initialize(current_index_path, r1_path, r2_path);
+        DEBUG_PRINT("HDF5 output initialized: %s", hdf5_path.c_str());
+        
         FastqReader reader1(r1_path);
         FastqReader reader2(r2_path);
         
@@ -294,6 +316,7 @@ public:
         std::ofstream output(output_path);
         output << "{\n";
         output << "  \"sample\": \"" << r1_path << "\",\n";
+        output << "  \"hdf5_output\": \"" << hdf5_path << "\",\n";
         output << "  \"mutations\": [\n";
         
         bool first_mutation = true;
@@ -488,7 +511,11 @@ public:
                         cudaMemcpy(results_r1.data(), d_results, num_results_r1 * sizeof(AlignmentResult), 
                                   cudaMemcpyDeviceToHost);
                         
-                        // Store R1 results
+                        // Add to HDF5
+                        hdf5_writer->addAlignmentBatch(results_r1.data(), num_results_r1, 
+                                                     total_reads_processed);
+                        
+                        // Store R1 results for JSON output
                         for (const auto& result : results_r1) {
                             if (result.num_mutations_detected > 0 && h_pair_passes[result.read_id]) {
                                 int read_pair_id = result.read_id;
@@ -557,7 +584,11 @@ public:
                         cudaMemcpy(results_r2.data(), d_results, num_results_r2 * sizeof(AlignmentResult), 
                                   cudaMemcpyDeviceToHost);
                         
-                        // Combine with R1 results, preferring higher scores
+                        // Add to HDF5
+                        hdf5_writer->addAlignmentBatch(results_r2.data(), num_results_r2, 
+                                                     total_reads_processed);
+                        
+                        // Combine with R1 results for JSON output, preferring higher scores
                         for (const auto& result : results_r2) {
                             if (result.num_mutations_detected > 0 && h_pair_passes[result.read_id]) {
                                 int read_pair_id = result.read_id;
@@ -580,7 +611,7 @@ public:
                 
                 total_candidates_found += total_candidates_r1 + total_candidates_r2;
                 
-                // Output combined results
+                // Output combined results to JSON
                 for (const auto& pair : best_results_per_read_pair) {
                     const auto& result = pair.second;
                     if (!first_mutation) output << ",\n";
@@ -618,6 +649,9 @@ public:
         auto pipeline_end = std::chrono::high_resolution_clock::now();
         auto total_time = std::chrono::duration_cast<std::chrono::seconds>(pipeline_end - pipeline_start).count();
         
+        // Finalize HDF5 output
+        hdf5_writer->finalize(output_path);
+        
         output << "\n  ],\n";
         output << "  \"summary\": {\n";
         output << "    \"total_reads\": " << total_reads_processed << ",\n";
@@ -642,12 +676,13 @@ public:
         std::cout << "Mutations found: " << total_mutations_found << std::endl;
         std::cout << "Total time: " << total_time << " seconds" << std::endl;
         std::cout << "Throughput: " << (total_reads_processed / (double)total_time) << " reads/second" << std::endl;
+        std::cout << "\nHDF5 output: " << hdf5_path << std::endl;
     }
 };
 
 // Main entry point
 int main(int argc, char** argv) {
-    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter) ===");
+    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter and HDF5) ===");
     DEBUG_PRINT("Command line: argc=%d", argc);
     for (int i = 0; i < argc; i++) {
         DEBUG_PRINT("  argv[%d] = %s", i, argv[i]);
@@ -664,8 +699,8 @@ int main(int argc, char** argv) {
     std::string output_path = argv[4];
     
     // Get input paths from user if files are on adjacent drive
-    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.3.0) ===" << std::endl;
-    std::cout << "Features: Bloom filter pre-screening + K-mer enrichment + Alignment" << std::endl;
+    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.3.1) ===" << std::endl;
+    std::cout << "Features: Bloom filter pre-screening + K-mer enrichment + Alignment + HDF5 output" << std::endl;
     std::cout << "Index: " << index_path << std::endl;
     std::cout << "R1 reads: " << r1_path << std::endl;
     std::cout << "R2 reads: " << r2_path << std::endl;

@@ -19,7 +19,7 @@
 namespace cg = cooperative_groups;
 
 // Debug macros
-#define DEBUG_BLOOM 1
+#define DEBUG_BLOOM 0
 #define DEBUG_PRINT(fmt, ...) if(DEBUG_BLOOM) { printf("[BLOOM DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 // Bloom filter constants

@@ -19,7 +19,7 @@
 namespace cg = cooperative_groups;
 
 // Debug macros
-#define DEBUG_TRANS 1
+#define DEBUG_TRANS 0
 #define DEBUG_PRINT(fmt, ...) if(DEBUG_TRANS) { printf("[TRANS DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 // Enhanced constants for 5-mer approach

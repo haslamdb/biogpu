@@ -11,7 +11,7 @@
 #include <algorithm>
 
 // Debug macros
-#define DEBUG 1
+#define DEBUG 0
 #define DEBUG_PRINT(fmt, ...) if(DEBUG) { printf("[GPU DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 namespace cg = cooperative_groups;

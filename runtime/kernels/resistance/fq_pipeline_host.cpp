@@ -93,7 +93,7 @@ struct ProteinMatch {
 };
 
 // Debug macros
-#define DEBUG 1
+#define DEBUG 0
 #define DEBUG_PRINT(fmt, ...) if(DEBUG) { fprintf(stderr, "[DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); fflush(stderr); }
 
 // CUDA error checking

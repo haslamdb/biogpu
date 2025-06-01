@@ -15,6 +15,7 @@ python src/python/build_protein_resistance_db.py \
     synthetic_reads_20250529_R2.fastq.gz \
     output.json \
     --enable-translated-search \
+    --enable-smith-waterman \
     --protein-db data/protein_resistance_db
 
 

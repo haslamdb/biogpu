@@ -1,5 +1,5 @@
 // fq_pipeline_host.cpp
-// Main host code for FQ resistance detection pipeline with translated search support
+// Main host code for FQ resistance detection pipeline with enhanced translated search support
 
 #include <iostream>
 #include <fstream>
@@ -24,7 +24,7 @@ extern "C" {
     int save_bloom_filter(void* filter, const char* filename);
     int load_bloom_filter(void* filter, const char* filename);
     
-    // New RC-aware functions
+    // RC-aware functions
     int bloom_filter_screen_reads_with_rc(
         void* filter,
         const char* d_reads,
@@ -41,11 +41,13 @@ extern "C" {
     bool bloom_filter_has_rc(void* filter);
 }
 
-// Include translated search declarations
+// Enhanced translated search declarations
 extern "C" {
     void* create_translated_search_engine(int batch_size);
+    void* create_translated_search_engine_with_sw(int batch_size, bool enable_sw);
     void destroy_translated_search_engine(void* engine);
     int load_protein_database(void* engine, const char* db_path);
+    void set_smith_waterman_enabled(void* engine, bool enabled);
     int search_translated_reads(
         void* engine,
         const char* d_reads,
@@ -58,7 +60,7 @@ extern "C" {
     );
 }
 
-// Include ProteinMatch structure from translated_search.cu
+// Enhanced ProteinMatch structure from translated_search.cu
 struct ProteinMatch {
     uint32_t read_id;
     int8_t frame;
@@ -75,6 +77,7 @@ struct ProteinMatch {
     char ref_aas[10];
     char query_aas[10];
     float blosum_scores[10];
+    bool used_smith_waterman;
 };
 
 // Debug macros
@@ -184,11 +187,12 @@ private:
     AlignmentResult* d_results;
     uint32_t* d_result_count;
     
-    // Translated search engine and results
+    // Enhanced translated search engine and results
     void* translated_search_engine;
     ProteinMatch* d_protein_matches;
     uint32_t* d_protein_match_counts;
     bool enable_translated_search;
+    bool enable_smith_waterman;
     std::string protein_db_path;
     
     // HDF5 writer
@@ -211,13 +215,15 @@ private:
     int total_mutations_found = 0;
     int total_protein_matches_found = 0;
     int total_protein_resistance_found = 0;
+    int total_smith_waterman_alignments = 0;
     
 public:
-    FQResistancePipeline(bool use_translated_search = false) 
-        : enable_translated_search(use_translated_search) {
-        DEBUG_PRINT("Initializing FQ Resistance Pipeline with Bloom Filter");
+    FQResistancePipeline(bool use_translated_search = false, bool use_smith_waterman = false) 
+        : enable_translated_search(use_translated_search), enable_smith_waterman(use_smith_waterman) {
+        DEBUG_PRINT("Initializing Enhanced FQ Resistance Pipeline");
         DEBUG_PRINT("Batch size: %d, Max read length: %d", batch_size, max_read_length);
         DEBUG_PRINT("Translated search: %s", enable_translated_search ? "ENABLED" : "DISABLED");
+        DEBUG_PRINT("Smith-Waterman: %s", enable_smith_waterman ? "ENABLED" : "DISABLED");
         
         // Initialize HDF5 writer to null
         hdf5_writer = nullptr;
@@ -230,18 +236,19 @@ public:
         }
         DEBUG_PRINT("Bloom filter created successfully");
         
-        // Initialize translated search engine if enabled
+        // Initialize enhanced translated search engine
         translated_search_engine = nullptr;
         d_protein_matches = nullptr;
         d_protein_match_counts = nullptr;
         
         if (enable_translated_search) {
-            translated_search_engine = create_translated_search_engine(batch_size);
+            translated_search_engine = create_translated_search_engine_with_sw(batch_size, enable_smith_waterman);
             if (!translated_search_engine) {
-                std::cerr << "ERROR: Failed to create translated search engine" << std::endl;
+                std::cerr << "ERROR: Failed to create enhanced translated search engine" << std::endl;
                 exit(1);
             }
-            DEBUG_PRINT("Translated search engine created successfully");
+            DEBUG_PRINT("Enhanced translated search engine created (SW: %s)", 
+                       enable_smith_waterman ? "enabled" : "disabled");
             
             // Allocate memory for protein search results
             CUDA_CHECK(cudaMalloc(&d_protein_matches, 
@@ -287,7 +294,7 @@ public:
             delete hdf5_writer;
         }
         
-        // Destroy translated search engine
+        // Destroy enhanced translated search engine
         if (translated_search_engine) {
             destroy_translated_search_engine(translated_search_engine);
         }
@@ -321,14 +328,25 @@ public:
     void setProteinDatabase(const std::string& db_path) {
         protein_db_path = db_path;
         if (translated_search_engine && !protein_db_path.empty()) {
-            DEBUG_PRINT("Loading protein database from: %s", protein_db_path.c_str());
+            DEBUG_PRINT("Loading enhanced protein database from: %s", protein_db_path.c_str());
             int result = load_protein_database(translated_search_engine, protein_db_path.c_str());
             if (result != 0) {
-                std::cerr << "WARNING: Failed to load protein database" << std::endl;
+                std::cerr << "WARNING: Failed to load enhanced protein database" << std::endl;
                 enable_translated_search = false;
             } else {
-                std::cout << "Protein database loaded successfully" << std::endl;
+                std::cout << "Enhanced protein database loaded successfully (5-mer k-mers)" << std::endl;
+                if (enable_smith_waterman) {
+                    std::cout << "Smith-Waterman alignment enabled for high-scoring matches" << std::endl;
+                }
             }
+        }
+    }
+    
+    void setSmithWatermanEnabled(bool enabled) {
+        enable_smith_waterman = enabled;
+        if (translated_search_engine) {
+            set_smith_waterman_enabled(translated_search_engine, enabled);
+            DEBUG_PRINT("Smith-Waterman alignment %s", enabled ? "ENABLED" : "DISABLED");
         }
     }
     
@@ -415,10 +433,12 @@ public:
     
     void processPairedReads(const std::string& r1_path, const std::string& r2_path, 
                            const std::string& output_path) {
-        DEBUG_PRINT("Starting paired read processing with Bloom filter pre-screening");
+        DEBUG_PRINT("Starting enhanced paired read processing");
         DEBUG_PRINT("R1: %s", r1_path.c_str());
         DEBUG_PRINT("R2: %s", r2_path.c_str());
         DEBUG_PRINT("Output: %s", output_path.c_str());
+        DEBUG_PRINT("5-mer protein search: %s", enable_translated_search ? "ENABLED" : "DISABLED");
+        DEBUG_PRINT("Smith-Waterman: %s", enable_smith_waterman ? "ENABLED" : "DISABLED");
         
         // Create HDF5 output file
         std::string hdf5_path = output_path.substr(0, output_path.find_last_of('.')) + ".h5";
@@ -443,7 +463,10 @@ public:
         output << "{\n";
         output << "  \"sample\": \"" << r1_path << "\",\n";
         output << "  \"hdf5_output\": \"" << hdf5_path << "\",\n";
+        output << "  \"pipeline_version\": \"0.4.0-enhanced\",\n";
         output << "  \"translated_search_enabled\": " << (enable_translated_search ? "true" : "false") << ",\n";
+        output << "  \"smith_waterman_enabled\": " << (enable_smith_waterman ? "true" : "false") << ",\n";
+        output << "  \"protein_kmer_size\": 5,\n";
         if (enable_translated_search && !protein_db_path.empty()) {
             output << "  \"protein_database\": \"" << protein_db_path << "\",\n";
         }
@@ -499,7 +522,7 @@ public:
             CUDA_CHECK(cudaMemcpy(d_lengths_r2, batch2.lengths, batch2.num_reads * sizeof(int), cudaMemcpyHostToDevice));
             CUDA_CHECK(cudaMemcpy(d_offsets_r2, batch2.offsets, batch2.num_reads * sizeof(int), cudaMemcpyHostToDevice));
             
-            // Reset result counter
+            // Reset result counters
             CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
             CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch1.num_reads * sizeof(uint32_t)));
             if (enable_translated_search) {
@@ -620,7 +643,7 @@ public:
                 std::map<int, AlignmentResult> best_results_per_read_pair;
                 
                 // =========================
-                // Process R1 reads
+                // Process R1 reads with nucleotide search
                 // =========================
                 DEBUG_PRINT("Processing R1 reads...");
                 
@@ -692,7 +715,7 @@ public:
                 }
                 
                 // =========================
-                // Process R2 reads with RC support
+                // Process R2 reads with nucleotide search (with RC support)
                 // =========================
                 DEBUG_PRINT("Processing R2 reads (with RC support)...");
                 
@@ -769,19 +792,20 @@ public:
                 auto kmer_end = std::chrono::high_resolution_clock::now();
                 auto kmer_time = std::chrono::duration_cast<std::chrono::microseconds>(kmer_end - kmer_start).count();
                 
-                DEBUG_PRINT("Combined results: %zu read pairs with mutations (%.1f ms)", 
+                DEBUG_PRINT("Combined nucleotide results: %zu read pairs with mutations (%.1f ms)", 
                            best_results_per_read_pair.size(), kmer_time / 1000.0);
                 
                 total_candidates_found += total_candidates_r1 + total_candidates_r2;
                 
                 // =========================
-                // Stage 3: Translated Search (if enabled)
+                // Stage 3: Enhanced 5-mer Translated Search (if enabled)
                 // =========================
                 if (enable_translated_search && translated_search_engine) {
                     auto trans_start = std::chrono::high_resolution_clock::now();
-                    DEBUG_PRINT("Stage 3: 6-frame translated search");
+                    DEBUG_PRINT("Stage 3: Enhanced 6-frame translated search (5-mer k-mers, SW: %s)", 
+                               enable_smith_waterman ? "enabled" : "disabled");
                     
-                    // Search both R1 and R2
+                    // Search both R1 and R2 for protein matches
                     int trans_result = search_translated_reads(
                         translated_search_engine,
                         d_reads_r1, d_lengths_r1, d_offsets_r1,
@@ -797,8 +821,9 @@ public:
                         CUDA_CHECK(cudaMemcpy(h_protein_match_counts.data(), d_protein_match_counts,
                                              batch1.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
                         
-                        // Count total matches
+                        // Count total matches and Smith-Waterman alignments
                         int batch_protein_matches = 0;
+                        int batch_sw_alignments = 0;
                         for (int i = 0; i < batch1.num_reads; i++) {
                             if (h_pair_passes[i]) {
                                 batch_protein_matches += h_protein_match_counts[i];
@@ -816,12 +841,16 @@ public:
                             hdf5_writer->addTranslatedResults(h_protein_matches.data(), h_protein_match_counts.data(),
                                                             batch1.num_reads, total_reads_processed);
                             
-                            // Count resistance mutations
+                            // Count resistance mutations and Smith-Waterman usage
                             for (int i = 0; i < batch1.num_reads; i++) {
                                 if (h_pair_passes[i] && h_protein_match_counts[i] > 0) {
                                     for (uint32_t j = 0; j < h_protein_match_counts[i]; j++) {
                                         const ProteinMatch& pm = h_protein_matches[i * max_protein_matches_per_read + j];
                                         total_protein_matches_found++;
+                                        
+                                        if (pm.used_smith_waterman) {
+                                            batch_sw_alignments++;
+                                        }
                                         
                                         // Check if any mutations are at resistance positions
                                         bool has_resistance = false;
@@ -843,7 +872,9 @@ public:
                             }
                         }
                         
-                        DEBUG_PRINT("R1 translated search: %d protein matches found", batch_protein_matches);
+                        total_smith_waterman_alignments += batch_sw_alignments;
+                        DEBUG_PRINT("R1 enhanced translated search: %d protein matches found (%d used SW)", 
+                                   batch_protein_matches, batch_sw_alignments);
                     }
                     
                     // Also search R2 (optional, could skip for speed)
@@ -864,6 +895,7 @@ public:
                                              batch2.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
                         
                         int batch_protein_matches_r2 = 0;
+                        int batch_sw_alignments_r2 = 0;
                         for (int i = 0; i < batch2.num_reads; i++) {
                             if (h_pair_passes[i]) {
                                 batch_protein_matches_r2 += h_protein_match_counts[i];
@@ -879,15 +911,29 @@ public:
                             hdf5_writer->addTranslatedResults(h_protein_matches.data(), h_protein_match_counts.data(),
                                                             batch2.num_reads, total_reads_processed);
                             
+                            // Count SW usage for R2
+                            for (int i = 0; i < batch2.num_reads; i++) {
+                                if (h_pair_passes[i] && h_protein_match_counts[i] > 0) {
+                                    for (uint32_t j = 0; j < h_protein_match_counts[i]; j++) {
+                                        const ProteinMatch& pm = h_protein_matches[i * max_protein_matches_per_read + j];
+                                        if (pm.used_smith_waterman) {
+                                            batch_sw_alignments_r2++;
+                                        }
+                                    }
+                                }
+                            }
+                            
                             total_protein_matches_found += batch_protein_matches_r2;
+                            total_smith_waterman_alignments += batch_sw_alignments_r2;
                         }
                         
-                        DEBUG_PRINT("R2 translated search: %d protein matches found", batch_protein_matches_r2);
+                        DEBUG_PRINT("R2 enhanced translated search: %d protein matches found (%d used SW)", 
+                                   batch_protein_matches_r2, batch_sw_alignments_r2);
                     }
                     
                     auto trans_end = std::chrono::high_resolution_clock::now();
                     auto trans_time = std::chrono::duration_cast<std::chrono::microseconds>(trans_end - trans_start).count();
-                    DEBUG_PRINT("Translated search completed (%.1f ms)", trans_time / 1000.0);
+                    DEBUG_PRINT("Enhanced translated search completed (%.1f ms)", trans_time / 1000.0);
                 }
                 
                 // Output combined results to JSON
@@ -924,6 +970,9 @@ public:
                 std::cout << "  Bloom filter pass rate: " << (100.0 * total_reads_passed_bloom / total_reads_processed) << "%" << std::endl;
                 if (enable_translated_search) {
                     std::cout << "  Protein matches found: " << total_protein_matches_found << std::endl;
+                    if (enable_smith_waterman) {
+                        std::cout << "  Smith-Waterman alignments: " << total_smith_waterman_alignments << std::endl;
+                    }
                 }
             }
         }
@@ -945,13 +994,17 @@ public:
         if (enable_translated_search) {
             output << "    \"protein_matches_found\": " << total_protein_matches_found << ",\n";
             output << "    \"protein_resistance_found\": " << total_protein_resistance_found << ",\n";
+            output << "    \"protein_kmer_size\": 5,\n";
+            if (enable_smith_waterman) {
+                output << "    \"smith_waterman_alignments\": " << total_smith_waterman_alignments << ",\n";
+            }
         }
         output << "    \"processing_time_seconds\": " << total_time << "\n";
         output << "  }\n";
         output << "}\n";
         output.close();
         
-        std::cout << "\n=== Processing Complete ===" << std::endl;
+        std::cout << "\n=== Enhanced Processing Complete ===" << std::endl;
         std::cout << "Total reads: " << total_reads_processed << std::endl;
         std::cout << "Bloom filter:" << std::endl;
         std::cout << "  Passed: " << total_reads_passed_bloom 
@@ -961,8 +1014,15 @@ public:
         std::cout << "Candidates found: " << total_candidates_found << std::endl;
         std::cout << "Mutations found: " << total_mutations_found << std::endl;
         if (enable_translated_search) {
-            std::cout << "Protein matches: " << total_protein_matches_found << std::endl;
-            std::cout << "Protein resistance mutations: " << total_protein_resistance_found << std::endl;
+            std::cout << "Enhanced protein search (5-mer k-mers):" << std::endl;
+            std::cout << "  Protein matches: " << total_protein_matches_found << std::endl;
+            std::cout << "  Protein resistance mutations: " << total_protein_resistance_found << std::endl;
+            if (enable_smith_waterman) {
+                std::cout << "  Smith-Waterman alignments: " << total_smith_waterman_alignments << std::endl;
+                double sw_rate = total_smith_waterman_alignments > 0 ? 
+                    (100.0 * total_smith_waterman_alignments / total_protein_matches_found) : 0.0;
+                std::cout << "  SW usage rate: " << sw_rate << "%" << std::endl;
+            }
         }
         std::cout << "Total time: " << total_time << " seconds" << std::endl;
         std::cout << "Throughput: " << (total_reads_processed / (double)total_time) << " reads/second" << std::endl;
@@ -970,16 +1030,17 @@ public:
     }
 };
 
-// Main entry point
+// Main entry point with enhanced command line options
 int main(int argc, char** argv) {
-    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter RC Support, HDF5, and Translated Search) ===");
-    DEBUG_PRINT("Command line: argc=%d", argc);
-    for (int i = 0; i < argc; i++) {
-        DEBUG_PRINT("  argv[%d] = %s", i, argv[i]);
-    }
+    DEBUG_PRINT("=== Enhanced FQ Pipeline GPU Starting (v0.4.0) ===");
+    DEBUG_PRINT("Features: Bloom filter + K-mer enrichment + Enhanced 5-mer protein search + Optional Smith-Waterman");
     
-    if (argc < 5 || argc > 8) {
-        std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> <output.json> [--enable-translated-search] [--protein-db <path>]" << std::endl;
+    if (argc < 5 || argc > 10) {
+        std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> <output.json> [options]\n";
+        std::cerr << "Options:\n";
+        std::cerr << "  --enable-translated-search     Enable 6-frame translated search with 5-mer k-mers\n";
+        std::cerr << "  --enable-smith-waterman        Enable Smith-Waterman for high-scoring protein matches\n";
+        std::cerr << "  --protein-db <path>            Path to protein resistance database\n";
         return 1;
     }
     
@@ -988,24 +1049,30 @@ int main(int argc, char** argv) {
     std::string r2_path = argv[3];
     std::string output_path = argv[4];
     
-    // Check for optional translated search flags
+    // Parse enhanced command line options
     bool enable_translated_search = false;
+    bool enable_smith_waterman = false;
     std::string protein_db_path;
     
     for (int i = 5; i < argc; i++) {
         if (std::string(argv[i]) == "--enable-translated-search") {
             enable_translated_search = true;
+        } else if (std::string(argv[i]) == "--enable-smith-waterman") {
+            enable_smith_waterman = true;
         } else if (std::string(argv[i]) == "--protein-db" && i + 1 < argc) {
             protein_db_path = argv[i + 1];
             i++; // Skip next argument
         }
     }
     
-    // Get input paths from user if files are on adjacent drive
-    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.4.0) ===" << std::endl;
-    std::cout << "Features: Bloom filter with RC support + K-mer enrichment + Alignment + HDF5 output";
+    // Display configuration
+    std::cout << "=== Enhanced Fluoroquinolone Resistance Detection Pipeline (v0.4.0) ===" << std::endl;
+    std::cout << "Features: Bloom filter + K-mer enrichment + Alignment + HDF5 output";
     if (enable_translated_search) {
-        std::cout << " + Translated search";
+        std::cout << " + Enhanced 5-mer protein search";
+        if (enable_smith_waterman) {
+            std::cout << " + Smith-Waterman";
+        }
     }
     std::cout << std::endl;
     std::cout << "Index: " << index_path << std::endl;
@@ -1013,7 +1080,10 @@ int main(int argc, char** argv) {
     std::cout << "R2 reads: " << r2_path << std::endl;
     std::cout << "Output: " << output_path << std::endl;
     if (enable_translated_search) {
-        std::cout << "Translated search: ENABLED" << std::endl;
+        std::cout << "Enhanced translated search: ENABLED (5-mer k-mers)" << std::endl;
+        if (enable_smith_waterman) {
+            std::cout << "Smith-Waterman alignment: ENABLED (for high-scoring matches)" << std::endl;
+        }
         if (!protein_db_path.empty()) {
             std::cout << "Protein database: " << protein_db_path << std::endl;
         }
@@ -1024,34 +1094,27 @@ int main(int argc, char** argv) {
     std::ifstream idx_check(index_path);
     if (!idx_check.good()) {
         std::cerr << "ERROR: Index file not found: " << index_path << std::endl;
-        DEBUG_PRINT("Index file check failed");
         return 1;
     }
     idx_check.close();
-    DEBUG_PRINT("Index file exists");
     
     std::ifstream r1_check(r1_path);
     if (!r1_check.good()) {
         std::cerr << "ERROR: R1 file not found: " << r1_path << std::endl;
-        DEBUG_PRINT("R1 file check failed");
         return 1;
     }
     r1_check.close();
-    DEBUG_PRINT("R1 file exists");
     
     std::ifstream r2_check(r2_path);
     if (!r2_check.good()) {
         std::cerr << "ERROR: R2 file not found: " << r2_path << std::endl;
-        DEBUG_PRINT("R2 file check failed");
         return 1;
     }
     r2_check.close();
-    DEBUG_PRINT("R2 file exists");
     
     // Check CUDA device
     int device_count;
     CUDA_CHECK(cudaGetDeviceCount(&device_count));
-    DEBUG_PRINT("CUDA device count: %d", device_count);
     
     if (device_count == 0) {
         std::cerr << "No CUDA devices found!" << std::endl;
@@ -1065,10 +1128,10 @@ int main(int argc, char** argv) {
     std::cout << "Memory: " << prop.totalGlobalMem / (1024*1024*1024) << " GB" << std::endl;
     std::cout << std::endl;
     
-    // Run pipeline
+    // Run enhanced pipeline
     try {
-        DEBUG_PRINT("Creating pipeline instance");
-        FQResistancePipeline pipeline(enable_translated_search);
+        DEBUG_PRINT("Creating enhanced pipeline instance");
+        FQResistancePipeline pipeline(enable_translated_search, enable_smith_waterman);
         
         DEBUG_PRINT("Loading index");
         pipeline.loadIndex(index_path);
@@ -1078,17 +1141,15 @@ int main(int argc, char** argv) {
             pipeline.setProteinDatabase(protein_db_path);
         }
         
-        DEBUG_PRINT("Starting paired read processing");
+        DEBUG_PRINT("Starting enhanced paired read processing");
         pipeline.processPairedReads(r1_path, r2_path, output_path);
         
-        DEBUG_PRINT("=== FQ Pipeline GPU Completed Successfully ===");
+        DEBUG_PRINT("=== Enhanced FQ Pipeline GPU Completed Successfully ===");
     } catch (const std::exception& e) {
         std::cerr << "ERROR: Exception caught: " << e.what() << std::endl;
-        DEBUG_PRINT("Exception: %s", e.what());
         return 1;
     } catch (...) {
         std::cerr << "ERROR: Unknown exception caught" << std::endl;
-        DEBUG_PRINT("Unknown exception caught");
         return 1;
     }
     

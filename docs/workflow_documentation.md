@@ -3,9 +3,9 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data.
 
-**Last Updated**: May 32, 2025  
-**Pipeline Version**: 0.2.0  
-**Status**: Working prototype with k-mer screening + simplified alignment
+**Last Updated**: June 1, 2025  
+**Pipeline Version**: 0.4.0  
+**Status**: Working prototype with Bloom filter + k-mer enrichment + translated search
 
 ---
 
@@ -28,15 +28,23 @@ biogpu/
 │   │   ├── index_metadata.json         # Index metadata and statistics
 │   │   └── debug/                      # Validation and analysis files
 │   ├── resistance_db/                   # Alternative resistance database format
+│   ├── protein_resistance_db/           # ✅ ACTIVELY USED protein database for translated search
+│   │   ├── proteins.bin                # Binary protein sequences
+│   │   ├── protein_kmers.bin           # 5-mer protein k-mer index
+│   │   ├── blosum62.bin               # BLOSUM62 scoring matrix
+│   │   └── metadata.json              # Database metadata (1184 proteins, 92 genes)
 │   └── fq_genes/                       # JSON files per species/gene (input for kmer builder)
 │       ├── Escherichia_coli/           # E. coli resistance genes
 │       ├── Pseudomonas_aeruginosa/     # P. aeruginosa resistance genes
 │       └── [other species]/            # Additional organism gene files
 ├── runtime/                             # ✅ PRODUCTION CODE (used by CMake)
 │   └── kernels/resistance/
+│       ├── bloom_filter.cu             # Stage 0: Bloom filter pre-screening (GPU)
 │       ├── kmer_screening.cu           # Stage 1: K-mer filtering (GPU)
 │       ├── fq_mutation_detector.cu     # Stage 2: Alignment/mutation detection (GPU)
 │       ├── fq_mutation_detector.cuh    # CUDA header definitions
+│       ├── translated_search.cu        # Stage 3: 6-frame translated search (GPU)
+│       ├── hdf5_alignment_writer.cpp   # HDF5 output formatting
 │       └── fq_pipeline_host.cpp        # Main pipeline orchestrator (CPU)
 ├── src/                                 # Development/experimental versions
 │   ├── kernels/resistance/             # Development CUDA kernels (not used in build)
@@ -44,6 +52,7 @@ biogpu/
 │   │   ├── parse_quinolone_mutations.R # ✅parse files downloaded from MicroBIGG-E
 │   ├── python/                         # Python tools and builders
 │   │   ├── enhanced_kmer_builder.py    # ✅ K-mer index builder (called by CMake)
+│   │   ├── build_protein_resistance_db.py # ✅ Protein database builder for translated search
 │   │   ├── download_ncbi_20250529.py   # NCBI sequence downloader
 │   │   ├── generate_synthetic_reads.py # Test data generator
 │   │   └── index_validator.py          # Index validation tool
@@ -164,6 +173,33 @@ python backup_scripts/tools/build_fq_resistance_db_adapted.py \
 
 ---
 
+### Stage 2b: Build Protein Database (June 1, 2025)
+**Purpose**: Create 5-mer protein k-mer database for translated search
+
+```bash
+python src/python/build_protein_resistance_db.py \
+    data/fq_genes \
+    data/Known_Quinolone_Changes.csv \
+    data/protein_resistance_db
+```
+
+**Output**: `data/protein_resistance_db/`
+- `proteins.bin` - Binary protein sequences (1184 unique proteins)
+- `protein_kmers.bin` - 5-mer k-mer index (47,562 unique k-mers)
+- `blosum62.bin` - BLOSUM62 scoring matrix for alignment
+- `metadata.json` - Database statistics and gene mapping
+- `accession_map.json` - GenBank accession mappings
+
+**Key Features**:
+- 5-mer protein k-mer indexing for rapid seeding
+- 92 resistance genes across 16 species
+- Smith-Waterman alignment scoring support
+- GPU-optimized binary format
+
+**Status**: ✅ ACTIVELY USED by translated search pipeline
+
+---
+
 ### Stage 3: GPU Pipeline Execution
 **Purpose**: Process metagenomic reads to detect resistance
 
@@ -173,39 +209,63 @@ mkdir build && cd build
 cmake ..
 make -j8
 
-# Run on sample data
+# Run on sample data with translated search
 ./fq_pipeline_gpu \
     ../data/fq_resistance_index \
     sample_R1.fastq.gz \
     sample_R2.fastq.gz \
-    results.json
+    results.json \
+    --enable-translated-search \
+    --protein-db ../data/protein_resistance_db
 ```
 
 **Current Implementation**:
 
-#### Stage 3.1: K-mer Screening (`kmer_screening.cu`)
-- Function: `enhanced_kmer_filter_kernel`
+#### Stage 3.0: Bloom Filter Pre-screening (`bloom_filter.cu`)
+- Function: `bloom_filter_screen_kernel`
 - Input: Raw FASTQ reads
-- Process: 
+- Process:
   1. Extract 15-mers from each read
-  2. Binary search in k-mer index
-  3. Track hits by gene/species
-- Output: Candidate reads with k-mer hits
+  2. Query Bloom filter for potential resistance k-mers
+  3. Filter out reads with <3 positive k-mers
+- Output: Pre-screened reads (typically 85-95% pass rate)
 
-#### Stage 3.2: Alignment (`fq_mutation_detector.cu`)
+#### Stage 3.1: K-mer Enrichment (`kmer_screening.cu`)
+- Function: `enhanced_kmer_filter_kernel`
+- Input: Bloom-filtered reads
+- Process: 
+  1. Binary search in k-mer index for exact matches
+  2. Track hits by gene/species
+  3. Accumulate candidate positions
+- Output: Candidate reads with confirmed k-mer hits
+
+#### Stage 3.2: Nucleotide Alignment (`fq_mutation_detector.cu`)
 - Function: `simple_alignment_kernel`
 - Input: Candidate reads from Stage 3.1
 - Process:
   1. Score based on k-mer hit density
   2. Calculate simple identity metric
   3. Flag high-scoring alignments
-- Output: Alignment results with gene/species attribution
+- Output: Nucleotide-level resistance mutations
+
+#### Stage 3.3: Translated Search (`translated_search.cu`) - Added June 1, 2025
+- Function: `six_frame_translate_kernel` + `enhanced_protein_kmer_match_kernel`
+- Input: All reads (independent of nucleotide pipeline)
+- Process:
+  1. **6-frame translation**: Translate reads in all 6 frames to amino acid sequences
+  2. **5-mer seeding**: Extract 5-mer protein k-mers from translated frames
+  3. **K-mer matching**: Binary search in protein k-mer database
+  4. **Seed clustering**: Group hits by protein and extend matches
+  5. **Smith-Waterman alignment**: Optional high-accuracy alignment for top hits
+  6. **Identity filtering**: Apply 90% identity threshold for resistance calls
+- Output: Protein-level resistance matches with mutation details
+- **HDF5 Output**: Structured output format for downstream analysis
 
 **Current Limitations**:
-- No actual sequence alignment (just k-mer counting)
-- No codon-aware mutation detection
-- No use of mutation database
-- No species disambiguation
+- Nucleotide pipeline uses simple k-mer counting (no full alignment)
+- Protein database contains only wild-type references (no mutant variants)
+- High identity threshold (90%) may miss divergent resistance variants
+- No integration between nucleotide and protein pipelines
 
 ---
 
@@ -289,19 +349,24 @@ cmake .. && make -j8
 
 ## 🎯 Next Steps Priority
 
-### Immediate (Version 0.3.0)
-1. [✅] Add Bloom filter pre-screening : 5/31/25:  bloom_filter.cu, bloom_filter_integration.cpp
-2. [ ] Implement species tracking through pipeline
+### Completed (Version 0.4.0) - June 1, 2025
+1. [✅] Add Bloom filter pre-screening (5/31/25): bloom_filter.cu, bloom_filter_integration.cpp
+2. [✅] Implement translated (6-frame) search: translated_search.cu
+3. [✅] Add protein database builder: build_protein_resistance_db.py
+4. [✅] Add HDF5 output format: hdf5_alignment_writer.cpp
+5. [✅] Implement 5-mer protein k-mer indexing with Smith-Waterman alignment
 
-### Short-term (Version 0.4.0)
-4. [ ] Add C++ loaders for mutation database
-5. [ ] Implement translated (6-frame) search
-6. [ ] Add proper alignment kernel (banded SW or k-mer extension)
+### Short-term (Version 0.5.0)
+6. [ ] Add mutant protein variants to database (key for resistance detection)
+7. [ ] Implement species tracking through pipeline
+8. [ ] Add C++ loaders for mutation database
+9. [ ] Optimize identity thresholds for resistance vs. wild-type discrimination
 
-### Medium-term (Version 0.5.0)
-7. [ ] Multi-species disambiguation
-8. [ ] ML feature extraction
-9. [ ] Clinical report generation
+### Medium-term (Version 0.6.0)
+10. [ ] Multi-species disambiguation
+11. [ ] ML feature extraction
+12. [ ] Clinical report generation
+13. [ ] Integrate nucleotide and protein pipelines
 
 ---
 

@@ -86,6 +86,9 @@ class ProteinDatabaseBuilder:
         self.gene_map = {}
         self.accession_map = {}
         
+        # K-mer parameters
+        self.kmer_length = 5  # Default k-mer size
+        
         # Statistics
         self.stats = {
             'total_sequences': 0,
@@ -230,8 +233,9 @@ class ProteinDatabaseBuilder:
         self.stats['unique_proteins'] = len(self.proteins)
         print(f"  Reduced from {self.stats['total_sequences']} to {self.stats['unique_proteins']} unique proteins")
     
-    def build_kmer_index(self, k=3):
+    def build_kmer_index(self, k=5):
         """Build k-mer index for protein sequences"""
+        self.kmer_length = k  # Store the actual k-mer length used
         print(f"\nBuilding {k}-mer index...")
         
         for protein_idx, protein in enumerate(self.proteins):
@@ -291,8 +295,7 @@ class ProteinDatabaseBuilder:
         # Write k-mer index
         with open(os.path.join(self.output_dir, 'protein_kmers.bin'), 'wb') as f:
             # Header: k-mer length and count
-            k = 3  # k-mer size
-            f.write(struct.pack('I', k))
+            f.write(struct.pack('I', self.kmer_length))
             f.write(struct.pack('I', len(self.protein_kmers)))
             
             # K-mer entries
@@ -336,7 +339,7 @@ class ProteinDatabaseBuilder:
             'species_map': self.species_map,
             'gene_map': self.gene_map,
             'parameters': {
-                'k': 3,
+                'k': self.kmer_length,
                 'source_dir': self.fq_genes_dir
             }
         }

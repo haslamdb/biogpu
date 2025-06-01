@@ -1,5 +1,6 @@
 // fixed_kmer_screening.cu
 // Fixed implementation of k-mer screening for FQ resistance detection
+// Enhanced with reverse complement support for R2 reads
 
 #include "fq_mutation_detector.cuh"
 #include <cub/cub.cuh>
@@ -42,6 +43,17 @@ __device__ inline char decode_base(uint8_t encoded) {
     }
 }
 
+// Device function for base complement
+__device__ inline uint8_t complement_base(uint8_t base) {
+    switch(base) {
+        case 0: return 3; // A -> T
+        case 1: return 2; // C -> G
+        case 2: return 1; // G -> C
+        case 3: return 0; // T -> A
+        default: return 4; // N -> N
+    }
+}
+
 __device__ inline uint64_t encode_kmer(const char* seq, int pos, int k) {
     uint64_t kmer = 0;
     for (int i = 0; i < k; i++) {
@@ -50,6 +62,36 @@ __device__ inline uint64_t encode_kmer(const char* seq, int pos, int k) {
         kmer = (kmer << 2) | base;
     }
     return kmer;
+}
+
+// New function: encode k-mer and its reverse complement
+__device__ inline void encode_kmer_with_rc(
+    const char* seq, 
+    int pos, 
+    int k,
+    uint64_t* forward_kmer,
+    uint64_t* rc_kmer
+) {
+    *forward_kmer = 0;
+    *rc_kmer = 0;
+    
+    // Build forward k-mer
+    for (int i = 0; i < k; i++) {
+        uint8_t base = encode_base(seq[pos + i]);
+        if (base == 4) {
+            *forward_kmer = UINT64_MAX;
+            *rc_kmer = UINT64_MAX;
+            return;
+        }
+        *forward_kmer = (*forward_kmer << 2) | base;
+    }
+    
+    // Build reverse complement directly
+    for (int i = k - 1; i >= 0; i--) {
+        uint8_t base = encode_base(seq[pos + i]);
+        uint8_t comp = complement_base(base);
+        *rc_kmer = (*rc_kmer << 2) | comp;
+    }
 }
 
 __device__ inline void decode_kmer(uint64_t encoded_kmer, char* output, int k) {
@@ -89,7 +131,68 @@ __device__ int binary_search_kmer(
     return -1; // Not found
 }
 
-// Enhanced k-mer filtering kernel with proper debugging
+// Helper device function to process k-mer matches
+__device__ void process_kmer_match(
+    int kmer_pos,
+    const KmerEntry* kmer_index,
+    const uint64_t* sorted_kmers,
+    const uint32_t* kmer_start_positions,
+    const uint32_t num_unique_kmers,
+    const uint32_t total_kmer_entries,
+    CandidateMatch* local_candidates,
+    uint32_t* local_count,
+    uint32_t* seen_candidates,
+    uint32_t* num_seen,
+    const uint32_t max_candidates_per_read
+) {
+    // Get range of entries for this k-mer
+    uint32_t start_entry = kmer_start_positions[kmer_pos];
+    uint32_t end_entry = (kmer_pos + 1 < num_unique_kmers) ? 
+                        kmer_start_positions[kmer_pos + 1] : total_kmer_entries;
+    
+    // Process all entries for this k-mer
+    for (uint32_t entry_idx = start_entry; entry_idx < end_entry; entry_idx++) {
+        if (entry_idx >= total_kmer_entries) break;
+        
+        const KmerEntry& entry = kmer_index[entry_idx];
+        
+        // Create unique identifier for this candidate
+        uint32_t candidate_id = (entry.species_id << 16) | entry.seq_id;
+        
+        // Check if we've already seen this candidate
+        bool already_seen = false;
+        for (uint32_t i = 0; i < *num_seen; i++) {
+            if (seen_candidates[i] == candidate_id) {
+                // Update existing candidate
+                for (uint32_t j = 0; j < *local_count; j++) {
+                    if (local_candidates[j].species_id == entry.species_id &&
+                        local_candidates[j].seq_id == entry.seq_id) {
+                        local_candidates[j].kmer_hits++;
+                        already_seen = true;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        
+        // Add new candidate if not seen
+        if (!already_seen && *local_count < max_candidates_per_read && 
+            *num_seen < max_candidates_per_read) {
+            
+            local_candidates[*local_count].gene_id = entry.gene_id;
+            local_candidates[*local_count].species_id = entry.species_id;
+            local_candidates[*local_count].seq_id = entry.seq_id;
+            local_candidates[*local_count].kmer_hits = 1;
+            
+            seen_candidates[*num_seen] = candidate_id;
+            (*num_seen)++;
+            (*local_count)++;
+        }
+    }
+}
+
+// Enhanced k-mer filtering kernel with reverse complement support
 __global__ void enhanced_kmer_filter_kernel(
     const char* reads,
     const int* read_lengths,
@@ -103,10 +206,19 @@ __global__ void enhanced_kmer_filter_kernel(
     const int kmer_length,
     CandidateMatch* candidates,
     uint32_t* candidate_counts,
-    const uint32_t max_candidates_per_read
+    const uint32_t max_candidates_per_read,
+    const bool check_reverse_complement = false,  // New parameter for R2 reads
+    int* debug_stats = nullptr                    // Optional statistics collection
 ) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     const int stride = blockDim.x * gridDim.x;
+    
+    // Shared memory for statistics
+    __shared__ int shared_stats[4];
+    if (threadIdx.x < 4 && debug_stats != nullptr) {
+        shared_stats[threadIdx.x] = 0;
+    }
+    __syncthreads();
     
     // Debug from first thread
     if (tid == 0) {
@@ -115,6 +227,7 @@ __global__ void enhanced_kmer_filter_kernel(
         DEBUG_PRINT("  num_unique_kmers: %d", num_unique_kmers);
         DEBUG_PRINT("  total_kmer_entries: %d", total_kmer_entries);
         DEBUG_PRINT("  kmer_length: %d", kmer_length);
+        DEBUG_PRINT("  check_reverse_complement: %s", check_reverse_complement ? "YES" : "NO");
         
         // Debug first few k-mers
         for (int i = 0; i < min(5, num_unique_kmers); i++) {
@@ -143,80 +256,82 @@ __global__ void enhanced_kmer_filter_kernel(
         
         int kmers_tested = 0;
         int kmers_found = 0;
+        int forward_hits = 0;
+        int rc_hits = 0;
         
         // Scan all k-mers in the read
         for (int pos = 0; pos <= read_len - kmer_length; pos++) {
-            uint64_t kmer = encode_kmer(read, pos, kmer_length);
-            if (kmer == UINT64_MAX) continue; // Skip invalid k-mers
+            uint64_t forward_kmer, rc_kmer;
+            
+            if (check_reverse_complement) {
+                // For R2 reads, compute both forward and RC
+                encode_kmer_with_rc(read, pos, kmer_length, &forward_kmer, &rc_kmer);
+                if (forward_kmer == UINT64_MAX) continue;
+            } else {
+                // For R1 reads, just compute forward
+                forward_kmer = encode_kmer(read, pos, kmer_length);
+                if (forward_kmer == UINT64_MAX) continue;
+                rc_kmer = UINT64_MAX; // Not needed
+            }
             
             kmers_tested++;
             
-            // Binary search in sorted k-mer list
-            int kmer_pos = binary_search_kmer(sorted_kmers, kmer, num_unique_kmers);
+            // Try forward k-mer first
+            int kmer_pos = binary_search_kmer(sorted_kmers, forward_kmer, num_unique_kmers);
+            bool found_forward = (kmer_pos >= 0);
             
-            if (kmer_pos >= 0) {
+            // Try reverse complement if checking R2 or if forward not found
+            int rc_pos = -1;
+            if (check_reverse_complement && !found_forward) {
+                rc_pos = binary_search_kmer(sorted_kmers, rc_kmer, num_unique_kmers);
+            }
+            
+            if (found_forward || rc_pos >= 0) {
                 kmers_found++;
                 
                 // Debug for first few reads
                 if (read_idx < 3 && kmers_found <= 3) {
                     char kmer_str[32];
-                    decode_kmer(kmer, kmer_str, kmer_length);
-                    DEBUG_PRINT("[KERNEL] Read %d: Found k-mer %s at pos %d (index pos %d)", 
-                               read_idx, kmer_str, pos, kmer_pos);
+                    if (found_forward) {
+                        decode_kmer(forward_kmer, kmer_str, kmer_length);
+                        DEBUG_PRINT("[KERNEL] Read %d: Found FORWARD k-mer %s at pos %d (index pos %d)", 
+                                   read_idx, kmer_str, pos, kmer_pos);
+                        forward_hits++;
+                    } else {
+                        decode_kmer(rc_kmer, kmer_str, kmer_length);
+                        DEBUG_PRINT("[KERNEL] Read %d: Found RC k-mer %s at pos %d (index pos %d)", 
+                                   read_idx, kmer_str, pos, rc_pos);
+                        rc_hits++;
+                    }
                 }
                 
-                // Get range of entries for this k-mer
-                uint32_t start_entry = kmer_start_positions[kmer_pos];
-                uint32_t end_entry = (kmer_pos + 1 < num_unique_kmers) ? 
-                                    kmer_start_positions[kmer_pos + 1] : total_kmer_entries;
-                
-                // Process all entries for this k-mer
-                for (uint32_t entry_idx = start_entry; entry_idx < end_entry; entry_idx++) {
-                    if (entry_idx >= total_kmer_entries) break; // Safety check
-                    
-                    const KmerEntry& entry = kmer_index[entry_idx];
-                    
-                    // Create unique identifier for this candidate
-                    uint32_t candidate_id = (entry.species_id << 16) | entry.seq_id;
-                    
-                    // Check if we've already seen this candidate
-                    bool already_seen = false;
-                    for (uint32_t i = 0; i < num_seen; i++) {
-                        if (seen_candidates[i] == candidate_id) {
-                            // Update existing candidate
-                            for (uint32_t j = 0; j < local_count; j++) {
-                                if (local_candidates[j].species_id == entry.species_id &&
-                                    local_candidates[j].seq_id == entry.seq_id) {
-                                    local_candidates[j].kmer_hits++;
-                                    already_seen = true;
-                                    break;
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    
-                    // Add new candidate if not seen and have space
-                    if (!already_seen && local_count < MAX_CANDIDATES_PER_READ && 
-                        num_seen < MAX_CANDIDATES_PER_READ) {
-                        
-                        local_candidates[local_count].gene_id = entry.gene_id;
-                        local_candidates[local_count].species_id = entry.species_id;
-                        local_candidates[local_count].seq_id = entry.seq_id;
-                        local_candidates[local_count].kmer_hits = 1;
-                        
-                        seen_candidates[num_seen] = candidate_id;
-                        num_seen++;
-                        local_count++;
-                    }
+                // Process whichever was found (prefer forward for consistency)
+                if (found_forward) {
+                    process_kmer_match(kmer_pos, kmer_index, sorted_kmers, kmer_start_positions,
+                                     num_unique_kmers, total_kmer_entries,
+                                     local_candidates, &local_count, 
+                                     seen_candidates, &num_seen, max_candidates_per_read);
+                } else if (rc_pos >= 0) {
+                    process_kmer_match(rc_pos, kmer_index, sorted_kmers, kmer_start_positions,
+                                     num_unique_kmers, total_kmer_entries,
+                                     local_candidates, &local_count,
+                                     seen_candidates, &num_seen, max_candidates_per_read);
                 }
             }
         }
         
+        // Update statistics
+        if (debug_stats != nullptr && kmers_tested > 0) {
+            atomicAdd(&shared_stats[0], 1); // reads processed
+            if (forward_hits > 0) atomicAdd(&shared_stats[1], 1); // reads with forward hits
+            if (rc_hits > 0) atomicAdd(&shared_stats[2], 1); // reads with RC hits
+            if (check_reverse_complement) atomicAdd(&shared_stats[3], 1); // R2 reads processed
+        }
+        
         // Debug summary for first few reads
         if (read_idx < 5) {
-            DEBUG_PRINT("[KERNEL] Read %d summary: %d kmers tested, %d found, %d candidates", 
-                       read_idx, kmers_tested, kmers_found, local_count);
+            DEBUG_PRINT("[KERNEL] Read %d summary: %d kmers tested, %d found (%d forward, %d RC), %d candidates", 
+                       read_idx, kmers_tested, kmers_found, forward_hits, rc_hits, local_count);
         }
         
         // Write results to global memory
@@ -225,6 +340,12 @@ __global__ void enhanced_kmer_filter_kernel(
             candidates[global_offset + i] = local_candidates[i];
         }
         candidate_counts[read_idx] = local_count;
+    }
+    
+    // Write statistics
+    __syncthreads();
+    if (threadIdx.x < 4 && debug_stats != nullptr) {
+        atomicAdd(&debug_stats[threadIdx.x], shared_stats[threadIdx.x]);
     }
     
     // Final summary from first thread
@@ -379,9 +500,15 @@ public:
         const int* d_read_offsets,
         int num_reads,
         CandidateMatch* d_candidates,
-        uint32_t* d_candidate_counts
+        uint32_t* d_candidate_counts,
+        bool check_reverse_complement = false,
+        int* d_debug_stats = nullptr
     ) {
-        std::cout << "Screening " << num_reads << " reads..." << std::endl;
+        std::cout << "Screening " << num_reads << " reads";
+        if (check_reverse_complement) {
+            std::cout << " (with reverse complement)";
+        }
+        std::cout << "..." << std::endl;
         
         // Launch enhanced k-mer filter kernel
         int block_size = 256;
@@ -403,7 +530,9 @@ public:
             index.kmer_length,
             d_candidates,
             d_candidate_counts,
-            MAX_CANDIDATES_PER_READ
+            MAX_CANDIDATES_PER_READ,
+            check_reverse_complement,
+            d_debug_stats
         );
         
         // Check for kernel launch errors
@@ -428,7 +557,8 @@ public:
     void debugResults(
         uint32_t* d_candidate_counts,
         CandidateMatch* d_candidates,
-        int num_reads
+        int num_reads,
+        int* d_debug_stats = nullptr
     ) {
         std::cout << "Debugging screening results..." << std::endl;
         
@@ -436,6 +566,18 @@ public:
         std::vector<uint32_t> h_candidate_counts(num_reads);
         cudaMemcpy(h_candidate_counts.data(), d_candidate_counts, 
                    num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+        
+        // Get debug statistics if available
+        if (d_debug_stats != nullptr) {
+            int h_stats[4];
+            cudaMemcpy(h_stats, d_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost);
+            
+            std::cout << "\nK-mer screening statistics:" << std::endl;
+            std::cout << "  Total reads processed: " << h_stats[0] << std::endl;
+            std::cout << "  Reads with forward hits: " << h_stats[1] << std::endl;
+            std::cout << "  Reads with RC hits: " << h_stats[2] << std::endl;
+            std::cout << "  R2 reads processed: " << h_stats[3] << std::endl;
+        }
         
         // Analyze results
         int total_candidates = 0;
@@ -449,7 +591,7 @@ public:
             if (count > max_candidates) max_candidates = count;
         }
         
-        std::cout << "Screening results summary:" << std::endl;
+        std::cout << "\nScreening results summary:" << std::endl;
         std::cout << "  Total reads: " << num_reads << std::endl;
         std::cout << "  Reads with candidates: " << reads_with_candidates << std::endl;
         std::cout << "  Total candidates: " << total_candidates << std::endl;
@@ -497,7 +639,8 @@ extern "C" {
         const char* reads_data,
         const int* read_lengths,
         const int* read_offsets,
-        int num_reads
+        int num_reads,
+        bool test_reverse_complement = false
     ) {
         std::cout << "=== Testing K-mer Screening ===" << std::endl;
         
@@ -517,10 +660,13 @@ extern "C" {
         char* d_reads;
         int* d_read_lengths;
         int* d_read_offsets;
+        int* d_debug_stats;
         
         cudaMalloc(&d_reads, total_bases);
         cudaMalloc(&d_read_lengths, num_reads * sizeof(int));
         cudaMalloc(&d_read_offsets, num_reads * sizeof(int));
+        cudaMalloc(&d_debug_stats, 4 * sizeof(int));
+        cudaMemset(d_debug_stats, 0, 4 * sizeof(int));
         
         cudaMemcpy(d_reads, reads_data, total_bases, cudaMemcpyHostToDevice);
         cudaMemcpy(d_read_lengths, read_lengths, num_reads * sizeof(int), cudaMemcpyHostToDevice);
@@ -536,10 +682,10 @@ extern "C" {
         
         // Run screening
         detector.screenReads(d_reads, d_read_lengths, d_read_offsets, num_reads, 
-                           d_candidates, d_candidate_counts);
+                           d_candidates, d_candidate_counts, test_reverse_complement, d_debug_stats);
         
         // Debug results
-        detector.debugResults(d_candidate_counts, d_candidates, num_reads);
+        detector.debugResults(d_candidate_counts, d_candidates, num_reads, d_debug_stats);
         
         // Cleanup
         cudaFree(d_reads);
@@ -547,6 +693,7 @@ extern "C" {
         cudaFree(d_read_offsets);
         cudaFree(d_candidates);
         cudaFree(d_candidate_counts);
+        cudaFree(d_debug_stats);
         
         std::cout << "=== K-mer Screening Test Complete ===" << std::endl;
         return 0;

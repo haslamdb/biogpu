@@ -4,6 +4,7 @@ Enhanced K-mer Index Builder for FQ Resistance Detection
 
 This script builds and validates k-mer indices from downloaded GenBank sequences.
 Includes extensive debugging and validation to ensure proper index creation.
+Now includes reverse complement k-mer support for better R2 read detection.
 
 Usage:
     python enhanced_kmer_builder.py sequences_dir mutations.csv output_dir
@@ -45,6 +46,8 @@ class EnhancedKmerIndexBuilder:
             'genes_processed': 0,
             'sequences_processed': 0,
             'kmers_generated': 0,
+            'forward_kmers': 0,
+            'rc_kmers': 0,
             'unique_kmers': 0,
             'qrdr_sequences_found': 0
         }
@@ -104,6 +107,12 @@ class EnhancedKmerIndexBuilder:
             return False, f"Invalid bases found: {invalid_bases}"
         
         return True, "Valid"
+    
+    def reverse_complement(self, seq):
+        """Get reverse complement of sequence"""
+        complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'U': 'A'}
+        seq = seq.upper().replace('U', 'T')  # Convert RNA to DNA
+        return ''.join(complement.get(base, 'N') for base in seq[::-1])
     
     def extract_qrdr_sequence(self, gene_feature, gene_name):
         """Extract QRDR region from gene feature with validation"""
@@ -177,6 +186,46 @@ class EnhancedKmerIndexBuilder:
         status = f"Generated {len(kmers)} k-mers, {invalid_count} invalid"
         return kmers, status
     
+    def generate_kmers_with_rc(self, sequence, k=15):
+        """Generate k-mers from both forward and reverse complement strands"""
+        sequence = sequence.upper().replace('U', 'T')  # Convert RNA to DNA
+        
+        if len(sequence) < k:
+            return [], [], f"Sequence too short: {len(sequence)} < {k}"
+        
+        valid_bases = set('ATCG')
+        forward_kmers = []
+        rc_kmers = []
+        invalid_count = 0
+        
+        # Generate forward k-mers
+        for i in range(len(sequence) - k + 1):
+            kmer = sequence[i:i+k]
+            kmer_bases = set(kmer)
+            
+            if kmer_bases.issubset(valid_bases):
+                forward_kmers.append((kmer, i, False))  # (kmer, position, is_rc)
+            else:
+                invalid_count += 1
+        
+        # Generate reverse complement k-mers
+        rc_sequence = self.reverse_complement(sequence)
+        rc_length = len(rc_sequence)
+        
+        for i in range(len(rc_sequence) - k + 1):
+            kmer = rc_sequence[i:i+k]
+            kmer_bases = set(kmer)
+            
+            if kmer_bases.issubset(valid_bases):
+                # Calculate original position (from end of sequence)
+                original_pos = rc_length - i - k
+                rc_kmers.append((kmer, original_pos, True))  # (kmer, position, is_rc)
+            else:
+                invalid_count += 1
+        
+        status = f"Generated {len(forward_kmers)} forward k-mers, {len(rc_kmers)} RC k-mers, {invalid_count} invalid"
+        return forward_kmers, rc_kmers, status
+    
     def encode_kmer(self, kmer):
         """Encode k-mer as 64-bit integer (2 bits per base)"""
         if len(kmer) > 32:  # Can't fit in 64 bits
@@ -192,9 +241,9 @@ class EnhancedKmerIndexBuilder:
         
         return encoded, "Success"
     
-    def build_comprehensive_index(self, sequence_data, mutation_map):
-        """Build comprehensive k-mer index with full metadata"""
-        logger.info("Building comprehensive k-mer index...")
+    def build_comprehensive_index(self, sequence_data, mutation_map, include_rc=True):
+        """Build comprehensive k-mer index with full metadata and optional RC support"""
+        logger.info(f"Building comprehensive k-mer index (include_rc={include_rc})...")
         
         # Data structures
         organism_db = []
@@ -225,7 +274,9 @@ class EnhancedKmerIndexBuilder:
                 'species_name': organism,
                 'genes': {},
                 'total_sequences': 0,
-                'total_kmers': 0
+                'total_kmers': 0,
+                'forward_kmers': 0,
+                'rc_kmers': 0
             }
             
             for gene_name, sequences in genes.items():
@@ -246,7 +297,9 @@ class EnhancedKmerIndexBuilder:
                     'sequences': [],
                     'mutations': mutation_map.get(organism, {}).get(gene_name, []),
                     'qrdr_sequences': [],
-                    'total_kmers': 0
+                    'total_kmers': 0,
+                    'forward_kmers': 0,
+                    'rc_kmers': 0
                 }
                 
                 seq_count = 0
@@ -266,9 +319,17 @@ class EnhancedKmerIndexBuilder:
                             logger.warning(f"      Sequence {seq_idx}/{feature_idx}: No nucleotide sequence")
                             continue
                         
-                        # Validate and generate k-mers
-                        kmers, kmer_status = self.generate_kmers(full_sequence, self.kmer_length)
-                        if not kmers:
+                        # Generate k-mers with optional RC support
+                        if include_rc:
+                            forward_kmers, rc_kmers, kmer_status = self.generate_kmers_with_rc(full_sequence, self.kmer_length)
+                            all_kmers = forward_kmers + rc_kmers
+                        else:
+                            kmers, kmer_status = self.generate_kmers(full_sequence, self.kmer_length)
+                            forward_kmers = [(k, i, False) for i, k in enumerate(kmers)]
+                            rc_kmers = []
+                            all_kmers = forward_kmers
+                        
+                        if not all_kmers:
                             logger.warning(f"      Sequence {seq_idx}/{feature_idx}: {kmer_status}")
                             continue
                         
@@ -284,15 +345,17 @@ class EnhancedKmerIndexBuilder:
                             'sequence': full_sequence,
                             'length': len(full_sequence),
                             'qrdr_info': qrdr_info,
-                            'num_kmers': len(kmers)
+                            'num_kmers': len(all_kmers),
+                            'num_forward_kmers': len(forward_kmers),
+                            'num_rc_kmers': len(rc_kmers)
                         }
                         
                         all_sequences.append(sequence_entry)
                         gene_entry['sequences'].append(sequence_entry)
                         
-                        # Process k-mers
-                        for kmer_pos, kmer in enumerate(kmers):
-                            encoded_kmer, encode_status = self.encode_kmer(kmer)
+                        # Process all k-mers
+                        for kmer_seq, kmer_pos, is_rc in all_kmers:
+                            encoded_kmer, encode_status = self.encode_kmer(kmer_seq)
                             if encoded_kmer is not None:
                                 kmer_info = {
                                     'organism_id': organism_id,
@@ -303,25 +366,37 @@ class EnhancedKmerIndexBuilder:
                                     'local_seq_id': seq_idx,
                                     'feature_id': feature_idx,
                                     'position': kmer_pos,
-                                    'kmer_sequence': kmer,
+                                    'kmer_sequence': kmer_seq,
                                     'accession': seq_data.get('accession', ''),
-                                    'qrdr_info': qrdr_info is not None
+                                    'qrdr_info': qrdr_info is not None,
+                                    'is_rc': is_rc
                                 }
                                 kmer_to_sequences[encoded_kmer].append(kmer_info)
                                 self.stats['kmers_generated'] += 1
                                 gene_entry['total_kmers'] += 1
+                                
+                                if is_rc:
+                                    self.stats['rc_kmers'] += 1
+                                    gene_entry['rc_kmers'] += 1
+                                else:
+                                    self.stats['forward_kmers'] += 1
+                                    gene_entry['forward_kmers'] += 1
                         
                         global_seq_id += 1
                         seq_count += 1
                 
                 organism_entry['total_sequences'] += seq_count
                 organism_entry['genes'][gene_name] = gene_entry
-                logger.info(f"      Processed {seq_count} sequences, {gene_entry['total_kmers']} k-mers")
+                organism_entry['forward_kmers'] += gene_entry['forward_kmers']
+                organism_entry['rc_kmers'] += gene_entry['rc_kmers']
+                logger.info(f"      Processed {seq_count} sequences, {gene_entry['total_kmers']} k-mers "
+                           f"({gene_entry['forward_kmers']} forward, {gene_entry['rc_kmers']} RC)")
             
             organism_db.append(organism_entry)
             organism_entry['total_kmers'] = sum(g['total_kmers'] for g in organism_entry['genes'].values())
             logger.info(f"    Total for {organism}: {organism_entry['total_sequences']} sequences, "
-                       f"{organism_entry['total_kmers']} k-mers")
+                       f"{organism_entry['total_kmers']} k-mers "
+                       f"({organism_entry['forward_kmers']} forward, {organism_entry['rc_kmers']} RC)")
             organism_id += 1
         
         self.stats['unique_kmers'] = len(kmer_to_sequences)
@@ -330,6 +405,8 @@ class EnhancedKmerIndexBuilder:
         logger.info(f"  {len(organism_db)} organisms")
         logger.info(f"  {global_seq_id} total sequences") 
         logger.info(f"  {self.stats['kmers_generated']} total k-mers")
+        logger.info(f"  {self.stats['forward_kmers']} forward k-mers")
+        logger.info(f"  {self.stats['rc_kmers']} RC k-mers")
         logger.info(f"  {self.stats['unique_kmers']} unique k-mers")
         logger.info(f"  {self.stats['qrdr_sequences_found']} QRDR sequences")
         
@@ -353,7 +430,7 @@ class EnhancedKmerIndexBuilder:
             for freq in sorted(kmer_freq_dist.keys()):
                 f.write(f"{freq}\t{kmer_freq_dist[freq]}\n")
         
-        # 2. Organism/gene summary
+        # 2. Organism/gene summary with RC statistics
         with open(os.path.join(debug_dir, 'organism_gene_summary.txt'), 'w') as f:
             f.write("Organism/Gene Summary\n")
             f.write("====================\n")
@@ -361,10 +438,13 @@ class EnhancedKmerIndexBuilder:
                 f.write(f"\nOrganism: {org['species_name']} (ID: {org['organism_id']})\n")
                 f.write(f"  Total sequences: {org['total_sequences']}\n")
                 f.write(f"  Total k-mers: {org['total_kmers']}\n")
+                f.write(f"  Forward k-mers: {org['forward_kmers']}\n")
+                f.write(f"  RC k-mers: {org['rc_kmers']}\n")
                 for gene_name, gene_data in org['genes'].items():
                     f.write(f"  Gene {gene_name}:\n")
                     f.write(f"    Sequences: {len(gene_data['sequences'])}\n")
-                    f.write(f"    K-mers: {gene_data['total_kmers']}\n")
+                    f.write(f"    K-mers: {gene_data['total_kmers']} ")
+                    f.write(f"({gene_data['forward_kmers']} forward, {gene_data['rc_kmers']} RC)\n")
                     f.write(f"    QRDR sequences: {len(gene_data['qrdr_sequences'])}\n")
                     f.write(f"    Mutations: {len(gene_data['mutations'])}\n")
         
@@ -372,13 +452,13 @@ class EnhancedKmerIndexBuilder:
         with open(os.path.join(debug_dir, 'sample_kmers.txt'), 'w') as f:
             f.write("Sample K-mers for Manual Inspection\n")
             f.write("===================================\n")
-            f.write("Encoded K-mer\tK-mer Sequence\tOccurrences\tFirst Organism\tFirst Gene\n")
+            f.write("Encoded K-mer\tK-mer Sequence\tOccurrences\tFirst Organism\tFirst Gene\tIs RC\n")
             
             # Show first 50 k-mers
             for i, (encoded_kmer, sequences) in enumerate(list(kmer_to_sequences.items())[:50]):
                 first_seq = sequences[0]
                 f.write(f"{encoded_kmer}\t{first_seq['kmer_sequence']}\t{len(sequences)}\t")
-                f.write(f"{first_seq['organism_id']}\t{first_seq['gene_name']}\n")
+                f.write(f"{first_seq['organism_id']}\t{first_seq['gene_name']}\t{first_seq['is_rc']}\n")
         
         # 4. QRDR sequence analysis
         with open(os.path.join(debug_dir, 'qrdr_analysis.txt'), 'w') as f:
@@ -393,13 +473,44 @@ class EnhancedKmerIndexBuilder:
                         for qrdr_seq, count in qrdr_counter.most_common():
                             f.write(f"  {qrdr_seq} (count: {count})\n")
         
-        # 5. Index validation summary
+        # 5. RC k-mer analysis
+        with open(os.path.join(debug_dir, 'rc_kmer_analysis.txt'), 'w') as f:
+            f.write("Reverse Complement K-mer Analysis\n")
+            f.write("=================================\n")
+            
+            # Count RC vs forward k-mers
+            total_forward = 0
+            total_rc = 0
+            shared_kmers = 0
+            
+            for encoded_kmer, sequences in kmer_to_sequences.items():
+                has_forward = any(not s['is_rc'] for s in sequences)
+                has_rc = any(s['is_rc'] for s in sequences)
+                
+                if has_forward and not has_rc:
+                    total_forward += 1
+                elif has_rc and not has_forward:
+                    total_rc += 1
+                elif has_forward and has_rc:
+                    shared_kmers += 1
+            
+            f.write(f"Total unique k-mers: {len(kmer_to_sequences)}\n")
+            f.write(f"Forward-only k-mers: {total_forward}\n")
+            f.write(f"RC-only k-mers: {total_rc}\n")
+            f.write(f"Shared k-mers (appear in both): {shared_kmers}\n")
+            f.write(f"\nTotal k-mer entries: {self.stats['kmers_generated']}\n")
+            f.write(f"Forward entries: {self.stats['forward_kmers']}\n")
+            f.write(f"RC entries: {self.stats['rc_kmers']}\n")
+        
+        # 6. Index validation summary
         with open(os.path.join(debug_dir, 'validation_summary.txt'), 'w') as f:
             f.write("Index Validation Summary\n")
             f.write("=======================\n")
             f.write(f"Total organisms: {len(organism_db)}\n")
             f.write(f"Total sequences: {len(all_sequences)}\n")
             f.write(f"Total k-mers generated: {self.stats['kmers_generated']}\n")
+            f.write(f"Forward k-mers: {self.stats['forward_kmers']}\n")
+            f.write(f"RC k-mers: {self.stats['rc_kmers']}\n")
             f.write(f"Unique k-mers: {self.stats['unique_kmers']}\n")
             f.write(f"QRDR sequences found: {self.stats['qrdr_sequences_found']}\n")
             f.write(f"K-mer length: {self.kmer_length}\n")
@@ -412,6 +523,8 @@ class EnhancedKmerIndexBuilder:
                 f.write("- WARNING: Very few unique k-mers generated\n")
             if len(organism_db) == 0:
                 f.write("- ERROR: No organisms processed!\n")
+            if self.stats['rc_kmers'] == 0:
+                f.write("- WARNING: No RC k-mers generated (check include_rc setting)\n")
         
         logger.info(f"Debug reports saved to {debug_dir}")
     
@@ -433,7 +546,8 @@ class EnhancedKmerIndexBuilder:
                     'gene_id': seq_info['gene_id'],       # Proper gene ID
                     'species_id': seq_info['species_id'], # Proper species ID
                     'seq_id': seq_info['global_seq_id'],
-                    'position': seq_info['position']
+                    'position': seq_info['position'],
+                    'is_rc': seq_info['is_rc']
                 })
         
         # Save binary k-mer index
@@ -474,13 +588,20 @@ class EnhancedKmerIndexBuilder:
         
         logger.info(f"Saved sequence database: {seq_path} ({len(all_sequences)} sequences)")
         
+        # Count RC statistics
+        rc_entries = sum(1 for entry in kmer_entries if entry['is_rc'])
+        forward_entries = len(kmer_entries) - rc_entries
+        
         # Save JSON metadata for human readability
         metadata = {
             'creation_date': pd.Timestamp.now().isoformat(),
             'kmer_length': self.kmer_length,
+            'includes_rc': True,  # Always true now
             'num_organisms': len(organism_db),
             'num_sequences': len(all_sequences),
             'num_kmer_entries': len(kmer_entries),
+            'num_forward_entries': forward_entries,
+            'num_rc_entries': rc_entries,
             'num_unique_kmers': len(sorted_kmers),
             'statistics': self.stats,
             'organisms': [{'id': org['organism_id'], 'name': org['species_name']} 
@@ -494,6 +615,18 @@ class EnhancedKmerIndexBuilder:
             json.dump(metadata, f, indent=2)
         
         logger.info(f"Saved metadata: {metadata_path}")
+        
+        # Save ID mappings as text files
+        mappings = {
+            'gene_ids.txt': gene_to_id,
+            'species_ids.txt': species_to_id,
+        }
+        
+        for filename, mapping in mappings.items():
+            path = os.path.join(output_dir, filename)
+            with open(path, 'w') as f:
+                for name, id_val in sorted(mapping.items(), key=lambda x: x[1]):
+                    f.write(f"{id_val}\t{name}\n")
         
         return kmer_path, seq_path, metadata_path
     
@@ -548,9 +681,10 @@ class EnhancedKmerIndexBuilder:
             logger.error(f"Index validation FAILED: {e}")
             return False
     
-    def build_index(self, sequences_dir, mutations_csv, output_dir):
+    def build_index(self, sequences_dir, mutations_csv, output_dir, include_rc=True):
         """Main function to build the complete index"""
-        logger.info("=== Enhanced K-mer Index Builder ===")
+        logger.info("=== Enhanced K-mer Index Builder with RC Support ===")
+        logger.info(f"Include reverse complement k-mers: {include_rc}")
         
         # Load input data
         sequence_data = self.load_sequences(sequences_dir)
@@ -561,9 +695,9 @@ class EnhancedKmerIndexBuilder:
         mutations_df = pd.read_csv(mutations_csv)
         mutation_map = self.map_mutation_positions(mutations_df)
         
-        # Build comprehensive index
+        # Build comprehensive index with RC support
         organism_db, kmer_to_sequences, all_sequences, species_to_id, gene_to_id = self.build_comprehensive_index(
-            sequence_data, mutation_map
+            sequence_data, mutation_map, include_rc=include_rc
         )
         
         # Create debug reports
@@ -611,21 +745,29 @@ class EnhancedKmerIndexBuilder:
         return mutation_map
 
 def main():
-    parser = argparse.ArgumentParser(description='Enhanced K-mer Index Builder')
+    parser = argparse.ArgumentParser(description='Enhanced K-mer Index Builder with RC Support')
     parser.add_argument('sequences_dir', help='Directory containing downloaded sequences')
     parser.add_argument('mutations_csv', help='Path to mutations CSV file')
     parser.add_argument('output_dir', help='Output directory for index files')
     parser.add_argument('--kmer-length', type=int, default=15, help='K-mer length (default: 15)')
+    parser.add_argument('--no-rc', action='store_true', help='Disable reverse complement k-mers')
+    parser.add_argument('--analyze', action='store_true', help='Analyze k-mer distribution')
     
     args = parser.parse_args()
     
     builder = EnhancedKmerIndexBuilder(args.kmer_length)
-    success = builder.build_index(args.sequences_dir, args.mutations_csv, args.output_dir)
+    success = builder.build_index(
+        args.sequences_dir, 
+        args.mutations_csv, 
+        args.output_dir,
+        include_rc=not args.no_rc
+    )
     
     if success:
         print(f"\n✅ Index building completed successfully!")
         print(f"Output directory: {args.output_dir}")
         print(f"Check the debug/ subdirectory for validation reports")
+        print(f"Reverse complement k-mers: {'DISABLED' if args.no_rc else 'ENABLED'}")
     else:
         print(f"\n❌ Index building failed!")
         print(f"Check the logs above for details")

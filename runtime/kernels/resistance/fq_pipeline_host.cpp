@@ -20,6 +20,22 @@ extern "C" {
                                   int* d_kmers_found, int min_kmers_threshold);
     int save_bloom_filter(void* filter, const char* filename);
     int load_bloom_filter(void* filter, const char* filename);
+    
+    // New RC-aware functions
+    int bloom_filter_screen_reads_with_rc(
+        void* filter,
+        const char* d_reads,
+        const int* d_read_lengths,
+        const int* d_read_offsets,
+        int num_reads,
+        bool* d_read_passes,
+        int* d_kmers_found,
+        int min_kmers_threshold,
+        bool check_rc,
+        int* d_debug_stats
+    );
+    
+    bool bloom_filter_has_rc(void* filter);
 }
 
 // Debug macros
@@ -121,6 +137,7 @@ private:
     bool* d_bloom_passes_r2;
     int* d_bloom_kmers_r1;
     int* d_bloom_kmers_r2;
+    int* d_bloom_debug_stats;  // New: statistics collection
     
     // Results
     CandidateMatch* d_candidates;
@@ -178,6 +195,7 @@ public:
         CUDA_CHECK(cudaMalloc(&d_bloom_passes_r2, batch_size * sizeof(bool)));
         CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r1, batch_size * sizeof(int)));
         CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r2, batch_size * sizeof(int)));
+        CUDA_CHECK(cudaMalloc(&d_bloom_debug_stats, 4 * sizeof(int)));  // New: debug stats
         
         // Allocate memory for results
         size_t candidates_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(CandidateMatch);
@@ -215,6 +233,7 @@ public:
         cudaFree(d_bloom_passes_r2);
         cudaFree(d_bloom_kmers_r1);
         cudaFree(d_bloom_kmers_r2);
+        cudaFree(d_bloom_debug_stats);
         cudaFree(d_candidates);
         cudaFree(d_candidate_counts);
         cudaFree(d_results);
@@ -237,13 +256,30 @@ public:
         // Try to load existing Bloom filter
         if (load_bloom_filter(bloom_filter, bloom_path.c_str()) == 0) {
             std::cout << "Loaded pre-built Bloom filter from: " << bloom_path << std::endl;
+            
+            // Check if it has RC k-mers
+            bool has_rc = bloom_filter_has_rc(bloom_filter);
+            std::cout << "Bloom filter contains RC k-mers: " << (has_rc ? "YES" : "NO") << std::endl;
+            
+            if (!has_rc) {
+                std::cout << "WARNING: Bloom filter does not contain RC k-mers. Rebuilding..." << std::endl;
+                // Force rebuild with RC
+                if (detector.d_kmer_sorted && detector.num_kmers > 0) {
+                    // IMPORTANT: build_bloom_filter_from_index now includes RC k-mers by default
+                    if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
+                        std::cout << "Bloom filter rebuilt with RC k-mers" << std::endl;
+                        save_bloom_filter(bloom_filter, bloom_path.c_str());
+                    }
+                }
+            }
         } else {
             // Build Bloom filter from k-mer index
-            std::cout << "Building Bloom filter from k-mer index..." << std::endl;
+            std::cout << "Building Bloom filter from k-mer index (with RC k-mers)..." << std::endl;
             
             if (detector.d_kmer_sorted && detector.num_kmers > 0) {
+                // NOTE: build_bloom_filter_from_index now includes RC k-mers by default
                 if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
-                    std::cout << "Bloom filter built successfully with " << detector.num_kmers << " k-mers" << std::endl;
+                    std::cout << "Bloom filter built successfully with " << detector.num_kmers << " k-mers (including RC)" << std::endl;
                     
                     // Save for future use
                     save_bloom_filter(bloom_filter, bloom_path.c_str());
@@ -376,25 +412,30 @@ public:
             DEBUG_PRINT("GPU transfer completed");
             
             // =========================
-            // Stage 0: Bloom Filter Pre-screening
+            // Stage 0: Bloom Filter Pre-screening with RC support
             // =========================
             auto bloom_start = std::chrono::high_resolution_clock::now();
             DEBUG_PRINT("Stage 0: Bloom filter pre-screening for %d reads", batch1.num_reads);
             
-            // Screen R1 reads
-            int bloom_result = bloom_filter_screen_reads(
+            // Reset debug statistics
+            CUDA_CHECK(cudaMemset(d_bloom_debug_stats, 0, 4 * sizeof(int)));
+            
+            // Screen R1 reads (forward orientation expected)
+            int bloom_result = bloom_filter_screen_reads_with_rc(
                 bloom_filter,
                 d_reads_r1, d_lengths_r1, d_offsets_r1,
                 batch1.num_reads,
                 d_bloom_passes_r1, d_bloom_kmers_r1,
-                bloom_min_kmers
+                bloom_min_kmers,
+                false,  // R1: don't check RC
+                d_bloom_debug_stats
             );
             
             if (bloom_result != 0) {
                 DEBUG_PRINT("WARNING: Bloom filter screening failed with code %d", bloom_result);
             }
             
-            // Get Bloom filter results
+            // Get R1 Bloom filter results
             std::vector<char> h_bloom_passes_raw(batch1.num_reads);
             std::vector<int> h_bloom_kmers(batch1.num_reads);
             CUDA_CHECK(cudaMemcpy(h_bloom_passes_raw.data(), d_bloom_passes_r1, 
@@ -406,29 +447,35 @@ public:
             CUDA_CHECK(cudaMemcpy(h_bloom_kmers.data(), d_bloom_kmers_r1, 
                                  batch1.num_reads * sizeof(int), cudaMemcpyDeviceToHost));
             
-            // Count reads that passed
-            int reads_passed_bloom = 0;
+            // Get R1 statistics
+            int r1_stats[4];
+            CUDA_CHECK(cudaMemcpy(r1_stats, d_bloom_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost));
+            
+            // Count R1 reads that passed
+            int reads_passed_bloom_r1 = 0;
             for (int i = 0; i < batch1.num_reads; i++) {
-                if (h_bloom_passes[i]) reads_passed_bloom++;
+                if (h_bloom_passes[i]) reads_passed_bloom_r1++;
             }
             
-            auto bloom_end = std::chrono::high_resolution_clock::now();
-            auto bloom_time = std::chrono::duration_cast<std::chrono::microseconds>(bloom_end - bloom_start).count();
+            DEBUG_PRINT("R1 Bloom filter results: %d/%d reads passed (%.1f%%)", 
+                       reads_passed_bloom_r1, batch1.num_reads, 
+                       100.0 * reads_passed_bloom_r1 / batch1.num_reads);
+            DEBUG_PRINT("  R1 stats - Forward hits: %d, RC hits: %d", r1_stats[1], r1_stats[2]);
             
-            DEBUG_PRINT("R1 Bloom filter results: %d/%d reads passed (%.1f%%, %.1f ms)", 
-                       reads_passed_bloom, batch1.num_reads, 
-                       100.0 * reads_passed_bloom / batch1.num_reads,
-                       bloom_time / 1000.0);
+            // Screen R2 reads with RC support
+            DEBUG_PRINT("Stage 0b: Bloom filter pre-screening for R2 reads (with RC)");
             
-            // Screen R2 reads with Bloom filter as well
-            DEBUG_PRINT("Stage 0b: Bloom filter pre-screening for R2 reads");
+            // Reset debug statistics
+            CUDA_CHECK(cudaMemset(d_bloom_debug_stats, 0, 4 * sizeof(int)));
             
-            bloom_result = bloom_filter_screen_reads(
+            bloom_result = bloom_filter_screen_reads_with_rc(
                 bloom_filter,
                 d_reads_r2, d_lengths_r2, d_offsets_r2,
                 batch2.num_reads,
                 d_bloom_passes_r2, d_bloom_kmers_r2,
-                bloom_min_kmers
+                bloom_min_kmers,
+                true,   // R2: CHECK RC!
+                d_bloom_debug_stats
             );
             
             // Get R2 Bloom results
@@ -440,6 +487,23 @@ public:
                 h_bloom_passes_r2[i] = h_bloom_passes_r2_raw[i];
             }
             
+            // Get R2 statistics
+            int r2_stats[4];
+            CUDA_CHECK(cudaMemcpy(r2_stats, d_bloom_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost));
+            
+            int reads_passed_bloom_r2 = 0;
+            for (int i = 0; i < batch2.num_reads; i++) {
+                if (h_bloom_passes_r2[i]) reads_passed_bloom_r2++;
+            }
+            
+            DEBUG_PRINT("R2 Bloom filter results: %d/%d reads passed (%.1f%%)", 
+                       reads_passed_bloom_r2, batch2.num_reads, 
+                       100.0 * reads_passed_bloom_r2 / batch2.num_reads);
+            DEBUG_PRINT("  R2 stats - Forward hits: %d, RC hits: %d", r2_stats[1], r2_stats[2]);
+            
+            auto bloom_end = std::chrono::high_resolution_clock::now();
+            auto bloom_time = std::chrono::duration_cast<std::chrono::microseconds>(bloom_end - bloom_start).count();
+            
             // Combine R1 and R2 Bloom results - a read pair passes if EITHER read passes
             int reads_passed_bloom_combined = 0;
             std::vector<bool> h_pair_passes(batch1.num_reads);
@@ -448,8 +512,8 @@ public:
                 if (h_pair_passes[i]) reads_passed_bloom_combined++;
             }
             
-            DEBUG_PRINT("Combined Bloom results: %d/%d read pairs passed", 
-                       reads_passed_bloom_combined, batch1.num_reads);
+            DEBUG_PRINT("Combined Bloom results: %d/%d read pairs passed (%.1f ms)", 
+                       reads_passed_bloom_combined, batch1.num_reads, bloom_time / 1000.0);
             
             total_reads_passed_bloom += reads_passed_bloom_combined;
             
@@ -470,7 +534,8 @@ public:
                 launch_kmer_filter(
                     d_reads_r1, d_lengths_r1, d_offsets_r1,
                     detector, batch1.num_reads,
-                    d_candidates, d_candidate_counts
+                    d_candidates, d_candidate_counts,
+                    false  // R1: don't check RC in k-mer screening
                 );
                 CUDA_CHECK(cudaDeviceSynchronize());
                 
@@ -530,20 +595,21 @@ public:
                 }
                 
                 // =========================
-                // Process R2 reads
+                // Process R2 reads with RC support
                 // =========================
-                DEBUG_PRINT("Processing R2 reads...");
+                DEBUG_PRINT("Processing R2 reads (with RC support)...");
                 
                 // Reset candidate counts for R2
                 CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch2.num_reads * sizeof(uint32_t)));
                 
-                // Stage 1: K-mer Filtering for R2
-                DEBUG_PRINT("Stage 1: K-mer filtering for R2 reads");
+                // Stage 1: K-mer Filtering for R2 with RC
+                DEBUG_PRINT("Stage 1: K-mer filtering for R2 reads (with RC)");
                 
                 launch_kmer_filter(
                     d_reads_r2, d_lengths_r2, d_offsets_r2,
                     detector, batch2.num_reads,
-                    d_candidates, d_candidate_counts
+                    d_candidates, d_candidate_counts,
+                    true   // R2: CHECK RC in k-mer screening!
                 );
                 CUDA_CHECK(cudaDeviceSynchronize());
                 
@@ -682,7 +748,7 @@ public:
 
 // Main entry point
 int main(int argc, char** argv) {
-    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter and HDF5) ===");
+    DEBUG_PRINT("=== FQ Pipeline GPU Starting (with Bloom Filter RC Support and HDF5) ===");
     DEBUG_PRINT("Command line: argc=%d", argc);
     for (int i = 0; i < argc; i++) {
         DEBUG_PRINT("  argv[%d] = %s", i, argv[i]);
@@ -699,8 +765,8 @@ int main(int argc, char** argv) {
     std::string output_path = argv[4];
     
     // Get input paths from user if files are on adjacent drive
-    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.3.1) ===" << std::endl;
-    std::cout << "Features: Bloom filter pre-screening + K-mer enrichment + Alignment + HDF5 output" << std::endl;
+    std::cout << "=== Fluoroquinolone Resistance Detection Pipeline (v0.3.2) ===" << std::endl;
+    std::cout << "Features: Bloom filter with RC support + K-mer enrichment + Alignment + HDF5 output" << std::endl;
     std::cout << "Index: " << index_path << std::endl;
     std::cout << "R1 reads: " << r1_path << std::endl;
     std::cout << "R2 reads: " << r2_path << std::endl;

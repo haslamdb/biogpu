@@ -27,9 +27,8 @@ biogpu/
 │   │   ├── sequences.bin               # Reference sequence database
 │   │   ├── index_metadata.json         # Index metadata and statistics
 │   │   └── debug/                      # Validation and analysis files
-│   └── resistance_db/                   # Alternative resistance database format
-├── output/
-│   └── GeneFiles/                       # JSON files per species/gene (input for kmer builder)
+│   ├── resistance_db/                   # Alternative resistance database format
+│   └── fq_genes/                       # JSON files per species/gene (input for kmer builder)
 │       ├── Escherichia_coli/           # E. coli resistance genes
 │       ├── Pseudomonas_aeruginosa/     # P. aeruginosa resistance genes
 │       └── [other species]/            # Additional organism gene files
@@ -85,7 +84,7 @@ Key Build Relationships:
 ### Stage 0: Data Acquisition
 **Purpose**: Download reference sequences for resistance genes from multiple species
 
-The `output/GeneFiles` directory serves as the reference sequence database for the fluoroquinolone resistance detection pipeline.
+The `data/fq_genes` directory serves as the reference sequence database for the fluoroquinolone resistance detection pipeline.
 
 **How it's created**:
 ```bash
@@ -93,8 +92,8 @@ The `output/GeneFiles` directory serves as the reference sequence database for t
 python src/python/download_ncbi_20250529.py \
     data/Known_Quinolone_Changes.csv \
     data/Known_Efflux_Pump_Genes.csv \
-    output/GeneFiles \
-    --email your.email@example.com \
+    data/fq_genes \
+    --email dbhaslam@gmail.com \
     --max-per-gene 300
 ```
 
@@ -105,7 +104,7 @@ python src/python/download_ncbi_20250529.py \
 4. Creates the binary index used by the GPU resistance detection pipeline
 
 **Output**: 
-- `output/GeneFiles/[Species]/[gene].json` files
+- `data/fq_genes/[Species]/[gene].json` files
 - Contains: GenBank sequences with CDS features for resistance genes
 - Each JSON file includes sequence data, gene annotations, and species metadata
 
@@ -118,7 +117,7 @@ python src/python/download_ncbi_20250529.py \
 
 ```bash
 python src/python/enhanced_kmer_builder.py \
-    output/GeneFiles \
+    data/fq_genes \
     data/Known_Quinolone_Changes.csv \
     data/fq_resistance_index \
     --kmer-length 15

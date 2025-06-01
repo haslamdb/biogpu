@@ -41,7 +41,9 @@ extern __global__ void enhanced_kmer_filter_kernel(
     const int kmer_length,
     CandidateMatch* candidates,
     uint32_t* candidate_counts,
-    const uint32_t max_candidates_per_read
+    const uint32_t max_candidates_per_read,
+    const bool check_reverse_complement,
+    int* debug_stats
 );
 
 // Device functions for base encoding/decoding
@@ -321,7 +323,8 @@ extern "C" {
         FQMutationDetectorCUDA& detector,
         int num_reads,
         CandidateMatch* d_candidates,
-        uint32_t* d_candidate_counts
+        uint32_t* d_candidate_counts,
+        bool check_reverse_complement
     ) {
         DEBUG_PRINT("launch_kmer_filter called with %d reads", num_reads);
         
@@ -344,7 +347,9 @@ extern "C" {
             KMER_LENGTH,
             d_candidates,
             d_candidate_counts,
-            MAX_CANDIDATES_PER_READ
+            MAX_CANDIDATES_PER_READ,
+            check_reverse_complement,
+            nullptr // debug_stats
         );
         
         // Check for errors

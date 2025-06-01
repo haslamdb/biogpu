@@ -152,7 +152,8 @@ extern "C" {
         FQMutationDetectorCUDA& detector,
         int num_reads,
         CandidateMatch* d_candidates,
-        uint32_t* d_candidate_counts
+        uint32_t* d_candidate_counts,
+        bool check_reverse_complement
     );
 
     void launch_position_weighted_alignment(

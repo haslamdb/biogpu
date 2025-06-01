@@ -1,0 +1,174 @@
+================================
+BioGPU PIPELINE DIAGNOSTIC REPORT
+================================
+
+Generated: Sun Jun  1 12:46:49 2025
+Pipeline Version: 0.4.0 (Enhanced Translated Search)
+Features: Bloom Filter + 15-mer nucleotide + 5-mer protein + Smith-Waterman
+
+PIPELINE STATISTICS
+===================
+
+Read Processing:
+  Total input reads:                10000
+  After Bloom filter:                9153 (91.5%)
+  After k-mer enrichment:            9153 (91.5%)
+
+Protein Search Results:
+  Total protein alignments:         91862
+  Protein hit rate:                 918.6%
+  Smith-Waterman alignments:            0
+
+Mutation Detection:
+  Total mutations found:                0
+  QRDR mutations found:                  0
+
+Filter Efficiency:
+  Bloom filter removed:                847 (8.5%)
+  K-mer filter removed:                  0 (0.0%)
+
+TOP PROTEIN ALIGNMENTS
+======================
+
+Alignment #1 - gyrA (Score: 200.0, Identity: 333.3%)
+Read 1893, Frame -1, Protein 1104
+Position 255-284:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-29] (Perfect match - no sequence differences)
+Ref:    [255-284] (Perfect match)
+
+Alignment #2 - gyrA (Score: 200.0, Identity: 333.3%)
+Read 1886, Frame -1, Protein 1062
+Position 486-515:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-29] (Perfect match - no sequence differences)
+Ref:    [486-515] (Perfect match)
+
+Alignment #3 - gyrA (Score: 200.0, Identity: 400.0%)
+Read 6667, Frame 2, Protein 1104
+Position 599-623:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-24] (Perfect match - no sequence differences)
+Ref:    [599-623] (Perfect match)
+
+Alignment #4 - gyrA (Score: 200.0, Identity: 400.0%)
+Read 6667, Frame 2, Protein 1103
+Position 599-623:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-24] (Perfect match - no sequence differences)
+Ref:    [599-623] (Perfect match)
+
+Alignment #5 - gyrA (Score: 200.0, Identity: 400.0%)
+Read 6667, Frame 2, Protein 1102
+Position 599-623:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-24] (Perfect match - no sequence differences)
+Ref:    [599-623] (Perfect match)
+
+Alignment #6 - gyrA (Score: 200.0, Identity: 333.3%)
+Read 1889, Frame -3, Protein 1103
+Position 252-281:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [2-31] (Perfect match - no sequence differences)
+Ref:    [252-281] (Perfect match)
+
+Alignment #7 - gyrA (Score: 200.0, Identity: 333.3%)
+Read 1889, Frame -3, Protein 1104
+Position 252-281:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [2-31] (Perfect match - no sequence differences)
+Ref:    [252-281] (Perfect match)
+
+Alignment #8 - gyrA (Score: 200.0, Identity: 416.7%)
+Read 2616, Frame 2, Protein 1102
+Position 476-499:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-23] (Perfect match - no sequence differences)
+Ref:    [476-499] (Perfect match)
+
+Alignment #9 - gyrA (Score: 200.0, Identity: 416.7%)
+Read 2616, Frame 2, Protein 1103
+Position 476-499:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-23] (Perfect match - no sequence differences)
+Ref:    [476-499] (Perfect match)
+
+Alignment #10 - gyrA (Score: 200.0, Identity: 416.7%)
+Read 2616, Frame 2, Protein 1104
+Position 476-499:
+No mutations detected in this alignment.
+
+Alignment region:
+Query:  [0-23] (Perfect match - no sequence differences)
+Ref:    [476-499] (Perfect match)
+
+
+MUTATION ANALYSIS
+=================
+
+❌ NO MUTATIONS DETECTED
+
+Possible reasons:
+1. Database contains mutant references - reads match perfectly
+2. Mutation calling threshold too stringent
+3. Alignment quality issues
+4. Reads are actually wild-type
+
+
+QRDR RESISTANCE ANALYSIS
+========================
+
+QRDR Coverage:
+  gyrA QRDR: ✓ COVERED
+  parC QRDR: ❌ NOT COVERED
+  gyrB QRDR: ❌ NOT COVERED
+  parE QRDR: ❌ NOT COVERED
+
+Fluoroquinolone Resistance Assessment:
+❌ NO RESISTANCE MUTATIONS DETECTED
+  Recommendation: Fluoroquinolones may be effective
+  Note: Check mutation detection logic if mutant reads were expected
+
+TROUBLESHOOTING ADVICE
+======================
+
+🔍 ALIGNMENTS FOUND BUT NO MUTATIONS DETECTED
+Most likely cause: MUTANT REFERENCE DATABASE
+
+Your protein database appears to contain mutant sequences.
+When mutant reads align to mutant references, they match perfectly
+and no 'mutations' are detected.
+
+Solutions:
+1. Use wild-type reference database for mutation calling
+2. Implement variant-aware analysis that compares to known resistance patterns
+3. Use the alignment positions to infer resistance without mutation calling
+
+Next Steps:
+1. Review top alignments above for quality
+2. Check if alignments are in expected QRDR regions
+3. Verify database contains appropriate reference sequences
+4. Consider adjusting alignment thresholds if needed
+
+
+Report generated by BioGPU Enhanced Diagnostic System
+For technical support, check pipeline documentation
+================================

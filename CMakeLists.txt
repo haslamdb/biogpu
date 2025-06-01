@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(BioGPU VERSION 0.4.0 LANGUAGES CXX CUDA)
+project(BioGPU VERSION 0.4.1 LANGUAGES CXX CUDA)
 
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)
@@ -45,7 +45,7 @@ set_target_properties(bloom_filter PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
-# HDF5 alignment writer library (updated with enhanced translated search support)
+# Enhanced HDF5 alignment writer library with translated search support
 add_library(hdf5_writer STATIC
     runtime/kernels/resistance/hdf5_alignment_writer.cpp
 )
@@ -75,33 +75,88 @@ set_target_properties(kmer_screening PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
+# NEW: Diagnostic reporting library
+add_library(diagnostic_reporter STATIC
+    runtime/kernels/resistance/diagnostic_report.cpp
+)
+
+# NEW: Enhanced mutation detection library
+add_library(enhanced_mutation_detection STATIC
+    runtime/kernels/resistance/enhanced_mutation_detection.cu
+)
+
+set_target_properties(enhanced_mutation_detection PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
 # ===========================
 # Enhanced FQ Resistance Pipeline (GPU)
 # ===========================
 
-# Enhanced FQ pipeline CUDA sources - includes ALL necessary kernels
+# Enhanced FQ pipeline CUDA sources with all necessary kernels
 set(FQ_CUDA_SOURCES
     runtime/kernels/resistance/fq_mutation_detector.cu
 )
 
-# Enhanced FQ pipeline host sources
+# Enhanced FQ pipeline host sources with diagnostic support
 set(FQ_HOST_SOURCES
     runtime/kernels/resistance/fq_pipeline_host.cpp
 )
 
-# Create enhanced FQ pipeline executable
-add_executable(fq_pipeline_gpu
+# Create enhanced FQ pipeline executable with diagnostic support
+add_executable(fq_pipeline_gpu_enhanced
     ${FQ_HOST_SOURCES}
     ${FQ_CUDA_SOURCES}
 )
 
 # Set CUDA properties for enhanced FQ pipeline
-set_target_properties(fq_pipeline_gpu PROPERTIES
+set_target_properties(fq_pipeline_gpu_enhanced PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"  # Include Titan Xp (61)
 )
 
 # Enhanced CUDA-specific compile options
+target_compile_options(fq_pipeline_gpu_enhanced PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
+        --ptxas-options=-v
+        --maxrregcount=64
+        -O3
+    >
+)
+
+# Link libraries for enhanced FQ pipeline with diagnostic support
+target_link_libraries(fq_pipeline_gpu_enhanced
+    bloom_filter                # Bloom filter library
+    hdf5_writer                # Enhanced HDF5 writer library
+    translated_search          # Enhanced translated search library with 5-mer + SW
+    kmer_screening             # Enhanced k-mer screening library
+    diagnostic_reporter        # NEW: Diagnostic reporting
+    enhanced_mutation_detection # NEW: Enhanced mutation detection
+    z                          # for zlib (FASTQ.gz reading)
+    cudart
+    cuda
+    ${HDF5_LIBRARIES}          # HDF5 libraries
+    ${HDF5_CXX_LIBRARIES}      # HDF5 C++ libraries
+)
+
+# Add HDF5 definitions
+target_compile_definitions(fq_pipeline_gpu_enhanced PRIVATE ${HDF5_DEFINITIONS})
+
+# Create backwards-compatible executable (without diagnostic features)
+add_executable(fq_pipeline_gpu
+    runtime/kernels/resistance/fq_pipeline_host.cpp
+    ${FQ_CUDA_SOURCES}
+)
+
+set_target_properties(fq_pipeline_gpu PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
 target_compile_options(fq_pipeline_gpu PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         --use_fast_math
@@ -113,20 +168,19 @@ target_compile_options(fq_pipeline_gpu PRIVATE
     >
 )
 
-# Link libraries for enhanced FQ pipeline
 target_link_libraries(fq_pipeline_gpu
-    bloom_filter         # Bloom filter library
-    hdf5_writer         # Enhanced HDF5 writer library
-    translated_search   # Enhanced translated search library with 5-mer + SW
-    kmer_screening      # Enhanced k-mer screening library
-    z                   # for zlib (FASTQ.gz reading)
+    bloom_filter
+    hdf5_writer
+    translated_search
+    kmer_screening
+    diagnostic_reporter
+    z
     cudart
     cuda
-    ${HDF5_LIBRARIES}      # HDF5 libraries
-    ${HDF5_CXX_LIBRARIES}  # HDF5 C++ libraries
+    ${HDF5_LIBRARIES}
+    ${HDF5_CXX_LIBRARIES}
 )
 
-# Add HDF5 definitions
 target_compile_definitions(fq_pipeline_gpu PRIVATE ${HDF5_DEFINITIONS})
 
 # ===========================
@@ -181,7 +235,6 @@ target_link_libraries(test_translated_search
     cuda
 )
 
-
 # ===========================
 # Development Targets
 # ===========================
@@ -189,7 +242,7 @@ target_link_libraries(test_translated_search
 # Build enhanced k-mer index with correct paths
 add_custom_target(build_kmer_index
     COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/enhanced_kmer_builder.py 
-            ${CMAKE_SOURCE_DIR}/output/GeneFiles
+            ${CMAKE_SOURCE_DIR}/data/fq_genes
             ${CMAKE_SOURCE_DIR}/data/Known_Quinolone_Changes.csv
             ${CMAKE_SOURCE_DIR}/data/fq_resistance_index
             --kmer-length 15
@@ -205,6 +258,17 @@ add_custom_target(build_protein_db
             --kmer-length 5
             --enable-smith-waterman
     COMMENT "Building enhanced protein resistance database for 5-mer translated search"
+)
+
+# NEW: Build wild-type protein database for proper mutation detection
+add_custom_target(build_wildtype_protein_db
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/build_wildtype_protein_db.py
+            ${CMAKE_SOURCE_DIR}/data/fq_genes
+            ${CMAKE_SOURCE_DIR}/data/Known_Quinolone_Changes.csv
+            ${CMAKE_SOURCE_DIR}/data/wildtype_protein_db
+            --include-resistance-positions
+            --kmer-length 5
+    COMMENT "Building wild-type protein database for enhanced mutation detection"
 )
 
 # Test enhanced Bloom filter functionality
@@ -246,11 +310,18 @@ add_custom_target(test_translation
     COMMENT "Testing enhanced 6-frame translation with 5-mer k-mers and Smith-Waterman"
 )
 
-# Test enhanced k-mer screening with reverse complement support
-add_custom_target(test_kmer
-    COMMAND ./test_kmer_screening
-    DEPENDS test_kmer_screening
-    COMMENT "Testing enhanced k-mer screening with reverse complement support"
+# NEW: Test enhanced mutation detection
+add_custom_target(test_mutation_detection
+    COMMAND ./test_enhanced_mutation_detection
+    DEPENDS test_enhanced_mutation_detection
+    COMMENT "Testing enhanced mutation detection with wild-type comparison"
+)
+
+# NEW: Test diagnostic reporting
+add_custom_target(test_diagnostics
+    COMMAND ./test_diagnostic_report
+    DEPENDS test_diagnostic_report
+    COMMENT "Testing diagnostic report generation"
 )
 
 # Benchmark enhanced pipeline performance
@@ -260,8 +331,18 @@ add_custom_target(benchmark_pipeline
             ${CMAKE_SOURCE_DIR}/data/test_fastq
             --enable-translated-search
             --enable-smith-waterman
+            --enable-diagnostics
             --iterations 10
-    COMMENT "Benchmarking enhanced pipeline performance"
+    COMMENT "Benchmarking enhanced pipeline performance with diagnostics"
+)
+
+# NEW: Run complete diagnostic analysis
+add_custom_target(analyze_diagnostics
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/diagnostic_analyzer.py
+            ${CMAKE_BINARY_DIR}/test_output_diagnostic.txt
+            --json ${CMAKE_BINARY_DIR}/test_output.json
+            --plot ${CMAKE_BINARY_DIR}/diagnostic_summary.png
+    COMMENT "Analyzing diagnostic reports and generating summary plots"
 )
 
 # ===========================
@@ -270,7 +351,8 @@ add_custom_target(benchmark_pipeline
 
 # Install enhanced executables
 install(TARGETS 
-    fq_pipeline_gpu 
+    fq_pipeline_gpu_enhanced   # NEW: Enhanced version with diagnostics
+    fq_pipeline_gpu           # Original version for compatibility
     debug_ids 
     test_bloom_filter 
     test_hdf5_reader 
@@ -284,6 +366,8 @@ install(TARGETS
     hdf5_writer 
     translated_search
     kmer_screening
+    diagnostic_reporter       # NEW
+    enhanced_mutation_detection  # NEW
     ARCHIVE DESTINATION lib
 )
 
@@ -293,7 +377,9 @@ install(PROGRAMS
     ${CMAKE_SOURCE_DIR}/src/python/enhanced_kmer_builder.py
     ${CMAKE_SOURCE_DIR}/src/python/index_validator.py
     ${CMAKE_SOURCE_DIR}/src/python/build_protein_resistance_db.py
+    ${CMAKE_SOURCE_DIR}/src/python/build_wildtype_protein_db.py  # NEW
     ${CMAKE_SOURCE_DIR}/src/python/benchmark_pipeline.py
+    ${CMAKE_SOURCE_DIR}/src/python/diagnostic_analyzer.py       # NEW
     DESTINATION bin
 )
 
@@ -306,54 +392,40 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 message(STATUS "")
 message(STATUS "Enhanced BioGPU Configuration Summary:")
-message(STATUS "  Version: ${PROJECT_VERSION} (enhanced with 5-mer protein search + Smith-Waterman)")
+message(STATUS "  Version: ${PROJECT_VERSION} (enhanced with diagnostic reporting + mutation detection)")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  CUDA Standard: ${CMAKE_CUDA_STANDARD}")
 message(STATUS "  CUDA Architectures: 61;70;75;80;86 (includes Titan Xp)")
 message(STATUS "  HDF5 Version: ${HDF5_VERSION}")
 message(STATUS "")
 message(STATUS "Enhanced build targets:")
-message(STATUS "  fq_pipeline_gpu           - Enhanced GPU-accelerated FQ resistance detection")
-message(STATUS "                             * Bloom filter with RC support")
-message(STATUS "                             * 15-mer nucleotide k-mer enrichment")
-message(STATUS "                             * 5-mer protein k-mer seeding")
-message(STATUS "                             * Optional Smith-Waterman alignment")
-message(STATUS "                             * HDF5 output with translated search results")
-message(STATUS "  debug_ids                 - Debug gene/species ID assignments")
-message(STATUS "  test_bloom_filter         - Test enhanced Bloom filter implementation")
-message(STATUS "  test_hdf5_reader          - Test HDF5 alignment reading")
-message(STATUS "  test_translated_search    - Test enhanced 6-frame translation")
-message(STATUS "  test_kmer_screening       - Test enhanced k-mer screening")
+message(STATUS "  fq_pipeline_gpu_enhanced  - Enhanced GPU pipeline with diagnostic reporting")
+message(STATUS "                             * Comprehensive mutation detection")
+message(STATUS "                             * Detailed performance analysis")
+message(STATUS "                             * Alignment visualization")
+message(STATUS "                             * Troubleshooting recommendations")
+message(STATUS "  fq_pipeline_gpu           - Original pipeline (backwards compatible)")
+message(STATUS "  diagnostic_analyzer.py    - Post-processing diagnostic analysis")
 message(STATUS "")
-message(STATUS "Enhanced development targets:")
-message(STATUS "  build_kmer_index          - Build 15-mer nucleotide k-mer index")
-message(STATUS "  build_protein_db          - Build 5-mer protein database with SW support")
-message(STATUS "  validate_index            - Validate index with enhanced synthetic data")
-message(STATUS "  test_bloom                - Run enhanced Bloom filter tests")
-message(STATUS "  debug_index               - Debug gene/species ID assignments")
-message(STATUS "  test_hdf5                 - Test HDF5 output with translated search")
-message(STATUS "  test_translation          - Test enhanced 6-frame translation")
-message(STATUS "  test_kmer                 - Test enhanced k-mer screening")
-message(STATUS "  benchmark_pipeline        - Benchmark enhanced pipeline performance")
-message(STATUS "")
-message(STATUS "Enhanced pipeline features:")
-message(STATUS "  * Hybrid k-mer approach: 15-mer nucleotide + 5-mer protein")
-message(STATUS "  * Bloom filter pre-screening with reverse complement support")
-message(STATUS "  * Seed-and-extend protein matching with clustering")
-message(STATUS "  * Optional Smith-Waterman for high-scoring protein matches")
-message(STATUS "  * Enhanced HDF5 output with mutation details and confidence scores")
-message(STATUS "  * Comprehensive statistics and performance monitoring")
+message(STATUS "Key diagnostic features:")
+message(STATUS "  * Wild-type vs. mutant reference comparison")
+message(STATUS "  * QRDR coverage analysis")
+message(STATUS "  * Filter efficiency tracking")
+message(STATUS "  * Alignment quality assessment")
+message(STATUS "  * Automatic troubleshooting advice")
 message(STATUS "")
 message(STATUS "Usage examples:")
-message(STATUS "  Basic nucleotide search:")
-message(STATUS "    ./fq_pipeline_gpu index/ reads_R1.fq.gz reads_R2.fq.gz output.json")
-message(STATUS "")
-message(STATUS "  With enhanced 5-mer protein search:")
-message(STATUS "    ./fq_pipeline_gpu index/ reads_R1.fq.gz reads_R2.fq.gz output.json \\")
+message(STATUS "  Enhanced pipeline with diagnostics:")
+message(STATUS "    ./fq_pipeline_gpu_enhanced index/ reads_R1.fq.gz reads_R2.fq.gz output.json \\")
 message(STATUS "      --enable-translated-search --protein-db protein_db/")
 message(STATUS "")
-message(STATUS "  With Smith-Waterman for high-scoring matches:")
-message(STATUS "    ./fq_pipeline_gpu index/ reads_R1.fq.gz reads_R2.fq.gz output.json \\")
-message(STATUS "      --enable-translated-search --enable-smith-waterman \\")
-message(STATUS "      --protein-db protein_db/")
+message(STATUS "  Diagnostic analysis:")
+message(STATUS "    python3 diagnostic_analyzer.py output_diagnostic.txt --json output.json --plot summary.png")
+message(STATUS "")
+message(STATUS "NEW FEATURES IN v0.4.1:")
+message(STATUS "  ✓ Enhanced mutation detection with wild-type comparison")
+message(STATUS "  ✓ Comprehensive diagnostic reporting")
+message(STATUS "  ✓ Alignment visualization and quality metrics")
+message(STATUS "  ✓ Automatic troubleshooting recommendations")
+message(STATUS "  ✓ Post-processing analysis tools")
 message(STATUS "")

@@ -9,7 +9,7 @@ BioGPU is a domain-specific programming language and computational framework des
 The BioGPU pipeline has been successfully tested with synthetic and real metagenomic data, demonstrating:
 - **High performance**: Processing ~1M reads efficiently with 10K read batches
 - **Excellent sensitivity**: High candidate detection rate from k-mer filtering
-- **Good specificity**: 67% alignment success rate preventing false positives
+- **Good specificity**: Smith-Waterman scoring threshold set to prevent false positives
 - **Clinical readiness**: Real FQ resistance index (115MB, 230K unique k-mers) validated
 
 ## Project Goals

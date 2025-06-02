@@ -12,7 +12,14 @@ python src/python/build_protein_resistance_db.py \
 ./build/fq_pipeline_gpu data/fq_resistance_index \
 	569_A_038_R1.fastq.gz \
 	569_A_038_R2.fastq.gz \
-  	test_output_final.json \
+	--enable-translated-search \
+	--enable-smith-waterman \
+	--protein-db data/wildtype_protein_db \
+	--enable-diagnostic-reporting
+
+./build/fq_pipeline_gpu data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
 	--enable-translated-search \
 	--enable-smith-waterman \
 	--protein-db data/wildtype_protein_db \

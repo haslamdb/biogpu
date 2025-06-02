@@ -337,8 +337,7 @@ private:
                        << ", Peptide: " << match.query_peptide << "\n";
         }
         
-        report_file << "\nTotal QRDR alignments found: " << qrdr_alignments.size() << "\n";
-        report_file << "NOTE: These peptide sequences should be verified using BLAST to confirm alignment accuracy.\n\n";
+        report_file << "\nTotal QRDR alignments found: " << qrdr_alignments.size() << "\n\n";
     }
     
     void writeAlignmentVisualization(const ProteinMatch& match, int rank) {
@@ -456,11 +455,6 @@ private:
         
         if (mutations_per_gene.empty()) {
             report_file << "❌ NO MUTATIONS DETECTED\n\n";
-            report_file << "Possible reasons:\n";
-            report_file << "1. Database contains mutant references - reads match perfectly\n";
-            report_file << "2. Mutation calling threshold too stringent\n";
-            report_file << "3. Alignment quality issues\n";
-            report_file << "4. Reads are actually wild-type\n\n";
         } else {
             report_file << "Mutations by gene:\n";
             for (const auto& pair : mutations_per_gene) {
@@ -568,25 +562,22 @@ private:
         }
         
         
-        if (stats.bloom_retention_rate < 5.0) {
-            report_file << "⚠️  VERY LOW BLOOM FILTER RETENTION RATE (<5%)\n";
-            report_file << "This suggests reads don't contain target sequences.\n";
-            report_file << "Check that input files contain resistance genes.\n\n";
+        if (stats.bloom_retention_rate < 0.1) {
+            report_file << "⚠️  EXTREMELY LOW BLOOM FILTER RETENTION RATE (<0.1%)\n";
+            report_file << "This may indicate reads don't contain any target sequences.\n";
+            report_file << "This is expected for metagenomic data with low pathogen abundance.\n\n";
         }
         
-        if (stats.protein_hit_rate < 1.0) {
-            report_file << "⚠️  LOW PROTEIN HIT RATE (<1%)\n";
-            report_file << "Consider:\n";
-            report_file << "- Lowering identity threshold\n";
-            report_file << "- Checking translated frame quality\n";
-            report_file << "- Verifying protein database completeness\n\n";
+        if (stats.protein_hit_rate < 0.1) {
+            report_file << "⚠️  EXTREMELY LOW PROTEIN HIT RATE (<0.1%)\n";
+            report_file << "This may indicate very low abundance of target organisms.\n";
+            report_file << "This is expected for metagenomic data.\n\n";
         }
         
-        report_file << "Next Steps:\n";
-        report_file << "1. Review top alignments above for quality\n";
-        report_file << "2. Check if alignments are in expected QRDR regions\n";
-        report_file << "3. Verify database contains appropriate reference sequences\n";
-        report_file << "4. Consider adjusting alignment thresholds if needed\n\n";
+        if (stats.total_protein_alignments > 0) {
+            report_file << "✅ Target sequences detected\n";
+            report_file << "Review QRDR alignments above for resistance mutations.\n\n";
+        }
     }
     
     void writeFooter() {

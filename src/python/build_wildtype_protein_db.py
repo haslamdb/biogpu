@@ -219,11 +219,15 @@ class WildTypeProteinDatabaseBuilder:
         """Process a single FASTA entry and extract gene/species info"""
         # Parse header - expecting format like:
         # sp|P20083|PARE_ECOLI DNA topoisomerase 4 subunit B OS=Escherichia coli (strain K12) OX=83333 GN=parE PE=1 SV=3
+        # or: SAY60428.1 DNA gyr, A subunit, gyrA [Enterococcus faecium] gn = gyrA
         
         gene_name = "unknown"
         accession = "unknown"
         
-        # Extract gene name from GN= field
+        # Debug: print header
+        print(f"    Processing header: {header[:80]}...")
+        
+        # Extract gene name from GN= field (standard UniProt format)
         if "GN=" in header:
             gn_start = header.find("GN=") + 3
             gn_end = header.find(" ", gn_start)
@@ -237,13 +241,16 @@ class WildTypeProteinDatabaseBuilder:
             # Match common patterns like "gyrA", "parE", etc.
             gene_match = re.search(r'\b(gyr[AB]|par[CE]|acrA|acrB|tolC)\b', header, re.IGNORECASE)
             if gene_match:
-                gene_name = gene_match.group(1).lower()
+                gene_name = gene_match.group(1)  # Keep original case
         
-        # Extract accession from sp|accession| or similar
+        # Extract accession from sp|accession| or from first field
         if "|" in header:
             parts = header.split("|")
             if len(parts) >= 2:
                 accession = parts[1]
+        else:
+            # For headers like "SAY60428.1 DNA gyr...", take first field
+            accession = header.split()[0]
         
         # Clean up sequence
         clean_sequence = sequence.replace("*", "").upper()
@@ -251,6 +258,12 @@ class WildTypeProteinDatabaseBuilder:
         # Quality filters
         if len(clean_sequence) < 20 or 'X' in clean_sequence:
             return
+        
+        # Warn if gene name wasn't found
+        if gene_name == "unknown" or gene_name == "":
+            print(f"    ⚠️  Warning: Expected gene name not found for protein {accession}")
+            print(f"       Please check gene name is indicated by GN=\"gene name\"")
+            print(f"       Header: {header[:100]}...")
         
         # Find or create gene_id
         gene_id = None

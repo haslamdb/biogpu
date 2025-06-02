@@ -4,14 +4,6 @@
 
 BioGPU is a domain-specific programming language and computational framework designed to accelerate microbial community profiling and antimicrobial resistance (AMR) detection using GPU computing. Initially focused on fluoroquinolone resistance detection through mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes, BioGPU aims to provide real-time metagenomic analysis capabilities for clinical decision-making.
 
-## Project Status: ✅ **Almost PRODUCTION READY**
-
-The BioGPU pipeline has been successfully tested with synthetic and real metagenomic data, demonstrating:
-- **High performance**: Processing ~1M reads efficiently with 10K read batches
-- **Excellent sensitivity**: High candidate detection rate from k-mer filtering
-- **Good specificity**: Smith-Waterman scoring threshold set to prevent false positives
-- **Clinical readiness**: Real FQ resistance index (115MB, 230K unique k-mers) validated
-
 ## Project Goals
 
 ### Primary Objectives

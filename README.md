@@ -129,15 +129,11 @@ pipeline FluoroquinoloneResistance {
 #### Immediate Workflow Optimizations
 - [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and E faecium
 - [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
-- [ ] **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
-- [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems
-- [ ] **Real-time monitoring dashboard**: Clinical decision support interface
+
 
 #### Enhanced Clinical Interpretation
 - [ ] **Confidence scoring system**: Implement tiered confidence levels for resistance calls
-- [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
-- [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
-- [ ] **Resistance trend tracking**: Temporal analysis for hospital surveillance
+       **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
 
 ### 2. Advanced Resistance Detection
 
@@ -154,9 +150,17 @@ pipeline FluoroquinoloneResistance {
 - [ ] **Aminoglycoside resistance**: aac, aph, ant gene families
 - [ ] **Macrolide resistance**: erm, mef genes for respiratory pathogens
 
+#### Possible future goals
+- [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems
+- [ ] **Real-time monitoring dashboard**: Clinical decision support interface
+- [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
+- [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
+- [ ] **Resistance trend tracking**: Temporal analysis for hospital surveillance
+
+
 ### 3. Algorithm Enhancements
 
-#### K-mer Matching with Extension (Kraken2-style)
+#### Microbiome profiling with K-mer Matching with Extension (Kraken2-style)
 - [ ] **Three-phase k-mer matching algorithm**: Implement prefilter → match → extension workflow
   - **Phase 1: Bloom Filter Pre-screening**:
     - [ ] Space-efficient probabilistic filtering to eliminate non-matching k-mers
@@ -294,7 +298,6 @@ pipeline FluoroquinoloneResistance {
 #### Translated Search Implementation (for FQ resistance testing)
 - [ ] **Nucleotide-to-peptide alignment**: Implement 6-frame translation search
   - **Preprocessing Phase**:
-    - [ ] CPU-based 6-frame translation (all 3 forward + 3 reverse frames)
     - [ ] SIMD optimization for codon lookup tables
     - [ ] Optional GPU translation kernel for very large datasets
     - [ ] K-mer pre-filtering to reduce search space

@@ -1636,20 +1636,21 @@ int main(int argc, char** argv) {
     DEBUG_PRINT("=== Enhanced FQ Pipeline GPU Starting (v0.4.0) ===");
     DEBUG_PRINT("Features: Bloom filter + K-mer enrichment + Enhanced protein search + Diagnostic reporting");
     
-    if (argc < 5 || argc > 11) {
-        std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> <output.json> [options]\n";
+    if (argc < 4 || argc > 10) {
+        std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> [options]\n";
         std::cerr << "Options:\n";
         std::cerr << "  --enable-translated-search     Enable 6-frame translated search with 5-mer k-mers\n";
         std::cerr << "  --enable-smith-waterman        Enable Smith-Waterman for high-scoring protein matches\n";
         std::cerr << "  --enable-diagnostic-reporting  Enable detailed diagnostic reporting\n";
         std::cerr << "  --protein-db <path>            Path to protein resistance database\n";
+        std::cerr << "\nNote: Output files will be automatically created based on sample name extracted from input files\n";
         return 1;
     }
     
     std::string index_path = argv[1];
     std::string r1_path = argv[2];
     std::string r2_path = argv[3];
-    std::string output_path = argv[4];
+    std::string output_path = "";  // No longer used, kept for compatibility
     
     // Parse enhanced command line options
     bool enable_translated_search = false;
@@ -1657,7 +1658,7 @@ int main(int argc, char** argv) {
     bool enable_diagnostic_reporting = false;
     std::string protein_db_path;
     
-    for (int i = 5; i < argc; i++) {
+    for (int i = 4; i < argc; i++) {
         if (std::string(argv[i]) == "--enable-translated-search") {
             enable_translated_search = true;
         } else if (std::string(argv[i]) == "--enable-smith-waterman") {
@@ -1683,7 +1684,6 @@ int main(int argc, char** argv) {
     std::cout << "Index: " << index_path << std::endl;
     std::cout << "R1 reads: " << r1_path << std::endl;
     std::cout << "R2 reads: " << r2_path << std::endl;
-    std::cout << "Output: " << output_path << std::endl;
     if (enable_translated_search) {
         std::cout << "Enhanced translated search: ENABLED (5-mer k-mers)" << std::endl;
         if (enable_smith_waterman) {
@@ -1750,10 +1750,8 @@ int main(int argc, char** argv) {
         pipeline.processPairedReads(r1_path, r2_path, output_path);
         
         std::cout << "\n=== PIPELINE COMPLETED SUCCESSFULLY ===" << std::endl;
-        std::cout << "Output files generated:" << std::endl;
-        std::cout << "  Main results: " << output_path << std::endl;
-        std::cout << "  HDF5 data: " << output_path.substr(0, output_path.find_last_of('.')) + ".h5" << std::endl;
-        std::cout << "  Diagnostic report: " << output_path.substr(0, output_path.find_last_of('.')) + "_diagnostic.txt" << std::endl;
+        std::cout << "Output files are generated in the sample-specific directory" << std::endl;
+        std::cout << "based on the input filename (extracted from R1 filename)" << std::endl;
         
         DEBUG_PRINT("=== Enhanced FQ Pipeline GPU Completed Successfully ===");
     } catch (const std::exception& e) {

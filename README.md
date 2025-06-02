@@ -2,7 +2,7 @@
 
 ## Overview
 
-BioGPU is a domain-specific programming language and computational framework designed to accelerate microbial community profiling and antimicrobial resistance (AMR) detection using GPU computing. Initially focused on fluoroquinolone resistance detection through mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes, BioGPU aims to provide real-time metagenomic analysis capabilities for clinical decision-making.
+BioGPU is a domain-specific programming language and computational framework designed to accelerate microbial community profiling and antimicrobial resistance (AMR) detection using GPU computing. Initially focused on fluoroquinolone resistance detection through mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes, BioGPU aims to provide real-time metagenomic analysis capabilities for clinical decision-making. Written with Claude online and Claude Code.
 
 ## Project Goals
 

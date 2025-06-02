@@ -9,7 +9,7 @@ BioGPU is a domain-specific programming language and computational framework des
 ### Primary Objectives
 1. **Rapid Microbial Community Profiling**: Map sequencing reads to comprehensive microbial genome databases to determine community structure and relative abundances in real-time
 2. **Fluoroquinolone Resistance Detection**: Identify known resistance mutations in quinolone resistance-determining regions (QRDRs) and plasmid-mediated resistance genes
-3. **Clinical Integration**: Generate actionable reports linking detected resistance to specific organisms with confidence scores for informed treatment decisions
+3. **Clinical Integration**: Generate actionable reports linking detected resistance to specific organisms with confidence scores, ultimately for informed treatment decisions
 
 ### Technical Features
 - Native GPU acceleration for bioinformatics operations

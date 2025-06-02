@@ -127,7 +127,7 @@ pipeline FluoroquinoloneResistance {
 ### 1. Production Optimization and Clinical Integration
 
 #### Immediate Workflow Optimizations
-- [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and S aureus
+- [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and E faecium
 - [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
 - [ ] **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
 - [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems

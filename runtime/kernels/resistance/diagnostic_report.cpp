@@ -35,11 +35,9 @@ struct ProteinMatch {
     bool is_qrdr_alignment;  // Flag for QRDR region alignment
 };
 
-// Gene name mapping for better reporting
-std::map<uint32_t, std::string> gene_names = {
-    {0, "gyrA"}, {1, "parC"}, {2, "gyrB"}, {3, "parE"},
-    {4, "efflux_pump"}, {5, "qnrA"}, {6, "qnrB"}
-};
+// Dynamic gene and species name mappings (loaded from protein database metadata)
+std::map<uint32_t, std::string> gene_names;
+std::map<uint32_t, std::string> species_names;
 
 // Known QRDR positions for each gene
 std::map<uint32_t, std::vector<int>> qrdr_positions = {
@@ -81,6 +79,7 @@ private:
     } stats;
     
     std::vector<ProteinMatch> top_alignments;
+    std::vector<ProteinMatch> qrdr_alignments;
     
 public:
     DiagnosticReportGenerator(const std::string& output_path) : report_path(output_path) {
@@ -89,6 +88,9 @@ public:
             std::cerr << "ERROR: Failed to create diagnostic report: " << output_path << std::endl;
             return;
         }
+        
+        // Load dynamic gene and species mappings from protein database metadata
+        loadMetadataMappings();
         
         writeHeader();
     }
@@ -124,8 +126,27 @@ public:
             stats.smith_waterman_alignments++;
         }
         
-        // Count QRDR mutations
+        // Check if this is a QRDR alignment
         uint32_t gene_id = match.gene_id;
+        bool is_qrdr = false;
+        
+        if (qrdr_positions.find(gene_id) != qrdr_positions.end()) {
+            auto& qrdr_pos = qrdr_positions[gene_id];
+            // Check if the alignment overlaps with any QRDR position
+            for (int pos : qrdr_pos) {
+                if (pos >= match.ref_start && pos < match.ref_start + match.match_length) {
+                    is_qrdr = true;
+                    break;
+                }
+            }
+        }
+        
+        // Add to QRDR alignments if it overlaps QRDR regions
+        if (is_qrdr) {
+            qrdr_alignments.push_back(match);
+        }
+        
+        // Count QRDR mutations
         if (qrdr_positions.find(gene_id) != qrdr_positions.end()) {
             for (int i = 0; i < match.num_mutations; i++) {
                 int pos = match.mutation_positions[i];
@@ -146,6 +167,81 @@ public:
     }
     
 private:
+    void loadMetadataMappings() {
+        // Load gene and species mappings from protein database metadata
+        std::ifstream metadata_file("data/wildtype_protein_db/metadata.json");
+        if (!metadata_file.good()) {
+            std::cerr << "WARNING: Could not load protein database metadata for diagnostic reporting" << std::endl;
+            // Fallback mappings
+            gene_names[0] = "gyrA";
+            gene_names[1] = "parC"; 
+            gene_names[2] = "parE";
+            species_names[0] = "Species0";
+            species_names[1] = "Species1";
+            return;
+        }
+        
+        std::string line;
+        bool in_species_map = false;
+        bool in_gene_map = false;
+        
+        while (std::getline(metadata_file, line)) {
+            // Look for "species_map" section
+            if (line.find("\"species_map\"") != std::string::npos) {
+                in_species_map = true;
+                in_gene_map = false;
+                continue;
+            }
+            
+            // Look for "gene_map" section
+            if (line.find("\"gene_map\"") != std::string::npos) {
+                in_gene_map = true;
+                in_species_map = false;
+                continue;
+            }
+            
+            // End of current section
+            if ((in_species_map || in_gene_map) && line.find("}") != std::string::npos) {
+                in_species_map = false;
+                in_gene_map = false;
+                continue;
+            }
+            
+            // Parse mappings: "0": "name",
+            if ((in_species_map || in_gene_map) && line.find("\":") != std::string::npos) {
+                size_t id_start = line.find("\"") + 1;
+                size_t id_end = line.find("\"", id_start);
+                size_t name_start = line.find("\"", id_end + 1) + 1;
+                size_t name_end = line.find("\"", name_start);
+                
+                if (id_end != std::string::npos && name_end != std::string::npos) {
+                    uint32_t id = std::stoi(line.substr(id_start, id_end - id_start));
+                    std::string name = line.substr(name_start, name_end - name_start);
+                    
+                    if (in_species_map) {
+                        species_names[id] = name;
+                    } else if (in_gene_map) {
+                        gene_names[id] = name;
+                    }
+                }
+            }
+        }
+        
+        metadata_file.close();
+        
+        // Ensure we have some fallback mappings
+        if (gene_names.empty()) {
+            gene_names[0] = "gyrA";
+            gene_names[1] = "parC";
+            gene_names[2] = "parE";
+        }
+        
+        if (species_names.empty()) {
+            species_names[0] = "Species0";
+            species_names[1] = "Species1";
+        }
+    }
+    
     void writeHeader() {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
@@ -193,28 +289,56 @@ private:
     }
     
     void writeTopAlignments() {
-        report_file << "TOP PROTEIN ALIGNMENTS\n";
+        report_file << "TOP 20 QRDR ALIGNMENTS\n";
         report_file << "======================\n\n";
         
-        if (top_alignments.empty()) {
-            report_file << "No protein alignments found.\n\n";
+        if (qrdr_alignments.empty()) {
+            report_file << "No QRDR alignments found.\n\n";
             return;
         }
         
         // Sort by alignment score (descending)
-        std::sort(top_alignments.begin(), top_alignments.end(),
+        std::sort(qrdr_alignments.begin(), qrdr_alignments.end(),
                  [](const ProteinMatch& a, const ProteinMatch& b) {
                      return a.alignment_score > b.alignment_score;
                  });
         
-        // Show top 10 alignments
-        int num_to_show = std::min(10, (int)top_alignments.size());
+        report_file << "These represent alignments within Quinolone Resistance Determining Regions:\n\n";
+        
+        // Show top 20 QRDR alignments (same format as stdout)
+        int num_to_show = std::min(20, (int)qrdr_alignments.size());
         
         for (int i = 0; i < num_to_show; i++) {
-            const auto& match = top_alignments[i];
-            writeAlignmentVisualization(match, i + 1);
-            report_file << "\n";
+            const auto& match = qrdr_alignments[i];
+            
+            // Map gene IDs to names using dynamic mapping from metadata
+            std::string gene_name;
+            if (gene_names.count(match.gene_id)) {
+                gene_name = gene_names[match.gene_id];
+            } else {
+                gene_name = "Gene" + std::to_string(match.gene_id);
+            }
+            
+            // Map species IDs to names using dynamic mapping from metadata  
+            std::string species_name;
+            if (species_names.count(match.species_id)) {
+                species_name = species_names[match.species_id];
+            } else {
+                species_name = "Species" + std::to_string(match.species_id);
+            }
+            
+            report_file << "  " << (i + 1) << ". Read " << match.read_id 
+                       << ", " << species_name << " " << gene_name 
+                       << ", Frame " << (int)match.frame
+                       << ", Score: " << std::fixed << std::setprecision(1) << match.alignment_score
+                       << ", Identity: " << std::fixed << std::setprecision(1) << (match.identity * 100) << "%"
+                       << ", Position: " << match.ref_start << "-" << (match.ref_start + match.match_length - 1)
+                       << ", Length: " << match.match_length
+                       << ", Peptide: " << match.query_peptide << "\n";
         }
+        
+        report_file << "\nTotal QRDR alignments found: " << qrdr_alignments.size() << "\n";
+        report_file << "NOTE: These peptide sequences should be verified using BLAST to confirm alignment accuracy.\n\n";
     }
     
     void writeAlignmentVisualization(const ProteinMatch& match, int rank) {
@@ -443,18 +567,6 @@ private:
             report_file << "- Identity threshold too stringent (current: 90%)\n\n";
         }
         
-        if (stats.total_protein_alignments > 0 && stats.total_mutations_found == 0) {
-            report_file << "🔍 ALIGNMENTS FOUND BUT NO MUTATIONS DETECTED\n";
-            report_file << "Most likely cause: MUTANT REFERENCE DATABASE\n\n";
-            report_file << "Your protein database appears to contain mutant sequences.\n";
-            report_file << "When mutant reads align to mutant references, they match perfectly\n";
-            report_file << "and no 'mutations' are detected.\n\n";
-            
-            report_file << "Solutions:\n";
-            report_file << "1. Use wild-type reference database for mutation calling\n";
-            report_file << "2. Implement variant-aware analysis that compares to known resistance patterns\n";
-            report_file << "3. Use the alignment positions to infer resistance without mutation calling\n\n";
-        }
         
         if (stats.bloom_retention_rate < 5.0) {
             report_file << "⚠️  VERY LOW BLOOM FILTER RETENTION RATE (<5%)\n";

@@ -1,0 +1,40 @@
+{
+  "sample": "569_A_038",
+  "hdf5_output": "569_A_038.fq_report/569_A_038.h5",
+  "pipeline_version": "0.4.0-enhanced-diagnostics",
+  "diagnostic_reporting": true,
+  "translated_search_enabled": true,
+  "smith_waterman_enabled": true,
+  "protein_kmer_size": 5,
+  "protein_database": "data/wildtype_protein_db",
+  "mutations": [
+    {
+      "read_pair": 2225871,
+      "gene_id": 39,
+      "species_id": 5,
+      "alignment_score": 140,
+      "identity": 0.10219,
+      "mutations_detected": 1,
+      "source": "R1"
+    }
+  ],
+  "enhanced_summary": {
+    "total_reads": 3405007,
+    "reads_passed_bloom": 45647,
+    "reads_with_candidates": 45647,
+    "reads_with_kmer_hits": 8550,
+    "protein_matches": 517,
+    "reads_with_sw_alignments": 362,
+    "resistance_mutations_found": 0,
+    "qrdr_alignments": 110,
+    "high_confidence_matches": 517,
+    "bloom_retention_rate": 0.0134058,
+    "protein_hit_rate": 0.011326,
+    "total_candidates": 168146,
+    "mutations_found": 1,
+    "protein_resistance_found": 0,
+    "protein_kmer_size": 5,
+    "smith_waterman_alignments": 517,
+    "processing_time_seconds": 26
+  }
+}

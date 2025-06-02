@@ -1,7 +1,3 @@
-  ./fq_pipeline_gpu ../data/fq_resistance_index ../data/test_fastq/VRE12_R1.fastq.gz ../data/test_fastq/VRE12_R2.fastq.gz vre12_results_fixed.json
-
- ./build/fq_pipeline_gpu /home/david/Documents/Code/biogpu/data/fq_resistance_index synthetic_reads_20250529_R1.fastq.gz synthetic_reads_20250529_R2.fastq.gz test_results_20250530
-
 
 python src/python/build_protein_resistance_db.py \
     data/fq_genes \
@@ -9,29 +5,10 @@ python src/python/build_protein_resistance_db.py \
     data/protein_resistance_db
 
 
-./build/fq_pipeline_gpu \
-    data/fq_resistance_index \
-    synthetic_reads_20250529_R1.fastq.gz \
-    synthetic_reads_20250529_R2.fastq.gz \
-    output.json \
-    --enable-translated-search \
-    --enable-smith-waterman \
-    --protein-db data/protein_resistance_db
-
-
-./build/fq_pipeline_gpu \
-    data/fq_resistance_index \
-    small_R1.fastq.gz \
-    small_R2.fastq.gz \
-    output.json \
-    --enable-translated-search \
-    --protein-db data/protein_resistance_db
-
-
   ./build/fq_pipeline_gpu data/fq_resistance_index \
-     synthetic_reads_20250529_R1.fastq.gz \
-     synthetic_reads_20250529_R2.fastq.gz \
-     output.json \
+     569_A_038_R1.fastq.gz \
+     569_A_038_R2.fastq.gz \
      --enable-translated-search \
     --enable-smith-waterman \
-    --protein-db data/wildtype_protein_db
+    --protein-db data/wildtype_protein_db \
+    --enable-diagnostic-reporting

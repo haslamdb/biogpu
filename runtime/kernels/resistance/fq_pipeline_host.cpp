@@ -410,6 +410,7 @@ private:
     uint32_t* d_protein_match_counts;
     bool enable_translated_search;
     bool enable_smith_waterman;
+    bool enable_diagnostic_reporting;
     std::string protein_db_path;
     
     // Diagnostic reporting
@@ -497,12 +498,13 @@ private:
     }
     
 public:
-    EnhancedFQResistancePipeline(bool use_translated_search = false, bool use_smith_waterman = false) 
-        : enable_translated_search(use_translated_search), enable_smith_waterman(use_smith_waterman) {
+    EnhancedFQResistancePipeline(bool use_translated_search = false, bool use_smith_waterman = false, bool use_diagnostic_reporting = false) 
+        : enable_translated_search(use_translated_search), enable_smith_waterman(use_smith_waterman), enable_diagnostic_reporting(use_diagnostic_reporting) {
         DEBUG_PRINT("Initializing Enhanced FQ Resistance Pipeline");
         DEBUG_PRINT("Batch size: %d, Max read length: %d", batch_size, max_read_length);
         DEBUG_PRINT("Translated search: %s", enable_translated_search ? "ENABLED" : "DISABLED");
         DEBUG_PRINT("Smith-Waterman: %s", enable_smith_waterman ? "ENABLED" : "DISABLED");
+        DEBUG_PRINT("Diagnostic reporting: %s", enable_diagnostic_reporting ? "ENABLED" : "DISABLED");
         
         // Initialize diagnostic reporting
         diagnostic_reporter = nullptr;
@@ -821,11 +823,38 @@ public:
                            const std::string& output_path) {
         DEBUG_PRINT("Starting enhanced paired read processing with diagnostic reporting");
         
-        // Initialize diagnostic reporting
-        // initializeDiagnosticReporting(output_path);
+        // Extract sample name from r1_path by splitting on "_R1.fastq.gz"
+        std::string sample_name;
+        size_t split_pos = r1_path.find("_R1.fastq.gz");
+        if (split_pos != std::string::npos) {
+            // Find the last directory separator to get just the filename
+            size_t dir_pos = r1_path.find_last_of("/\\");
+            size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
+            sample_name = r1_path.substr(start_pos, split_pos - start_pos);
+        } else {
+            // Fallback: use base filename without extension
+            size_t dir_pos = r1_path.find_last_of("/\\");
+            size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
+            size_t dot_pos = r1_path.find_last_of(".");
+            size_t end_pos = (dot_pos != std::string::npos) ? dot_pos : r1_path.length();
+            sample_name = r1_path.substr(start_pos, end_pos - start_pos);
+        }
         
-        // Create HDF5 output file
-        std::string hdf5_path = output_path.substr(0, output_path.find_last_of('.')) + ".h5";
+        // Create report directory
+        std::string report_dir = sample_name + ".fq_report";
+        std::string mkdir_cmd = "mkdir -p " + report_dir;
+        system(mkdir_cmd.c_str());
+        
+        // Update output paths to use the report directory
+        std::string new_output_path = report_dir + "/" + sample_name + ".output.json";
+        
+        // Initialize diagnostic reporting
+        if (enable_diagnostic_reporting) {
+            initializeDiagnosticReporting(new_output_path);
+        }
+        
+        // Create HDF5 output file in report directory
+        std::string hdf5_path = report_dir + "/" + sample_name + ".h5";
         hdf5_writer = new HDF5AlignmentWriter(hdf5_path);
         hdf5_writer->initialize(current_index_path, r1_path, r2_path);
         DEBUG_PRINT("HDF5 output initialized: %s", hdf5_path.c_str());
@@ -843,12 +872,12 @@ public:
         
         DEBUG_PRINT("Both FASTQ files opened successfully");
         
-        std::ofstream output(output_path);
+        std::ofstream output(new_output_path);
         output << "{\n";
-        output << "  \"sample\": \"" << r1_path << "\",\n";
+        output << "  \"sample\": \"" << sample_name << "\",\n";
         output << "  \"hdf5_output\": \"" << hdf5_path << "\",\n";
         output << "  \"pipeline_version\": \"0.4.0-enhanced-diagnostics\",\n";
-        output << "  \"diagnostic_reporting\": false,\n";
+        output << "  \"diagnostic_reporting\": " << (enable_diagnostic_reporting ? "true" : "false") << ",\n";
         output << "  \"translated_search_enabled\": " << (enable_translated_search ? "true" : "false") << ",\n";
         output << "  \"smith_waterman_enabled\": " << (enable_smith_waterman ? "true" : "false") << ",\n";
         output << "  \"protein_kmer_size\": 5,\n";
@@ -1275,9 +1304,9 @@ public:
                                         }
                                         
                                         // Add to diagnostic report (all matches for analysis)
-                                        // if (diagnostic_reporter) {
-                                        //     add_protein_match_to_report(diagnostic_reporter, &pm);
-                                        // }
+                                        if (enable_diagnostic_reporting && diagnostic_reporter) {
+                                            add_protein_match_to_report(diagnostic_reporter, &pm);
+                                        }
                                         
                                         // Check if any mutations are at resistance positions
                                         bool has_resistance = false;
@@ -1372,9 +1401,9 @@ public:
                                         }
                                         
                                         // Add to diagnostic report
-                                        // if (diagnostic_reporter) {
-                                        //     add_protein_match_to_report(diagnostic_reporter, &pm);
-                                        // }
+                                        if (enable_diagnostic_reporting && diagnostic_reporter) {
+                                            add_protein_match_to_report(diagnostic_reporter, &pm);
+                                        }
                                         
                                         // Check for resistance
                                         bool has_resistance = false;
@@ -1424,16 +1453,16 @@ public:
             }
             
             // Update diagnostic statistics periodically
-            // if (diagnostic_reporter && enhanced_stats.total_reads_processed % 50000 == 0) {
-            //     update_pipeline_statistics(
-            //         diagnostic_reporter,
-            //         enhanced_stats.total_reads_processed,
-            //         enhanced_stats.reads_passed_bloom,
-            //         enhanced_stats.reads_with_candidates,
-            //         enhanced_stats.total_protein_matches,
-            //         enhanced_stats.resistance_mutations_found
-            //     );
-            // }
+            if (enable_diagnostic_reporting && diagnostic_reporter && enhanced_stats.total_reads_processed % 50000 == 0) {
+                update_pipeline_statistics(
+                    diagnostic_reporter,
+                    enhanced_stats.total_reads_processed,
+                    enhanced_stats.reads_passed_bloom,
+                    enhanced_stats.reads_with_candidates,
+                    enhanced_stats.total_protein_matches,
+                    enhanced_stats.resistance_mutations_found
+                );
+            }
             
             // Cleanup batch memory
             delete[] batch1.sequences;
@@ -1502,19 +1531,19 @@ public:
         output.close();
         
         // Generate final diagnostic report
-        // if (diagnostic_reporter) {
-        //     update_pipeline_statistics(
-        //         diagnostic_reporter,
-        //         enhanced_stats.total_reads_processed,
-        //         enhanced_stats.reads_passed_bloom,
-        //         enhanced_stats.reads_with_candidates,
-        //         enhanced_stats.total_protein_matches,
-        //         enhanced_stats.resistance_mutations_found
-        //     );
-        //     
-        //     generate_diagnostic_report(diagnostic_reporter);
-        //     std::cout << "\nDiagnostic report generated. Check *_diagnostic.txt file for detailed analysis." << std::endl;
-        // }
+        if (enable_diagnostic_reporting && diagnostic_reporter) {
+            update_pipeline_statistics(
+                diagnostic_reporter,
+                enhanced_stats.total_reads_processed,
+                enhanced_stats.reads_passed_bloom,
+                enhanced_stats.reads_with_candidates,
+                enhanced_stats.total_protein_matches,
+                enhanced_stats.resistance_mutations_found
+            );
+            
+            generate_diagnostic_report(diagnostic_reporter);
+            std::cout << "\nDiagnostic report generated. Check *_diagnostic.txt file for detailed analysis." << std::endl;
+        }
         
         // Enhanced final summary
         std::cout << "\n=== ENHANCED PROCESSING COMPLETE ===" << std::endl;
@@ -1532,18 +1561,6 @@ public:
         std::cout << "  Resistance mutations detected: " << enhanced_stats.resistance_mutations_found << std::endl;
         
         // Display top 10 Smith-Waterman matches
-        if (!top_sw_matches.empty() && enable_smith_waterman) {
-            std::cout << "\nTop 10 Smith-Waterman matches (sorted by alignment score):" << std::endl;
-            int num_to_show = std::min(10, (int)top_sw_matches.size());
-            for (int i = 0; i < num_to_show; i++) {
-                const auto& match = top_sw_matches[i];
-                std::cout << "  " << (i + 1) << ". Read " << match.read_id 
-                         << ", Gene " << match.gene_id 
-                         << ", Score: " << std::fixed << std::setprecision(1) << match.alignment_score
-                         << ", Identity: " << std::fixed << std::setprecision(1) << (match.identity * 100) << "%"
-                         << ", Mutations: " << (int)match.num_mutations << std::endl;
-            }
-        }
         
         // Display top 20 QRDR alignments ranked by alignment score
         if (!qrdr_alignments.empty() && enable_smith_waterman) {
@@ -1619,11 +1636,12 @@ int main(int argc, char** argv) {
     DEBUG_PRINT("=== Enhanced FQ Pipeline GPU Starting (v0.4.0) ===");
     DEBUG_PRINT("Features: Bloom filter + K-mer enrichment + Enhanced protein search + Diagnostic reporting");
     
-    if (argc < 5 || argc > 10) {
+    if (argc < 5 || argc > 11) {
         std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> <output.json> [options]\n";
         std::cerr << "Options:\n";
         std::cerr << "  --enable-translated-search     Enable 6-frame translated search with 5-mer k-mers\n";
         std::cerr << "  --enable-smith-waterman        Enable Smith-Waterman for high-scoring protein matches\n";
+        std::cerr << "  --enable-diagnostic-reporting  Enable detailed diagnostic reporting\n";
         std::cerr << "  --protein-db <path>            Path to protein resistance database\n";
         return 1;
     }
@@ -1636,6 +1654,7 @@ int main(int argc, char** argv) {
     // Parse enhanced command line options
     bool enable_translated_search = false;
     bool enable_smith_waterman = false;
+    bool enable_diagnostic_reporting = false;
     std::string protein_db_path;
     
     for (int i = 5; i < argc; i++) {
@@ -1643,6 +1662,8 @@ int main(int argc, char** argv) {
             enable_translated_search = true;
         } else if (std::string(argv[i]) == "--enable-smith-waterman") {
             enable_smith_waterman = true;
+        } else if (std::string(argv[i]) == "--enable-diagnostic-reporting") {
+            enable_diagnostic_reporting = true;
         } else if (std::string(argv[i]) == "--protein-db" && i + 1 < argc) {
             protein_db_path = argv[i + 1];
             i++; // Skip next argument
@@ -1715,7 +1736,7 @@ int main(int argc, char** argv) {
     // Run enhanced pipeline
     try {
         DEBUG_PRINT("Creating enhanced pipeline instance");
-        EnhancedFQResistancePipeline pipeline(enable_translated_search, enable_smith_waterman);
+        EnhancedFQResistancePipeline pipeline(enable_translated_search, enable_smith_waterman, enable_diagnostic_reporting);
         
         DEBUG_PRINT("Loading index");
         pipeline.loadIndex(index_path);

@@ -5,7 +5,7 @@ This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquin
 
 **Last Updated**: June 1, 2025  
 **Pipeline Version**: 0.4.0  
-**Status**: Working prototype with Bloom filter + k-mer enrichment + translated search
+**Status**: Working prototype with Bloom filter + k-mer enrichment + species-aware translated search
 
 ---
 
@@ -33,6 +33,11 @@ biogpu/
 │   │   ├── protein_kmers.bin           # 5-mer protein k-mer index
 │   │   ├── blosum62.bin               # BLOSUM62 scoring matrix
 │   │   └── metadata.json              # Database metadata (1184 proteins, 92 genes)
+│   ├── wildtype_protein_db/             # ✅ NEW wildtype protein database for Smith-Waterman alignment
+│   │   ├── wildtype_proteins.bin       # Binary wildtype protein sequences  
+│   │   ├── wildtype_protein_kmers.bin  # 5-mer k-mer index for wildtype proteins
+│   │   ├── blosum62.bin               # BLOSUM62 scoring matrix
+│   │   └── metadata.json              # Species and gene mappings
 │   └── fq_genes/                       # JSON files per species/gene (input for kmer builder)
 │       ├── Escherichia_coli/           # E. coli resistance genes
 │       ├── Pseudomonas_aeruginosa/     # P. aeruginosa resistance genes
@@ -249,7 +254,7 @@ make -j8
   3. Flag high-scoring alignments
 - Output: Nucleotide-level resistance mutations
 
-#### Stage 3.3: Translated Search (`translated_search.cu`) - Added June 1, 2025
+#### Stage 3.3: Species-Aware Translated Search (`translated_search.cu`) - Updated June 1, 2025
 - Function: `six_frame_translate_kernel` + `enhanced_protein_kmer_match_kernel`
 - Input: All reads (independent of nucleotide pipeline)
 - Process:
@@ -258,9 +263,11 @@ make -j8
   3. **K-mer matching**: Binary search in protein k-mer database
   4. **Seed clustering**: Group hits by protein and extend matches
   5. **Smith-Waterman alignment**: Optional high-accuracy alignment for top hits
-  6. **Identity filtering**: Apply 90% identity threshold for resistance calls
-- Output: Protein-level resistance matches with mutation details
+  6. **Species-aware reporting**: Display species names with gene names in QRDR alignments
+  7. **Identity filtering**: Apply 90% identity threshold for resistance calls
+- Output: Protein-level resistance matches with mutation details and species attribution
 - **HDF5 Output**: Structured output format for downstream analysis
+- **New Feature**: QRDR alignment reports now show "Enterococcus faecium gyrA" instead of just "gyrA"
 
 **Current Limitations**:
 - No called mutants in the output. This may be a problem with determining location in the protein or.
@@ -360,9 +367,10 @@ cmake .. && make -j8
 
 ### Short-term (Version 0.5.0)
 6. [✅] Add wildtype protein database for Smith-Waterman alignment: build_wildtype_protein_db.py
-7. [ ] Implement species tracking through pipeline
-8. [ ] Add C++ loaders for mutation database
-9. [ ] Optimize identity thresholds for resistance vs. wild-type discrimination
+7. [✅] Implement species-aware QRDR alignment reporting (June 1, 2025)
+8. [ ] **TODO**: Expand wildtype protein database with more species and genes using `src/python/build_wildtype_protein_db.py`
+9. [ ] Add C++ loaders for mutation database
+10. [ ] Optimize identity thresholds for resistance vs. wild-type discrimination
 
 ### Medium-term (Version 0.6.0)
 10. [ ] Multi-species disambiguation

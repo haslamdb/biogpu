@@ -79,6 +79,9 @@ class WildTypeProteinDatabaseBuilder:
         """Load protein sequences, selecting only wild-type/reference sequences"""
         print("\nLoading wild-type protein sequences...")
         
+        # Set the fq_genes_dir based on input_source
+        self.fq_genes_dir = self.input_source
+        
         species_id = 0
         gene_id = 0
         
@@ -479,10 +482,15 @@ class WildTypeProteinDatabaseBuilder:
 def main():
     parser = argparse.ArgumentParser(description='Build wild-type protein database for mutation detection')
     parser.add_argument('input_source', help='Input source: directory with gene JSON files OR FASTA file')
-    parser.add_argument('output_dir', help='Output directory for wild-type binary database')
+    parser.add_argument('output_dir', help='Output directory for wild-type binary database (use same as input_source for in-place rebuild)')
     parser.add_argument('--fasta', action='store_true', help='Input is a FASTA file instead of JSON directory')
+    parser.add_argument('--in-place', action='store_true', help='Rebuild database in the same directory as input_source')
     
     args = parser.parse_args()
+    
+    # Handle in-place rebuild
+    if hasattr(args, 'in_place') and args.in_place:
+        args.output_dir = args.input_source
     
     # Validate inputs
     if args.fasta:

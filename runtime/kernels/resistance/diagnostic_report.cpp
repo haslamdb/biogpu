@@ -31,6 +31,8 @@ struct ProteinMatch {
     char query_aas[10];
     float blosum_scores[10];
     bool used_smith_waterman;
+    char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
+    bool is_qrdr_alignment;  // Flag for QRDR region alignment
 };
 
 // Gene name mapping for better reporting

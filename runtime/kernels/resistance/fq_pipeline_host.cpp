@@ -92,6 +92,8 @@ struct ProteinMatch {
     char query_aas[10];
     float blosum_scores[10];
     bool used_smith_waterman;
+    char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
+    bool is_qrdr_alignment;  // Flag for QRDR region alignment
 };
 
 // Debug macros
@@ -124,82 +126,201 @@ struct ReadBatch {
     int total_bases;
 };
 
-// Enhanced mutation detection logic
+// Enhanced mutation detection logic with species-aware resistance patterns
 class MutationAnalyzer {
 private:
-    // Wild-type reference sequences for key resistance genes
-    std::map<uint32_t, std::string> wildtype_sequences = {
-        {0, "TGTCCGGTGAAGAGCATGAGATCAGTGCTATCACGAAGGTGAAGAAGGAAGATCATACGTTATCCGATAGCGATGTGGCCAAACAG"}, // gyrA QRDR
-        {1, "ATGTCTATCAGTGCCATGGAAGATGTGAAAGATCTTGAACAGCGTGTGGATCGCGATCATGCAGATGAAGTCCGCTATCGTGATCGC"}, // parC QRDR
-        // Add more sequences as needed
-    };
+    // Species and gene mappings loaded from database metadata
+    std::map<uint32_t, std::string> species_id_to_name;
+    std::map<uint32_t, std::string> gene_id_to_name;
     
-    // Known resistance mutations
-    struct KnownMutation {
+    // Species-aware resistance mutation definition
+    struct SpeciesAwareMutation {
+        uint32_t species_id;
         uint32_t gene_id;
         int position;
         char wildtype_aa;
         std::vector<char> resistant_aas;
         float resistance_level;
+        std::string description;
     };
     
-    std::vector<KnownMutation> known_mutations = {
-        {0, 83, 'S', {'L', 'F', 'W'}, 0.9f},  // gyrA S83L/F/W
-        {0, 87, 'D', {'N', 'G', 'Y'}, 0.7f},  // gyrA D87N/G/Y
-        {1, 80, 'S', {'I', 'R'}, 0.6f},       // parC S80I/R
-        {1, 84, 'E', {'V', 'K', 'G'}, 0.4f},  // parC E84V/K/G
+    // Species-specific resistance mutations based on published data
+    std::vector<SpeciesAwareMutation> species_mutations = {
+        // Enterococcus faecium (species_id=0) mutations
+        {0, 0, 83, 'S', {'R', 'I', 'Y', 'N'}, 0.9f, "E.faecium gyrA S83R/I/Y/N"},
+        {0, 0, 87, 'E', {'G', 'K'}, 0.8f, "E.faecium gyrA E87G/K"},
+        {0, 1, 80, 'S', {'I', 'R'}, 0.7f, "E.faecium parC S80I/R"},
+        {0, 1, 84, 'E', {'K', 'A'}, 0.6f, "E.faecium parC E84K/A"},
+        
+        // Escherichia coli (species_id=1) mutations
+        {1, 0, 83, 'S', {'L', 'F', 'W'}, 0.9f, "E.coli gyrA S83L/F/W"},
+        {1, 0, 87, 'D', {'N', 'G', 'Y', 'H'}, 0.7f, "E.coli gyrA D87N/G/Y/H"},
+        {1, 1, 80, 'S', {'I', 'R', 'F'}, 0.6f, "E.coli parC S80I/R/F"},
+        {1, 1, 84, 'E', {'V', 'K', 'G', 'A'}, 0.4f, "E.coli parC E84V/K/G/A"},
+        {1, 2, 529, 'I', {'L'}, 0.5f, "E.coli parE I529L"},
     };
     
 public:
-    // Enhanced mutation detection that checks against wild-type regardless of reference
+    // Load species and gene mappings from database metadata
+    void loadDatabaseMappings(const std::string& db_path) {
+        std::string metadata_path = db_path + "/metadata.json";
+        std::ifstream metadata_file(metadata_path);
+        
+        if (!metadata_file.good()) {
+            std::cerr << "WARNING: Could not read metadata for species-aware detection: " << metadata_path << std::endl;
+            return;
+        }
+        
+        std::string line;
+        bool in_species_map = false;
+        bool in_gene_map = false;
+        
+        while (std::getline(metadata_file, line)) {
+            // Parse species_map section
+            if (line.find("\"species_map\"") != std::string::npos) {
+                in_species_map = true;
+                continue;
+            }
+            if (line.find("\"gene_map\"") != std::string::npos) {
+                in_gene_map = true;
+                in_species_map = false;
+                continue;
+            }
+            
+            // End of current section
+            if ((in_species_map || in_gene_map) && line.find("}") != std::string::npos) {
+                in_species_map = false;
+                in_gene_map = false;
+                continue;
+            }
+            
+            // Parse mappings: "0": "Enterococcus_faecium",
+            if ((in_species_map || in_gene_map) && line.find("\":") != std::string::npos) {
+                size_t id_start = line.find("\"") + 1;
+                size_t id_end = line.find("\"", id_start);
+                size_t name_start = line.find("\"", id_end + 1) + 1;
+                size_t name_end = line.find("\"", name_start);
+                
+                if (id_end != std::string::npos && name_end != std::string::npos) {
+                    uint32_t id = std::stoi(line.substr(id_start, id_end - id_start));
+                    std::string name = line.substr(name_start, name_end - name_start);
+                    
+                    if (in_species_map) {
+                        species_id_to_name[id] = name;
+                        std::cout << "[SPECIES-AWARE] Loaded species mapping: " << id << " -> " << name << std::endl;
+                    } else if (in_gene_map) {
+                        gene_id_to_name[id] = name;
+                        std::cout << "[SPECIES-AWARE] Loaded gene mapping: " << id << " -> " << name << std::endl;
+                    }
+                }
+            }
+        }
+        
+        metadata_file.close();
+        std::cout << "[SPECIES-AWARE] Loaded " << species_id_to_name.size() << " species and " 
+                  << gene_id_to_name.size() << " gene mappings" << std::endl;
+    }
+    // Species-aware resistance mutation detection
     int detectResistanceMutations(ProteinMatch& match) {
         int resistance_mutations = 0;
         
-        // Clear existing mutation data
-        match.num_mutations = 0;
+        if (match.num_mutations == 0) {
+            return 0; // No mutations detected by Smith-Waterman
+        }
         
-        // Find known resistance positions in this alignment
-        for (const auto& known_mut : known_mutations) {
-            if (known_mut.gene_id != match.gene_id) continue;
+        // Get species and gene names for reporting
+        std::string species_name = species_id_to_name.count(match.species_id) ? 
+                                  species_id_to_name[match.species_id] : "Unknown";
+        std::string gene_name = gene_id_to_name.count(match.gene_id) ? 
+                               gene_id_to_name[match.gene_id] : "Unknown";
+        
+        // Debug: Print all mutations found by Smith-Waterman for first few matches
+        static int debug_count = 0;
+        if (debug_count < 5) {
+            printf("[SPECIES-AWARE DEBUG] Read %d, %s %s (species_id=%d, gene_id=%d): %d mutations detected by SW\n", 
+                   match.read_id, species_name.c_str(), gene_name.c_str(), 
+                   match.species_id, match.gene_id, match.num_mutations);
+            for (int i = 0; i < match.num_mutations; i++) {
+                int global_pos = match.ref_start + match.mutation_positions[i];
+                printf("  Mutation %d: position %d, %c->%c\n", 
+                       i, global_pos, match.ref_aas[i], match.query_aas[i]);
+            }
             
-            // Check if this position is covered by the alignment
-            int rel_pos = known_mut.position - match.ref_start;
-            if (rel_pos >= 0 && rel_pos < match.match_length) {
-                
-                // For demonstration, assume we can extract the amino acid at this position
-                // In a real implementation, you'd need the translated query sequence
-                char observed_aa = 'X'; // Placeholder - would come from translated read
-                
-                // Check if observed AA is different from wild-type
-                if (observed_aa != known_mut.wildtype_aa && 
-                    std::find(known_mut.resistant_aas.begin(), 
-                             known_mut.resistant_aas.end(), 
-                             observed_aa) != known_mut.resistant_aas.end()) {
-                    
-                    // Found a resistance mutation
-                    if (match.num_mutations < 10) {
-                        match.mutation_positions[match.num_mutations] = rel_pos;
-                        match.ref_aas[match.num_mutations] = known_mut.wildtype_aa;
-                        match.query_aas[match.num_mutations] = observed_aa;
-                        match.blosum_scores[match.num_mutations] = -2.0f; // Resistance mutations typically have negative scores
-                        match.num_mutations++;
-                        resistance_mutations++;
-                    }
+            // Show species-specific resistance patterns we're looking for
+            if (debug_count == 0) {
+                printf("[SPECIES-AWARE PATTERNS] Looking for these resistance mutations:\n");
+                for (const auto& mut : species_mutations) {
+                    std::string sp_name = species_id_to_name.count(mut.species_id) ? 
+                                         species_id_to_name[mut.species_id] : "Unknown";
+                    std::string gn_name = gene_id_to_name.count(mut.gene_id) ? 
+                                         gene_id_to_name[mut.gene_id] : "Unknown";
+                    printf("  %s %s: position %d, %c->", sp_name.c_str(), gn_name.c_str(), 
+                           mut.position, mut.wildtype_aa);
+                    for (char aa : mut.resistant_aas) printf("%c", aa);
+                    printf(" (%s)\n", mut.description.c_str());
                 }
+            }
+            debug_count++;
+        }
+        
+        // Species-aware mutation classification
+        for (int i = 0; i < match.num_mutations; i++) {
+            int global_pos = match.ref_start + match.mutation_positions[i];
+            char observed_aa = match.query_aas[i];
+            char reference_aa = match.ref_aas[i];
+            
+            // Look for species+gene specific resistance mutations
+            for (const auto& resistance_mut : species_mutations) {
+                // Must match species, gene, and position
+                if (resistance_mut.species_id != match.species_id || 
+                    resistance_mut.gene_id != match.gene_id || 
+                    resistance_mut.position != global_pos) {
+                    continue;
+                }
+                
+                printf("[SPECIES-AWARE MATCH] Found mutation at %s %s resistance position %d: %c->%c\n",
+                       species_name.c_str(), gene_name.c_str(), global_pos, reference_aa, observed_aa);
+                
+                // Check if wildtype amino acid matches expected
+                if (reference_aa != resistance_mut.wildtype_aa) {
+                    printf("[WARNING] Expected wildtype %c at position %d, but found %c in reference\n",
+                           resistance_mut.wildtype_aa, global_pos, reference_aa);
+                }
+                
+                // Check if observed AA is a known resistance variant for this species
+                if (std::find(resistance_mut.resistant_aas.begin(), 
+                             resistance_mut.resistant_aas.end(), 
+                             observed_aa) != resistance_mut.resistant_aas.end()) {
+                    resistance_mutations++;
+                    printf("[🚨 RESISTANCE DETECTED] %s: %c%d%c (resistance level: %.1f)\n",
+                           resistance_mut.description.c_str(), 
+                           reference_aa, global_pos, observed_aa, resistance_mut.resistance_level);
+                } else {
+                    printf("[VARIANT] %s %s position %d: %c->%c (not known resistance pattern: ",
+                           species_name.c_str(), gene_name.c_str(), global_pos, reference_aa, observed_aa);
+                    for (char aa : resistance_mut.resistant_aas) printf("%c", aa);
+                    printf(")\n");
+                }
+                // Continue checking other resistance patterns - don't break!
+                // This allows detection of cross-species resistance patterns
             }
         }
         
         return resistance_mutations;
     }
     
-    // Check if alignment covers key resistance positions
+    // Check if alignment covers key resistance positions (species-aware)
     bool coversResistanceRegion(const ProteinMatch& match) {
-        for (const auto& known_mut : known_mutations) {
-            if (known_mut.gene_id != match.gene_id) continue;
+        for (const auto& resistance_mut : species_mutations) {
+            // Check all species patterns, not just exact species/gene match
+            // This allows cross-species detection and ranking by alignment score
+            if (resistance_mut.gene_id != match.gene_id) {
+                continue; // Only check same gene, but allow different species
+            }
             
-            int rel_pos = known_mut.position - match.ref_start;
+            int rel_pos = resistance_mut.position - match.ref_start;
             if (rel_pos >= 0 && rel_pos < match.match_length) {
-                return true;
+                return true; // Alignment covers a resistance position
             }
         }
         return false;
@@ -327,7 +448,53 @@ private:
     
     // Store top Smith-Waterman results for analysis
     std::vector<ProteinMatch> top_sw_matches;
+    std::vector<ProteinMatch> qrdr_alignments;  // Store all QRDR alignments for ranking
     std::set<int> reads_with_sw_results;  // Track unique reads with SW results
+    
+    // Dynamic gene ID to name mapping loaded from protein database metadata
+    std::map<uint32_t, std::string> gene_id_to_name;
+    
+    // Dynamic species ID to name mapping loaded from protein database metadata
+    std::map<uint32_t, std::string> species_id_to_name;
+    
+    // QRDR position definitions for key genes
+    std::map<uint32_t, std::pair<int, int>> qrdr_regions = {
+        {0, {75, 95}},   // gyrA QRDR (approximately positions 75-95)
+        {1, {75, 90}},   // parC QRDR (approximately positions 75-90)
+        {2, {420, 450}}, // gyrB QRDR
+        {3, {410, 425}}  // parE QRDR
+    };
+    
+    // Helper function to check if alignment overlaps with QRDR
+    bool isQRDRAlignment(const ProteinMatch& match) {
+        auto it = qrdr_regions.find(match.gene_id);
+        if (it == qrdr_regions.end()) return false;
+        
+        int qrdr_start = it->second.first;
+        int qrdr_end = it->second.second;
+        int match_start = match.ref_start;
+        int match_end = match.ref_start + match.match_length;
+        
+        // Check for overlap
+        return !(match_end <= qrdr_start || match_start >= qrdr_end);
+    }
+    
+    // Helper function to extract peptide sequence from translated frame
+    void extractPeptideSequence(ProteinMatch& match, const char* translated_sequence, int frame_length) {
+        // Initialize peptide sequence
+        memset(match.query_peptide, 0, sizeof(match.query_peptide));
+        
+        // Ensure we don't exceed bounds
+        int start_pos = match.query_start;
+        int length = std::min((int)match.match_length, 50);
+        
+        if (start_pos >= 0 && start_pos + length <= frame_length) {
+            strncpy(match.query_peptide, translated_sequence + start_pos, length);
+            match.query_peptide[length] = '\0';
+        } else {
+            strcpy(match.query_peptide, "SEQUENCE_UNAVAILABLE");
+        }
+    }
     
 public:
     EnhancedFQResistancePipeline(bool use_translated_search = false, bool use_smith_waterman = false) 
@@ -458,6 +625,13 @@ public:
         protein_db_path = db_path;
         if (translated_search_engine && !protein_db_path.empty()) {
             DEBUG_PRINT("Loading enhanced protein database from: %s", protein_db_path.c_str());
+            
+            // Load gene mappings from metadata
+            loadGeneIdToNameMapping(protein_db_path);
+            
+            // Load species-aware resistance mutation mappings
+            mutation_analyzer.loadDatabaseMappings(protein_db_path);
+            
             int result = load_protein_database(translated_search_engine, protein_db_path.c_str());
             if (result != 0) {
                 std::cerr << "WARNING: Failed to load enhanced protein database" << std::endl;
@@ -468,6 +642,89 @@ public:
                     std::cout << "Smith-Waterman alignment enabled for high-scoring matches" << std::endl;
                 }
             }
+        }
+    }
+    
+    void loadGeneIdToNameMapping(const std::string& db_path) {
+        std::string metadata_path = db_path + "/metadata.json";
+        std::ifstream metadata_file(metadata_path);
+        
+        if (!metadata_file.good()) {
+            std::cerr << "WARNING: Could not read metadata.json from " << metadata_path << std::endl;
+            std::cerr << "Using default gene ID mappings" << std::endl;
+            
+            // Fallback mappings
+            gene_id_to_name[0] = "gene0";
+            gene_id_to_name[1] = "gene1";
+            gene_id_to_name[2] = "gene2";
+            gene_id_to_name[3] = "gene3";
+            species_id_to_name[0] = "Species0";
+            species_id_to_name[1] = "Species1";
+            return;
+        }
+        
+        std::string line;
+        bool in_species_map = false;
+        bool in_gene_map = false;
+        
+        while (std::getline(metadata_file, line)) {
+            // Look for "species_map" section
+            if (line.find("\"species_map\"") != std::string::npos) {
+                in_species_map = true;
+                in_gene_map = false;
+                continue;
+            }
+            
+            // Look for "gene_map" section
+            if (line.find("\"gene_map\"") != std::string::npos) {
+                in_gene_map = true;
+                in_species_map = false;
+                continue;
+            }
+            
+            // End of current section
+            if ((in_species_map || in_gene_map) && line.find("}") != std::string::npos) {
+                in_species_map = false;
+                in_gene_map = false;
+                continue;
+            }
+            
+            // Parse mappings: "0": "name",
+            if ((in_species_map || in_gene_map) && line.find("\":") != std::string::npos) {
+                size_t id_start = line.find("\"") + 1;
+                size_t id_end = line.find("\"", id_start);
+                size_t name_start = line.find("\"", id_end + 1) + 1;
+                size_t name_end = line.find("\"", name_start);
+                
+                if (id_end != std::string::npos && name_end != std::string::npos) {
+                    uint32_t id = std::stoi(line.substr(id_start, id_end - id_start));
+                    std::string name = line.substr(name_start, name_end - name_start);
+                    
+                    if (in_species_map) {
+                        species_id_to_name[id] = name;
+                        std::cout << "Loaded species mapping: " << id << " -> " << name << std::endl;
+                    } else if (in_gene_map) {
+                        gene_id_to_name[id] = name;
+                        std::cout << "Loaded gene mapping: " << id << " -> " << name << std::endl;
+                    }
+                }
+            }
+        }
+        
+        metadata_file.close();
+        
+        if (gene_id_to_name.empty()) {
+            std::cerr << "WARNING: No gene mappings found in metadata.json" << std::endl;
+            // Fallback
+            gene_id_to_name[0] = "gene0";
+            gene_id_to_name[1] = "gene1";
+        }
+        
+        if (species_id_to_name.empty()) {
+            std::cerr << "WARNING: No species mappings found in metadata.json" << std::endl;
+            // Fallback
+            species_id_to_name[0] = "Species0";
+            species_id_to_name[1] = "Species1";
         }
     }
     
@@ -1000,8 +1257,18 @@ public:
                                         if (pm.used_smith_waterman) {
                                             enhanced_stats.total_smith_waterman_alignments++;
                                             
-                                            // Store for top 10 display
+                                            // Check if this is a QRDR alignment
+                                            pm.is_qrdr_alignment = isQRDRAlignment(pm);
+                                            
+                                            // Peptide sequence is now extracted on GPU side
+                                            
+                                            // Store for top display
                                             top_sw_matches.push_back(pm);
+                                            
+                                            // Store QRDR alignments separately for ranking
+                                            if (pm.is_qrdr_alignment) {
+                                                qrdr_alignments.push_back(pm);
+                                            }
                                             
                                             // Track unique reads with SW results (R1)
                                             reads_with_sw_results.insert(pm.read_id + enhanced_stats.total_reads_processed - batch1.num_reads);
@@ -1087,8 +1354,18 @@ public:
                                         if (pm.used_smith_waterman) {
                                             enhanced_stats.total_smith_waterman_alignments++;
                                             
-                                            // Store for top 10 display
+                                            // Check if this is a QRDR alignment
+                                            pm.is_qrdr_alignment = isQRDRAlignment(pm);
+                                            
+                                            // Peptide sequence is now extracted on GPU side
+                                            
+                                            // Store for top display
                                             top_sw_matches.push_back(pm);
+                                            
+                                            // Store QRDR alignments separately for ranking
+                                            if (pm.is_qrdr_alignment) {
+                                                qrdr_alignments.push_back(pm);
+                                            }
                                             
                                             // Track unique reads with SW results (R2)
                                             reads_with_sw_results.insert(pm.read_id + enhanced_stats.total_reads_processed - batch2.num_reads);
@@ -1266,6 +1543,57 @@ public:
                          << ", Identity: " << std::fixed << std::setprecision(1) << (match.identity * 100) << "%"
                          << ", Mutations: " << (int)match.num_mutations << std::endl;
             }
+        }
+        
+        // Display top 20 QRDR alignments ranked by alignment score
+        if (!qrdr_alignments.empty() && enable_smith_waterman) {
+            // Sort QRDR alignments by alignment score (descending)
+            std::sort(qrdr_alignments.begin(), qrdr_alignments.end(),
+                     [](const ProteinMatch& a, const ProteinMatch& b) {
+                         return a.alignment_score > b.alignment_score;
+                     });
+            
+            std::cout << "\nTop 20 QRDR alignments (sorted by alignment score):" << std::endl;
+            std::cout << "These represent alignments within Quinolone Resistance Determining Regions:" << std::endl;
+            
+            int num_qrdr_to_show = std::min(20, (int)qrdr_alignments.size());
+            for (int i = 0; i < num_qrdr_to_show; i++) {
+                const auto& match = qrdr_alignments[i];
+                
+                // Map gene IDs to names using dynamic mapping from metadata
+                std::string gene_name;
+                if (gene_id_to_name.count(match.gene_id)) {
+                    gene_name = gene_id_to_name[match.gene_id];
+                } else {
+                    gene_name = "Gene" + std::to_string(match.gene_id);
+                }
+                
+                // Map species IDs to names using dynamic mapping from metadata
+                std::string species_name;
+                if (species_id_to_name.count(match.species_id)) {
+                    species_name = species_id_to_name[match.species_id];
+                } else {
+                    species_name = "Species" + std::to_string(match.species_id);
+                }
+                
+                std::cout << "  " << (i + 1) << ". Read " << match.read_id 
+                         << ", " << species_name << " " << gene_name 
+                         << ", Frame " << (int)match.frame
+                         << ", Score: " << std::fixed << std::setprecision(1) << match.alignment_score
+                         << ", Identity: " << std::fixed << std::setprecision(1) << (match.identity * 100) << "%"
+                         << ", Position: " << match.ref_start << "-" << (match.ref_start + match.match_length - 1)
+                         << ", Length: " << match.match_length
+                         << ", Peptide: " << match.query_peptide << std::endl;
+            }
+            
+            std::cout << "\nTotal QRDR alignments found: " << qrdr_alignments.size() << std::endl;
+            std::cout << "NOTE: These peptide sequences should be verified using BLAST to confirm alignment accuracy." << std::endl;
+        } else if (enable_smith_waterman) {
+            std::cout << "\nNo QRDR alignments detected." << std::endl;
+            std::cout << "This may indicate:" << std::endl;
+            std::cout << "  - Reads don't contain QRDR sequences" << std::endl;
+            std::cout << "  - Alignment score thresholds are too stringent" << std::endl;
+            std::cout << "  - QRDR region definitions need adjustment" << std::endl;
         }
         
         if (enhanced_stats.resistance_mutations_found > 0) {

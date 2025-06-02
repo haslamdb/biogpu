@@ -103,8 +103,8 @@ pipeline FluoroquinoloneResistance {
 
 ### 📊 **Validated Performance Metrics**
 - **Speed**: Processing ~1M reads efficiently in batched workflow
-- **Sensitivity**: High candidate detection rate (150K+ candidates per 10K reads)
-- **Specificity**: Excellent alignment filtering (67% success rate prevents false positives)
+- **Sensitivity**: High candidate detection rate 
+- **Specificity**: Excellent alignment filtering 
 - **Scalability**: Proven batch processing handles large clinical datasets
 
 ## Performance Targets

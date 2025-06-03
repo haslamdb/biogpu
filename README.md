@@ -102,7 +102,7 @@ pipeline FluoroquinoloneResistance {
 - **Antimicrobial stewardship support**: Evidence-based therapy guidance
 
 ### 📊 **Validated Performance Metrics**
-- **Speed**: Processing ~1M reads efficiently in batched workflow
+- **Speed**: Processing ~10 to 50M reads efficiently in batched workflow
 - **Sensitivity**: High candidate detection rate 
 - **Specificity**: Excellent alignment filtering 
 - **Scalability**: Proven batch processing handles large clinical datasets

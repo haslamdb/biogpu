@@ -172,7 +172,7 @@ pipeline FluoroquinoloneResistance {
                 if (!test_bit(bit_array, hash % size_bits))
                     return false;
             }
-            return true;  // Possibly in set (may be false positive)
+            return true;  // Possibly in set (may be false positive - if so dropped later)
         }
     };
     ```

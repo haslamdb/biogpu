@@ -307,7 +307,7 @@ pipeline FluoroquinoloneResistance {
     - [ ] Build system: CMake + NVCC integration
     - [ ] Profiling: Nsight Compute for kernel optimization
     - [ ] Debugging: CUDA-GDB for kernel debugging, valgrind for host code
-    - [ ] Performance targets: Process 1M translated frames in <30 seconds
+    - [ ] Performance targets: Process 10M paired translated frames in <30 seconds
 - [ ] **Codon-aware alignment**: Optimize for protein-coding sequences
 - [ ] **Stop codon handling**: Proper translation boundary detection
 - [ ] **Genetic code variations**: Support alternative genetic codes for different organisms

@@ -32,4 +32,5 @@ tests/run_pipeline_comparison_test.py \
 	569_A_038_R2.fastq.gz \
     data/protein_resistance_db \
     --batch-size 10000 \
-    --output comparison_results.txt
+    --output comparison_results.txt \
+    --skip-build 

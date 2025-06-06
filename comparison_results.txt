@@ -1,0 +1,87 @@
+Pipeline Comparison Test Results
+Generated: 2025-06-06 04:22:34.102554
+Command: build_comparison/pipeline_comparison_test data/fq_resistance_index 569_A_038_R1.fastq.gz 569_A_038_R2.fastq.gz data/protein_resistance_db 10000
+================================================================================
+
+=== FQ Resistance Pipeline Comparison Test ===
+Index: data/fq_resistance_index
+R1: 569_A_038_R1.fastq.gz
+R2: 569_A_038_R2.fastq.gz
+Protein DB: data/protein_resistance_db
+Batch size: 10000
+Smith-Waterman: enabled (for all tests)
+
+Running Full Pipeline (Bloom -> K-mer -> Translation)...
+Bloom Filter Statistics:
+  Size: 8 MB
+  Bits set: 1365133 / 67108864
+  Fill ratio: 2.03421%
+  Estimated FP rate: 0.000841754%
+  Contains RC k-mers: YES
+[DATABASE DEBUG] Loading protein database from: data/protein_resistance_db
+[DATABASE DEBUG] Number of proteins: 1184
+[DATABASE DEBUG] Total sequence bytes: 446478
+[WARNING] Unexpected number of proteins (1184), using generic mapping
+Running Skip Bloom (K-mer -> Translation)...
+[DATABASE DEBUG] Loading protein database from: data/protein_resistance_db
+[DATABASE DEBUG] Number of proteins: 1184
+[DATABASE DEBUG] Total sequence bytes: 446478
+[WARNING] Unexpected number of proteins (1184), using generic mapping
+Running Skip K-mer (Bloom -> Translation)...
+[DATABASE DEBUG] Loading protein database from: data/protein_resistance_db
+[DATABASE DEBUG] Number of proteins: 1184
+[DATABASE DEBUG] Total sequence bytes: 446478
+[WARNING] Unexpected number of proteins (1184), using generic mapping
+Running Translation Only...
+[DATABASE DEBUG] Loading protein database from: data/protein_resistance_db
+[DATABASE DEBUG] Number of proteins: 1184
+[DATABASE DEBUG] Total sequence bytes: 446478
+[WARNING] Unexpected number of proteins (1184), using generic mapping
+
+=== PIPELINE COMPARISON RESULTS ===
+
+Pipeline Mode              Total Time   Reads/sec    Proteins   Mutations    Hit Rate
+-------------------------------------------------------------------------------------
+Full Pipeline                24731.22 ms      137680         336           0       0.88%
+Skip Bloom                   23884.74 ms      142559         336           0       0.88%
+Skip K-mer                   16816.37 ms      202481         336           0       0.88%
+Translation Only             16701.11 ms      203879         336           0       0.88%
+
+=== TIMING BREAKDOWN ===
+Pipeline Mode                 Bloom (ms)     K-mer (ms)Translation (ms)  % Translation
+-------------------------------------------------------------------------------------
+Full Pipeline                     392.15        1399.26        2626.81         10.62%
+Skip Bloom                          0.00        1315.31        2460.10         10.30%
+Skip K-mer                        375.64           0.00        2639.35         15.70%
+Translation Only                    0.00           0.00        2932.78         17.56%
+
+=== FILTERING EFFICIENCY ===
+Pipeline Mode                Total Reads    After Bloom    After K-mer        Final %
+-------------------------------------------------------------------------------------
+Full Pipeline                    3405007          31135           4205          0.12%
+Skip Bloom                       3405007        3405007          19472          0.57%
+Skip K-mer                       3405007              0              0          0.00%
+Translation Only                 3405007        3405007        3405007        100.00%
+
+=== SPEEDUP ANALYSIS ===
+Skip Bloom vs Full Pipeline:
+  Speedup: 1.04x
+  Protein detection ratio: 100.0%
+  Time saved: 846.5 ms
+
+Skip K-mer vs Full Pipeline:
+  Speedup: 1.47x
+  Protein detection ratio: 100.0%
+  Time saved: 7914.8 ms
+
+Translation Only vs Full Pipeline:
+  Speedup: 1.48x
+  Protein detection ratio: 100.0%
+  Time saved: 8030.1 ms
+
+
+=== RECOMMENDATIONS ===
+Best configuration (95% protein retention): Translation Only
+
+K-mer filtering appears redundant (<1% additional filtering)
+Consider using Bloom -> Translation pipeline for better performance

@@ -35,6 +35,6 @@
     "protein_resistance_found": 0,
     "protein_kmer_size": 5,
     "smith_waterman_alignments": 517,
-    "processing_time_seconds": 23
+    "processing_time_seconds": 24
   }
 }

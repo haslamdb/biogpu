@@ -1,7 +1,5 @@
 // enhanced_fq_pipeline_host.cpp
 // Enhanced main host code with integrated diagnostic reporting and improved mutation detection
-// Added QRDR alignments CSV export functionality
-// Added optional bloom filter and k-mer matching flags
 
 #include <iostream>
 #include <fstream>
@@ -127,105 +125,6 @@ struct ReadBatch {
     int num_reads;
     int total_bases;
 };
-
-// CSV writer for QRDR alignments
-void writeQRDRAlignmentsToCSV(const std::vector<ProteinMatch>& qrdr_alignments,
-                              const std::map<uint32_t, std::string>& gene_id_to_name,
-                              const std::map<uint32_t, std::string>& species_id_to_name,
-                              const std::string& csv_path,
-                              int total_reads_processed) {
-    std::ofstream csv_file(csv_path);
-    if (!csv_file.good()) {
-        std::cerr << "ERROR: Failed to create CSV file: " << csv_path << std::endl;
-        return;
-    }
-    
-    // Write CSV header
-    csv_file << "read_id,gene_name,species_name,frame,alignment_score,identity_percent,"
-             << "ref_start,ref_end,query_start,query_end,match_length,"
-             << "num_mutations,mutation_positions,mutation_changes,"
-             << "peptide_sequence,covers_qrdr_positions\n";
-    
-    // Helper to identify which QRDR positions are covered
-    auto getQRDRPositions = [](uint32_t gene_id, uint16_t ref_start, uint16_t match_length) -> std::string {
-        std::vector<int> covered_positions;
-        uint16_t ref_end = ref_start + match_length;
-        
-        if (gene_id == 0) {  // gyrA
-            if (ref_start <= 82 && ref_end > 82) covered_positions.push_back(83);  // 0-based to 1-based
-            if (ref_start <= 86 && ref_end > 86) covered_positions.push_back(87);
-        } else if (gene_id == 1) {  // parC
-            if (ref_start <= 79 && ref_end > 79) covered_positions.push_back(80);
-            if (ref_start <= 83 && ref_end > 83) covered_positions.push_back(84);
-        } else if (gene_id == 2) {  // gyrB
-            if (ref_start <= 425 && ref_end > 425) covered_positions.push_back(426);
-            if (ref_start <= 446 && ref_end > 446) covered_positions.push_back(447);
-        } else if (gene_id == 3) {  // parE
-            if (ref_start <= 415 && ref_end > 415) covered_positions.push_back(416);
-            if (ref_start <= 419 && ref_end > 419) covered_positions.push_back(420);
-        }
-        
-        std::string result;
-        for (size_t i = 0; i < covered_positions.size(); i++) {
-            if (i > 0) result += ";";
-            result += std::to_string(covered_positions[i]);
-        }
-        return result.empty() ? "none" : result;
-    };
-    
-    // Write each QRDR alignment
-    for (const auto& match : qrdr_alignments) {
-        // Get gene and species names
-        std::string gene_name = gene_id_to_name.count(match.gene_id) ? 
-                               gene_id_to_name.at(match.gene_id) : "Gene" + std::to_string(match.gene_id);
-        std::string species_name = species_id_to_name.count(match.species_id) ? 
-                                  species_id_to_name.at(match.species_id) : "Species" + std::to_string(match.species_id);
-        
-        // Format mutation positions and changes
-        std::string mutation_positions;
-        std::string mutation_changes;
-        for (int i = 0; i < match.num_mutations; i++) {
-            if (i > 0) {
-                mutation_positions += ";";
-                mutation_changes += ";";
-            }
-            int global_pos = match.ref_start + match.mutation_positions[i] + 1;  // Convert to 1-based
-            mutation_positions += std::to_string(global_pos);
-            mutation_changes += std::string(1, match.ref_aas[i]) + std::to_string(global_pos) + 
-                               std::string(1, match.query_aas[i]);
-        }
-        
-        if (mutation_positions.empty()) {
-            mutation_positions = "none";
-            mutation_changes = "none";
-        }
-        
-        // Get covered QRDR positions
-        std::string qrdr_positions = getQRDRPositions(match.gene_id, match.ref_start, match.match_length);
-        
-        // Write row
-        csv_file << match.read_id << ","
-                 << gene_name << ","
-                 << species_name << ","
-                 << (int)match.frame << ","
-                 << std::fixed << std::setprecision(1) << match.alignment_score << ","
-                 << std::fixed << std::setprecision(1) << (match.identity * 100) << ","
-                 << (match.ref_start + 1) << ","  // Convert to 1-based
-                 << (match.ref_start + match.match_length) << ","  // End position (1-based)
-                 << (match.query_start + 1) << ","  // Convert to 1-based
-                 << (match.query_start + match.match_length) << ","
-                 << match.match_length << ","
-                 << (int)match.num_mutations << ","
-                 << mutation_positions << ","
-                 << mutation_changes << ","
-                 << match.query_peptide << ","
-                 << qrdr_positions << "\n";
-    }
-    
-    csv_file.close();
-    
-    std::cout << "\nWrote " << qrdr_alignments.size() << " QRDR alignments to: " << csv_path << std::endl;
-}
 
 // Enhanced mutation detection logic with species-aware resistance patterns
 class MutationAnalyzer {
@@ -512,8 +411,6 @@ private:
     bool enable_translated_search;
     bool enable_smith_waterman;
     bool enable_diagnostic_reporting;
-    bool enable_bloom_filter;  // NEW: Optional bloom filter
-    bool enable_kmer_match;    // NEW: Optional k-mer matching
     std::string protein_db_path;
     
     // Diagnostic reporting
@@ -601,24 +498,13 @@ private:
     }
     
 public:
-    EnhancedFQResistancePipeline(bool use_translated_search = false, 
-                                bool use_smith_waterman = false, 
-                                bool use_diagnostic_reporting = false,
-                                bool use_bloom_filter = true,      // NEW: Default on
-                                bool use_kmer_match = true)         // NEW: Default on
-        : enable_translated_search(use_translated_search), 
-          enable_smith_waterman(use_smith_waterman), 
-          enable_diagnostic_reporting(use_diagnostic_reporting),
-          enable_bloom_filter(use_bloom_filter),
-          enable_kmer_match(use_kmer_match) {
-        
+    EnhancedFQResistancePipeline(bool use_translated_search = false, bool use_smith_waterman = false, bool use_diagnostic_reporting = false) 
+        : enable_translated_search(use_translated_search), enable_smith_waterman(use_smith_waterman), enable_diagnostic_reporting(use_diagnostic_reporting) {
         DEBUG_PRINT("Initializing Enhanced FQ Resistance Pipeline");
         DEBUG_PRINT("Batch size: %d, Max read length: %d", batch_size, max_read_length);
         DEBUG_PRINT("Translated search: %s", enable_translated_search ? "ENABLED" : "DISABLED");
         DEBUG_PRINT("Smith-Waterman: %s", enable_smith_waterman ? "ENABLED" : "DISABLED");
         DEBUG_PRINT("Diagnostic reporting: %s", enable_diagnostic_reporting ? "ENABLED" : "DISABLED");
-        DEBUG_PRINT("Bloom filter: %s", enable_bloom_filter ? "ENABLED" : "DISABLED");
-        DEBUG_PRINT("K-mer matching: %s", enable_kmer_match ? "ENABLED" : "DISABLED");
         
         // Initialize diagnostic reporting
         diagnostic_reporter = nullptr;
@@ -626,16 +512,13 @@ public:
         // Initialize HDF5 writer to null
         hdf5_writer = nullptr;
         
-        // Create Bloom filter only if enabled
-        bloom_filter = nullptr;
-        if (enable_bloom_filter) {
-            bloom_filter = create_bloom_filter(kmer_length);
-            if (!bloom_filter) {
-                std::cerr << "ERROR: Failed to create Bloom filter" << std::endl;
-                exit(1);
-            }
-            DEBUG_PRINT("Bloom filter created successfully");
+        // Create Bloom filter
+        bloom_filter = create_bloom_filter(kmer_length);
+        if (!bloom_filter) {
+            std::cerr << "ERROR: Failed to create Bloom filter" << std::endl;
+            exit(1);
         }
+        DEBUG_PRINT("Bloom filter created successfully");
         
         // Initialize enhanced translated search engine
         translated_search_engine = nullptr;
@@ -668,27 +551,23 @@ public:
         CUDA_CHECK(cudaMalloc(&d_offsets_r1, batch_size * sizeof(int)));
         CUDA_CHECK(cudaMalloc(&d_offsets_r2, batch_size * sizeof(int)));
         
-        // Allocate Bloom filter results only if enabled
-        if (enable_bloom_filter) {
-            CUDA_CHECK(cudaMalloc(&d_bloom_passes_r1, batch_size * sizeof(bool)));
-            CUDA_CHECK(cudaMalloc(&d_bloom_passes_r2, batch_size * sizeof(bool)));
-            CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r1, batch_size * sizeof(int)));
-            CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r2, batch_size * sizeof(int)));
-            CUDA_CHECK(cudaMalloc(&d_bloom_debug_stats, 4 * sizeof(int)));
-        }
+        // Allocate Bloom filter results
+        CUDA_CHECK(cudaMalloc(&d_bloom_passes_r1, batch_size * sizeof(bool)));
+        CUDA_CHECK(cudaMalloc(&d_bloom_passes_r2, batch_size * sizeof(bool)));
+        CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r1, batch_size * sizeof(int)));
+        CUDA_CHECK(cudaMalloc(&d_bloom_kmers_r2, batch_size * sizeof(int)));
+        CUDA_CHECK(cudaMalloc(&d_bloom_debug_stats, 4 * sizeof(int)));
         
-        // Allocate memory for nucleotide search results only if k-mer matching is enabled
-        if (enable_kmer_match) {
-            size_t candidates_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(CandidateMatch);
-            size_t results_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(AlignmentResult);
-            DEBUG_PRINT("Allocating GPU memory: candidates = %zu bytes, results = %zu bytes", 
-                        candidates_size, results_size);
-            
-            CUDA_CHECK(cudaMalloc(&d_candidates, candidates_size));
-            CUDA_CHECK(cudaMalloc(&d_candidate_counts, batch_size * sizeof(uint32_t)));
-            CUDA_CHECK(cudaMalloc(&d_results, results_size));
-            CUDA_CHECK(cudaMalloc(&d_result_count, sizeof(uint32_t)));
-        }
+        // Allocate memory for nucleotide search results
+        size_t candidates_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(CandidateMatch);
+        size_t results_size = batch_size * MAX_CANDIDATES_PER_READ * sizeof(AlignmentResult);
+        DEBUG_PRINT("Allocating GPU memory: candidates = %zu bytes, results = %zu bytes", 
+                    candidates_size, results_size);
+        
+        CUDA_CHECK(cudaMalloc(&d_candidates, candidates_size));
+        CUDA_CHECK(cudaMalloc(&d_candidate_counts, batch_size * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&d_results, results_size));
+        CUDA_CHECK(cudaMalloc(&d_result_count, sizeof(uint32_t)));
         
         DEBUG_PRINT("GPU memory allocation completed successfully");
     }
@@ -721,21 +600,15 @@ public:
         cudaFree(d_lengths_r2);
         cudaFree(d_offsets_r1);
         cudaFree(d_offsets_r2);
-        
-        if (enable_bloom_filter) {
-            cudaFree(d_bloom_passes_r1);
-            cudaFree(d_bloom_passes_r2);
-            cudaFree(d_bloom_kmers_r1);
-            cudaFree(d_bloom_kmers_r2);
-            cudaFree(d_bloom_debug_stats);
-        }
-        
-        if (enable_kmer_match) {
-            cudaFree(d_candidates);
-            cudaFree(d_candidate_counts);
-            cudaFree(d_results);
-            cudaFree(d_result_count);
-        }
+        cudaFree(d_bloom_passes_r1);
+        cudaFree(d_bloom_passes_r2);
+        cudaFree(d_bloom_kmers_r1);
+        cudaFree(d_bloom_kmers_r2);
+        cudaFree(d_bloom_debug_stats);
+        cudaFree(d_candidates);
+        cudaFree(d_candidate_counts);
+        cudaFree(d_results);
+        cudaFree(d_result_count);
         
         if (d_protein_matches) cudaFree(d_protein_matches);
         if (d_protein_match_counts) cudaFree(d_protein_match_counts);
@@ -871,51 +744,47 @@ public:
         // Store index path for HDF5 initialization
         current_index_path = index_path;
         
-        // Load k-mer index only if k-mer matching is enabled
-        if (enable_kmer_match) {
-            detector.loadIndex(index_path.c_str());
-            DEBUG_PRINT("K-mer index loaded");
-        }
+        // Load k-mer index
+        detector.loadIndex(index_path.c_str());
+        DEBUG_PRINT("K-mer index loaded");
         
-        // Build or load Bloom filter only if enabled
-        if (enable_bloom_filter && enable_kmer_match) {
-            std::string bloom_path = index_path + "/bloom_filter.bin";
+        // Build or load Bloom filter
+        std::string bloom_path = index_path + "/bloom_filter.bin";
+        
+        // Try to load existing Bloom filter
+        if (load_bloom_filter(bloom_filter, bloom_path.c_str()) == 0) {
+            std::cout << "Loaded pre-built Bloom filter from: " << bloom_path << std::endl;
             
-            // Try to load existing Bloom filter
-            if (load_bloom_filter(bloom_filter, bloom_path.c_str()) == 0) {
-                std::cout << "Loaded pre-built Bloom filter from: " << bloom_path << std::endl;
-                
-                // Check if it has RC k-mers
-                bool has_rc = bloom_filter_has_rc(bloom_filter);
-                std::cout << "Bloom filter contains RC k-mers: " << (has_rc ? "YES" : "NO") << std::endl;
-                
-                if (!has_rc) {
-                    std::cout << "WARNING: Bloom filter does not contain RC k-mers. Rebuilding..." << std::endl;
-                    // Force rebuild with RC
-                    if (detector.d_kmer_sorted && detector.num_kmers > 0) {
-                        if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
-                            std::cout << "Bloom filter rebuilt with RC k-mers" << std::endl;
-                            save_bloom_filter(bloom_filter, bloom_path.c_str());
-                        }
-                    }
-                }
-            } else {
-                // Build Bloom filter from k-mer index
-                std::cout << "Building Bloom filter from k-mer index (with RC k-mers)..." << std::endl;
-                
+            // Check if it has RC k-mers
+            bool has_rc = bloom_filter_has_rc(bloom_filter);
+            std::cout << "Bloom filter contains RC k-mers: " << (has_rc ? "YES" : "NO") << std::endl;
+            
+            if (!has_rc) {
+                std::cout << "WARNING: Bloom filter does not contain RC k-mers. Rebuilding..." << std::endl;
+                // Force rebuild with RC
                 if (detector.d_kmer_sorted && detector.num_kmers > 0) {
                     if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
-                        std::cout << "Bloom filter built successfully with " << detector.num_kmers << " k-mers (including RC)" << std::endl;
-                        
-                        // Save for future use
+                        std::cout << "Bloom filter rebuilt with RC k-mers" << std::endl;
                         save_bloom_filter(bloom_filter, bloom_path.c_str());
-                        std::cout << "Saved Bloom filter to: " << bloom_path << std::endl;
-                    } else {
-                        std::cerr << "WARNING: Failed to build Bloom filter from index" << std::endl;
                     }
-                } else {
-                    std::cerr << "WARNING: No k-mers available to build Bloom filter" << std::endl;
                 }
+            }
+        } else {
+            // Build Bloom filter from k-mer index
+            std::cout << "Building Bloom filter from k-mer index (with RC k-mers)..." << std::endl;
+            
+            if (detector.d_kmer_sorted && detector.num_kmers > 0) {
+                if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, detector.num_kmers) == 0) {
+                    std::cout << "Bloom filter built successfully with " << detector.num_kmers << " k-mers (including RC)" << std::endl;
+                    
+                    // Save for future use
+                    save_bloom_filter(bloom_filter, bloom_path.c_str());
+                    std::cout << "Saved Bloom filter to: " << bloom_path << std::endl;
+                } else {
+                    std::cerr << "WARNING: Failed to build Bloom filter from index" << std::endl;
+                }
+            } else {
+                std::cerr << "WARNING: No k-mers available to build Bloom filter" << std::endl;
             }
         }
         
@@ -1009,8 +878,6 @@ public:
         output << "  \"hdf5_output\": \"" << hdf5_path << "\",\n";
         output << "  \"pipeline_version\": \"0.4.0-enhanced-diagnostics\",\n";
         output << "  \"diagnostic_reporting\": " << (enable_diagnostic_reporting ? "true" : "false") << ",\n";
-        output << "  \"bloom_filter_enabled\": " << (enable_bloom_filter ? "true" : "false") << ",\n";
-        output << "  \"kmer_match_enabled\": " << (enable_kmer_match ? "true" : "false") << ",\n";
         output << "  \"translated_search_enabled\": " << (enable_translated_search ? "true" : "false") << ",\n";
         output << "  \"smith_waterman_enabled\": " << (enable_smith_waterman ? "true" : "false") << ",\n";
         output << "  \"protein_kmer_size\": 5,\n";
@@ -1072,306 +939,294 @@ public:
             CUDA_CHECK(cudaMemcpy(d_offsets_r2, batch2.offsets, batch2.num_reads * sizeof(int), cudaMemcpyHostToDevice));
             
             // Reset result counters
-            if (enable_kmer_match) {
-                CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
-                CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch1.num_reads * sizeof(uint32_t)));
-            }
+            CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
+            CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch1.num_reads * sizeof(uint32_t)));
             if (enable_translated_search) {
                 CUDA_CHECK(cudaMemset(d_protein_match_counts, 0, batch1.num_reads * sizeof(uint32_t)));
             }
             
             DEBUG_PRINT("GPU transfer completed");
             
-            // Initialize read pair pass status - default to all pass if no filtering
-            std::vector<bool> h_pair_passes(batch1.num_reads, true);
-            int reads_passed_bloom_combined = batch1.num_reads;
+            // =========================
+            // Stage 0: Bloom Filter Pre-screening with RC support
+            // =========================
+            auto bloom_start = std::chrono::high_resolution_clock::now();
+            DEBUG_PRINT("Stage 0: Bloom filter pre-screening for %d reads", batch1.num_reads);
             
-            // =========================
-            // Stage 0: Bloom Filter Pre-screening (OPTIONAL)
-            // =========================
-            if (enable_bloom_filter) {
-                auto bloom_start = std::chrono::high_resolution_clock::now();
-                DEBUG_PRINT("Stage 0: Bloom filter pre-screening for %d reads", batch1.num_reads);
-                
-                // Reset debug statistics
-                CUDA_CHECK(cudaMemset(d_bloom_debug_stats, 0, 4 * sizeof(int)));
-                
-                // Screen R1 reads (forward orientation expected)
-                int bloom_result = bloom_filter_screen_reads_with_rc(
-                    bloom_filter,
-                    d_reads_r1, d_lengths_r1, d_offsets_r1,
-                    batch1.num_reads,
-                    d_bloom_passes_r1, d_bloom_kmers_r1,
-                    bloom_min_kmers,
-                    false,  // R1: don't check RC
-                    d_bloom_debug_stats
-                );
-                
-                if (bloom_result != 0) {
-                    DEBUG_PRINT("WARNING: Bloom filter screening failed with code %d", bloom_result);
-                }
-                
-                // Get R1 Bloom filter results
-                std::vector<char> h_bloom_passes_raw(batch1.num_reads);
-                std::vector<int> h_bloom_kmers(batch1.num_reads);
-                CUDA_CHECK(cudaMemcpy(h_bloom_passes_raw.data(), d_bloom_passes_r1, 
-                                     batch1.num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
-                std::vector<bool> h_bloom_passes(batch1.num_reads);
-                for (int i = 0; i < batch1.num_reads; i++) {
-                    h_bloom_passes[i] = h_bloom_passes_raw[i];
-                }
-                CUDA_CHECK(cudaMemcpy(h_bloom_kmers.data(), d_bloom_kmers_r1, 
-                                     batch1.num_reads * sizeof(int), cudaMemcpyDeviceToHost));
-                
-                // Get R1 statistics
-                int r1_stats[4];
-                CUDA_CHECK(cudaMemcpy(r1_stats, d_bloom_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost));
-                
-                // Count R1 reads that passed
-                int reads_passed_bloom_r1 = 0;
-                for (int i = 0; i < batch1.num_reads; i++) {
-                    if (h_bloom_passes[i]) reads_passed_bloom_r1++;
-                }
-                
-                DEBUG_PRINT("R1 Bloom filter results: %d/%d reads passed (%.1f%%)", 
-                           reads_passed_bloom_r1, batch1.num_reads, 
-                           100.0 * reads_passed_bloom_r1 / batch1.num_reads);
-                DEBUG_PRINT("  R1 stats - Forward hits: %d, RC hits: %d", r1_stats[1], r1_stats[2]);
-                
-                // Screen R2 reads with RC support
-                DEBUG_PRINT("Stage 0b: Bloom filter pre-screening for R2 reads (with RC)");
-                
-                // Reset debug statistics
-                CUDA_CHECK(cudaMemset(d_bloom_debug_stats, 0, 4 * sizeof(int)));
-                
-                bloom_result = bloom_filter_screen_reads_with_rc(
-                    bloom_filter,
-                    d_reads_r2, d_lengths_r2, d_offsets_r2,
-                    batch2.num_reads,
-                    d_bloom_passes_r2, d_bloom_kmers_r2,
-                    bloom_min_kmers,
-                    true,   // R2: CHECK RC!
-                    d_bloom_debug_stats
-                );
-                
-                // Get R2 Bloom results
-                std::vector<char> h_bloom_passes_r2_raw(batch2.num_reads);
-                CUDA_CHECK(cudaMemcpy(h_bloom_passes_r2_raw.data(), d_bloom_passes_r2, 
-                                     batch2.num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
-                std::vector<bool> h_bloom_passes_r2(batch2.num_reads);
-                for (int i = 0; i < batch2.num_reads; i++) {
-                    h_bloom_passes_r2[i] = h_bloom_passes_r2_raw[i];
-                }
-                
-                // Get R2 statistics
-                int r2_stats[4];
-                CUDA_CHECK(cudaMemcpy(r2_stats, d_bloom_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost));
-                
-                int reads_passed_bloom_r2 = 0;
-                for (int i = 0; i < batch2.num_reads; i++) {
-                    if (h_bloom_passes_r2[i]) reads_passed_bloom_r2++;
-                }
-                
-                DEBUG_PRINT("R2 Bloom filter results: %d/%d reads passed (%.1f%%)", 
-                           reads_passed_bloom_r2, batch2.num_reads, 
-                           100.0 * reads_passed_bloom_r2 / batch2.num_reads);
-                DEBUG_PRINT("  R2 stats - Forward hits: %d, RC hits: %d", r2_stats[1], r2_stats[2]);
-                
-                auto bloom_end = std::chrono::high_resolution_clock::now();
-                auto bloom_time = std::chrono::duration_cast<std::chrono::microseconds>(bloom_end - bloom_start).count();
-                
-                // Combine R1 and R2 Bloom results - a read pair passes if EITHER read passes
-                reads_passed_bloom_combined = 0;
-                for (int i = 0; i < batch1.num_reads; i++) {
-                    h_pair_passes[i] = h_bloom_passes[i] || h_bloom_passes_r2[i];
-                    if (h_pair_passes[i]) reads_passed_bloom_combined++;
-                }
-                
-                DEBUG_PRINT("Combined Bloom results: %d/%d read pairs passed (%.1f ms)", 
-                           reads_passed_bloom_combined, batch1.num_reads, bloom_time / 1000.0);
-                
-                enhanced_stats.reads_passed_bloom += reads_passed_bloom_combined;
-            } else {
-                // No bloom filter - all reads pass
-                DEBUG_PRINT("Bloom filter disabled - all %d reads proceed to next stage", batch1.num_reads);
+            // Reset debug statistics
+            CUDA_CHECK(cudaMemset(d_bloom_debug_stats, 0, 4 * sizeof(int)));
+            
+            // Screen R1 reads (forward orientation expected)
+            int bloom_result = bloom_filter_screen_reads_with_rc(
+                bloom_filter,
+                d_reads_r1, d_lengths_r1, d_offsets_r1,
+                batch1.num_reads,
+                d_bloom_passes_r1, d_bloom_kmers_r1,
+                bloom_min_kmers,
+                false,  // R1: don't check RC
+                d_bloom_debug_stats
+            );
+            
+            if (bloom_result != 0) {
+                DEBUG_PRINT("WARNING: Bloom filter screening failed with code %d", bloom_result);
             }
             
-            // Only proceed if some read pairs passed Bloom filter (or bloom is disabled)
+            // Get R1 Bloom filter results
+            std::vector<char> h_bloom_passes_raw(batch1.num_reads);
+            std::vector<int> h_bloom_kmers(batch1.num_reads);
+            CUDA_CHECK(cudaMemcpy(h_bloom_passes_raw.data(), d_bloom_passes_r1, 
+                                 batch1.num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
+            std::vector<bool> h_bloom_passes(batch1.num_reads);
+            for (int i = 0; i < batch1.num_reads; i++) {
+                h_bloom_passes[i] = h_bloom_passes_raw[i];
+            }
+            CUDA_CHECK(cudaMemcpy(h_bloom_kmers.data(), d_bloom_kmers_r1, 
+                                 batch1.num_reads * sizeof(int), cudaMemcpyDeviceToHost));
+            
+            // Get R1 statistics
+            int r1_stats[4];
+            CUDA_CHECK(cudaMemcpy(r1_stats, d_bloom_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost));
+            
+            // Count R1 reads that passed
+            int reads_passed_bloom_r1 = 0;
+            for (int i = 0; i < batch1.num_reads; i++) {
+                if (h_bloom_passes[i]) reads_passed_bloom_r1++;
+            }
+            
+            DEBUG_PRINT("R1 Bloom filter results: %d/%d reads passed (%.1f%%)", 
+                       reads_passed_bloom_r1, batch1.num_reads, 
+                       100.0 * reads_passed_bloom_r1 / batch1.num_reads);
+            DEBUG_PRINT("  R1 stats - Forward hits: %d, RC hits: %d", r1_stats[1], r1_stats[2]);
+            
+            // Screen R2 reads with RC support
+            DEBUG_PRINT("Stage 0b: Bloom filter pre-screening for R2 reads (with RC)");
+            
+            // Reset debug statistics
+            CUDA_CHECK(cudaMemset(d_bloom_debug_stats, 0, 4 * sizeof(int)));
+            
+            bloom_result = bloom_filter_screen_reads_with_rc(
+                bloom_filter,
+                d_reads_r2, d_lengths_r2, d_offsets_r2,
+                batch2.num_reads,
+                d_bloom_passes_r2, d_bloom_kmers_r2,
+                bloom_min_kmers,
+                true,   // R2: CHECK RC!
+                d_bloom_debug_stats
+            );
+            
+            // Get R2 Bloom results
+            std::vector<char> h_bloom_passes_r2_raw(batch2.num_reads);
+            CUDA_CHECK(cudaMemcpy(h_bloom_passes_r2_raw.data(), d_bloom_passes_r2, 
+                                 batch2.num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
+            std::vector<bool> h_bloom_passes_r2(batch2.num_reads);
+            for (int i = 0; i < batch2.num_reads; i++) {
+                h_bloom_passes_r2[i] = h_bloom_passes_r2_raw[i];
+            }
+            
+            // Get R2 statistics
+            int r2_stats[4];
+            CUDA_CHECK(cudaMemcpy(r2_stats, d_bloom_debug_stats, 4 * sizeof(int), cudaMemcpyDeviceToHost));
+            
+            int reads_passed_bloom_r2 = 0;
+            for (int i = 0; i < batch2.num_reads; i++) {
+                if (h_bloom_passes_r2[i]) reads_passed_bloom_r2++;
+            }
+            
+            DEBUG_PRINT("R2 Bloom filter results: %d/%d reads passed (%.1f%%)", 
+                       reads_passed_bloom_r2, batch2.num_reads, 
+                       100.0 * reads_passed_bloom_r2 / batch2.num_reads);
+            DEBUG_PRINT("  R2 stats - Forward hits: %d, RC hits: %d", r2_stats[1], r2_stats[2]);
+            
+            auto bloom_end = std::chrono::high_resolution_clock::now();
+            auto bloom_time = std::chrono::duration_cast<std::chrono::microseconds>(bloom_end - bloom_start).count();
+            
+            // Combine R1 and R2 Bloom results - a read pair passes if EITHER read passes
+            int reads_passed_bloom_combined = 0;
+            std::vector<bool> h_pair_passes(batch1.num_reads);
+            for (int i = 0; i < batch1.num_reads; i++) {
+                h_pair_passes[i] = h_bloom_passes[i] || h_bloom_passes_r2[i];
+                if (h_pair_passes[i]) reads_passed_bloom_combined++;
+            }
+            
+            DEBUG_PRINT("Combined Bloom results: %d/%d read pairs passed (%.1f ms)", 
+                       reads_passed_bloom_combined, batch1.num_reads, bloom_time / 1000.0);
+            
+            enhanced_stats.reads_passed_bloom += reads_passed_bloom_combined;
+            
+            // Only proceed if some read pairs passed Bloom filter
             if (reads_passed_bloom_combined > 0) {
                 // We'll process both R1 and R2, then combine results
                 std::map<int, AlignmentResult> best_results_per_read_pair;
                 
                 // =========================
-                // Process R1/R2 reads with nucleotide search (OPTIONAL)
+                // Process R1 reads with nucleotide search
                 // =========================
-                if (enable_kmer_match) {
-                    DEBUG_PRINT("Processing R1 reads with k-mer matching...");
-                    
-                    // Stage 1: K-mer Filtering for R1
-                    auto kmer_start = std::chrono::high_resolution_clock::now();
-                    DEBUG_PRINT("Stage 1: K-mer filtering for R1 reads");
-                    
-                    launch_kmer_filter(
-                        d_reads_r1, d_lengths_r1, d_offsets_r1,
-                        detector, batch1.num_reads,
-                        d_candidates, d_candidate_counts,
-                        false  // R1: don't check RC in k-mer screening
-                    );
-                    CUDA_CHECK(cudaDeviceSynchronize());
-                    
-                    // Check candidate counts for R1
-                    std::vector<uint32_t> h_candidate_counts_r1(batch1.num_reads);
-                    CUDA_CHECK(cudaMemcpy(h_candidate_counts_r1.data(), d_candidate_counts, 
-                                         batch1.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
-                    
-                    int total_candidates_r1 = 0;
-                    int reads_with_kmer_hits_r1 = 0;
-                    for (int i = 0; i < batch1.num_reads; i++) {
-                        if (h_pair_passes[i] && h_candidate_counts_r1[i] > 0) {
-                            total_candidates_r1 += h_candidate_counts_r1[i];
-                            reads_with_kmer_hits_r1++;
-                        }
+                DEBUG_PRINT("Processing R1 reads...");
+                
+                // Stage 1: K-mer Filtering for R1
+                auto kmer_start = std::chrono::high_resolution_clock::now();
+                DEBUG_PRINT("Stage 1: K-mer filtering for R1 reads");
+                
+                launch_kmer_filter(
+                    d_reads_r1, d_lengths_r1, d_offsets_r1,
+                    detector, batch1.num_reads,
+                    d_candidates, d_candidate_counts,
+                    false  // R1: don't check RC in k-mer screening
+                );
+                CUDA_CHECK(cudaDeviceSynchronize());
+                
+                // Check candidate counts for R1
+                std::vector<uint32_t> h_candidate_counts_r1(batch1.num_reads);
+                CUDA_CHECK(cudaMemcpy(h_candidate_counts_r1.data(), d_candidate_counts, 
+                                     batch1.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+                
+                int total_candidates_r1 = 0;
+                int reads_with_kmer_hits_r1 = 0;
+                for (int i = 0; i < batch1.num_reads; i++) {
+                    if (h_pair_passes[i] && h_candidate_counts_r1[i] > 0) {
+                        total_candidates_r1 += h_candidate_counts_r1[i];
+                        reads_with_kmer_hits_r1++;
                     }
-                    
-                    DEBUG_PRINT("R1 k-mer filtering: %d total candidates", total_candidates_r1);
-                    
-                    // Stage 2: Alignment for R1
-                    if (total_candidates_r1 > 0) {
-                        DEBUG_PRINT("Stage 2: Position-weighted alignment for R1");
-                        
-                        CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
-                        
-                        launch_position_weighted_alignment(
-                            d_reads_r1, d_lengths_r1, d_offsets_r1,
-                            d_candidates, d_candidate_counts,
-                            detector, batch1.num_reads,
-                            d_results, d_result_count
-                        );
-                        CUDA_CHECK(cudaDeviceSynchronize());
-                        
-                        // Get R1 results
-                        uint32_t num_results_r1;
-                        CUDA_CHECK(cudaMemcpy(&num_results_r1, d_result_count, sizeof(uint32_t), cudaMemcpyDeviceToHost));
-                        
-                        if (num_results_r1 > 0) {
-                            std::vector<AlignmentResult> results_r1(num_results_r1);
-                            cudaMemcpy(results_r1.data(), d_results, num_results_r1 * sizeof(AlignmentResult), 
-                                      cudaMemcpyDeviceToHost);
-                            
-                            // Add to HDF5
-                            hdf5_writer->addAlignmentBatch(results_r1.data(), num_results_r1, 
-                                                         enhanced_stats.total_reads_processed - batch1.num_reads);
-                            
-                            // Store R1 results for JSON output
-                            for (const auto& result : results_r1) {
-                                if (result.num_mutations_detected > 0 && h_pair_passes[result.read_id]) {
-                                    int read_pair_id = result.read_id;
-                                    
-                                    if (best_results_per_read_pair.find(read_pair_id) == best_results_per_read_pair.end() ||
-                                        result.alignment_score > best_results_per_read_pair[read_pair_id].alignment_score) {
-                                        best_results_per_read_pair[read_pair_id] = result;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Process R2 reads with nucleotide search (with RC support)
-                    DEBUG_PRINT("Processing R2 reads (with RC support)...");
-                    
-                    // Reset candidate counts for R2
-                    CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch2.num_reads * sizeof(uint32_t)));
-                    
-                    // Stage 1: K-mer Filtering for R2 with RC
-                    DEBUG_PRINT("Stage 1: K-mer filtering for R2 reads (with RC)");
-                    
-                    launch_kmer_filter(
-                        d_reads_r2, d_lengths_r2, d_offsets_r2,
-                        detector, batch2.num_reads,
-                        d_candidates, d_candidate_counts,
-                        true   // R2: CHECK RC in k-mer screening!
-                    );
-                    CUDA_CHECK(cudaDeviceSynchronize());
-                    
-                    // Check candidate counts for R2
-                    std::vector<uint32_t> h_candidate_counts_r2(batch2.num_reads);
-                    CUDA_CHECK(cudaMemcpy(h_candidate_counts_r2.data(), d_candidate_counts, 
-                                         batch2.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
-                    
-                    int total_candidates_r2 = 0;
-                    int reads_with_kmer_hits_r2 = 0;
-                    for (int i = 0; i < batch2.num_reads; i++) {
-                        if (h_pair_passes[i] && h_candidate_counts_r2[i] > 0) {
-                            total_candidates_r2 += h_candidate_counts_r2[i];
-                            reads_with_kmer_hits_r2++;
-                        }
-                    }
-                    
-                    DEBUG_PRINT("R2 k-mer filtering: %d total candidates", total_candidates_r2);
-                    
-                    // Stage 2: Alignment for R2
-                    if (total_candidates_r2 > 0) {
-                        DEBUG_PRINT("Stage 2: Position-weighted alignment for R2");
-                        
-                        CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
-                        
-                        launch_position_weighted_alignment(
-                            d_reads_r2, d_lengths_r2, d_offsets_r2,
-                            d_candidates, d_candidate_counts,
-                            detector, batch2.num_reads,
-                            d_results, d_result_count
-                        );
-                        CUDA_CHECK(cudaDeviceSynchronize());
-                        
-                        // Get R2 results
-                        uint32_t num_results_r2;
-                        CUDA_CHECK(cudaMemcpy(&num_results_r2, d_result_count, sizeof(uint32_t), cudaMemcpyDeviceToHost));
-                        
-                        if (num_results_r2 > 0) {
-                            std::vector<AlignmentResult> results_r2(num_results_r2);
-                            cudaMemcpy(results_r2.data(), d_results, num_results_r2 * sizeof(AlignmentResult), 
-                                      cudaMemcpyDeviceToHost);
-                            
-                            // Add to HDF5
-                            hdf5_writer->addAlignmentBatch(results_r2.data(), num_results_r2, 
-                                                         enhanced_stats.total_reads_processed - batch2.num_reads);
-                            
-                            // Combine with R1 results for JSON output, preferring higher scores
-                            for (const auto& result : results_r2) {
-                                if (result.num_mutations_detected > 0 && h_pair_passes[result.read_id]) {
-                                    int read_pair_id = result.read_id;
-                                    
-                                    // If R2 has better score than R1, use R2
-                                    if (best_results_per_read_pair.find(read_pair_id) == best_results_per_read_pair.end() ||
-                                        result.alignment_score > best_results_per_read_pair[read_pair_id].alignment_score) {
-                                        best_results_per_read_pair[read_pair_id] = result;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    auto kmer_end = std::chrono::high_resolution_clock::now();
-                    auto kmer_time = std::chrono::duration_cast<std::chrono::microseconds>(kmer_end - kmer_start).count();
-                    
-                    DEBUG_PRINT("Combined nucleotide results: %zu read pairs with mutations (%.1f ms)", 
-                               best_results_per_read_pair.size(), kmer_time / 1000.0);
-                    
-                    enhanced_stats.total_candidates_found += total_candidates_r1 + total_candidates_r2;
-                    enhanced_stats.reads_with_candidates += reads_passed_bloom_combined;
-                    
-                    // Count unique read pairs with k-mer hits (either R1 or R2 has hits)
-                    int read_pairs_with_kmer_hits = 0;
-                    for (int i = 0; i < batch1.num_reads; i++) {
-                        if ((h_pair_passes[i] && h_candidate_counts_r1[i] > 0) || 
-                            (h_pair_passes[i] && h_candidate_counts_r2[i] > 0)) {
-                            read_pairs_with_kmer_hits++;
-                        }
-                    }
-                    enhanced_stats.reads_with_kmer_hits += read_pairs_with_kmer_hits;
-                } else {
-                    DEBUG_PRINT("K-mer matching disabled - skipping nucleotide search");
                 }
+                
+                DEBUG_PRINT("R1 k-mer filtering: %d total candidates", total_candidates_r1);
+                
+                // Stage 2: Alignment for R1
+                if (total_candidates_r1 > 0) {
+                    DEBUG_PRINT("Stage 2: Position-weighted alignment for R1");
+                    
+                    CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
+                    
+                    launch_position_weighted_alignment(
+                        d_reads_r1, d_lengths_r1, d_offsets_r1,
+                        d_candidates, d_candidate_counts,
+                        detector, batch1.num_reads,
+                        d_results, d_result_count
+                    );
+                    CUDA_CHECK(cudaDeviceSynchronize());
+                    
+                    // Get R1 results
+                    uint32_t num_results_r1;
+                    CUDA_CHECK(cudaMemcpy(&num_results_r1, d_result_count, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+                    
+                    if (num_results_r1 > 0) {
+                        std::vector<AlignmentResult> results_r1(num_results_r1);
+                        cudaMemcpy(results_r1.data(), d_results, num_results_r1 * sizeof(AlignmentResult), 
+                                  cudaMemcpyDeviceToHost);
+                        
+                        // Add to HDF5
+                        hdf5_writer->addAlignmentBatch(results_r1.data(), num_results_r1, 
+                                                     enhanced_stats.total_reads_processed - batch1.num_reads);
+                        
+                        // Store R1 results for JSON output
+                        for (const auto& result : results_r1) {
+                            if (result.num_mutations_detected > 0 && h_pair_passes[result.read_id]) {
+                                int read_pair_id = result.read_id;
+                                
+                                if (best_results_per_read_pair.find(read_pair_id) == best_results_per_read_pair.end() ||
+                                    result.alignment_score > best_results_per_read_pair[read_pair_id].alignment_score) {
+                                    best_results_per_read_pair[read_pair_id] = result;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // =========================
+                // Process R2 reads with nucleotide search (with RC support)
+                // =========================
+                DEBUG_PRINT("Processing R2 reads (with RC support)...");
+                
+                // Reset candidate counts for R2
+                CUDA_CHECK(cudaMemset(d_candidate_counts, 0, batch2.num_reads * sizeof(uint32_t)));
+                
+                // Stage 1: K-mer Filtering for R2 with RC
+                DEBUG_PRINT("Stage 1: K-mer filtering for R2 reads (with RC)");
+                
+                launch_kmer_filter(
+                    d_reads_r2, d_lengths_r2, d_offsets_r2,
+                    detector, batch2.num_reads,
+                    d_candidates, d_candidate_counts,
+                    true   // R2: CHECK RC in k-mer screening!
+                );
+                CUDA_CHECK(cudaDeviceSynchronize());
+                
+                // Check candidate counts for R2
+                std::vector<uint32_t> h_candidate_counts_r2(batch2.num_reads);
+                CUDA_CHECK(cudaMemcpy(h_candidate_counts_r2.data(), d_candidate_counts, 
+                                     batch2.num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+                
+                int total_candidates_r2 = 0;
+                int reads_with_kmer_hits_r2 = 0;
+                for (int i = 0; i < batch2.num_reads; i++) {
+                    if (h_pair_passes[i] && h_candidate_counts_r2[i] > 0) {
+                        total_candidates_r2 += h_candidate_counts_r2[i];
+                        reads_with_kmer_hits_r2++;
+                    }
+                }
+                
+                DEBUG_PRINT("R2 k-mer filtering: %d total candidates", total_candidates_r2);
+                
+                // Stage 2: Alignment for R2
+                if (total_candidates_r2 > 0) {
+                    DEBUG_PRINT("Stage 2: Position-weighted alignment for R2");
+                    
+                    CUDA_CHECK(cudaMemset(d_result_count, 0, sizeof(uint32_t)));
+                    
+                    launch_position_weighted_alignment(
+                        d_reads_r2, d_lengths_r2, d_offsets_r2,
+                        d_candidates, d_candidate_counts,
+                        detector, batch2.num_reads,
+                        d_results, d_result_count
+                    );
+                    CUDA_CHECK(cudaDeviceSynchronize());
+                    
+                    // Get R2 results
+                    uint32_t num_results_r2;
+                    CUDA_CHECK(cudaMemcpy(&num_results_r2, d_result_count, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+                    
+                    if (num_results_r2 > 0) {
+                        std::vector<AlignmentResult> results_r2(num_results_r2);
+                        cudaMemcpy(results_r2.data(), d_results, num_results_r2 * sizeof(AlignmentResult), 
+                                  cudaMemcpyDeviceToHost);
+                        
+                        // Add to HDF5
+                        hdf5_writer->addAlignmentBatch(results_r2.data(), num_results_r2, 
+                                                     enhanced_stats.total_reads_processed - batch2.num_reads);
+                        
+                        // Combine with R1 results for JSON output, preferring higher scores
+                        for (const auto& result : results_r2) {
+                            if (result.num_mutations_detected > 0 && h_pair_passes[result.read_id]) {
+                                int read_pair_id = result.read_id;
+                                
+                                // If R2 has better score than R1, use R2
+                                if (best_results_per_read_pair.find(read_pair_id) == best_results_per_read_pair.end() ||
+                                    result.alignment_score > best_results_per_read_pair[read_pair_id].alignment_score) {
+                                    best_results_per_read_pair[read_pair_id] = result;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                auto kmer_end = std::chrono::high_resolution_clock::now();
+                auto kmer_time = std::chrono::duration_cast<std::chrono::microseconds>(kmer_end - kmer_start).count();
+                
+                DEBUG_PRINT("Combined nucleotide results: %zu read pairs with mutations (%.1f ms)", 
+                           best_results_per_read_pair.size(), kmer_time / 1000.0);
+                
+                enhanced_stats.total_candidates_found += total_candidates_r1 + total_candidates_r2;
+                enhanced_stats.reads_with_candidates += reads_passed_bloom_combined;
+                
+                // Count unique read pairs with k-mer hits (either R1 or R2 has hits)
+                int read_pairs_with_kmer_hits = 0;
+                for (int i = 0; i < batch1.num_reads; i++) {
+                    if ((h_pair_passes[i] && h_candidate_counts_r1[i] > 0) || 
+                        (h_pair_passes[i] && h_candidate_counts_r2[i] > 0)) {
+                        read_pairs_with_kmer_hits++;
+                    }
+                }
+                enhanced_stats.reads_with_kmer_hits += read_pairs_with_kmer_hits;
                 
                 // =========================
                 // Stage 3: Enhanced 5-mer Translated Search (if enabled)
@@ -1381,26 +1236,11 @@ public:
                     DEBUG_PRINT("Stage 3: Enhanced 6-frame translated search (5-mer k-mers, SW: %s)", 
                                enable_smith_waterman ? "enabled" : "disabled");
                     
-                    // Create bool array for reads to process based on h_pair_passes
-                    bool* d_reads_to_process;
-                    CUDA_CHECK(cudaMalloc(&d_reads_to_process, batch1.num_reads * sizeof(bool)));
-                    
-                    if (enable_bloom_filter) {
-                        // Copy the bloom filter results
-                        CUDA_CHECK(cudaMemcpy(d_reads_to_process, d_bloom_passes_r1, 
-                                             batch1.num_reads * sizeof(bool), cudaMemcpyDeviceToDevice));
-                    } else {
-                        // All reads pass if bloom filter is disabled
-                        std::vector<uint8_t> all_pass(batch1.num_reads, 1);
-                        CUDA_CHECK(cudaMemcpy(d_reads_to_process, all_pass.data(), 
-                                             batch1.num_reads * sizeof(bool), cudaMemcpyHostToDevice));
-                    }
-                    
                     // Search both R1 and R2 for protein matches
                     int trans_result = search_translated_reads(
                         translated_search_engine,
                         d_reads_r1, d_lengths_r1, d_offsets_r1,
-                        d_reads_to_process,  // Only search reads that passed bloom
+                        d_bloom_passes_r1,  // Only search reads that passed bloom
                         batch1.num_reads,
                         d_protein_matches,
                         d_protein_match_counts
@@ -1449,6 +1289,8 @@ public:
                                             // Check if this is a QRDR alignment
                                             pm.is_qrdr_alignment = isQRDRAlignment(pm);
                                             
+                                            // Peptide sequence is now extracted on GPU side
+                                            
                                             // Store for top display
                                             top_sw_matches.push_back(pm);
                                             
@@ -1494,15 +1336,10 @@ public:
                     // Also search R2 (optional, could skip for speed)
                     CUDA_CHECK(cudaMemset(d_protein_match_counts, 0, batch2.num_reads * sizeof(uint32_t)));
                     
-                    if (enable_bloom_filter) {
-                        CUDA_CHECK(cudaMemcpy(d_reads_to_process, d_bloom_passes_r2, 
-                                             batch2.num_reads * sizeof(bool), cudaMemcpyDeviceToDevice));
-                    }
-                    
                     trans_result = search_translated_reads(
                         translated_search_engine,
                         d_reads_r2, d_lengths_r2, d_offsets_r2,
-                        d_reads_to_process,
+                        d_bloom_passes_r2,
                         batch2.num_reads,
                         d_protein_matches,
                         d_protein_match_counts
@@ -1549,6 +1386,8 @@ public:
                                             // Check if this is a QRDR alignment
                                             pm.is_qrdr_alignment = isQRDRAlignment(pm);
                                             
+                                            // Peptide sequence is now extracted on GPU side
+                                            
                                             // Store for top display
                                             top_sw_matches.push_back(pm);
                                             
@@ -1590,30 +1429,26 @@ public:
                         }
                     }
                     
-                    CUDA_CHECK(cudaFree(d_reads_to_process));
-                    
                     auto trans_end = std::chrono::high_resolution_clock::now();
                     auto trans_time = std::chrono::duration_cast<std::chrono::microseconds>(trans_end - trans_start).count();
                     DEBUG_PRINT("Enhanced translated search completed (%.1f ms)", trans_time / 1000.0);
                 }
                 
                 // Output combined results to JSON
-                if (enable_kmer_match) {
-                    for (const auto& pair : best_results_per_read_pair) {
-                        const auto& result = pair.second;
-                        if (!first_mutation) output << ",\n";
-                        output << "    {\n";
-                        output << "      \"read_pair\": " << (result.read_id + enhanced_stats.total_reads_processed - batch1.num_reads) << ",\n";
-                        output << "      \"gene_id\": " << result.gene_id << ",\n";
-                        output << "      \"species_id\": " << result.species_id << ",\n";
-                        output << "      \"alignment_score\": " << result.alignment_score << ",\n";
-                        output << "      \"identity\": " << result.identity << ",\n";
-                        output << "      \"mutations_detected\": " << (int)result.num_mutations_detected << ",\n";
-                        output << "      \"source\": \"" << (result.start_pos < 1000 ? "R1" : "R2") << "\"\n";
-                        output << "    }";
-                        first_mutation = false;
-                        enhanced_stats.total_mutations_found++;
-                    }
+                for (const auto& pair : best_results_per_read_pair) {
+                    const auto& result = pair.second;
+                    if (!first_mutation) output << ",\n";
+                    output << "    {\n";
+                    output << "      \"read_pair\": " << (result.read_id + enhanced_stats.total_reads_processed - batch1.num_reads) << ",\n";
+                    output << "      \"gene_id\": " << result.gene_id << ",\n";
+                    output << "      \"species_id\": " << result.species_id << ",\n";
+                    output << "      \"alignment_score\": " << result.alignment_score << ",\n";
+                    output << "      \"identity\": " << result.identity << ",\n";
+                    output << "      \"mutations_detected\": " << (int)result.num_mutations_detected << ",\n";
+                    output << "      \"source\": \"" << (result.start_pos < 1000 ? "R1" : "R2") << "\"\n";
+                    output << "    }";
+                    first_mutation = false;
+                    enhanced_stats.total_mutations_found++;
                 }
             }
             
@@ -1640,9 +1475,7 @@ public:
             // Progress update
             if (enhanced_stats.total_reads_processed % 100000 == 0) {
                 std::cout << "Processed " << enhanced_stats.total_reads_processed << " read pairs..." << std::endl;
-                if (enable_bloom_filter) {
-                    std::cout << "  Bloom filter pass rate: " << (100.0 * enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed) << "%" << std::endl;
-                }
+                std::cout << "  Bloom filter pass rate: " << (100.0 * enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed) << "%" << std::endl;
                 if (enable_translated_search) {
                     std::cout << "  Protein matches found: " << enhanced_stats.total_protein_matches << std::endl;
                     if (enable_smith_waterman) {
@@ -1666,13 +1499,6 @@ public:
                      });
         }
         
-        // Create QRDR alignments CSV file
-        if (!qrdr_alignments.empty()) {
-            std::string csv_path = report_dir + "/" + sample_name + "_qrdr_alignments.csv";
-            writeQRDRAlignmentsToCSV(qrdr_alignments, gene_id_to_name, species_id_to_name, 
-                                    csv_path, enhanced_stats.total_reads_processed);
-        }
-        
         // Finalize HDF5 output
         hdf5_writer->finalize(output_path);
         
@@ -1680,30 +1506,18 @@ public:
         output << "\n  ],\n";
         output << "  \"enhanced_summary\": {\n";
         output << "    \"total_reads\": " << enhanced_stats.total_reads_processed << ",\n";
-        if (enable_bloom_filter) {
-            output << "    \"reads_passed_bloom\": " << enhanced_stats.reads_passed_bloom << ",\n";
-        }
-        if (enable_kmer_match) {
-            output << "    \"reads_with_candidates\": " << enhanced_stats.reads_with_candidates << ",\n";
-            output << "    \"reads_with_kmer_hits\": " << enhanced_stats.reads_with_kmer_hits << ",\n";
-        }
-        if (enable_translated_search) {
-            output << "    \"protein_matches\": " << enhanced_stats.total_protein_matches << ",\n";
-            output << "    \"reads_with_sw_alignments\": " << enhanced_stats.reads_with_sw_alignments << ",\n";
-            output << "    \"resistance_mutations_found\": " << enhanced_stats.resistance_mutations_found << ",\n";
-            output << "    \"qrdr_alignments\": " << enhanced_stats.qrdr_alignments << ",\n";
-            output << "    \"high_confidence_matches\": " << enhanced_stats.high_confidence_matches << ",\n";
-        }
-        if (enable_bloom_filter) {
-            output << "    \"bloom_retention_rate\": " << (double)enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed << ",\n";
-        }
-        if (enable_translated_search && enhanced_stats.reads_passed_bloom > 0) {
-            output << "    \"protein_hit_rate\": " << (double)enhanced_stats.total_protein_matches / enhanced_stats.reads_passed_bloom << ",\n";
-        }
-        if (enable_kmer_match) {
-            output << "    \"total_candidates\": " << enhanced_stats.total_candidates_found << ",\n";
-            output << "    \"mutations_found\": " << enhanced_stats.total_mutations_found << ",\n";
-        }
+        output << "    \"reads_passed_bloom\": " << enhanced_stats.reads_passed_bloom << ",\n";
+        output << "    \"reads_with_candidates\": " << enhanced_stats.reads_with_candidates << ",\n";
+        output << "    \"reads_with_kmer_hits\": " << enhanced_stats.reads_with_kmer_hits << ",\n";
+        output << "    \"protein_matches\": " << enhanced_stats.total_protein_matches << ",\n";
+        output << "    \"reads_with_sw_alignments\": " << enhanced_stats.reads_with_sw_alignments << ",\n";
+        output << "    \"resistance_mutations_found\": " << enhanced_stats.resistance_mutations_found << ",\n";
+        output << "    \"qrdr_alignments\": " << enhanced_stats.qrdr_alignments << ",\n";
+        output << "    \"high_confidence_matches\": " << enhanced_stats.high_confidence_matches << ",\n";
+        output << "    \"bloom_retention_rate\": " << (double)enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed << ",\n";
+        output << "    \"protein_hit_rate\": " << (enhanced_stats.total_protein_matches > 0 ? (double)enhanced_stats.total_protein_matches / enhanced_stats.reads_passed_bloom : 0.0) << ",\n";
+        output << "    \"total_candidates\": " << enhanced_stats.total_candidates_found << ",\n";
+        output << "    \"mutations_found\": " << enhanced_stats.total_mutations_found << ",\n";
         if (enable_translated_search) {
             output << "    \"protein_resistance_found\": " << enhanced_stats.total_protein_resistance_found << ",\n";
             output << "    \"protein_kmer_size\": 5,\n";
@@ -1734,26 +1548,19 @@ public:
         // Enhanced final summary
         std::cout << "\n=== ENHANCED PROCESSING COMPLETE ===" << std::endl;
         std::cout << "Total reads: " << enhanced_stats.total_reads_processed << std::endl;
+        std::cout << "Filter performance:" << std::endl;
+        std::cout << "  Bloom filter retention: " << enhanced_stats.reads_passed_bloom 
+                  << " (" << (100.0 * enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed) << "%)" << std::endl;
+        std::cout << "  Reads with k-mer hits: " << enhanced_stats.reads_with_kmer_hits << std::endl;
         
-        if (enable_bloom_filter || enable_kmer_match) {
-            std::cout << "Filter performance:" << std::endl;
-            if (enable_bloom_filter) {
-                std::cout << "  Bloom filter retention: " << enhanced_stats.reads_passed_bloom 
-                          << " (" << (100.0 * enhanced_stats.reads_passed_bloom / enhanced_stats.total_reads_processed) << "%)" << std::endl;
-            }
-            if (enable_kmer_match) {
-                std::cout << "  Reads with k-mer hits: " << enhanced_stats.reads_with_kmer_hits << std::endl;
-            }
-        }
+        std::cout << "Protein analysis:" << std::endl;
+        std::cout << "  Total protein matches: " << enhanced_stats.total_protein_matches << std::endl;
+        std::cout << "  Reads with Smith-Waterman alignments: " << enhanced_stats.reads_with_sw_alignments << std::endl;
+        std::cout << "  QRDR region alignments: " << enhanced_stats.qrdr_alignments << std::endl;
+        std::cout << "  High confidence matches: " << enhanced_stats.high_confidence_matches << std::endl;
+        std::cout << "  Resistance mutations detected: " << enhanced_stats.resistance_mutations_found << std::endl;
         
-        if (enable_translated_search) {
-            std::cout << "Protein analysis:" << std::endl;
-            std::cout << "  Total protein matches: " << enhanced_stats.total_protein_matches << std::endl;
-            std::cout << "  Reads with Smith-Waterman alignments: " << enhanced_stats.reads_with_sw_alignments << std::endl;
-            std::cout << "  QRDR region alignments: " << enhanced_stats.qrdr_alignments << std::endl;
-            std::cout << "  High confidence matches: " << enhanced_stats.high_confidence_matches << std::endl;
-            std::cout << "  Resistance mutations detected: " << enhanced_stats.resistance_mutations_found << std::endl;
-        }
+        // Display top 10 Smith-Waterman matches
         
         // Display top 20 QRDR alignments ranked by alignment score
         if (!qrdr_alignments.empty() && enable_smith_waterman) {
@@ -1797,7 +1604,6 @@ public:
             }
             
             std::cout << "\nTotal QRDR alignments found: " << qrdr_alignments.size() << std::endl;
-            std::cout << "Full QRDR alignment details exported to: " << sample_name << "_qrdr_alignments.csv" << std::endl;
             std::cout << "NOTE: These peptide sequences should be verified using BLAST to confirm alignment accuracy." << std::endl;
         } else if (enable_smith_waterman) {
             std::cout << "\nNo QRDR alignments detected." << std::endl;
@@ -1815,32 +1621,24 @@ public:
             std::cout << "   Note: Check diagnostic report for alignment quality assessment" << std::endl;
         } else {
             std::cout << "\n❓ No QRDR coverage detected" << std::endl;
-            if (enable_diagnostic_reporting) {
-                std::cout << "   Check diagnostic report for troubleshooting advice" << std::endl;
-            }
+            std::cout << "   Check diagnostic report for troubleshooting advice" << std::endl;
         }
         
         std::cout << "\nTotal time: " << total_time << " seconds" << std::endl;
         std::cout << "Throughput: " << (enhanced_stats.total_reads_processed / (double)total_time) << " reads/second" << std::endl;
         std::cout << "\nHDF5 output: " << hdf5_path << std::endl;
-        if (enable_diagnostic_reporting) {
-            std::cout << "Check diagnostic report for detailed analysis and troubleshooting" << std::endl;
-        }
+        std::cout << "Check diagnostic report for detailed analysis and troubleshooting" << std::endl;
     }
 };
 
-// Updated main function with new flags
+// Updated main function
 int main(int argc, char** argv) {
     DEBUG_PRINT("=== Enhanced FQ Pipeline GPU Starting (v0.4.0) ===");
-    DEBUG_PRINT("Features: Optional Bloom filter + Optional K-mer enrichment + Enhanced protein search + Diagnostic reporting");
+    DEBUG_PRINT("Features: Bloom filter + K-mer enrichment + Enhanced protein search + Diagnostic reporting");
     
-    if (argc < 4) {
+    if (argc < 4 || argc > 10) {
         std::cerr << "Usage: " << argv[0] << " <index_path> <reads_R1.fastq.gz> <reads_R2.fastq.gz> [options]\n";
         std::cerr << "Options:\n";
-        std::cerr << "  --enable-bloom-filter          Enable bloom filter pre-screening (default: on)\n";
-        std::cerr << "  --disable-bloom-filter         Disable bloom filter pre-screening\n";
-        std::cerr << "  --enable-kmer-match            Enable k-mer matching (default: on)\n";
-        std::cerr << "  --disable-kmer-match           Disable k-mer matching\n";
         std::cerr << "  --enable-translated-search     Enable 6-frame translated search with 5-mer k-mers\n";
         std::cerr << "  --enable-smith-waterman        Enable Smith-Waterman for high-scoring protein matches\n";
         std::cerr << "  --enable-diagnostic-reporting  Enable detailed diagnostic reporting\n";
@@ -1855,23 +1653,13 @@ int main(int argc, char** argv) {
     std::string output_path = "";  // No longer used, kept for compatibility
     
     // Parse enhanced command line options
-    bool enable_bloom_filter = true;       // Default: enabled
-    bool enable_kmer_match = true;         // Default: enabled
     bool enable_translated_search = false;
     bool enable_smith_waterman = false;
     bool enable_diagnostic_reporting = false;
     std::string protein_db_path;
     
     for (int i = 4; i < argc; i++) {
-        if (std::string(argv[i]) == "--enable-bloom-filter") {
-            enable_bloom_filter = true;
-        } else if (std::string(argv[i]) == "--disable-bloom-filter") {
-            enable_bloom_filter = false;
-        } else if (std::string(argv[i]) == "--enable-kmer-match") {
-            enable_kmer_match = true;
-        } else if (std::string(argv[i]) == "--disable-kmer-match") {
-            enable_kmer_match = false;
-        } else if (std::string(argv[i]) == "--enable-translated-search") {
+        if (std::string(argv[i]) == "--enable-translated-search") {
             enable_translated_search = true;
         } else if (std::string(argv[i]) == "--enable-smith-waterman") {
             enable_smith_waterman = true;
@@ -1885,24 +1673,17 @@ int main(int argc, char** argv) {
     
     // Display configuration
     std::cout << "=== Enhanced Fluoroquinolone Resistance Detection Pipeline (v0.4.0) ===" << std::endl;
-    std::cout << "Features:";
-    if (enable_bloom_filter) std::cout << " Bloom filter";
-    if (enable_kmer_match) std::cout << " + K-mer enrichment";
+    std::cout << "Features: Bloom filter + K-mer enrichment + Enhanced protein search + Diagnostic reporting";
     if (enable_translated_search) {
         std::cout << " + Enhanced 5-mer protein search";
         if (enable_smith_waterman) {
             std::cout << " + Smith-Waterman";
         }
     }
-    if (enable_diagnostic_reporting) std::cout << " + Diagnostic reporting";
     std::cout << std::endl;
-    
     std::cout << "Index: " << index_path << std::endl;
     std::cout << "R1 reads: " << r1_path << std::endl;
     std::cout << "R2 reads: " << r2_path << std::endl;
-    std::cout << "Bloom filter: " << (enable_bloom_filter ? "ENABLED" : "DISABLED") << std::endl;
-    std::cout << "K-mer matching: " << (enable_kmer_match ? "ENABLED" : "DISABLED") << std::endl;
-    
     if (enable_translated_search) {
         std::cout << "Enhanced translated search: ENABLED (5-mer k-mers)" << std::endl;
         if (enable_smith_waterman) {
@@ -1955,9 +1736,7 @@ int main(int argc, char** argv) {
     // Run enhanced pipeline
     try {
         DEBUG_PRINT("Creating enhanced pipeline instance");
-        EnhancedFQResistancePipeline pipeline(enable_translated_search, enable_smith_waterman, 
-                                            enable_diagnostic_reporting, enable_bloom_filter, 
-                                            enable_kmer_match);
+        EnhancedFQResistancePipeline pipeline(enable_translated_search, enable_smith_waterman, enable_diagnostic_reporting);
         
         DEBUG_PRINT("Loading index");
         pipeline.loadIndex(index_path);

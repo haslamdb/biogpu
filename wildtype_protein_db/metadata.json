@@ -1,0 +1,27 @@
+{
+  "creation_date": "2025-06-06T17:17:52.470802",
+  "database_type": "wild_type_references",
+  "description": "Wild-type protein sequences for mutation detection",
+  "statistics": {
+    "total_sequences": 4,
+    "unique_proteins": 4,
+    "total_kmers": 3128,
+    "species_count": 2,
+    "gene_count": 3
+  },
+  "species_map": {
+    "0": "Enterococcus_faecium",
+    "1": "Escherichia_coli"
+  },
+  "gene_map": {
+    "0": "gyrA",
+    "1": "parC",
+    "2": "parE"
+  },
+  "parameters": {
+    "k": 5,
+    "source": "data/wildtype_protein_seqs",
+    "input_type": "fasta",
+    "selection_method": "fasta_direct"
+  }
+}

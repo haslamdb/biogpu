@@ -1,0 +1,34 @@
+[
+  {
+    "id": 0,
+    "gene": "gyrA",
+    "species": "Enterococcus_faecium",
+    "length": 823,
+    "accession": "SAY60428.1",
+    "sequence": "MSEEIRENIHDVNLTSEMKDSFIDYAMSVIVARALPDVRDGLKPVHRRIL..."
+  },
+  {
+    "id": 1,
+    "gene": "parC",
+    "species": "Enterococcus_faecium",
+    "length": 816,
+    "accession": "UEC10928.1",
+    "sequence": "MENRQEVQELTLEEVMGDRFGRYSKYIIQERALPDIRDGLKPVQRRILFA..."
+  },
+  {
+    "id": 2,
+    "gene": "gyrA",
+    "species": "Escherichia_coli",
+    "length": 875,
+    "accession": "P0AES4",
+    "sequence": "MSDLAREITPVNIEEELKSSYLDYAMSVIVGRALPDVRDGLKPVHRRVLY..."
+  },
+  {
+    "id": 3,
+    "gene": "parE",
+    "species": "Escherichia_coli",
+    "length": 630,
+    "accession": "P20083",
+    "sequence": "MTQTYNADAIEVLTGLEPVRRRPGMYTDTTRPNHLGQEVIDNSVDEALAG..."
+  }
+]

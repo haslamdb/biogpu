@@ -57,7 +57,7 @@ target_link_libraries(hdf5_writer
 
 # Enhanced translated search library with 5-mer k-mers and Smith-Waterman
 add_library(translated_search STATIC
-    runtime/kernels/resistance/translated_search._revised.cu
+    runtime/kernels/resistance/translated_search_revised.cu
 )
 
 set_target_properties(translated_search PROPERTIES

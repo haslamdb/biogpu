@@ -910,33 +910,60 @@ public:
         
         DEBUG_PRINT("Setting up correct gene mappings for %d proteins", num_proteins);
         
-        if (num_proteins == 2) {
-            // Known structure from protein_details.json:
-            // Protein 0: parE (630 aa) -> gene_id 0
-            // Protein 1: gyrA (875 aa) -> gene_id 1
+        // For wildtype protein database with proper metadata, use the correct mapping:
+        // Based on protein_details.json:
+        // Protein 0: Enterococcus_faecium gyrA (823 aa) -> gene_id 0 (gyrA), species_id 0
+        // Protein 1: Enterococcus_faecium parC (816 aa) -> gene_id 1 (parC), species_id 0  
+        // Protein 2: Escherichia_coli gyrA (875 aa) -> gene_id 0 (gyrA), species_id 1
+        // Protein 3: Escherichia_coli parE (630 aa) -> gene_id 2 (parE), species_id 1
+        
+        if (num_proteins == 4) {
+            // Correct mapping for 4-protein wildtype database
+            size_t offset = 0;
             
+            // Protein 0: Enterococcus_faecium gyrA
             protein_ids[0] = 0;
-            gene_ids[0] = 0;  // parE
-            species_ids[0] = 0;  // Escherichia_coli
-            seq_lengths[0] = 630;
-            seq_offsets[0] = 0;
+            gene_ids[0] = 0;      // gyrA
+            species_ids[0] = 0;   // Enterococcus_faecium
+            seq_lengths[0] = 823;
+            seq_offsets[0] = offset;
+            offset += 823;
             
+            // Protein 1: Enterococcus_faecium parC
             protein_ids[1] = 1;
-            gene_ids[1] = 1;  // gyrA
-            species_ids[1] = 0;  // Escherichia_coli
-            seq_lengths[1] = 875;
-            seq_offsets[1] = 630;
+            gene_ids[1] = 1;      // parC
+            species_ids[1] = 0;   // Enterococcus_faecium
+            seq_lengths[1] = 816;
+            seq_offsets[1] = offset;
+            offset += 816;
             
-            printf("[GENE MAPPING] Protein 0: parE (gene_id=0, length=630, offset=0)\n");
-            printf("[GENE MAPPING] Protein 1: gyrA (gene_id=1, length=875, offset=630)\n");
+            // Protein 2: Escherichia_coli gyrA
+            protein_ids[2] = 2;
+            gene_ids[2] = 0;      // gyrA (same gene_id as protein 0, different species)
+            species_ids[2] = 1;   // Escherichia_coli
+            seq_lengths[2] = 875;
+            seq_offsets[2] = offset;
+            offset += 875;
+            
+            // Protein 3: Escherichia_coli parE
+            protein_ids[3] = 3;
+            gene_ids[3] = 2;      // parE
+            species_ids[3] = 1;   // Escherichia_coli
+            seq_lengths[3] = 630;
+            seq_offsets[3] = offset;
+            
+            printf("[GENE MAPPING] Protein 0: Enterococcus_faecium gyrA (gene_id=0, species_id=0, length=823)\n");
+            printf("[GENE MAPPING] Protein 1: Enterococcus_faecium parC (gene_id=1, species_id=0, length=816)\n");
+            printf("[GENE MAPPING] Protein 2: Escherichia_coli gyrA (gene_id=0, species_id=1, length=875)\n");
+            printf("[GENE MAPPING] Protein 3: Escherichia_coli parE (gene_id=2, species_id=1, length=630)\n");
         } else {
             // Fallback for other database sizes
             printf("[WARNING] Unexpected number of proteins (%d), using generic mapping\n", num_proteins);
             size_t avg_protein_len = remaining_size / num_proteins;
             for (uint32_t i = 0; i < num_proteins; i++) {
                 protein_ids[i] = i;
-                gene_ids[i] = i;  // Simple 1:1 mapping
-                species_ids[i] = 0;
+                gene_ids[i] = i % 3;  // Cycle through gene IDs 0, 1, 2
+                species_ids[i] = i / 2;  // First 2 proteins species 0, next 2 species 1, etc.
                 seq_offsets[i] = i * avg_protein_len;
                 seq_lengths[i] = (i == num_proteins - 1) ? 
                                 (remaining_size - seq_offsets[i]) : avg_protein_len;

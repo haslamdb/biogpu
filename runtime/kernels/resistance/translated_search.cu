@@ -466,8 +466,8 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 uint32_t start_idx = protein_db->kmer_start_indices[kmer_idx];
                 uint32_t count = protein_db->kmer_counts[kmer_idx];
                 
-                // Add hits for this k-mer (limit to avoid overflow)
-                for (uint32_t i = 0; i < count && i < 5 && num_seeds < 100; i++) {
+                // Add ALL hits for this k-mer to ensure we check all proteins
+                for (uint32_t i = 0; i < count && num_seeds < 100; i++) {
                     uint32_t encoded = protein_db->position_data[start_idx + i];
                     uint32_t protein_id = encoded >> 16;
                     uint32_t ref_pos = encoded & 0xFFFF;
@@ -478,8 +478,12 @@ __global__ void enhanced_protein_kmer_match_kernel(
             }
         }
         
+        // Store all candidate matches for this frame
+        ProteinMatch frame_candidates[10];  // Store up to 10 candidates per frame
+        int num_candidates = 0;
+        
         // Cluster seeds by protein and extend
-        for (int s = 0; s < num_seeds && match_count < max_matches_per_read; s++) {
+        for (int s = 0; s < num_seeds && num_candidates < 10; s++) {
             uint32_t protein_id = seeds[s].protein_id;
             if (protein_id == UINT32_MAX) continue; // Already processed
             
@@ -612,9 +616,42 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 
                 // Only accept matches with sufficient identity
                 if (temp_match.identity >= MIN_IDENTITY_THRESHOLD) {
-                    read_matches[match_count] = temp_match;
-                    match_count++;
+                    frame_candidates[num_candidates++] = temp_match;
                 }
+            }
+        }
+        
+        // Now select the best matches from candidates
+        // Sort candidates by alignment score (descending)
+        for (int i = 0; i < num_candidates - 1; i++) {
+            for (int j = i + 1; j < num_candidates; j++) {
+                if (frame_candidates[j].alignment_score > frame_candidates[i].alignment_score) {
+                    ProteinMatch temp = frame_candidates[i];
+                    frame_candidates[i] = frame_candidates[j];
+                    frame_candidates[j] = temp;
+                }
+            }
+        }
+        
+        // Add top matches to results, avoiding duplicates
+        for (int i = 0; i < num_candidates && match_count < max_matches_per_read; i++) {
+            bool is_duplicate = false;
+            
+            // Check if we already have a match for this protein
+            for (uint32_t j = 0; j < match_count; j++) {
+                if (read_matches[j].protein_id == frame_candidates[i].protein_id &&
+                    abs((int)read_matches[j].ref_start - (int)frame_candidates[i].ref_start) < 10) {
+                    // If new match has better score, replace
+                    if (frame_candidates[i].alignment_score > read_matches[j].alignment_score) {
+                        read_matches[j] = frame_candidates[i];
+                    }
+                    is_duplicate = true;
+                    break;
+                }
+            }
+            
+            if (!is_duplicate) {
+                read_matches[match_count++] = frame_candidates[i];
             }
         }
     }

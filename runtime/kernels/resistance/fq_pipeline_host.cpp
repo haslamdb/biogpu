@@ -1569,11 +1569,17 @@ public:
                                         // Check for resistance
                                         bool has_resistance = false;
                                         for (int m = 0; m < pm.num_mutations; m++) {
-                                            if (pm.gene_id == 0 && (pm.mutation_positions[m] == 83 || pm.mutation_positions[m] == 87)) {
+                                            // Convert relative position to global position (1-based)
+                                            int global_pos = pm.ref_start + pm.mutation_positions[m] + 1;
+                                            
+                                            // Based on the wildtype_protein_db mapping:
+                                            // gene_id 0 = parE (positions 416, 420)
+                                            // gene_id 1 = gyrA (positions 83, 87)
+                                            if (pm.gene_id == 1 && (global_pos == 83 || global_pos == 87)) {
                                                 has_resistance = true;
                                                 break;
                                             }
-                                            if (pm.gene_id == 1 && (pm.mutation_positions[m] == 80 || pm.mutation_positions[m] == 84)) {
+                                            if (pm.gene_id == 0 && (global_pos == 416 || global_pos == 420)) {
                                                 has_resistance = true;
                                                 break;
                                             }

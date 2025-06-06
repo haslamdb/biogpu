@@ -154,7 +154,7 @@ python src/python/enhanced_kmer_builder.py \
 
 ---
 
-### Stage 2: Build Mutation Database (Currently Unused)
+### Stage 2: Build Mutation Database
 **Purpose**: Create comprehensive resistance mutation database
 
 ```bash

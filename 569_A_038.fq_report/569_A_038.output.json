@@ -2,11 +2,11 @@
   "sample": "569_A_038",
   "hdf5_output": "569_A_038.fq_report/569_A_038.h5",
   "pipeline_version": "0.4.0-enhanced-diagnostics",
-  "diagnostic_reporting": true,
+  "diagnostic_reporting": false,
   "translated_search_enabled": true,
   "smith_waterman_enabled": true,
   "protein_kmer_size": 5,
-  "protein_database": "data/wildtype_protein_db",
+  "protein_database": "data/wildtype_protein_db/",
   "mutations": [
     {
       "read_pair": 2225871,
@@ -35,6 +35,6 @@
     "protein_resistance_found": 0,
     "protein_kmer_size": 5,
     "smith_waterman_alignments": 517,
-    "processing_time_seconds": 24
+    "processing_time_seconds": 26
   }
 }

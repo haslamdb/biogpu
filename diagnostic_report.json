@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-06-06T05:43:46.874640",
+  "test_sequences": 5,
+  "mutations_found": [],
+  "expected_mutations": [
+    "S83L",
+    "D87N",
+    "S80I"
+  ],
+  "recommendations": [
+    "Enable DEBUG_TRANS=1 in translated_search.cu",
+    "Add debug printf statements in enhanced_protein_kmer_match_kernel",
+    "Verify gene_id mapping matches your database",
+    "Check SW_SCORE_THRESHOLD (try lowering to 50.0f)"
+  ]
+}

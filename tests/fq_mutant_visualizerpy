@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""
+Fluoroquinolone Resistance Alignment Visualizer
+Helps debug why mutations aren't being detected
+"""
+
+import sys
+from typing import Dict, List, Tuple
+
+# Genetic code
+CODON_TABLE = {
+    'TTT': 'F', 'TTC': 'F', 'TTA': 'L', 'TTG': 'L',
+    'TCT': 'S', 'TCC': 'S', 'TCA': 'S', 'TCG': 'S',
+    'TAT': 'Y', 'TAC': 'Y', 'TAA': '*', 'TAG': '*',
+    'TGT': 'C', 'TGC': 'C', 'TGA': '*', 'TGG': 'W',
+    'CTT': 'L', 'CTC': 'L', 'CTA': 'L', 'CTG': 'L',
+    'CCT': 'P', 'CCC': 'P', 'CCA': 'P', 'CCG': 'P',
+    'CAT': 'H', 'CAC': 'H', 'CAA': 'Q', 'CAG': 'Q',
+    'CGT': 'R', 'CGC': 'R', 'CGA': 'R', 'CGG': 'R',
+    'ATT': 'I', 'ATC': 'I', 'ATA': 'I', 'ATG': 'M',
+    'ACT': 'T', 'ACC': 'T', 'ACA': 'T', 'ACG': 'T',
+    'AAT': 'N', 'AAC': 'N', 'AAA': 'K', 'AAG': 'K',
+    'AGT': 'S', 'AGC': 'S', 'AGA': 'R', 'AGG': 'R',
+    'GTT': 'V', 'GTC': 'V', 'GTA': 'V', 'GTG': 'V',
+    'GCT': 'A', 'GCC': 'A', 'GCA': 'A', 'GCG': 'A',
+    'GAT': 'D', 'GAC': 'D', 'GAA': 'E', 'GAG': 'E',
+    'GGT': 'G', 'GGC': 'G', 'GGA': 'G', 'GGG': 'G'
+}
+
+# Known fluoroquinolone resistance positions
+FQ_RESISTANCE_SITES = {
+    'gyrA': {
+        83: {'wild_type': 'S', 'resistant': ['L', 'F', 'W'], 'codon_wt': 'TCG'},
+        87: {'wild_type': 'D', 'resistant': ['N', 'G', 'Y'], 'codon_wt': 'GAC'}
+    },
+    'parC': {
+        80: {'wild_type': 'S', 'resistant': ['I', 'R'], 'codon_wt': 'AGC'},
+        84: {'wild_type': 'E', 'resistant': ['V', 'K', 'G'], 'codon_wt': 'GAA'}
+    }
+}
+
+def translate_sequence(dna: str, frame: int = 0) -> str:
+    """Translate DNA sequence to amino acids"""
+    protein = []
+    for i in range(frame, len(dna) - 2, 3):
+        codon = dna[i:i+3].upper()
+        if codon in CODON_TABLE:
+            protein.append(CODON_TABLE[codon])
+        else:
+            protein.append('X')
+    return ''.join(protein)
+
+def find_orf_containing_position(dna: str, target_codon_pos: int, 
+                                gene_context: str = None) -> Tuple[int, str]:
+    """
+    Find the correct reading frame and start position
+    """
+    # If we have gene context, try to find the start codon
+    if gene_context:
+        for start_pos in range(len(dna) - 3):
+            if dna[start_pos:start_pos+3] == 'ATG':
+                # Check if this ORF could contain our target position
+                frame_offset = start_pos % 3
+                aa_seq = translate_sequence(dna[start_pos:], 0)
+                if len(aa_seq) >= target_codon_pos:
+                    return start_pos, aa_seq
+    
+    # Otherwise, try all three frames
+    best_frame = 0
+    best_score = -1
+    best_translation = ""
+    
+    for frame in range(3):
+        aa_seq = translate_sequence(dna, frame)
+        # Score based on lack of stop codons and presence of expected AAs
+        score = len(aa_seq) - aa_seq.count('*') * 10
+        if score > best_score:
+            best_score = score
+            best_frame = frame
+            best_translation = aa_seq
+    
+    return best_frame, best_translation
+
+def visualize_alignment(read_seq: str, gene_name: str, 
+                       align_start: int, gene_length: int = 2500):
+    """
+    Visualize how a read aligns to the gene and where mutations should be
+    """
+    print(f"\n{'='*80}")
+    print(f"Analyzing read alignment to {gene_name}")
+    print(f"{'='*80}")
+    
+    # Show the alignment context
+    print(f"\nAlignment start position: {align_start}")
+    print(f"Read length: {len(read_seq)} bp")
+    print(f"Read covers gene positions: {align_start} - {align_start + len(read_seq)}")
+    
+    # Check coverage of each resistance site
+    for codon_pos, site_info in FQ_RESISTANCE_SITES.get(gene_name, {}).items():
+        # Calculate DNA position (assuming gene starts at position 0)
+        dna_pos = (codon_pos - 1) * 3  # Convert to 0-based DNA position
+        
+        print(f"\n{gene_name} Codon {codon_pos} (DNA pos {dna_pos}-{dna_pos+2}):")
+        print(f"  Wild-type: {site_info['wild_type']} ({site_info['codon_wt']})")
+        print(f"  Known resistant: {', '.join(site_info['resistant'])}")
+        
+        # Check if read covers this position
+        if align_start <= dna_pos and align_start + len(read_seq) >= dna_pos + 3:
+            print(f"  ✓ Read COVERS this position")
+            
+            # Extract the codon from the read
+            codon_start_in_read = dna_pos - align_start
+            if codon_start_in_read >= 0 and codon_start_in_read + 3 <= len(read_seq):
+                observed_codon = read_seq[codon_start_in_read:codon_start_in_read + 3]
+                observed_aa = CODON_TABLE.get(observed_codon.upper(), 'X')
+                
+                print(f"  Observed codon: {observed_codon}")
+                print(f"  Observed AA: {observed_aa}")
+                
+                if observed_aa == site_info['wild_type']:
+                    print(f"  → Wild-type")
+                elif observed_aa in site_info['resistant']:
+                    print(f"  → RESISTANT MUTATION DETECTED! {site_info['wild_type']}{codon_pos}{observed_aa}")
+                else:
+                    print(f"  → Novel mutation: {site_info['wild_type']}{codon_pos}{observed_aa}")
+                
+                # Show context
+                context_start = max(0, codon_start_in_read - 9)
+                context_end = min(len(read_seq), codon_start_in_read + 12)
+                context = read_seq[context_start:context_end]
+                marker_pos = codon_start_in_read - context_start
+                
+                print(f"  Context: {context[:marker_pos]}[{context[marker_pos:marker_pos+3]}]{context[marker_pos+3:]}")
+                
+        else:
+            print(f"  ✗ Read does NOT cover this position")
+            print(f"    Need coverage of positions {dna_pos}-{dna_pos+2}")
+            print(f"    Read covers positions {align_start}-{align_start + len(read_seq)}")
+    
+    # Show all three reading frames
+    print("\nTranslations in all three frames:")
+    for frame in range(3):
+        aa_seq = translate_sequence(read_seq, frame)
+        print(f"  Frame {frame}: {aa_seq[:50]}{'...' if len(aa_seq) > 50 else ''}")
+
+def analyze_cuda_alignment_issue():
+    """
+    Simulate what the CUDA code should be doing
+    """
+    print("\nCOMMON ISSUES IN FQ RESISTANCE DETECTION:")
+    print("==========================================")
+    
+    print("\n1. ALIGNMENT COORDINATE SYSTEMS")
+    print("   - Make sure alignment positions are in the same coordinate system")
+    print("   - Gene positions might be 1-based while alignments are 0-based")
+    print("   - QRDR positions are usually given as codon numbers (1-based)")
+    
+    print("\n2. REFERENCE SEQUENCE ISSUES")
+    print("   - Ensure you're using the correct reference gene sequence")
+    print("   - Check if gene start position is properly accounted for")
+    print("   - Verify that codon positions match the reference annotation")
+    
+    print("\n3. COMMON COORDINATE CALCULATION ERRORS")
+    print("   DNA_position = gene_start + (codon_number - 1) * 3")
+    print("   Read_offset = DNA_position - alignment_start")
+    print("   Codon = read[Read_offset : Read_offset + 3]")
+    
+    # Example calculation
+    print("\n4. EXAMPLE CALCULATION FOR gyrA S83:")
+    print("   If gyrA starts at position 2000 in reference genome:")
+    print("   - Codon 83 DNA position = 2000 + (83-1)*3 = 2246")
+    print("   - If read aligns at position 2200:")
+    print("   - Offset in read = 2246 - 2200 = 46")
+    print("   - Extract bases read[46:49] and translate")
+
+def test_with_examples():
+    """Test with known examples"""
+    
+    # E. coli gyrA sequence around codon 83 (real sequence)
+    # Codon 83 (TCG=Ser) is at positions 247-249 from start codon
+    gyrA_wt = (
+        "ATGAGCGACCTTGCGAGAGAAATTACACCGGTAACATTGAGGATGGGTCGCAGCCGCTG"  # 1-60
+        "GAGCAACTCGACGCGACCCTGCGTAAACTCGACGATCTCTTTGCCGATGAGCGTTTTAT"  # 61-120
+        "GACGCGTTATGGTGATCAGCCAGGATCGGGCGGTAAAGCCGGAAACCATCTCGATGGCG"  # 121-180
+        "GAGCAGGGGCTGTACGGTTTCTCGGTGTACGACCTCGGTTCGATTGGCCCGACCAACGG"  # 181-240
+        "GATCTCGCACGGCGATCCTGCGCGACGGCAGCTATGAGCGTCTGATCAAAGATATGCGT"  # 241-300, S83 at 247-249
+    )
+    
+    # S83L mutant (TCG -> TTG)
+    gyrA_s83l = gyrA_wt[:247] + "TTG" + gyrA_wt[250:]
+    
+    print("\n" + "="*80)
+    print("TESTING WITH KNOWN SEQUENCES")
+    print("="*80)
+    
+    # Test wild-type
+    print("\nTesting wild-type gyrA:")
+    visualize_alignment(gyrA_wt[200:350], 'gyrA', align_start=200)
+    
+    # Test mutant
+    print("\nTesting S83L mutant gyrA:")
+    visualize_alignment(gyrA_s83l[200:350], 'gyrA', align_start=200)
+    
+    # Test with different alignment positions
+    print("\nTesting with read that starts later:")
+    visualize_alignment(gyrA_s83l[240:390], 'gyrA', align_start=240)
+
+def suggest_cuda_fixes():
+    """Suggest fixes for the CUDA code"""
+    print("\n" + "="*80)
+    print("SUGGESTED CUDA CODE FIXES")
+    print("="*80)
+    
+    print("""
+1. VERIFY GENE POSITION MAPPING:
+   ```cuda
+   // Make sure gene_start is correctly set for each gene
+   __constant__ int GENE_STARTS[] = {
+       0,    // gyrA starts at position 0 in its reference
+       0,    // parC starts at position 0 in its reference
+   };
+   
+   // Calculate actual codon position
+   int codon_dna_start = GENE_STARTS[gene_id] + (codon_number - 1) * 3;
+   ```
+
+2. CHECK ALIGNMENT COORDINATES:
+   ```cuda
+   // Ensure alignment positions are in same coordinate system
+   // If using global genome positions, adjust accordingly
+   int read_offset = codon_dna_start - read_alignment_position;
+   
+   // Bounds check
+   if (read_offset < 0 || read_offset + 3 > read_length) {
+       return; // Codon not covered by this read
+   }
+   ```
+
+3. DEBUG OUTPUT:
+   ```cuda
+   printf("Read %d: gene=%d, align_pos=%d, checking codon %d at DNA pos %d\\n",
+          read_id, gene_id, align_pos, codon_number, codon_dna_start);
+   printf("  Read covers positions %d-%d\\n", 
+          align_pos, align_pos + read_length);
+   printf("  Codon offset in read: %d\\n", read_offset);
+   printf("  Extracted codon: %c%c%c\\n", 
+          read[read_offset], read[read_offset+1], read[read_offset+2]);
+   ```
+
+4. ENSURE CORRECT GENE ASSIGNMENT:
+   ```cuda
+   // Make sure reads are correctly assigned to genes
+   // This is crucial - if gene_id is wrong, you'll look at wrong positions
+   ```
+""")
+
+if __name__ == "__main__":
+    # Run all diagnostics
+    analyze_cuda_alignment_issue()
+    test_with_examples()
+    suggest_cuda_fixes()
+    
+    # If you have specific read sequences and alignments, add them here
+    if len(sys.argv) > 1:
+        # Custom test: python script.py READ_SEQUENCE GENE_NAME ALIGN_START
+        read_seq = sys.argv[1]
+        gene_name = sys.argv[2] if len(sys.argv) > 2 else 'gyrA'
+        align_start = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+        
+        print("\n" + "="*80)
+        print("CUSTOM SEQUENCE ANALYSIS")
+        print("="*80)
+        visualize_alignment(read_seq, gene_name, align_start)

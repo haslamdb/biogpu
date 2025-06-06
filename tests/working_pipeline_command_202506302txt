@@ -33,3 +33,6 @@ tests/run_pipeline_comparison_test.py \
     data/protein_resistance_db \
     --batch-size 10000 \
     --output comparison_results.txt
+
+
+python generate_synthetic_reads.py data/ecoli_gyrA_parE_mutant_sequences.fasta -n 1000000 -o data/synthetic_reads

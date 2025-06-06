@@ -62,8 +62,8 @@ Options:
 
 
   ./build/fq_pipeline_gpu data/fq_resistance_index \
-	569_A_038_R1.fastq.gz \
-	569_A_038_R2.fastq.gz \
+	data/synthetic_reads_R1.fastq.gz \
+	data/synthetic_reads_R2.fastq.gz \
 	--disable-bloom-filter \
 	--disable-kmer-match \
 	--enable-translated-search \

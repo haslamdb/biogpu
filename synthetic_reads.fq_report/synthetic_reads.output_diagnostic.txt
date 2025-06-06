@@ -1,0 +1,92 @@
+================================
+BioGPU PIPELINE DIAGNOSTIC REPORT
+================================
+
+Generated: Fri Jun  6 15:53:50 2025
+Pipeline Version: 0.4.0 (Enhanced Translated Search)
+Features: Bloom Filter + 15-mer nucleotide + 5-mer protein + Smith-Waterman
+
+PIPELINE STATISTICS
+===================
+
+Read Processing:
+  Total input reads:              1000000
+  After Bloom filter:                   0 (0.0%)
+  After k-mer enrichment:               0 (0.0%)
+
+Protein Search Results:
+  Total protein alignments:        166258
+  Protein hit rate:                  16.6%
+  Smith-Waterman alignments:       166258
+
+Mutation Detection:
+  Total mutations found:                0
+  QRDR mutations found:                  0
+
+Filter Efficiency:
+  Bloom filter removed:            1000000 (100.0%)
+  K-mer filter removed:                  0 (-nan%)
+
+TOP 20 QRDR ALIGNMENTS
+======================
+
+These represent alignments within Quinolone Resistance Determining Regions:
+
+  1. Read 7906, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  2. Read 9567, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  3. Read 4763, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  4. Read 5584, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  5. Read 4547, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  6. Read 8822, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  7. Read 3113, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  8. Read 8538, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  9. Read 5261, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  10. Read 9568, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  11. Read 7907, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  12. Read 5496, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  13. Read 6798, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  14. Read 7232, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  15. Read 5654, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  16. Read 1570, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  17. Read 7962, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  18. Read 4831, Enterococcus_faecium gyrA, Frame 1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  19. Read 1861, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+  20. Read 369, Enterococcus_faecium gyrA, Frame -1, Score: 234.0, Identity: 100.0%, Position: 75-124, Length: 50, Peptide: GKYHPHGDLAVYDTIVRMAQPFSLRYMLVDGQGNFGSIDGDSAAAMRYTE
+
+Total QRDR alignments found: 130249
+
+
+MUTATION ANALYSIS
+=================
+
+❌ NO MUTATIONS DETECTED
+
+
+QRDR RESISTANCE ANALYSIS
+========================
+
+QRDR Coverage:
+  gyrA QRDR: ✓ COVERED
+  parC QRDR: ✓ COVERED
+  parE QRDR: ✓ COVERED
+  Unknown QRDR: ✓ COVERED
+
+Fluoroquinolone Resistance Assessment:
+❌ NO RESISTANCE MUTATIONS DETECTED
+  Recommendation: Fluoroquinolones may be effective
+  Note: Check mutation detection logic if mutant reads were expected
+
+TROUBLESHOOTING ADVICE
+======================
+
+⚠️  EXTREMELY LOW BLOOM FILTER RETENTION RATE (<0.1%)
+This may indicate reads don't contain any target sequences.
+This is expected for metagenomic data with low pathogen abundance.
+
+✅ Target sequences detected
+Review QRDR alignments above for resistance mutations.
+
+
+Report generated by BioGPU Enhanced Diagnostic System
+For technical support, check pipeline documentation
+================================

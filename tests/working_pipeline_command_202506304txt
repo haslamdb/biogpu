@@ -34,3 +34,13 @@ tests/run_pipeline_comparison_test.py \
     --batch-size 10000 \
     --output comparison_results.txt \
     --skip-build 
+
+
+tests/run_pipeline_comparison_test.py \
+    data/fq_resistance_index \
+	synthetic_reads_20250529_R1.fastq.gz \
+	synthetic_reads_20250529_R2.fastq.gz \
+    data/protein_resistance_db \
+    --batch-size 10000 \
+    --output comparison_results.txt \
+    --skip-build 

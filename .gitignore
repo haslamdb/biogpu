@@ -19,6 +19,7 @@ build/
 build_integrated/
 cmake-build-*/
 out/
+build_comparison/
 
 # Results directories
 results/

@@ -337,6 +337,8 @@ public:
         
         // Debug: Print all mutations found by Smith-Waterman for first few matches
         static int debug_count = 0;
+        // Species-aware debug output disabled for production
+        /*
         if (debug_count < 5) {
             printf("[SPECIES-AWARE DEBUG] Read %d, %s %s (species_id=%d, gene_id=%d): %d mutations detected by SW\n", 
                    match.read_id, species_name.c_str(), gene_name.c_str(), 
@@ -363,6 +365,7 @@ public:
             }
             debug_count++;
         }
+        */
         
         // Species-aware mutation classification
         for (int i = 0; i < match.num_mutations; i++) {
@@ -379,13 +382,19 @@ public:
                     continue;
                 }
                 
+                // Mutation detection logging disabled for production
+                /*
                 printf("[SPECIES-AWARE MATCH] Found mutation at %s %s resistance position %d: %c->%c\n",
                        species_name.c_str(), gene_name.c_str(), global_pos, reference_aa, observed_aa);
+                */
                 
                 // Check if wildtype amino acid matches expected
                 if (reference_aa != resistance_mut.wildtype_aa) {
+                    // Warning logging disabled for production
+                    /*
                     printf("[WARNING] Expected wildtype %c at position %d, but found %c in reference\n",
                            resistance_mut.wildtype_aa, global_pos, reference_aa);
+                    */
                 }
                 
                 // Check if observed AA is a known resistance variant for this species
@@ -393,14 +402,20 @@ public:
                              resistance_mut.resistant_aas.end(), 
                              observed_aa) != resistance_mut.resistant_aas.end()) {
                     resistance_mutations++;
+                    // Resistance detection logging disabled for production
+                    /*
                     printf("[🚨 RESISTANCE DETECTED] %s: %c%d%c (resistance level: %.1f)\n",
                            resistance_mut.description.c_str(), 
                            reference_aa, global_pos, observed_aa, resistance_mut.resistance_level);
+                    */
                 } else {
+                    // Variant logging disabled for production
+                    /*
                     printf("[VARIANT] %s %s position %d: %c->%c (not known resistance pattern: ",
                            species_name.c_str(), gene_name.c_str(), global_pos, reference_aa, observed_aa);
                     for (char aa : resistance_mut.resistant_aas) printf("%c", aa);
                     printf(")\n");
+                    */
                 }
                 // Continue checking other resistance patterns - don't break!
                 // This allows detection of cross-species resistance patterns
@@ -1643,7 +1658,8 @@ public:
             delete[] batch2.lengths;
             delete[] batch2.offsets;
             
-            // Progress update
+            // Progress update disabled for production
+            /*
             if (enhanced_stats.total_reads_processed % 100000 == 0) {
                 std::cout << "Processed " << enhanced_stats.total_reads_processed << " read pairs..." << std::endl;
                 if (enable_bloom_filter) {
@@ -1656,6 +1672,7 @@ public:
                     }
                 }
             }
+            */
         }
         
         auto pipeline_end = std::chrono::high_resolution_clock::now();
@@ -1737,7 +1754,8 @@ public:
             std::cout << "\nDiagnostic report generated. Check *_diagnostic.txt file for detailed analysis." << std::endl;
         }
         
-        // Enhanced final summary
+        // Enhanced final summary disabled for production
+        /*
         std::cout << "\n=== ENHANCED PROCESSING COMPLETE ===" << std::endl;
         std::cout << "Total reads: " << enhanced_stats.total_reads_processed << std::endl;
         
@@ -1832,6 +1850,7 @@ public:
         if (enable_diagnostic_reporting) {
             std::cout << "Check diagnostic report for detailed analysis and troubleshooting" << std::endl;
         }
+        */ // End of summary output commenting
     }
 };
 

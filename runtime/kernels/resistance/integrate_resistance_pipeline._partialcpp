@@ -1,0 +1,202 @@
+// integrate_resistance_pipeline.cpp
+// Integration module for GPU resistance detection with existing BioGPU pipeline
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <map>
+#include <chrono>
+#include <cuda_runtime.h>
+#include "fq_mutation_detector.cuh"
+#include "resistance_detection_gpu.cu"
+#include "hdf5_alignment_writer.h"
+
+// Structure to hold integrated results
+struct IntegratedResistanceResult {
+    // From nucleotide alignment
+    uint32_t read_id;
+    std::string read_header;
+    
+    // From protein search
+    int frame;
+    uint32_t gene_id;
+    std::string gene_name;
+    uint32_t species_id;
+    std::string species_name;
+    
+    // From resistance detection
+    std::vector<ResistanceCall> resistance_calls;
+    float max_confidence;
+    bool is_resistant;
+    std::string resistance_summary;
+};
+
+class IntegratedResistancePipeline {
+private:
+    // Existing components
+    FQMutationDetectorCUDA* nucleotide_detector;
+    void* translated_search_engine;
+    ResistanceDetectorGPU* resistance_detector;
+    HDF5AlignmentWriter* hdf5_writer;
+    
+    // Mappings
+    std::map<uint32_t, std::string> gene_id_to_name;
+    std::map<uint32_t, std::string> species_id_to_name;
+    std::map<std::string, uint32_t> gene_name_to_id;
+    
+    // Configuration
+    struct Config {
+        bool enable_nucleotide_search = true;
+        bool enable_protein_search = true;
+        bool enable_pileup_calling = true;
+        float min_alignment_score = 50.0f;
+        float min_allele_frequency = 0.1f;
+        float min_depth = 5.0f;
+        float min_confidence = 0.8f;
+    } config;
+    
+    // Statistics
+    struct Stats {
+        int total_reads = 0;
+        int reads_with_hits = 0;
+        int resistance_calls = 0;
+        int high_confidence_calls = 0;
+        std::chrono::milliseconds total_time;
+    } stats;
+    
+public:
+    IntegratedResistancePipeline() {
+        nucleotide_detector = nullptr;
+        translated_search_engine = nullptr;
+        resistance_detector = nullptr;
+        hdf5_writer = nullptr;
+    }
+    
+    ~IntegratedResistancePipeline() {
+        cleanup();
+    }
+    
+    void initialize(const std::string& index_path, 
+                   const std::string& protein_db_path,
+                   const std::string& resistance_db_path,
+                   int max_batch_size = 10000) {
+        
+        std::cout << "Initializing integrated resistance detection pipeline..." << std::endl;
+        
+        // Initialize nucleotide search (existing)
+        if (config.enable_nucleotide_search) {
+            nucleotide_detector = new FQMutationDetectorCUDA();
+            nucleotide_detector->loadIndex(index_path.c_str());
+        }
+        
+        // Initialize protein search (existing)
+        if (config.enable_protein_search) {
+            // Use existing translated search engine
+            extern void* create_translated_search_engine_with_sw(int batch_size, bool enable_sw);
+            extern int load_protein_database(void* engine, const char* db_path);
+            
+            translated_search_engine = create_translated_search_engine_with_sw(max_batch_size, true);
+            load_protein_database(translated_search_engine, protein_db_path.c_str());
+        }
+        
+        // Initialize new GPU resistance detector
+        if (config.enable_pileup_calling) {
+            // Load resistance database metadata
+            loadResistanceMetadata(resistance_db_path);
+            
+            // Create GPU detector
+            int num_genes = gene_id_to_name.size();
+            int num_mutations = 100;  // Estimate
+            resistance_detector = new ResistanceDetectorGPU(max_batch_size, num_genes, num_mutations);
+            
+            // Load reference sequences and mutations
+            loadResistanceDatabase(resistance_db_path);
+        }
+        
+        std::cout << "Pipeline initialized successfully" << std::endl;
+    }
+    
+    std::vector<IntegratedResistanceResult> processReads(
+        const std::string& r1_path,
+        const std::string& r2_path,
+        const std::string& output_path
+    ) {
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        std::vector<IntegratedResistanceResult> all_results;
+        
+        // Initialize HDF5 output
+        std::string hdf5_path = output_path + ".h5";
+        hdf5_writer = new HDF5AlignmentWriter(hdf5_path);
+        hdf5_writer->initialize(gene_id_to_name.begin()->second, r1_path, r2_path);
+        
+        // Process in batches
+        const int batch_size = 10000;
+        FastqReader reader1(r1_path);
+        FastqReader reader2(r2_path);
+        
+        while (true) {
+            // Read batch
+            std::vector<FastqRecord> batch_r1, batch_r2;
+            if (!readBatch(reader1, reader2, batch_r1, batch_r2, batch_size)) {
+                break;
+            }
+            
+            stats.total_reads += batch_r1.size();
+            
+            // Process batch through complete pipeline
+            auto batch_results = processBatch(batch_r1, batch_r2);
+            
+            // Accumulate results
+            all_results.insert(all_results.end(), batch_results.begin(), batch_results.end());
+            
+            // Write intermediate results
+            writeBatchResults(batch_results);
+            
+            // Progress update
+            if (stats.total_reads % 100000 == 0) {
+                std::cout << "Processed " << stats.total_reads << " reads..." << std::endl;
+            }
+        }
+        
+        // Finalize
+        hdf5_writer->finalize(output_path + "_summary.json");
+        
+        auto end_time = std::chrono::high_resolution_clock::now();
+        stats.total_time = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        
+        // Print summary
+        printSummary(all_results);
+        
+        return all_results;
+    }
+    
+private:
+    std::vector<IntegratedResistanceResult> processBatch(
+        const std::vector<FastqRecord>& batch_r1,
+        const std::vector<FastqRecord>& batch_r2
+    ) {
+        std::vector<IntegratedResistanceResult> results;
+        
+        // Stage 1: Nucleotide k-mer filtering (optional)
+        std::vector<CandidateMatch> nucleotide_candidates;
+        if (config.enable_nucleotide_search) {
+            nucleotide_candidates = runNucleotideSearch(batch_r1, batch_r2);
+        }
+        
+        // Stage 2: 6-frame translation and protein search
+        std::vector<ProteinMatch> protein_matches;
+        if (config.enable_protein_search) {
+            protein_matches = runProteinSearch(batch_r1, batch_r2);
+        }
+        
+        // Stage 3: Extract translated sequences for positive hits
+        std::vector<std::string> translated_sequences;
+        std::vector<int> read_mapping;  // Maps translated seq to original read
+        
+        for (size_t i = 0; i < protein_matches.size(); i++) {
+            const auto& match = protein_matches[i];
+            if (match.alignment_score >= config.min_alignment_score) {
+                // Extract the aligned peptide sequence
+                translated_sequences.push_back(std::string

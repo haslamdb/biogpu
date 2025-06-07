@@ -110,10 +110,19 @@ python build_species_specific_protein_database.py \
     --output-dir data/integrated_fq_resistance_database_v2/
 
 
-./build/integrated_resistance_pipeline \
-    data/fq_resistance_index \
-    data/protein_resistance_db  \
-    data/resistance_db \
-    test_small_R1.fastq.gz  \
-    test_small_R2.fastq.gz  \
-    test_output
+  ./build/clean_resistance_pipeline data/integrated_clean_db/nucleotide data/integrated_clean_db/protein test_small_R1.fastq.gz
+  test_small_R2.fastq.gz output_prefix
+
+  This command structure follows the required format:
+  - data/integrated_clean_db/nucleotide - nucleotide k-mer index directory
+  - data/integrated_clean_db/protein - protein database directory
+  - test_small_R1.fastq.gz - forward reads
+  - test_small_R2.fastq.gz - reverse reads
+  - output_prefix - output file prefix 
+
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    1M_synthetic_reads_R1.fastq.gz \
+    1M_synthetic_reads_R2.fastq.gz \
+    1M_reads_test

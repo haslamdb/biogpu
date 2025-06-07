@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <cstdint>
 
 // Simplified resistance structure without drug info
 struct CleanResistanceMutation {

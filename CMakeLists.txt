@@ -102,7 +102,18 @@ set_target_properties(enhanced_mutation_detection PROPERTIES
 )
 
 # ===========================
-# NEW: Integrated Resistance Pipeline Libraries
+# NEW: Clean Resistance Loader Library
+# ===========================
+
+# Add the fix_pipeline_resistance_loader as a library
+add_library(clean_resistance_loader STATIC
+    runtime/kernels/resistance/fix_pipeline_resistance_loader.cpp
+)
+
+# No special dependencies needed for this loader
+
+# ===========================
+# UPDATED: Integrated Resistance Pipeline Libraries
 # ===========================
 
 # GPU-accelerated resistance detection library
@@ -115,7 +126,7 @@ set_target_properties(resistance_detection_gpu PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
-# Fixed database loader library
+# Keep the original fixed_database_loader for compatibility
 add_library(fixed_database_loader STATIC
     runtime/kernels/resistance/fixed_database_loader.cpp
 )
@@ -157,6 +168,7 @@ target_link_libraries(fq_pipeline_gpu
     kmer_screening
     diagnostic_reporter
     enhanced_mutation_detection
+    clean_resistance_loader    # Add the new loader
     z
     cudart
     cuda
@@ -165,7 +177,7 @@ target_link_libraries(fq_pipeline_gpu
 )
 
 # ===========================
-# NEW: Integrated Resistance Pipeline Executable
+# UPDATED: Integrated Resistance Pipeline Executable
 # ===========================
 
 add_executable(integrated_resistance_pipeline
@@ -194,8 +206,9 @@ target_link_libraries(integrated_resistance_pipeline
     hdf5_writer
     translated_search
     kmer_screening
-    resistance_detection_gpu      # NEW: GPU resistance detection
-    fixed_database_loader        # NEW: Database loader with species-gene tracking
+    resistance_detection_gpu
+    fixed_database_loader        # Keep original for species-gene tracking
+    clean_resistance_loader      # Add the new simplified loader
     diagnostic_reporter
     enhanced_mutation_detection
     z
@@ -209,8 +222,51 @@ target_link_libraries(integrated_resistance_pipeline
 target_compile_definitions(integrated_resistance_pipeline PRIVATE ${HDF5_DEFINITIONS})
 
 # ===========================
+# NEW: Clean Resistance Pipeline Executable
+# ===========================
+
+# Create a new executable that uses the clean resistance loader
+add_executable(clean_resistance_pipeline
+    runtime/kernels/resistance/clean_resistance_pipeline_main.cpp
+    runtime/kernels/resistance/fq_mutation_detector.cu
+)
+
+set_target_properties(clean_resistance_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+target_compile_options(clean_resistance_pipeline PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
+        --ptxas-options=-v
+        --maxrregcount=64
+        -O3
+    >
+)
+
+target_link_libraries(clean_resistance_pipeline
+    bloom_filter
+    hdf5_writer
+    translated_search
+    kmer_screening
+    resistance_detection_gpu
+    clean_resistance_loader      # Use only the clean loader
+    diagnostic_reporter
+    enhanced_mutation_detection
+    z
+    cudart
+    cuda
+    ${HDF5_LIBRARIES}
+    ${HDF5_CXX_LIBRARIES}
+)
+
+# ===========================
 # Test Executables
 # ===========================
+
 
 # Test program for resistance detection GPU
 add_executable(test_resistance_gpu
@@ -269,7 +325,21 @@ target_link_libraries(test_translated_search
 )
 
 # ===========================
-# NEW: Integrated Database Building Targets
+# NEW: Clean Database Building Targets
+# ===========================
+
+# Build clean resistance database (position-only, no drug info)
+add_custom_target(build_clean_resistance_db
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/build_clean_resistance_db.py
+            --fasta-dir ${CMAKE_SOURCE_DIR}/data/fq_genes
+            --csv ${CMAKE_SOURCE_DIR}/data/Known_Quinolone_Changes.csv
+            --output-dir ${CMAKE_SOURCE_DIR}/data/clean_resistance_db
+            --position-only
+    COMMENT "Building clean resistance database with position information only"
+)
+
+# ===========================
+# UPDATED: Integrated Database Building Targets
 # ===========================
 
 # Build integrated resistance database (combines all data sources)
@@ -316,6 +386,17 @@ add_custom_target(build_resistance_catalog
 # ===========================
 # Validation and Testing Targets
 # ===========================
+
+# Test clean resistance pipeline
+add_custom_target(test_clean_pipeline
+    COMMAND ./clean_resistance_pipeline
+            ${CMAKE_SOURCE_DIR}/data/clean_resistance_db
+            ${CMAKE_SOURCE_DIR}/data/test_fastq/synthetic_R1.fastq.gz
+            ${CMAKE_SOURCE_DIR}/data/test_fastq/synthetic_R2.fastq.gz
+            ${CMAKE_BINARY_DIR}/clean_pipeline_output
+    DEPENDS clean_resistance_pipeline build_clean_resistance_db
+    COMMENT "Testing clean resistance pipeline with position-only database"
+)
 
 # Validate integrated database
 add_custom_target(validate_integrated_db
@@ -385,8 +466,9 @@ add_custom_target(clinical_interpretation
 # Install executables
 install(TARGETS 
     fq_pipeline_gpu
-    integrated_resistance_pipeline    # NEW
-    test_resistance_gpu              # NEW
+    integrated_resistance_pipeline
+    clean_resistance_pipeline      # NEW
+    test_resistance_gpu
     test_bloom_filter 
     test_hdf5_reader 
     test_translated_search
@@ -401,18 +483,20 @@ install(TARGETS
     kmer_screening
     diagnostic_reporter
     enhanced_mutation_detection
-    resistance_detection_gpu         # NEW
-    fixed_database_loader           # NEW
+    resistance_detection_gpu
+    fixed_database_loader
+    clean_resistance_loader        # NEW
     ARCHIVE DESTINATION lib
 )
 
 # Install Python scripts
 install(PROGRAMS
-    ${CMAKE_SOURCE_DIR}/src/python/build_integrated_resistance_db.py    # NEW
-    ${CMAKE_SOURCE_DIR}/src/python/validate_integrated_db.py           # NEW
-    ${CMAKE_SOURCE_DIR}/src/python/resistance_profile_analyzer.py      # NEW
-    ${CMAKE_SOURCE_DIR}/src/python/clinical_interpreter.py            # NEW
-    ${CMAKE_SOURCE_DIR}/src/python/benchmark_integrated.py            # NEW
+    ${CMAKE_SOURCE_DIR}/src/python/build_integrated_resistance_db.py
+    ${CMAKE_SOURCE_DIR}/src/python/build_clean_resistance_db.py      # NEW
+    ${CMAKE_SOURCE_DIR}/src/python/validate_integrated_db.py
+    ${CMAKE_SOURCE_DIR}/src/python/resistance_profile_analyzer.py
+    ${CMAKE_SOURCE_DIR}/src/python/clinical_interpreter.py
+    ${CMAKE_SOURCE_DIR}/src/python/benchmark_integrated.py
     ${CMAKE_SOURCE_DIR}/src/python/read_hdf5_alignments.py
     ${CMAKE_SOURCE_DIR}/src/python/enhanced_kmer_builder.py
     ${CMAKE_SOURCE_DIR}/src/python/index_validator.py
@@ -440,27 +524,40 @@ message(STATUS "  CUDA Standard: ${CMAKE_CUDA_STANDARD}")
 message(STATUS "  CUDA Architectures: 61;70;75;80;86")
 message(STATUS "  HDF5 Version: ${HDF5_VERSION}")
 message(STATUS "")
-message(STATUS "NEW: Integrated Pipeline Components:")
+message(STATUS "NEW: Clean Resistance Pipeline Components:")
+message(STATUS "  ✓ Simplified resistance loader (position-only)")
+message(STATUS "  ✓ Clean resistance pipeline executable")
+message(STATUS "  ✓ Position-focused mutation detection")
+message(STATUS "")
+message(STATUS "Integrated Pipeline Components:")
 message(STATUS "  ✓ Multi-stage resistance detection")
 message(STATUS "  ✓ Unified resistance database")
 message(STATUS "  ✓ Population-level variant calling")
 message(STATUS "  ✓ Clinical interpretation module")
 message(STATUS "")
 message(STATUS "Build targets:")
+message(STATUS "  clean_resistance_pipeline     - Simplified pipeline using position-only DB")
 message(STATUS "  integrated_resistance_pipeline - Complete 3-stage detection pipeline")
+message(STATUS "  build_clean_resistance_db     - Build simplified resistance database")
 message(STATUS "  build_integrated_resistance_db - Build unified resistance database")
+message(STATUS "  test_clean_pipeline           - Test simplified pipeline")
 message(STATUS "  test_integrated_pipeline      - Test with synthetic data")
 message(STATUS "  benchmark_integrated          - Performance comparison")
 message(STATUS "  analyze_resistance_profile    - Generate HTML reports")
 message(STATUS "  clinical_interpretation       - Create clinical reports")
 message(STATUS "")
-message(STATUS "Usage example:")
-message(STATUS "  1. Build database: make build_integrated_resistance_db")
-message(STATUS "  2. Run pipeline:")
+message(STATUS "Usage examples:")
+message(STATUS "  1. Build clean database: make build_clean_resistance_db")
+message(STATUS "  2. Run clean pipeline:")
+message(STATUS "     ./clean_resistance_pipeline \\")
+message(STATUS "       data/clean_resistance_db \\")
+message(STATUS "       reads_R1.fastq.gz reads_R2.fastq.gz output")
+message(STATUS "")
+message(STATUS "  3. Build integrated database: make build_integrated_resistance_db")
+message(STATUS "  4. Run integrated pipeline:")
 message(STATUS "     ./integrated_resistance_pipeline \\")
 message(STATUS "       data/integrated_resistance_db/nucleotide \\")
 message(STATUS "       data/integrated_resistance_db/protein \\")
 message(STATUS "       data/integrated_resistance_db \\")
 message(STATUS "       reads_R1.fastq.gz reads_R2.fastq.gz output")
-message(STATUS "  3. Analyze results: make analyze_resistance_profile")
 message(STATUS "")

@@ -103,3 +103,17 @@ rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc)
     data/integrated_fq_resistance_database \
     data/test_fastq/test_small_R1.fastq.gz data/test_fastq/test_small_R2.fastq.gz \
     test_small_output
+
+
+python build_species_specific_protein_database.py \
+    --input-dir data/wildtype_protein_seqs/ \
+    --output-dir data/integrated_fq_resistance_database_v2/
+
+
+./build/integrated_resistance_pipeline \
+    data/fq_resistance_index \
+    data/protein_resistance_db  \
+    data/resistance_db \
+    test_small_R1.fastq.gz  \
+    test_small_R2.fastq.gz  \
+    test_output

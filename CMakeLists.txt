@@ -18,6 +18,17 @@ else()
     message(FATAL_ERROR "HDF5 not found. Please install HDF5 development libraries.")
 endif()
 
+# Find jsoncpp
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP jsoncpp)
+if(JSONCPP_FOUND)
+    message(STATUS "Found jsoncpp: ${JSONCPP_VERSION}")
+    include_directories(${JSONCPP_INCLUDE_DIRS})
+    link_directories(${JSONCPP_LIBRARY_DIRS})
+else()
+    message(FATAL_ERROR "jsoncpp not found. Please install jsoncpp development libraries (libjsoncpp-dev).")
+endif()
+
 # Project include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/runtime/kernels/resistance)
@@ -104,6 +115,15 @@ set_target_properties(resistance_detection_gpu PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
+# Fixed database loader library
+add_library(fixed_database_loader STATIC
+    runtime/kernels/resistance/fixed_database_loader.cpp
+)
+
+target_link_libraries(fixed_database_loader
+    ${JSONCPP_LIBRARIES}
+)
+
 # ===========================
 # Executables
 # ===========================
@@ -175,6 +195,7 @@ target_link_libraries(integrated_resistance_pipeline
     translated_search
     kmer_screening
     resistance_detection_gpu      # NEW: GPU resistance detection
+    fixed_database_loader        # NEW: Database loader with species-gene tracking
     diagnostic_reporter
     enhanced_mutation_detection
     z
@@ -182,6 +203,7 @@ target_link_libraries(integrated_resistance_pipeline
     cuda
     ${HDF5_LIBRARIES}
     ${HDF5_CXX_LIBRARIES}
+    ${JSONCPP_LIBRARIES}
 )
 
 target_compile_definitions(integrated_resistance_pipeline PRIVATE ${HDF5_DEFINITIONS})
@@ -380,6 +402,7 @@ install(TARGETS
     diagnostic_reporter
     enhanced_mutation_detection
     resistance_detection_gpu         # NEW
+    fixed_database_loader           # NEW
     ARCHIVE DESTINATION lib
 )
 

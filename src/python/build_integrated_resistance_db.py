@@ -7,6 +7,7 @@ Build GPU-ready resistance database from various sources
 import json
 import struct
 import numpy as np
+import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Optional
@@ -85,11 +86,18 @@ class ResistanceDatabaseBuilder:
         for _, row in df.iterrows():
             gene_name = row['Gene']
             
-            # Parse position and mutation
-            mutation_str = row['Mutation']
-            wildtype = mutation_str[0]
-            position = int(mutation_str[1:-1])
-            mutant = mutation_str[-1]
+            # Create mutation string from separate columns if needed
+            if 'Mutation' in row:
+                mutation_str = row['Mutation']
+                wildtype = mutation_str[0]
+                position = int(mutation_str[1:-1])
+                mutant = mutation_str[-1]
+            else:
+                # Build from separate columns
+                position = int(row['Mutation Position'])
+                wildtype = row['Wild-type Amino Acid']
+                mutant = row['Mutant Amino Acid']
+                mutation_str = f"{wildtype}{position}{mutant}"
             
             # Get or create gene ID
             if gene_name not in self.gene_id_map:
@@ -141,22 +149,25 @@ class ResistanceDatabaseBuilder:
             logger.info(f"Loading sequences from {fasta_file}")
             
             for record in SeqIO.parse(fasta_file, "fasta"):
-                # Extract gene name from header
-                gene_name = None
-                if 'gyrA' in record.description:
-                    gene_name = 'gyrA'
-                elif 'gyrB' in record.description:
-                    gene_name = 'gyrB'
-                elif 'parC' in record.description:
-                    gene_name = 'parC'
-                elif 'parE' in record.description:
-                    gene_name = 'parE'
-                elif 'grlA' in record.description:
-                    gene_name = 'grlA'
-                
-                if gene_name and gene_name not in self.gene_sequences:
-                    self.gene_sequences[gene_name] = str(record.seq)
-                    logger.info(f"Loaded {gene_name}: {len(record.seq)} aa")
+                # Extract gene name and species from header (format: Species_name_gene)
+                header_parts = record.id.split('_')
+                if len(header_parts) >= 2:
+                    gene_name = header_parts[-1]  # Last part is the gene name
+                    species_name = '_'.join(header_parts[:-1])  # Everything except last part
+                    
+                    # Add species to species_map if not present
+                    if species_name not in self.species_map:
+                        self.species_map[species_name] = self.next_species_id
+                        self.next_species_id += 1
+                    
+                    # Some headers might have parC labeled as grlA (Staphylococcus)
+                    if 'Staphylococcus' in record.id and gene_name == 'grlA':
+                        # Keep as grlA for Staphylococcus
+                        pass
+                    
+                    if gene_name not in self.gene_sequences:
+                        self.gene_sequences[gene_name] = str(record.seq)
+                        logger.info(f"Loaded {gene_name} from {species_name}: {len(record.seq)} aa")
     
     def add_manual_mutations(self):
         """Add well-characterized resistance mutations manually"""
@@ -364,7 +375,8 @@ class ResistanceDatabaseBuilder:
             ],
             'gene_lengths': {
                 gene: len(seq) for gene, seq in self.gene_sequences.items()
-            }
+            },
+            'gene_sequences': self.gene_sequences
         }
         
         with open(output_file, 'w') as f:

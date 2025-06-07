@@ -19,7 +19,7 @@ DATA_DIR="${PROJECT_ROOT}/data"
 PYTHON_DIR="${PROJECT_ROOT}/src/python"
 
 # Create output directory structure
-OUTPUT_DIR="${DATA_DIR}/integrated_resistance_db"
+OUTPUT_DIR="${DATA_DIR}/integrated_fq_resistance_database"
 mkdir -p "${OUTPUT_DIR}"/{nucleotide,protein,metadata,resistance_catalog}
 
 echo -e "${GREEN}Project root: ${PROJECT_ROOT}${NC}"
@@ -29,7 +29,7 @@ echo -e "${GREEN}Output directory: ${OUTPUT_DIR}${NC}"
 echo -e "\n${BLUE}Step 1: Building integrated resistance database...${NC}"
 if [ -f "${PYTHON_DIR}/build_integrated_resistance_db.py" ]; then
     python3 "${PYTHON_DIR}/build_integrated_resistance_db.py" \
-        --fasta-dir "${DATA_DIR}/fq_genes" \
+        --fasta-dir "${DATA_DIR}/wildtype_protein_seqs" \
         --csv "${DATA_DIR}/Known_Quinolone_Changes.csv" \
         --output-dir "${OUTPUT_DIR}" \
         --add-manual \
@@ -42,21 +42,15 @@ fi
 
 # Step 2: Generate nucleotide k-mer index
 echo -e "\n${BLUE}Step 2: Building nucleotide k-mer index...${NC}"
-if [ -f "${PYTHON_DIR}/enhanced_kmer_builder.py" ]; then
-    python3 "${PYTHON_DIR}/enhanced_kmer_builder.py" \
+if [ -f "${PYTHON_DIR}/simple_kmer_builder.py" ]; then
+    python3 "${PYTHON_DIR}/simple_kmer_builder.py" \
         "${OUTPUT_DIR}/wildtype_sequences.fasta" \
-        "${OUTPUT_DIR}/resistance_db.json" \
         "${OUTPUT_DIR}/nucleotide" \
         --kmer-length 15 \
-        --include-variants \
         || { echo -e "${RED}Failed to build nucleotide index${NC}"; exit 1; }
 else
-    echo -e "${YELLOW}Warning: enhanced_kmer_builder.py not found, using basic builder${NC}"
-    # Fallback to basic builder if enhanced version doesn't exist
-    python3 "${PYTHON_DIR}/build_kmer_index.py" \
-        "${OUTPUT_DIR}/wildtype_sequences.fasta" \
-        "${OUTPUT_DIR}/nucleotide" \
-        --kmer-length 15
+    echo -e "${YELLOW}Warning: simple_kmer_builder.py not found${NC}"
+    echo -e "${YELLOW}Skipping k-mer index generation${NC}"
 fi
 
 # Step 3: Build protein database with 5-mer index
@@ -134,13 +128,17 @@ with open('${OUTPUT_DIR}/protein/proteins.bin', 'wb') as f:
     for record in proteins:
         f.write(str(record.seq).encode('ascii'))
 
+# Load species map from resistance database
+with open('${OUTPUT_DIR}/resistance_db.json', 'r') as f:
+    resistance_db = json.load(f)
+
 # Write metadata
 metadata = {
     'num_proteins': len(proteins),
     'kmer_size': kmer_size,
     'num_kmers': len(kmer_index),
     'gene_map': {i: proteins[i].id for i in range(len(proteins))},
-    'species_map': {0: 'Enterococcus_faecium', 1: 'Escherichia_coli'}
+    'species_map': resistance_db.get('species_map', {})
 }
 
 with open('${OUTPUT_DIR}/protein/metadata.json', 'w') as f:

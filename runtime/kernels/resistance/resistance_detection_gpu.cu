@@ -70,11 +70,11 @@ struct VariantPileup {
     uint32_t* counts;  // Flattened 3D array
     uint32_t* depths;  // Total depth per position
     
-    __device__ uint32_t* get_count_ptr(int gene, int pos, int aa_idx) {
+    __device__ uint32_t* get_count_ptr(int gene, int pos, int aa_idx) const {
         return &counts[(gene * MAX_POSITIONS_PER_GENE + pos) * MAX_AMINO_ACIDS + aa_idx];
     }
     
-    __device__ uint32_t* get_depth_ptr(int gene, int pos) {
+    __device__ uint32_t* get_depth_ptr(int gene, int pos) const {
         return &depths[gene * MAX_POSITIONS_PER_GENE + pos];
     }
 };
@@ -106,7 +106,19 @@ struct MinimizerIndex {
 // Device Functions
 // ============================================================================
 
-// Convert amino acid to index
+// Convert amino acid to index (host version)
+inline int aa_to_index_host(char aa) {
+    switch(aa) {
+        case 'A': return 0;  case 'C': return 1;  case 'D': return 2;  case 'E': return 3;
+        case 'F': return 4;  case 'G': return 5;  case 'H': return 6;  case 'I': return 7;
+        case 'K': return 8;  case 'L': return 9;  case 'M': return 10; case 'N': return 11;
+        case 'P': return 12; case 'Q': return 13; case 'R': return 14; case 'S': return 15;
+        case 'T': return 16; case 'V': return 17; case 'W': return 18; case 'Y': return 19;
+        default: return -1;
+    }
+}
+
+// Convert amino acid to index (device version)
 __device__ inline int aa_to_index(char aa) {
     switch(aa) {
         case 'A': return 0;  case 'C': return 1;  case 'D': return 2;  case 'E': return 3;
@@ -713,7 +725,7 @@ private:
                     const uint64_t prime = 31;
                     
                     for (int k = 0; k < MINIMIZER_K; k++) {
-                        int aa_idx = aa_to_index(seq[i + j + k]);
+                        int aa_idx = aa_to_index_host(seq[i + j + k]);
                         if (aa_idx < 0) break;
                         hash = hash * prime + aa_idx;
                     }

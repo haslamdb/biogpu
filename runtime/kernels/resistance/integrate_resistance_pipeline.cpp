@@ -15,8 +15,42 @@
 #include <cuda_runtime.h>
 #include <zlib.h>
 #include "fq_mutation_detector.cuh"
-#include "resistance_detection_gpu.cu"
 #include "hdf5_alignment_writer.h"
+
+// Forward declarations for structures from other modules
+struct ResistanceCall {
+    uint32_t gene_id;
+    uint16_t position;
+    char wildtype_aa;
+    char observed_aa;
+    float allele_frequency;
+    uint32_t supporting_reads;
+    uint32_t total_depth;
+    float confidence_score;
+    char drug_affected[32];
+    bool is_resistance_mutation;
+};
+
+struct ProteinMatch {
+    uint32_t read_id;
+    int8_t frame;
+    uint32_t protein_id;
+    uint32_t gene_id;
+    uint32_t species_id;
+    uint16_t query_start;    // Position in translated frame
+    uint16_t ref_start;      // Position in reference protein
+    uint16_t match_length;
+    float alignment_score;
+    float identity;
+    uint8_t num_mutations;
+    uint8_t mutation_positions[10];  // Up to 10 mutations
+    char ref_aas[10];
+    char query_aas[10];
+    float blosum_scores[10];
+    bool used_smith_waterman;  // Flag indicating if SW was used
+    char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
+    bool is_qrdr_alignment;  // Flag for QRDR region alignment
+};
 
 // External declarations for translated search
 extern "C" {
@@ -358,7 +392,7 @@ private:
         cudaMemcpy(d_read_offsets, batch.offsets, num_reads * sizeof(int), cudaMemcpyHostToDevice);
         
         // Initialize all reads as "to process"
-        std::vector<bool> h_reads_to_process(num_reads, true);
+        std::vector<uint8_t> h_reads_to_process(num_reads, 1);
         cudaMemcpy(d_reads_to_process, h_reads_to_process.data(), 
                   num_reads * sizeof(bool), cudaMemcpyHostToDevice);
         
@@ -703,10 +737,10 @@ private:
     }
     
     void loadResistanceMetadata(const std::string& db_path) {
-        // Load gene and species mappings
-        std::ifstream metadata_file(db_path + "/metadata.json");
+        // Load gene and species mappings from resistance_db.json
+        std::ifstream metadata_file(db_path + "/resistance_db.json");
         if (!metadata_file.good()) {
-            std::cerr << "WARNING: Cannot load resistance metadata" << std::endl;
+            std::cerr << "WARNING: Cannot load resistance metadata from " << db_path + "/resistance_db.json" << std::endl;
             return;
         }
         
@@ -748,13 +782,33 @@ private:
     }
     
     void loadResistanceDatabase(const std::string& db_path) {
-        // This would load the actual resistance mutations and reference sequences
-        // For now, using hardcoded values from the original code
+        // Load resistance mutations from resistance_db.json
+        std::ifstream db_file(db_path + "/resistance_db.json");
+        if (!db_file.good()) {
+            std::cerr << "ERROR: Cannot load resistance database from " << db_path + "/resistance_db.json" << std::endl;
+            return;
+        }
         
-        // The actual implementation would:
-        // 1. Load reference protein sequences
-        // 2. Load known resistance mutations
-        // 3. Pass them to the GPU resistance detector
+        // Load binary resistance catalog if available
+        std::string catalog_path = db_path + "/resistance_catalog.bin";
+        std::ifstream catalog_file(catalog_path, std::ios::binary);
+        if (catalog_file.good()) {
+            // Read number of mutations
+            uint32_t num_mutations;
+            catalog_file.read(reinterpret_cast<char*>(&num_mutations), sizeof(uint32_t));
+            std::cout << "Loading " << num_mutations << " mutations from binary catalog" << std::endl;
+            
+            // TODO: Load actual mutation data and pass to GPU detector
+            catalog_file.close();
+        }
+        
+        // Load protein sequences from protein database
+        std::string protein_metadata_path = db_path + "/protein/metadata.json";
+        std::ifstream protein_meta(protein_metadata_path);
+        if (protein_meta.good()) {
+            std::cout << "Found protein metadata at " << protein_metadata_path << std::endl;
+            protein_meta.close();
+        }
         
         std::cout << "Loaded " << gene_id_to_name.size() << " genes and "
                  << species_id_to_name.size() << " species" << std::endl;

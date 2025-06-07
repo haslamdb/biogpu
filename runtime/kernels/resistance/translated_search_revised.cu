@@ -28,10 +28,10 @@ namespace cg = cooperative_groups;
 #define MAX_PROTEIN_LENGTH 200
 #define PROTEIN_KMER_SIZE 5         // Increased from 3 to 5 amino acids
 #define MIN_PEPTIDE_LENGTH 20       // Minimum peptide length to consider
-#define MIN_SEED_HITS 2            // Require multiple k-mer hits for extension
+#define MIN_SEED_HITS 1            // Require only one k-mer hit for extension
 #define EXTENSION_THRESHOLD 15     // Minimum amino acids for valid match
 #define MIN_IDENTITY_THRESHOLD 0.6f // Minimum 60% identity for valid protein match (lowered for more hits)
-#define SW_SCORE_THRESHOLD 80.0f   // Threshold for Smith-Waterman alignment
+#define SW_SCORE_THRESHOLD 40.0f   // Lowered threshold for Smith-Waterman alignment to detect mutations
 #define AA_ALPHABET_SIZE 24
 
 // Genetic code table (standard code)
@@ -89,18 +89,25 @@ __host__ __device__ inline int aa_to_index(char aa) {
 }
 
 // helper function to check if alignment covers QRDR regions
+// This is now more flexible - it doesn't filter by gene_id
+// Instead, we'll check QRDR positions for any gene that might be gyrA or parC
 __device__ bool covers_qrdr_region(uint32_t gene_id, uint16_t ref_start, uint16_t match_length) {
     uint16_t ref_end = ref_start + match_length;
     
-    if (gene_id == 0) {  // gyrA (0-based positions)
-        // Check if covers position 82 (S83) or 86 (D87)
-        return (ref_start <= 82 && ref_end > 82) || (ref_start <= 86 && ref_end > 86);
-    } else if (gene_id == 1) {  // parC
-        // Check if covers position 79 (S80) or 83 (E84)
-        return (ref_start <= 79 && ref_end > 79) || (ref_start <= 83 && ref_end > 83);
-    }
+    // For now, we check common QRDR positions for both gyrA and parC
+    // This allows detection regardless of gene_id assignment
     
-    return false;
+    // gyrA QRDR positions (0-based): S83 (pos 82) and D87 (pos 86)
+    // Include alignments that start at or before these positions
+    bool gyrA_qrdr = (ref_start <= 82 && ref_end > 82) || (ref_start <= 86 && ref_end > 86) ||
+                     (ref_start == 86);  // Include alignments starting exactly at D87
+    
+    // parC QRDR positions (0-based): S80 (pos 79) and E84 (pos 83)
+    bool parC_qrdr = (ref_start <= 79 && ref_end > 79) || (ref_start <= 83 && ref_end > 83) ||
+                     (ref_start == 79) || (ref_start == 83);  // Include alignments starting at these positions
+    
+    // Return true if the alignment covers ANY QRDR region
+    return gyrA_qrdr || parC_qrdr;
 }
 
 
@@ -512,26 +519,56 @@ __global__ void enhanced_protein_kmer_match_kernel(
             
             if (seed_count < MIN_SEED_HITS) continue;
             
-            // Calculate match span
-            uint32_t min_query = protein_seeds[0].query_pos;
-            uint32_t max_query = protein_seeds[0].query_pos + PROTEIN_KMER_SIZE;
-            uint32_t min_ref = protein_seeds[0].ref_pos;
-            uint32_t max_ref = protein_seeds[0].ref_pos + PROTEIN_KMER_SIZE;
+            // Safe extension from first seed - extend while maintaining alignment
+            uint32_t seed_query_pos = protein_seeds[0].query_pos;
+            uint32_t seed_ref_pos = protein_seeds[0].ref_pos;
             
-            for (int i = 1; i < seed_count; i++) {
-                min_query = min(min_query, protein_seeds[i].query_pos);
-                max_query = max(max_query, protein_seeds[i].query_pos + PROTEIN_KMER_SIZE);
-                min_ref = min(min_ref, protein_seeds[i].ref_pos);
-                max_ref = max(max_ref, protein_seeds[i].ref_pos + PROTEIN_KMER_SIZE);
+            // Get reference sequence for this protein
+            const char* ref_seq = &protein_db->sequences[protein_db->seq_offsets[protein_id]];
+            uint16_t ref_len = protein_db->seq_lengths[protein_id];
+            
+            // Extend left from seed (allow some mismatches)
+            int left_extend = 0;
+            int left_mismatches = 0;
+            const int max_mismatches = 2;  // Allow up to 2 mismatches during extension
+            
+            while (seed_query_pos - left_extend > 0 && 
+                   seed_ref_pos - left_extend > 0 &&
+                   left_extend < 20 &&
+                   left_mismatches <= max_mismatches) {
+                if (frame.sequence[seed_query_pos - left_extend - 1] == 
+                    ref_seq[seed_ref_pos - left_extend - 1]) {
+                    left_extend++;
+                } else {
+                    left_mismatches++;
+                    left_extend++;  // Continue extending despite mismatch
+                }
             }
             
-            uint32_t query_span = max_query - min_query;
-            uint32_t ref_span = max_ref - min_ref;
+            // Extend right from seed (allow some mismatches)
+            int right_extend = PROTEIN_KMER_SIZE;  // Start after the k-mer
+            int right_mismatches = 0;
             
-            // Quality filter: reasonable span and length
-            if (query_span >= EXTENSION_THRESHOLD && 
-                query_span <= frame.length && 
-                abs((int)query_span - (int)ref_span) <= 5) {
+            while (seed_query_pos + right_extend < frame.length && 
+                   seed_ref_pos + right_extend < ref_len &&
+                   right_extend < 50 &&
+                   right_mismatches <= max_mismatches) {
+                if (frame.sequence[seed_query_pos + right_extend] == 
+                    ref_seq[seed_ref_pos + right_extend]) {
+                    right_extend++;
+                } else {
+                    right_mismatches++;
+                    right_extend++;  // Continue extending despite mismatch
+                }
+            }
+            
+            uint32_t min_query = seed_query_pos - left_extend;
+            uint32_t min_ref = seed_ref_pos - left_extend;
+            uint32_t query_span = left_extend + right_extend;
+            uint32_t ref_span = query_span;  // Same span due to exact extension
+            
+            // Always proceed if we have enough seed hits
+            if (seed_count >= MIN_SEED_HITS) {
                 
                 // Create temporary match to check identity
                 ProteinMatch temp_match;
@@ -542,15 +579,18 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 temp_match.species_id = protein_db->species_ids[protein_id];
                 temp_match.query_start = min_query;
                 temp_match.ref_start = min_ref;
-                temp_match.match_length = query_span;
-                temp_match.identity = (float)(seed_count * PROTEIN_KMER_SIZE) / query_span;
-                temp_match.alignment_score = seed_count * 10.0f;
+                temp_match.match_length = query_span;  // Use the extended length
+                
+                // Calculate identity based on mismatches found during extension
+                int total_mismatches = left_mismatches + right_mismatches;
+                temp_match.identity = 1.0f - (float)total_mismatches / query_span;
+                temp_match.alignment_score = query_span * 2.0f - total_mismatches * 4.0f;  // Penalize mismatches
                 temp_match.num_mutations = 0;
                 temp_match.used_smith_waterman = false;
                 
                 // Initialize new fields
                 temp_match.is_qrdr_alignment = false;  // Will be set on host side
-                // Extract peptide sequence from translated frame
+                // Extract peptide sequence from translated frame (extended region)
                 int peptide_len = min(query_span, 50);
                 for (int k = 0; k < peptide_len && k < 50; k++) {
                     if (min_query + k < frame.length) {
@@ -578,6 +618,7 @@ __global__ void enhanced_protein_kmer_match_kernel(
                     uint16_t ref_len = protein_db->seq_lengths[protein_id];
                     
                     if (temp_match.ref_start < ref_len) {
+                        // Use the already extended region for Smith-Waterman
                         uint16_t available_ref = ref_len - temp_match.ref_start;
                         uint16_t available_query = frame.length - temp_match.query_start;
                         uint16_t sw_ref_len = min(available_ref, (uint16_t)50);
@@ -689,6 +730,48 @@ __global__ void enhanced_protein_kmer_match_kernel(
         }
     }
     
+    // Keep only the best scoring match (unless there are ties)
+    if (match_count > 1) {
+        float max_score = read_matches[0].alignment_score;
+        int best_idx = 0;
+        
+        // Find the maximum score
+        for (uint32_t i = 1; i < match_count; i++) {
+            if (read_matches[i].alignment_score > max_score) {
+                max_score = read_matches[i].alignment_score;
+                best_idx = i;
+            }
+        }
+        
+        // Count how many matches have the same max score
+        int ties = 0;
+        for (uint32_t i = 0; i < match_count; i++) {
+            if (read_matches[i].alignment_score == max_score) {
+                ties++;
+            }
+        }
+        
+        // If there's a single best match, keep only that one
+        if (ties == 1) {
+            if (best_idx != 0) {
+                read_matches[0] = read_matches[best_idx];
+            }
+            match_count = 1;
+        } else {
+            // Keep all matches with the max score
+            uint32_t kept = 0;
+            for (uint32_t i = 0; i < match_count; i++) {
+                if (read_matches[i].alignment_score == max_score) {
+                    if (kept != i) {
+                        read_matches[kept] = read_matches[i];
+                    }
+                    kept++;
+                }
+            }
+            match_count = kept;
+        }
+    }
+    
     match_counts[tid] = match_count;
     
     if (tid == 0 && match_count > 0 && DEBUG_TRANS) {
@@ -719,8 +802,10 @@ __global__ void enhanced_protein_kmer_match_kernel(
                     // Check if any mutations are in QRDR positions
                     for (int j = 0; j < read_matches[i].num_mutations; j++) {
                         int pos = read_matches[i].ref_start + read_matches[i].mutation_positions[j];
-                        if ((read_matches[i].gene_id == 0 && (pos == 82 || pos == 86)) ||
-                            (read_matches[i].gene_id == 1 && (pos == 79 || pos == 83))) {
+                        // Check for mutations at key QRDR positions (works for any gene)
+                        // gyrA: S83 (pos 82) and D87 (pos 86)
+                        // parC: S80 (pos 79) and E84 (pos 83)
+                        if (pos == 82 || pos == 86 || pos == 79 || pos == 83) {
                             atomicAdd(&qrdr_mutation_count, 1);
                             break;
                         }

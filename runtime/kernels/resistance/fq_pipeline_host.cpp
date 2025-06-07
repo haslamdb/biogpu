@@ -147,20 +147,28 @@ void writeQRDRAlignmentsToCSV(const std::vector<ProteinMatch>& qrdr_alignments,
              << "peptide_sequence,covers_qrdr_positions\n";
     
     // Helper to identify which QRDR positions are covered
-    auto getQRDRPositions = [](uint32_t gene_id, uint16_t ref_start, uint16_t match_length) -> std::string {
+    auto getQRDRPositions = [&gene_id_to_name](uint32_t gene_id, uint16_t ref_start, uint16_t match_length) -> std::string {
         std::vector<int> covered_positions;
         uint16_t ref_end = ref_start + match_length;
         
-        if (gene_id == 0) {  // gyrA
-            if (ref_start <= 82 && ref_end > 82) covered_positions.push_back(83);  // 0-based to 1-based
-            if (ref_start <= 86 && ref_end > 86) covered_positions.push_back(87);
-        } else if (gene_id == 1) {  // parC
-            if (ref_start <= 79 && ref_end > 79) covered_positions.push_back(80);
-            if (ref_start <= 83 && ref_end > 83) covered_positions.push_back(84);
-        } else if (gene_id == 2) {  // gyrB
+        // Get gene name from mapping
+        std::string gene_name;
+        auto it = gene_id_to_name.find(gene_id);
+        if (it != gene_id_to_name.end()) {
+            gene_name = it->second;
+        }
+        
+        // Define key QRDR positions for each gene
+        if (gene_name == "gyrA") {
+            if (ref_start <= 82 && ref_end > 82) covered_positions.push_back(83);  // S83 (0-based to 1-based)
+            if (ref_start <= 86 && ref_end > 86) covered_positions.push_back(87);  // D87
+        } else if (gene_name == "parC") {
+            if (ref_start <= 79 && ref_end > 79) covered_positions.push_back(80);  // S80
+            if (ref_start <= 83 && ref_end > 83) covered_positions.push_back(84);  // E84
+        } else if (gene_name == "gyrB") {
             if (ref_start <= 425 && ref_end > 425) covered_positions.push_back(426);
             if (ref_start <= 446 && ref_end > 446) covered_positions.push_back(447);
-        } else if (gene_id == 3) {  // parE
+        } else if (gene_name == "parE") {
             if (ref_start <= 415 && ref_end > 415) covered_positions.push_back(416);
             if (ref_start <= 419 && ref_end > 419) covered_positions.push_back(420);
         }
@@ -224,7 +232,7 @@ void writeQRDRAlignmentsToCSV(const std::vector<ProteinMatch>& qrdr_alignments,
     
     csv_file.close();
     
-    std::cout << "\nWrote " << qrdr_alignments.size() << " QRDR alignments to: " << csv_path << std::endl;
+    std::cout << "\nWrote " << qrdr_alignments.size() << " protein alignments to: " << csv_path << std::endl;
 }
 
 // Enhanced mutation detection logic with species-aware resistance patterns
@@ -576,27 +584,14 @@ private:
     // Dynamic species ID to name mapping loaded from protein database metadata
     std::map<uint32_t, std::string> species_id_to_name;
     
-    // QRDR position definitions for key genes
-    std::map<uint32_t, std::pair<int, int>> qrdr_regions = {
-        {0, {75, 95}},   // gyrA QRDR (approximately positions 75-95)
-        {1, {75, 90}},   // parC QRDR (approximately positions 75-90)
-        {2, {420, 450}}, // gyrB QRDR
-        {3, {410, 425}}  // parE QRDR
+    // Dynamic QRDR position definitions based on gene names
+    // This map defines QRDR regions for different gene types (not gene IDs)
+    std::map<std::string, std::pair<int, int>> gene_qrdr_regions = {
+        {"gyrA", {75, 95}},   // gyrA QRDR (includes positions 83 and 87)
+        {"parC", {70, 90}},   // parC QRDR (includes positions 80 and 84)
+        {"gyrB", {420, 450}}, // gyrB QRDR
+        {"parE", {410, 425}}  // parE QRDR
     };
-    
-    // Helper function to check if alignment overlaps with QRDR
-    bool isQRDRAlignment(const ProteinMatch& match) {
-        auto it = qrdr_regions.find(match.gene_id);
-        if (it == qrdr_regions.end()) return false;
-        
-        int qrdr_start = it->second.first;
-        int qrdr_end = it->second.second;
-        int match_start = match.ref_start;
-        int match_end = match.ref_start + match.match_length;
-        
-        // Check for overlap
-        return !(match_end <= qrdr_start || match_start >= qrdr_end);
-    }
     
     // Helper function to extract peptide sequence from translated frame
     void extractPeptideSequence(ProteinMatch& match, const char* translated_sequence, int frame_length) {
@@ -870,6 +865,58 @@ public:
             species_id_to_name[0] = "Species0";
             species_id_to_name[1] = "Species1";
         }
+        
+        // Also load protein_details.json for more detailed gene information
+        std::string protein_details_path = db_path + "/protein_details.json";
+        std::ifstream details_file(protein_details_path);
+        
+        if (details_file.good()) {
+            std::string line;
+            uint32_t current_id = UINT32_MAX;
+            std::string current_gene;
+            
+            while (std::getline(details_file, line)) {
+                // Look for "id": number
+                size_t id_pos = line.find("\"id\":");
+                if (id_pos != std::string::npos) {
+                    size_t num_start = line.find_first_of("0123456789", id_pos);
+                    if (num_start != std::string::npos) {
+                        size_t num_end = line.find_first_not_of("0123456789", num_start);
+                        current_id = std::stoi(line.substr(num_start, num_end - num_start));
+                    }
+                }
+                
+                // Look for "gene": "name"
+                size_t gene_pos = line.find("\"gene\":");
+                if (gene_pos != std::string::npos && current_id != UINT32_MAX) {
+                    size_t quote_start = line.find("\"", gene_pos + 7);
+                    size_t quote_end = line.find("\"", quote_start + 1);
+                    if (quote_start != std::string::npos && quote_end != std::string::npos) {
+                        std::string gene_full = line.substr(quote_start + 1, quote_end - quote_start - 1);
+                        
+                        // Extract base gene name (e.g., "gyrA" from "gyrA_mut_S83L")
+                        std::string gene_base = gene_full;
+                        size_t mut_pos = gene_full.find("_mut_");
+                        if (mut_pos != std::string::npos) {
+                            gene_base = gene_full.substr(0, mut_pos);
+                        }
+                        
+                        // Update the mapping with the base gene name
+                        gene_id_to_name[current_id] = gene_base;
+                        
+                        // Debug output (uncomment if needed)
+                        // std::cout << "Protein " << current_id << ": " << gene_full 
+                        //           << " -> " << gene_base << std::endl;
+                    }
+                }
+            }
+            
+            std::cout << "Enhanced gene mappings from protein_details.json" << std::endl;
+            details_file.close();
+        }
+        
+        std::cout << "Total loaded mappings: " << gene_id_to_name.size() << " genes, " 
+                  << species_id_to_name.size() << " species" << std::endl;
     }
     
     void setSmithWatermanEnabled(bool enabled) {
@@ -1036,6 +1083,35 @@ public:
         
         bool first_mutation = true;
         auto pipeline_start = std::chrono::high_resolution_clock::now();
+        
+        // Define lambda for QRDR alignment checking
+        auto isQRDRAlignment = [&](const ProteinMatch& match) -> bool {
+            // First try to get gene name from our mapping
+            std::string gene_name;
+            auto it = gene_id_to_name.find(match.gene_id);
+            if (it != gene_id_to_name.end()) {
+                gene_name = it->second;
+            } else {
+                // Fallback: check if it's a known QRDR gene ID from old hardcoded system
+                // This maintains backward compatibility
+                if (match.gene_id <= 3) {
+                    return true; // Assume it might be QRDR-related
+                }
+                return false;
+            }
+            
+            // Check if this gene has defined QRDR regions
+            auto qrdr_it = gene_qrdr_regions.find(gene_name);
+            if (qrdr_it == gene_qrdr_regions.end()) return false;
+            
+            int qrdr_start = qrdr_it->second.first;
+            int qrdr_end = qrdr_it->second.second;
+            int match_start = match.ref_start;
+            int match_end = match.ref_start + match.match_length;
+            
+            // Check for overlap
+            return !(match_end <= qrdr_start || match_start >= qrdr_end);
+        };
         
         while (true) {
             // Read batch of paired reads
@@ -1467,10 +1543,8 @@ public:
                                             // Store for top display
                                             top_sw_matches.push_back(pm);
                                             
-                                            // Store QRDR alignments separately for ranking
-                                            if (pm.is_qrdr_alignment) {
-                                                qrdr_alignments.push_back(pm);
-                                            }
+                                            // Store all Smith-Waterman alignments
+                                            qrdr_alignments.push_back(pm);
                                             
                                             // Track unique reads with SW results (R1)
                                             reads_with_sw_results.insert(pm.read_id + enhanced_stats.total_reads_processed - batch1.num_reads);
@@ -1567,10 +1641,8 @@ public:
                                             // Store for top display
                                             top_sw_matches.push_back(pm);
                                             
-                                            // Store QRDR alignments separately for ranking
-                                            if (pm.is_qrdr_alignment) {
-                                                qrdr_alignments.push_back(pm);
-                                            }
+                                            // Store all Smith-Waterman alignments
+                                            qrdr_alignments.push_back(pm);
                                             
                                             // Track unique reads with SW results (R2)
                                             reads_with_sw_results.insert(pm.read_id + enhanced_stats.total_reads_processed - batch2.num_reads);
@@ -1691,7 +1763,7 @@ public:
         
         // Create QRDR alignments CSV file
         if (!qrdr_alignments.empty()) {
-            std::string csv_path = report_dir + "/" + sample_name + "_qrdr_alignments.csv";
+            std::string csv_path = report_dir + "/" + sample_name + "_protein_alignments.csv";
             writeQRDRAlignmentsToCSV(qrdr_alignments, gene_id_to_name, species_id_to_name, 
                                     csv_path, enhanced_stats.total_reads_processed);
         }
@@ -1820,8 +1892,8 @@ public:
                          << ", Peptide: " << match.query_peptide << std::endl;
             }
             
-            std::cout << "\nTotal QRDR alignments found: " << qrdr_alignments.size() << std::endl;
-            std::cout << "Full QRDR alignment details exported to: " << sample_name << "_qrdr_alignments.csv" << std::endl;
+            std::cout << "\nTotal protein alignments found: " << qrdr_alignments.size() << std::endl;
+            std::cout << "Full protein alignment details exported to: " << sample_name << "_protein_alignments.csv" << std::endl;
             std::cout << "NOTE: These peptide sequences should be verified using BLAST to confirm alignment accuracy." << std::endl;
         } else if (enable_smith_waterman) {
             std::cout << "\nNo QRDR alignments detected." << std::endl;

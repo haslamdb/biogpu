@@ -125,7 +125,7 @@ python build_species_specific_protein_database.py \
     data/integrated_clean_db/protein \
     1M_synthetic_reads_R1.fastq.gz \
     1M_synthetic_reads_R2.fastq.gz \
-    1M_reads_test 
+    results/1M_reads_test
 
 make clean_resistance_pipeline -j8 
 or make -j8 

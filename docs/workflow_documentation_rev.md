@@ -309,6 +309,13 @@ make build_integrated_resistance_db
 
 ## 🤝 Version History
 
+### v0.5.1 (June 7 2025 - Evening Update)
+- **Implemented banded Smith-Waterman alignment** for improved sensitivity
+- **Expanded protein matches** - now detecting ~2.3M matches per 1M reads
+- Successfully detecting mutations relative to reference sequences
+- Integrated global FQ resistance database from `backup_scripts/tools/Quinolone_resistance_mutation_table.csv`
+- **KNOWN ISSUE**: FQ resistance database mapping not working properly yet
+
 ### v0.5.0 (June 7 2025)
 - Integrated clean resistance pipeline
 - Species-aware mutation detection
@@ -323,6 +330,23 @@ make build_integrated_resistance_db
 ### v0.3.0
 - Basic k-mer matching pipeline
 - Simple mutation detection
+
+---
+
+## 🐛 Known Issues and TODOs
+
+### TODO #1: Fix Global FQ Resistance Database Mapping (PRIORITY)
+The global FQ resistance database has been implemented but is not mapping mutations correctly:
+- **Species name mismatch**: The CSV file uses spaces (e.g., "Escherichia coli") while our protein database uses underscores (e.g., "Escherichia_coli")
+- **Incomplete detection**: Despite synthetic data containing known gyrA and parE resistance mutations, we're only detecting a fraction
+- **Debug vs Report mismatch**: CUDA kernel shows mutations like "S83L" and "D87N" but reports show different mutations
+- The database loads 256 FQ resistance mutations but mapping to actual sequences is failing
+
+### Other Issues
+- Mutation mapping between runtime detection and reporting needs synchronization
+- CUDA kernel uses hardcoded QRDR positions while reporter uses dynamic database
+- Need to validate all QRDR positions are correctly mapped
+- Performance optimization needed for large-scale datasets
 
 ---
 

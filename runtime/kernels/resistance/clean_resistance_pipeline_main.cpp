@@ -19,6 +19,8 @@
 
 // FQ mutation reporter declarations
 extern "C" {
+    void init_fq_resistance_database(const char* csv_path);
+    void cleanup_fq_resistance_database();
     void* create_fq_mutation_reporter(const char* output_path);
     void destroy_fq_mutation_reporter(void* reporter);
     void set_fq_reporter_gene_mapping(void* reporter, uint32_t id, const char* name);
@@ -207,6 +209,9 @@ public:
             destroy_fq_mutation_reporter(fq_mutation_reporter);
         }
         
+        // Clean up FQ resistance database
+        cleanup_fq_resistance_database();
+        
         // Clean up
         if (bloom_filter) destroy_bloom_filter(bloom_filter);
         if (translated_search_engine) destroy_translated_search_engine(translated_search_engine);
@@ -234,6 +239,10 @@ public:
     void loadDatabases(const std::string& nucleotide_index_path, 
                       const std::string& protein_db_path) {
         std::cout << "Loading databases...\n";
+        
+        // Initialize FQ resistance database
+        const char* fq_resistance_csv = "backup_scripts/tools/Quinolone_resistance_mutation_table.csv";
+        init_fq_resistance_database(fq_resistance_csv);
         
         // Store protein DB path for later use
         this->protein_db_path = protein_db_path;

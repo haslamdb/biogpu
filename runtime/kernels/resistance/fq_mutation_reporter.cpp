@@ -13,7 +13,11 @@
 #include <sstream>
 #include <cstdint>
 #include <chrono>
+#include "fq_resistance_positions.h"
 // No external JSON library needed - we'll write JSON manually
+
+// Global FQ resistance database instance
+FQResistanceDatabase* g_fq_resistance_db = nullptr;
 
 // Structures matching the pipeline
 struct ProteinMatch {
@@ -108,15 +112,32 @@ public:
         std::string species_name = getSpeciesName(match.species_id);
         std::string gene_name = getGeneName(match.gene_id);
         
+        // Use the dynamic resistance database if available
+        if (!g_fq_resistance_db) {
+            std::cerr << "WARNING: FQ resistance database not loaded, skipping QRDR detection\n";
+            return;
+        }
+        
         // Process each mutation
         for (int i = 0; i < match.num_mutations; i++) {
+            int mutation_pos_in_protein = match.ref_start + match.mutation_positions[i];
+            
+            // Check if this is a QRDR mutation using the dynamic database
+            bool is_qrdr_mutation = g_fq_resistance_db->isQRDRPosition(gene_name, mutation_pos_in_protein);
+            
+            // Only process QRDR mutations for FQ resistance reporting
+            if (!is_qrdr_mutation) continue;
+            
+            // Get expected wildtype AA from database
+            char expected_wt = g_fq_resistance_db->getWildtypeAA(gene_name, mutation_pos_in_protein);
+            
             FQMutation mut;
             mut.species_id = match.species_id;
             mut.species_name = species_name;
             mut.gene_id = match.gene_id;
             mut.gene_name = gene_name;
             mut.protein_id = match.protein_id;
-            mut.position = match.ref_start + match.mutation_positions[i];
+            mut.position = mutation_pos_in_protein + 1;  // Convert to 1-based for reporting
             mut.wildtype_aa = match.ref_aas[i];
             mut.mutant_aa = match.query_aas[i];
             mut.mutation_code = createMutationCode(mut.wildtype_aa, mut.position, mut.mutant_aa);
@@ -456,6 +477,24 @@ private:
 
 // C interface for integration
 extern "C" {
+    void init_fq_resistance_database(const char* csv_path) {
+        if (!g_fq_resistance_db) {
+            g_fq_resistance_db = new FQResistanceDatabase();
+            if (!g_fq_resistance_db->loadFromCSV(csv_path)) {
+                delete g_fq_resistance_db;
+                g_fq_resistance_db = nullptr;
+                std::cerr << "ERROR: Failed to load FQ resistance database from " << csv_path << std::endl;
+            }
+        }
+    }
+    
+    void cleanup_fq_resistance_database() {
+        if (g_fq_resistance_db) {
+            delete g_fq_resistance_db;
+            g_fq_resistance_db = nullptr;
+        }
+    }
+    
     void* create_fq_mutation_reporter(const char* output_path) {
         return new FQMutationReporter(std::string(output_path));
     }

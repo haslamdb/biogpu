@@ -229,6 +229,7 @@ target_compile_definitions(integrated_resistance_pipeline PRIVATE ${HDF5_DEFINIT
 add_executable(clean_resistance_pipeline
     runtime/kernels/resistance/clean_resistance_pipeline_main.cpp
     runtime/kernels/resistance/fq_mutation_detector.cu
+    runtime/kernels/resistance/fq_mutation_reporter.cpp
 )
 
 set_target_properties(clean_resistance_pipeline PROPERTIES

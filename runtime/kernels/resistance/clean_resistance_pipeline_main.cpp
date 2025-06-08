@@ -17,6 +17,16 @@
 #include "fq_mutation_detector.cuh"
 #include "hdf5_alignment_writer.h"
 
+// FQ mutation reporter declarations
+extern "C" {
+    void* create_fq_mutation_reporter(const char* output_path);
+    void destroy_fq_mutation_reporter(void* reporter);
+    void set_fq_reporter_gene_mapping(void* reporter, uint32_t id, const char* name);
+    void set_fq_reporter_species_mapping(void* reporter, uint32_t id, const char* name);
+    void process_protein_match_for_fq_report(void* reporter, const void* match);
+    void generate_fq_mutation_report(void* reporter);
+}
+
 // External CUDA kernel declarations
 extern "C" {
     // Bloom filter functions
@@ -125,6 +135,8 @@ private:
     // Components
     FQMutationDetectorCUDA detector;
     HDF5AlignmentWriter* hdf5_writer;
+    void* fq_mutation_reporter;
+    std::string protein_db_path;
     
     // Configuration
     const int batch_size = 10000;
@@ -185,9 +197,16 @@ public:
         CUDA_CHECK(cudaMalloc(&d_protein_match_counts, batch_size * sizeof(uint32_t)));
         
         hdf5_writer = nullptr;
+        fq_mutation_reporter = nullptr;
     }
     
     ~CleanResistancePipeline() {
+        // Generate FQ mutation report before cleanup
+        if (fq_mutation_reporter) {
+            generate_fq_mutation_report(fq_mutation_reporter);
+            destroy_fq_mutation_reporter(fq_mutation_reporter);
+        }
+        
         // Clean up
         if (bloom_filter) destroy_bloom_filter(bloom_filter);
         if (translated_search_engine) destroy_translated_search_engine(translated_search_engine);
@@ -216,6 +235,9 @@ public:
                       const std::string& protein_db_path) {
         std::cout << "Loading databases...\n";
         
+        // Store protein DB path for later use
+        this->protein_db_path = protein_db_path;
+        
         // Load nucleotide k-mer index
         detector.loadIndex(nucleotide_index_path.c_str());
         
@@ -235,6 +257,70 @@ public:
         }
     }
     
+    void loadMappingsForReporter() {
+        if (!fq_mutation_reporter || protein_db_path.empty()) return;
+        
+        // Load metadata from protein database
+        std::string metadata_path = protein_db_path + "/metadata.json";
+        std::ifstream metadata_file(metadata_path);
+        
+        if (!metadata_file.good()) {
+            std::cerr << "Warning: Could not load metadata from " << metadata_path << std::endl;
+            return;
+        }
+        
+        std::string line;
+        bool in_species_map = false;
+        bool in_gene_map = false;
+        
+        while (std::getline(metadata_file, line)) {
+            // Check for section markers
+            if (line.find("\"species_map\"") != std::string::npos) {
+                in_species_map = true;
+                in_gene_map = false;
+                continue;
+            }
+            if (line.find("\"gene_map\"") != std::string::npos) {
+                in_gene_map = true;
+                in_species_map = false;
+                continue;
+            }
+            
+            // Parse "id": "name" entries
+            if ((in_species_map || in_gene_map) && line.find(":") != std::string::npos) {
+                size_t first_quote = line.find("\"");
+                size_t second_quote = line.find("\"", first_quote + 1);
+                size_t third_quote = line.find("\"", second_quote + 1);
+                size_t fourth_quote = line.find("\"", third_quote + 1);
+                
+                if (first_quote != std::string::npos && fourth_quote != std::string::npos) {
+                    std::string id_str = line.substr(first_quote + 1, second_quote - first_quote - 1);
+                    std::string name = line.substr(third_quote + 1, fourth_quote - third_quote - 1);
+                    
+                    try {
+                        uint32_t id = std::stoi(id_str);
+                        if (in_species_map) {
+                            set_fq_reporter_species_mapping(fq_mutation_reporter, id, name.c_str());
+                        } else if (in_gene_map) {
+                            set_fq_reporter_gene_mapping(fq_mutation_reporter, id, name.c_str());
+                        }
+                    } catch (...) {
+                        // Skip invalid entries
+                    }
+                }
+            }
+            
+            // Check for section end
+            if ((in_species_map || in_gene_map) && line.find("}") != std::string::npos) {
+                in_species_map = false;
+                in_gene_map = false;
+            }
+        }
+        
+        metadata_file.close();
+        std::cout << "Loaded gene and species mappings for FQ mutation reporter\n";
+    }
+    
     void processReads(const std::string& r1_path, const std::string& r2_path,
                      const std::string& output_path) {
         auto start_time = std::chrono::high_resolution_clock::now();
@@ -243,6 +329,12 @@ public:
         std::string hdf5_path = output_path + ".h5";
         hdf5_writer = new HDF5AlignmentWriter(hdf5_path);
         hdf5_writer->initialize("", r1_path, r2_path);
+        
+        // Initialize FQ mutation reporter
+        fq_mutation_reporter = create_fq_mutation_reporter(output_path.c_str());
+        
+        // Load and set mappings from protein database metadata
+        loadMappingsForReporter();
         
         // Open FASTQ files
         gzFile gz_r1 = gzopen(r1_path.c_str(), "r");
@@ -478,6 +570,11 @@ private:
                     
                     // Count ALL protein matches, not just Smith-Waterman
                     stats.protein_matches++;
+                    
+                    // Send to FQ mutation reporter
+                    if (fq_mutation_reporter) {
+                        process_protein_match_for_fq_report(fq_mutation_reporter, &match);
+                    }
                     
                     // Debug: print first few matches
                     if (stats.protein_matches <= 10) {

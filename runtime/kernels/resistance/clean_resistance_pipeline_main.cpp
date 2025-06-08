@@ -476,12 +476,22 @@ private:
                 for (uint32_t j = 0; j < h_protein_counts[i]; j++) {
                     ProteinMatch& match = h_protein_matches[i * max_protein_matches_per_read + j];
                     
-                    if (match.used_smith_waterman) {
-                        stats.protein_matches++;
-                        
-                        // Check for resistance mutations
-                        if (match.num_mutations > 0) {
-                            stats.resistance_mutations++;
+                    // Count ALL protein matches, not just Smith-Waterman
+                    stats.protein_matches++;
+                    
+                    // Debug: print first few matches
+                    if (stats.protein_matches <= 10) {
+                        std::cout << "DEBUG: Protein match " << stats.protein_matches << ": "
+                                  << "gene_id=" << match.gene_id 
+                                  << ", identity=" << match.identity
+                                  << ", num_mutations=" << (int)match.num_mutations
+                                  << ", match_length=" << match.match_length
+                                  << ", used_sw=" << match.used_smith_waterman << "\n";
+                    }
+                    
+                    // Check for resistance mutations in ALL matches
+                    if (match.num_mutations > 0) {
+                        stats.resistance_mutations++;
                             
                             // Output to JSON
                             if (!first_result) json_output << ",\n";
@@ -508,7 +518,6 @@ private:
                             json_output << "    }";
                             first_result = false;
                         }
-                    }
                 }
             }
             

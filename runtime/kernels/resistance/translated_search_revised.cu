@@ -256,11 +256,13 @@ __device__ float smith_waterman_align(
     const int GAP_EXTEND = -1;
     const int BAND_WIDTH = 10;
     
-    // Use local arrays for small alignments
-    float H[50][50] = {0}; // Score matrix (limited size for GPU)
+    // Use local arrays for alignments - increased to handle full 150bp reads (50 AA)
+    // For banded alignment, we only need a strip of the matrix
+    const int MAX_ALIGN_LEN = 60; // Support up to 60 AA (180 bp)
+    float H[MAX_ALIGN_LEN][MAX_ALIGN_LEN] = {0}; // Score matrix
     
-    if (query_len > 49 || ref_len > 49) {
-        // Fall back to simple scoring for large sequences
+    if (query_len > MAX_ALIGN_LEN-1 || ref_len > MAX_ALIGN_LEN-1) {
+        // Fall back to simple scoring for very large sequences
         float score = 0.0f;
         int matches = 0;
         int aligned_len = min(query_len, ref_len);
@@ -282,12 +284,17 @@ __device__ float smith_waterman_align(
     float max_score = 0.0f;
     int max_i = 0, max_j = 0;
     
-    // Fill scoring matrix
+    // Fill scoring matrix with banding optimization
+    // Since we expect high similarity, only compute cells near the diagonal
     for (int i = 1; i <= query_len; i++) {
-        for (int j = 1; j <= ref_len; j++) {
+        // Banded alignment: only fill cells within BAND_WIDTH of diagonal
+        int j_start = max(1, i - BAND_WIDTH);
+        int j_end = min((int)ref_len, i + BAND_WIDTH);
+        
+        for (int j = j_start; j <= j_end; j++) {
             float match = H[i-1][j-1] + get_blosum_score(query[i-1], ref[j-1]);
-            float delete_gap = H[i-1][j] + GAP_OPEN;
-            float insert_gap = H[i][j-1] + GAP_OPEN;
+            float delete_gap = (j > 1) ? H[i-1][j] + GAP_OPEN : GAP_OPEN;
+            float insert_gap = (i > 1) ? H[i][j-1] + GAP_OPEN : GAP_OPEN;
             
             H[i][j] = fmaxf(0.0f, fmaxf(match, fmaxf(delete_gap, insert_gap)));
             
@@ -304,7 +311,7 @@ __device__ float smith_waterman_align(
     int align_len = 0;
     uint8_t mut_count = 0;
     
-    while (i > 0 && j > 0 && H[i][j] > 0 && align_len < 49) {
+    while (i > 0 && j > 0 && H[i][j] > 0 && align_len < MAX_ALIGN_LEN-1) {
         if (i > 0 && j > 0 && H[i][j] == H[i-1][j-1] + get_blosum_score(query[i-1], ref[j-1])) {
             // Match or mismatch
             if (query[i-1] != ref[j-1] && mut_count < 10) {
@@ -532,14 +539,29 @@ __global__ void enhanced_protein_kmer_match_kernel(
             int left_mismatches = 0;
             const int max_mismatches = 2;  // Allow up to 2 mismatches during extension
             
+            // Arrays to store mutation information
+            uint8_t mutation_positions[10];
+            char ref_aas[10];
+            char query_aas[10];
+            int num_mutations = 0;
+            
             while (seed_query_pos - left_extend > 0 && 
                    seed_ref_pos - left_extend > 0 &&
                    left_extend < 20 &&
                    left_mismatches <= max_mismatches) {
-                if (frame.sequence[seed_query_pos - left_extend - 1] == 
-                    ref_seq[seed_ref_pos - left_extend - 1]) {
+                char query_aa = frame.sequence[seed_query_pos - left_extend - 1];
+                char ref_aa = ref_seq[seed_ref_pos - left_extend - 1];
+                
+                if (query_aa == ref_aa) {
                     left_extend++;
                 } else {
+                    // Record mutation details
+                    if (num_mutations < 10) {
+                        mutation_positions[num_mutations] = left_extend - 1;
+                        ref_aas[num_mutations] = ref_aa;
+                        query_aas[num_mutations] = query_aa;
+                        num_mutations++;
+                    }
                     left_mismatches++;
                     left_extend++;  // Continue extending despite mismatch
                 }
@@ -553,10 +575,19 @@ __global__ void enhanced_protein_kmer_match_kernel(
                    seed_ref_pos + right_extend < ref_len &&
                    right_extend < 50 &&
                    right_mismatches <= max_mismatches) {
-                if (frame.sequence[seed_query_pos + right_extend] == 
-                    ref_seq[seed_ref_pos + right_extend]) {
+                char query_aa = frame.sequence[seed_query_pos + right_extend];
+                char ref_aa = ref_seq[seed_ref_pos + right_extend];
+                
+                if (query_aa == ref_aa) {
                     right_extend++;
                 } else {
+                    // Record mutation details
+                    if (num_mutations < 10) {
+                        mutation_positions[num_mutations] = seed_query_pos - (seed_query_pos - left_extend) + right_extend;
+                        ref_aas[num_mutations] = ref_aa;
+                        query_aas[num_mutations] = query_aa;
+                        num_mutations++;
+                    }
                     right_mismatches++;
                     right_extend++;  // Continue extending despite mismatch
                 }
@@ -585,8 +616,15 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 int total_mismatches = left_mismatches + right_mismatches;
                 temp_match.identity = 1.0f - (float)total_mismatches / query_span;
                 temp_match.alignment_score = query_span * 2.0f - total_mismatches * 4.0f;  // Penalize mismatches
-                temp_match.num_mutations = 0;
+                temp_match.num_mutations = num_mutations;
                 temp_match.used_smith_waterman = false;
+                
+                // Copy mutation details
+                for (int i = 0; i < num_mutations && i < 10; i++) {
+                    temp_match.mutation_positions[i] = mutation_positions[i];
+                    temp_match.ref_aas[i] = ref_aas[i];
+                    temp_match.query_aas[i] = query_aas[i];
+                }
                 
                 // Initialize new fields
                 temp_match.is_qrdr_alignment = false;  // Will be set on host side
@@ -607,8 +645,9 @@ __global__ void enhanced_protein_kmer_match_kernel(
                                match_count, seed_count, temp_match.alignment_score, SW_SCORE_THRESHOLD, enable_smith_waterman ? "YES" : "NO");
                 }
                 
-                // Optional Smith-Waterman for high-scoring matches
-                if (enable_smith_waterman && temp_match.alignment_score >= SW_SCORE_THRESHOLD) {
+                // Apply Smith-Waterman to extend alignments and find more mutations
+                // Run SW for all matches to get better extension (not just high-scoring ones)
+                if (enable_smith_waterman && seed_count >= MIN_SEED_HITS) {
                     if (tid == 0 && match_count < 3 && DEBUG_TRANS) {
                         DEBUG_PRINT("Triggering Smith-Waterman: protein_id=%d, score=%.1f", protein_id, temp_match.alignment_score);
                     }
@@ -619,10 +658,11 @@ __global__ void enhanced_protein_kmer_match_kernel(
                     
                     if (temp_match.ref_start < ref_len) {
                         // Use the already extended region for Smith-Waterman
+                        // Allow SW to see the full remaining sequence (up to 60 AA)
                         uint16_t available_ref = ref_len - temp_match.ref_start;
                         uint16_t available_query = frame.length - temp_match.query_start;
-                        uint16_t sw_ref_len = min(available_ref, (uint16_t)50);
-                        uint16_t sw_query_len = min(available_query, (uint16_t)50);
+                        uint16_t sw_ref_len = min(available_ref, (uint16_t)60);
+                        uint16_t sw_query_len = min(available_query, (uint16_t)60);
                         
                         uint16_t sw_query_start, sw_ref_start, sw_length;
                         uint8_t sw_num_mutations;

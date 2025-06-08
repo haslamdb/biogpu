@@ -89,25 +89,27 @@ __host__ __device__ inline int aa_to_index(char aa) {
 }
 
 // helper function to check if alignment covers QRDR regions
-// This is now more flexible - it doesn't filter by gene_id
-// Instead, we'll check QRDR positions for any gene that might be gyrA or parC
+// Updated to use correct gene_ids from the database
 __device__ bool covers_qrdr_region(uint32_t gene_id, uint16_t ref_start, uint16_t match_length) {
     uint16_t ref_end = ref_start + match_length;
     
-    // For now, we check common QRDR positions for both gyrA and parC
-    // This allows detection regardless of gene_id assignment
+    // Based on protein_details.json:
+    // gene_id 1 = gyrA
+    // gene_id 2 = parC
+    // gene_id 0 = grlA (S. aureus equivalent of gyrA)
     
-    // gyrA QRDR positions (0-based): S83 (pos 82) and D87 (pos 86)
-    // Include alignments that start at or before these positions
-    bool gyrA_qrdr = (ref_start <= 82 && ref_end > 82) || (ref_start <= 86 && ref_end > 86) ||
-                     (ref_start == 86);  // Include alignments starting exactly at D87
+    if (gene_id == 1) {  // gyrA
+        // gyrA QRDR positions (0-based): S83 (pos 82) and D87 (pos 86)
+        return (ref_start <= 82 && ref_end > 82) || (ref_start <= 86 && ref_end > 86);
+    } else if (gene_id == 2) {  // parC
+        // parC QRDR positions (0-based): S80 (pos 79) and E84 (pos 83)
+        return (ref_start <= 79 && ref_end > 79) || (ref_start <= 83 && ref_end > 83);
+    } else if (gene_id == 0) {  // grlA (S. aureus)
+        // grlA QRDR positions similar to gyrA: S84 (pos 83) and E88 (pos 87)
+        return (ref_start <= 83 && ref_end > 83) || (ref_start <= 87 && ref_end > 87);
+    }
     
-    // parC QRDR positions (0-based): S80 (pos 79) and E84 (pos 83)
-    bool parC_qrdr = (ref_start <= 79 && ref_end > 79) || (ref_start <= 83 && ref_end > 83) ||
-                     (ref_start == 79) || (ref_start == 83);  // Include alignments starting at these positions
-    
-    // Return true if the alignment covers ANY QRDR region
-    return gyrA_qrdr || parC_qrdr;
+    return false;
 }
 
 
@@ -721,7 +723,7 @@ __global__ void enhanced_protein_kmer_match_kernel(
                                         temp_match.blosum_scores[i]);
                                     
                                     // Check if this is a QRDR position
-                                    if (temp_match.gene_id == 0) {  // gyrA
+                                    if (temp_match.gene_id == 1) {  // gyrA (corrected gene_id)
                                         if (mutation_pos_in_protein == 82) {  // 0-based, so 83-1
                                             printf("    *** QRDR MUTATION: gyrA S83%c ***\n", temp_match.query_aas[i]);
                                             has_qrdr_mutation = true;
@@ -729,12 +731,20 @@ __global__ void enhanced_protein_kmer_match_kernel(
                                             printf("    *** QRDR MUTATION: gyrA D87%c ***\n", temp_match.query_aas[i]);
                                             has_qrdr_mutation = true;
                                         }
-                                    } else if (temp_match.gene_id == 1) {  // parC
+                                    } else if (temp_match.gene_id == 2) {  // parC (corrected gene_id)
                                         if (mutation_pos_in_protein == 79) {  // 80-1
                                             printf("    *** QRDR MUTATION: parC S80%c ***\n", temp_match.query_aas[i]);
                                             has_qrdr_mutation = true;
                                         } else if (mutation_pos_in_protein == 83) {  // 84-1
                                             printf("    *** QRDR MUTATION: parC E84%c ***\n", temp_match.query_aas[i]);
+                                            has_qrdr_mutation = true;
+                                        }
+                                    } else if (temp_match.gene_id == 0) {  // grlA (S. aureus)
+                                        if (mutation_pos_in_protein == 83) {  // S84 (0-based)
+                                            printf("    *** QRDR MUTATION: grlA S84%c ***\n", temp_match.query_aas[i]);
+                                            has_qrdr_mutation = true;
+                                        } else if (mutation_pos_in_protein == 87) {  // E88
+                                            printf("    *** QRDR MUTATION: grlA E88%c ***\n", temp_match.query_aas[i]);
                                             has_qrdr_mutation = true;
                                         }
                                     }
@@ -1025,70 +1035,87 @@ public:
         printf("[DATABASE DEBUG] Number of proteins: %d\n", num_proteins);
         printf("[DATABASE DEBUG] Total sequence bytes: %zu\n", remaining_size);
         
-        // Simple hardcoded mapping for the known 2-protein wildtype database
-        // Based on analysis: protein 0 = parE (630 aa), protein 1 = gyrA (875 aa)
+        // Load protein metadata from protein_details.json
         std::vector<uint32_t> protein_ids(num_proteins);
         std::vector<uint32_t> gene_ids(num_proteins);
         std::vector<uint32_t> species_ids(num_proteins);
         std::vector<uint16_t> seq_lengths(num_proteins);
         std::vector<uint32_t> seq_offsets(num_proteins);
         
-        DEBUG_PRINT("Setting up correct gene mappings for %d proteins", num_proteins);
+        DEBUG_PRINT("Loading protein metadata for %d proteins", num_proteins);
         
-        // For wildtype protein database with proper metadata, use the correct mapping:
-        // Based on protein_details.json:
-        // Protein 0: Enterococcus_faecium gyrA (823 aa) -> gene_id 0 (gyrA), species_id 0
-        // Protein 1: Enterococcus_faecium parC (816 aa) -> gene_id 1 (parC), species_id 0  
-        // Protein 2: Escherichia_coli gyrA (875 aa) -> gene_id 0 (gyrA), species_id 1
-        // Protein 3: Escherichia_coli parE (630 aa) -> gene_id 2 (parE), species_id 1
+        // Try to load metadata from protein_details.json
+        std::string metadata_path = db_path + "/protein_details.json";
+        std::ifstream metadata_file(metadata_path);
         
-        if (num_proteins == 4) {
-            // Correct mapping for 4-protein wildtype database
-            size_t offset = 0;
+        if (metadata_file.good()) {
+            // Parse JSON metadata
+            std::string json_content((std::istreambuf_iterator<char>(metadata_file)),
+                                   std::istreambuf_iterator<char>());
+            metadata_file.close();
             
-            // Protein 0: Enterococcus_faecium gyrA
-            protein_ids[0] = 0;
-            gene_ids[0] = 0;      // gyrA
-            species_ids[0] = 0;   // Enterococcus_faecium
-            seq_lengths[0] = 823;
-            seq_offsets[0] = offset;
-            offset += 823;
+            // Simple JSON parsing for the array of protein objects
+            size_t pos = 0;
+            size_t protein_idx = 0;
+            size_t current_offset = 0;
             
-            // Protein 1: Enterococcus_faecium parC
-            protein_ids[1] = 1;
-            gene_ids[1] = 1;      // parC
-            species_ids[1] = 0;   // Enterococcus_faecium
-            seq_lengths[1] = 816;
-            seq_offsets[1] = offset;
-            offset += 816;
+            while ((pos = json_content.find("\"id\":", pos)) != std::string::npos && protein_idx < num_proteins) {
+                // Parse protein ID
+                pos += 5;
+                size_t id_start = json_content.find_first_of("0123456789", pos);
+                size_t id_end = json_content.find_first_not_of("0123456789", id_start);
+                protein_ids[protein_idx] = std::stoi(json_content.substr(id_start, id_end - id_start));
+                
+                // Parse gene_id
+                size_t gene_pos = json_content.find("\"gene_id\":", pos);
+                if (gene_pos != std::string::npos && gene_pos < pos + 500) {
+                    gene_pos += 10;
+                    size_t gene_start = json_content.find_first_of("0123456789", gene_pos);
+                    size_t gene_end = json_content.find_first_not_of("0123456789", gene_start);
+                    gene_ids[protein_idx] = std::stoi(json_content.substr(gene_start, gene_end - gene_start));
+                }
+                
+                // Parse species_id
+                size_t species_pos = json_content.find("\"species_id\":", pos);
+                if (species_pos != std::string::npos && species_pos < pos + 500) {
+                    species_pos += 13;
+                    size_t species_start = json_content.find_first_of("0123456789", species_pos);
+                    size_t species_end = json_content.find_first_not_of("0123456789", species_start);
+                    species_ids[protein_idx] = std::stoi(json_content.substr(species_start, species_end - species_start));
+                }
+                
+                // Parse length
+                size_t length_pos = json_content.find("\"length\":", pos);
+                if (length_pos != std::string::npos && length_pos < pos + 500) {
+                    length_pos += 9;
+                    size_t length_start = json_content.find_first_of("0123456789", length_pos);
+                    size_t length_end = json_content.find_first_not_of("0123456789", length_start);
+                    seq_lengths[protein_idx] = std::stoi(json_content.substr(length_start, length_end - length_start));
+                }
+                
+                // Set offset
+                seq_offsets[protein_idx] = current_offset;
+                current_offset += seq_lengths[protein_idx];
+                
+                protein_idx++;
+                pos = id_end;
+            }
             
-            // Protein 2: Escherichia_coli gyrA
-            protein_ids[2] = 2;
-            gene_ids[2] = 0;      // gyrA (same gene_id as protein 0, different species)
-            species_ids[2] = 1;   // Escherichia_coli
-            seq_lengths[2] = 875;
-            seq_offsets[2] = offset;
-            offset += 875;
+            DEBUG_PRINT("Loaded metadata for %d proteins from JSON", protein_idx);
             
-            // Protein 3: Escherichia_coli parE
-            protein_ids[3] = 3;
-            gene_ids[3] = 2;      // parE
-            species_ids[3] = 1;   // Escherichia_coli
-            seq_lengths[3] = 630;
-            seq_offsets[3] = offset;
-            
-            printf("[GENE MAPPING] Protein 0: Enterococcus_faecium gyrA (gene_id=0, species_id=0, length=823)\n");
-            printf("[GENE MAPPING] Protein 1: Enterococcus_faecium parC (gene_id=1, species_id=0, length=816)\n");
-            printf("[GENE MAPPING] Protein 2: Escherichia_coli gyrA (gene_id=0, species_id=1, length=875)\n");
-            printf("[GENE MAPPING] Protein 3: Escherichia_coli parE (gene_id=2, species_id=1, length=630)\n");
+            // Print mappings for debugging
+            for (uint32_t i = 0; i < std::min((uint32_t)5, num_proteins); i++) {
+                printf("[GENE MAPPING] Protein %d: gene_id=%d, species_id=%d, length=%d, offset=%d\n",
+                       i, gene_ids[i], species_ids[i], seq_lengths[i], seq_offsets[i]);
+            }
         } else {
-            // Fallback for other database sizes
-            printf("[WARNING] Unexpected number of proteins (%d), using generic mapping\n", num_proteins);
+            // Fallback: estimate from sequence data
+            printf("[WARNING] Could not load protein_details.json, using estimated mappings\n");
             size_t avg_protein_len = remaining_size / num_proteins;
             for (uint32_t i = 0; i < num_proteins; i++) {
                 protein_ids[i] = i;
-                gene_ids[i] = i % 3;  // Cycle through gene IDs 0, 1, 2
-                species_ids[i] = i / 2;  // First 2 proteins species 0, next 2 species 1, etc.
+                gene_ids[i] = 1;  // Default to gyrA (gene_id 1)
+                species_ids[i] = i % 6;  // Cycle through species
                 seq_offsets[i] = i * avg_protein_len;
                 seq_lengths[i] = (i == num_proteins - 1) ? 
                                 (remaining_size - seq_offsets[i]) : avg_protein_len;

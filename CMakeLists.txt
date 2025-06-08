@@ -91,6 +91,19 @@ add_library(diagnostic_reporter STATIC
     runtime/kernels/resistance/diagnostic_report.cpp
 )
 
+# ===========================
+# Global FQ Resistance Mapper
+# ===========================
+
+# Add the global FQ resistance mapper library
+add_library(global_fq_mapper STATIC
+    runtime/kernels/resistance/global_fq_resistance_mapper.cpp
+)
+
+target_link_libraries(global_fq_mapper
+    cudart
+)
+
 # Enhanced mutation detection library
 add_library(enhanced_mutation_detection STATIC
     runtime/kernels/resistance/enhanced_mutation_detection.cu
@@ -99,6 +112,11 @@ add_library(enhanced_mutation_detection STATIC
 set_target_properties(enhanced_mutation_detection PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+# Update enhanced_mutation_detection library to link with global mapper
+target_link_libraries(enhanced_mutation_detection
+    global_fq_mapper
 )
 
 # ===========================
@@ -209,6 +227,7 @@ target_link_libraries(integrated_resistance_pipeline
     resistance_detection_gpu
     fixed_database_loader        # Keep original for species-gene tracking
     clean_resistance_loader      # Add the new simplified loader
+    global_fq_mapper            # ADD THIS LINE
     diagnostic_reporter
     enhanced_mutation_detection
     z
@@ -255,6 +274,7 @@ target_link_libraries(clean_resistance_pipeline
     kmer_screening
     resistance_detection_gpu
     clean_resistance_loader      # Use only the clean loader
+    global_fq_mapper            # ADD THIS LINE
     diagnostic_reporter
     enhanced_mutation_detection
     z
@@ -267,7 +287,6 @@ target_link_libraries(clean_resistance_pipeline
 # ===========================
 # Test Executables
 # ===========================
-
 
 # Test program for resistance detection GPU
 add_executable(test_resistance_gpu
@@ -283,6 +302,16 @@ target_link_libraries(test_resistance_gpu
     resistance_detection_gpu
     cudart
     cuda
+)
+
+# Add test executable for FQ mapper
+add_executable(test_fq_mapper
+    tests/test_fq_mapper.cpp
+)
+
+target_link_libraries(test_fq_mapper
+    global_fq_mapper
+    cudart
 )
 
 # Other test executables (unchanged)
@@ -385,6 +414,18 @@ add_custom_target(build_resistance_catalog
 )
 
 # ===========================
+# Add custom target to validate FQ database
+# ===========================
+
+add_custom_target(validate_fq_database
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/test_fq_mapper
+            ${CMAKE_SOURCE_DIR}/data/quinolone_resistance_mutation_table.csv
+            ${CMAKE_SOURCE_DIR}/data/integrated_clean_db/protein
+    DEPENDS test_fq_mapper
+    COMMENT "Validating FQ resistance database integration"
+)
+
+# ===========================
 # Validation and Testing Targets
 # ===========================
 
@@ -473,6 +514,7 @@ install(TARGETS
     test_bloom_filter 
     test_hdf5_reader 
     test_translated_search
+    test_fq_mapper                 # ADD THIS
     RUNTIME DESTINATION bin
 )
 
@@ -487,7 +529,14 @@ install(TARGETS
     resistance_detection_gpu
     fixed_database_loader
     clean_resistance_loader        # NEW
+    global_fq_mapper              # ADD THIS
     ARCHIVE DESTINATION lib
+)
+
+# Install FQ mapper header
+install(FILES 
+    runtime/kernels/resistance/global_fq_resistance_mapper.h
+    DESTINATION include/biogpu
 )
 
 # Install Python scripts
@@ -525,16 +574,24 @@ message(STATUS "  CUDA Standard: ${CMAKE_CUDA_STANDARD}")
 message(STATUS "  CUDA Architectures: 61;70;75;80;86")
 message(STATUS "  HDF5 Version: ${HDF5_VERSION}")
 message(STATUS "")
+message(STATUS "FQ Resistance Detection Configuration:")
+message(STATUS "  Global FQ mapper: ENABLED")
+message(STATUS "  FQ mutations CSV: data/quinolone_resistance_mutation_table.csv")
+message(STATUS "  Species normalization: ENABLED (spaces to underscores)")
+message(STATUS "  GPU acceleration: ENABLED")
+message(STATUS "")
 message(STATUS "NEW: Clean Resistance Pipeline Components:")
 message(STATUS "  ✓ Simplified resistance loader (position-only)")
 message(STATUS "  ✓ Clean resistance pipeline executable")
 message(STATUS "  ✓ Position-focused mutation detection")
+message(STATUS "  ✓ Global FQ resistance mapper integration")
 message(STATUS "")
 message(STATUS "Integrated Pipeline Components:")
 message(STATUS "  ✓ Multi-stage resistance detection")
 message(STATUS "  ✓ Unified resistance database")
 message(STATUS "  ✓ Population-level variant calling")
 message(STATUS "  ✓ Clinical interpretation module")
+message(STATUS "  ✓ Global FQ resistance mapping")
 message(STATUS "")
 message(STATUS "Build targets:")
 message(STATUS "  clean_resistance_pipeline     - Simplified pipeline using position-only DB")
@@ -543,9 +600,13 @@ message(STATUS "  build_clean_resistance_db     - Build simplified resistance da
 message(STATUS "  build_integrated_resistance_db - Build unified resistance database")
 message(STATUS "  test_clean_pipeline           - Test simplified pipeline")
 message(STATUS "  test_integrated_pipeline      - Test with synthetic data")
+message(STATUS "  validate_fq_database          - Validate FQ resistance database")
 message(STATUS "  benchmark_integrated          - Performance comparison")
 message(STATUS "  analyze_resistance_profile    - Generate HTML reports")
 message(STATUS "  clinical_interpretation       - Create clinical reports")
+message(STATUS "")
+message(STATUS "To validate FQ database after build:")
+message(STATUS "  make validate_fq_database")
 message(STATUS "")
 message(STATUS "Usage examples:")
 message(STATUS "  1. Build clean database: make build_clean_resistance_db")

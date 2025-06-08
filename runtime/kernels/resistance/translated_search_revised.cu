@@ -88,29 +88,7 @@ __host__ __device__ inline int aa_to_index(char aa) {
     }
 }
 
-// helper function to check if alignment covers QRDR regions
-// Updated to use correct gene_ids from the database
-__device__ bool covers_qrdr_region(uint32_t gene_id, uint16_t ref_start, uint16_t match_length) {
-    uint16_t ref_end = ref_start + match_length;
-    
-    // Based on protein_details.json:
-    // gene_id 1 = gyrA
-    // gene_id 2 = parC
-    // gene_id 0 = grlA (S. aureus equivalent of gyrA)
-    
-    if (gene_id == 1) {  // gyrA
-        // gyrA QRDR positions (0-based): S83 (pos 82) and D87 (pos 86)
-        return (ref_start <= 82 && ref_end > 82) || (ref_start <= 86 && ref_end > 86);
-    } else if (gene_id == 2) {  // parC
-        // parC QRDR positions (0-based): S80 (pos 79) and E84 (pos 83)
-        return (ref_start <= 79 && ref_end > 79) || (ref_start <= 83 && ref_end > 83);
-    } else if (gene_id == 0) {  // grlA (S. aureus)
-        // grlA QRDR positions similar to gyrA: S84 (pos 83) and E88 (pos 87)
-        return (ref_start <= 83 && ref_end > 83) || (ref_start <= 87 && ref_end > 87);
-    }
-    
-    return false;
-}
+// REMOVED: covers_qrdr_region function - QRDR detection now handled by global FQ mapper
 
 
 // Get BLOSUM score
@@ -699,74 +677,7 @@ __global__ void enhanced_protein_kmer_match_kernel(
                             temp_match.identity = (float)(sw_length - sw_num_mutations) / sw_length;
                             temp_match.used_smith_waterman = true;
                             
-                            // DEBUG: Add detailed mutation analysis
-                            if (tid < 5 && sw_num_mutations > 0) {  // First 5 reads with mutations
-                                printf("\n[MUTATION DEBUG] Read %d, Frame %d, Gene %d:\n", 
-                                    tid, frame.frame, temp_match.gene_id);
-                                printf("  Alignment: Query pos %d-%d → Ref pos %d-%d\n",
-                                    temp_match.query_start, temp_match.query_start + sw_length,
-                                    temp_match.ref_start, temp_match.ref_start + sw_length);
-                                printf("  Identity: %.1f%% (%d mutations in %d AA)\n",
-                                    temp_match.identity * 100, sw_num_mutations, sw_length);
-                                
-                                // Check for QRDR positions
-                                // gyrA: positions 83, 87
-                                // parC: positions 80, 84
-                                bool has_qrdr_mutation = false;
-                                
-                                for (int i = 0; i < sw_num_mutations; i++) {
-                                    int mutation_pos_in_protein = temp_match.ref_start + temp_match.mutation_positions[i];
-                                    
-                                    printf("  Mutation %d: Position %d, %c → %c (BLOSUM: %.1f)\n",
-                                        i + 1, mutation_pos_in_protein,
-                                        temp_match.ref_aas[i], temp_match.query_aas[i],
-                                        temp_match.blosum_scores[i]);
-                                    
-                                    // Check if this is a QRDR position
-                                    if (temp_match.gene_id == 1) {  // gyrA (corrected gene_id)
-                                        if (mutation_pos_in_protein == 82) {  // 0-based, so 83-1
-                                            printf("    *** QRDR MUTATION: gyrA S83%c ***\n", temp_match.query_aas[i]);
-                                            has_qrdr_mutation = true;
-                                        } else if (mutation_pos_in_protein == 86) {  // 87-1
-                                            printf("    *** QRDR MUTATION: gyrA D87%c ***\n", temp_match.query_aas[i]);
-                                            has_qrdr_mutation = true;
-                                        }
-                                    } else if (temp_match.gene_id == 2) {  // parC (corrected gene_id)
-                                        if (mutation_pos_in_protein == 79) {  // 80-1
-                                            printf("    *** QRDR MUTATION: parC S80%c ***\n", temp_match.query_aas[i]);
-                                            has_qrdr_mutation = true;
-                                        } else if (mutation_pos_in_protein == 83) {  // 84-1
-                                            printf("    *** QRDR MUTATION: parC E84%c ***\n", temp_match.query_aas[i]);
-                                            has_qrdr_mutation = true;
-                                        }
-                                    } else if (temp_match.gene_id == 0) {  // grlA (S. aureus)
-                                        if (mutation_pos_in_protein == 83) {  // S84 (0-based)
-                                            printf("    *** QRDR MUTATION: grlA S84%c ***\n", temp_match.query_aas[i]);
-                                            has_qrdr_mutation = true;
-                                        } else if (mutation_pos_in_protein == 87) {  // E88
-                                            printf("    *** QRDR MUTATION: grlA E88%c ***\n", temp_match.query_aas[i]);
-                                            has_qrdr_mutation = true;
-                                        }
-                                    }
-                                }
-                                
-                                if (!has_qrdr_mutation && sw_num_mutations > 0) {
-                                    printf("  Note: Mutations found but NOT in QRDR positions\n");
-                                }
-                                
-                                // Show the actual alignment region
-                                printf("  Query peptide: ");
-                                for (int j = 0; j < min(sw_length, 30); j++) {
-                                    printf("%c", frame.sequence[temp_match.query_start + j]);
-                                }
-                                printf("\n");
-                                
-                                printf("  Ref peptide:   ");
-                                for (int j = 0; j < min(sw_length, 30); j++) {
-                                    printf("%c", ref_seq[temp_match.ref_start + j]);
-                                }
-                                printf("\n\n");
-                            }
+                            // Remove hardcoded QRDR detection - this should be done by the global FQ mapper
                         }
                     }
                 }
@@ -829,47 +740,7 @@ __global__ void enhanced_protein_kmer_match_kernel(
                    match_count, enable_smith_waterman ? "YES" : "NO");
     }
     
-    // Add summary statistics at the end of the kernel
-    if (tid == 0) {
-        // Count how many reads had QRDR coverage
-        __shared__ int qrdr_coverage_count;
-        __shared__ int qrdr_mutation_count;
-        
-        if (threadIdx.x == 0) {
-            qrdr_coverage_count = 0;
-            qrdr_mutation_count = 0;
-        }
-        __syncthreads();
-        
-        // Each thread checks its matches
-        for (uint32_t i = 0; i < match_count; i++) {
-            if (read_matches[i].used_smith_waterman) {
-                if (covers_qrdr_region(read_matches[i].gene_id, 
-                                      read_matches[i].ref_start, 
-                                      read_matches[i].match_length)) {
-                    atomicAdd(&qrdr_coverage_count, 1);
-                    
-                    // Check if any mutations are in QRDR positions
-                    for (int j = 0; j < read_matches[i].num_mutations; j++) {
-                        int pos = read_matches[i].ref_start + read_matches[i].mutation_positions[j];
-                        // Check for mutations at key QRDR positions (works for any gene)
-                        // gyrA: S83 (pos 82) and D87 (pos 86)
-                        // parC: S80 (pos 79) and E84 (pos 83)
-                        if (pos == 82 || pos == 86 || pos == 79 || pos == 83) {
-                            atomicAdd(&qrdr_mutation_count, 1);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        
-        __syncthreads();
-        if (threadIdx.x == 0) {
-            printf("[SUMMARY] QRDR coverage: %d alignments, QRDR mutations: %d\n", 
-                   qrdr_coverage_count, qrdr_mutation_count);
-        }
-    }
+    // REMOVED: Hardcoded QRDR summary statistics - now handled by global FQ mapper
 }
 
 // Host wrapper class

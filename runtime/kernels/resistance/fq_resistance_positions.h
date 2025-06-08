@@ -73,27 +73,27 @@ public:
             }
             fields.push_back(current_field); // Last field
             
-            if (fields.size() >= 6) {
+            if (fields.size() >= 5) {
                 ResistanceMutation mut;
-                mut.species = fields[1];
-                mut.gene = fields[2];
+                mut.species = fields[0];  // New format: index 0 is species
+                mut.gene = fields[1];     // New format: index 1 is gene
                 
                 // Parse position (handle potential errors)
                 try {
-                    mut.position = std::stoi(fields[3]);
+                    mut.position = std::stoi(fields[2]);  // New format: index 2 is location
                 } catch (const std::exception& e) {
                     std::cerr << "Error parsing position in line: " << line << std::endl;
                     continue;
                 }
                 
                 // Make sure wildtype and mutant fields are not empty
-                if (fields[4].empty() || fields[5].empty()) {
+                if (fields[3].empty() || fields[4].empty()) {  // New format: indices 3 and 4
                     continue;
                 }
                 
-                mut.wildtype_aa = fields[4][0];
-                mut.mutant_aa = fields[5][0];
-                mut.protein_id = fields.size() > 6 ? fields[6] : "";
+                mut.wildtype_aa = fields[3][0];  // New format: index 3 is wt
+                mut.mutant_aa = fields[4][0];    // New format: index 4 is mut
+                mut.protein_id = "";
                 
                 all_mutations.push_back(mut);
                 

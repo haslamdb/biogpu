@@ -241,7 +241,7 @@ public:
         std::cout << "Loading databases...\n";
         
         // Initialize FQ resistance database
-        const char* fq_resistance_csv = "backup_scripts/tools/Quinolone_resistance_mutation_table.csv";
+        const char* fq_resistance_csv = "data/quinolone_resistance_mutation_table.csv";
         init_fq_resistance_database(fq_resistance_csv);
         
         // Store protein DB path for later use

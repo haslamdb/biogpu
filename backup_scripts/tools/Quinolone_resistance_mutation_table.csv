@@ -1,258 +1,258 @@
-"","species","gene","location","wt","mut","Protein","start","stop"
-"4","Escherichia coli","parE",529,"I","L","EFM0471628.1","65736","67628"
-"6","Salmonella enterica","gyrA",87,"D","N","ECL9970472.1","261247","263883"
-"7","Staphylococcus aureus","gyrA",84,"S","L","WP_000819068.1","7005","9674"
-"9","Campylobacter lari","gyrA",86,"T","V","WP_012661847.1","1090123","1092699"
-"10","Acinetobacter baumannii","gyrA",81,"S","L","WP_000116442.1","924612","927326"
-"11","Clostridioides difficile","gyrA",82,"T","I","WP_009892337.1","6066","8492"
-"12","Enterococcus faecium","parC",80,"S","I","WP_002320956.1","121830","124280"
-"13","Staphylococcus aureus","parC",80,"S","Y","WP_001289589.1","433522","435924"
-"16","Escherichia coli","parC",108,"A","T","WP_001281845.1","15004","17262"
-"18","Clostridioides difficile","gyrB",366,"S","A","WP_003429304.1","4145","6046"
-"22","Staphylococcus aureus","gyrA",106,"G","D","WP_000819061.1","7005","9665"
-"25","Pseudomonas aeruginosa","parC",87,"S","L","WP_014603516.1","621730","623994"
-"26","Staphylococcus aureus","parC",84,"E","G","WP_001289590.1","215851","218253"
-"29","Campylobacter coli","gyrA",86,"T","I","WP_002788054.1","35070","37637"
-"37","Vibrio cholerae","gyrA",83,"S","I","WP_001281166.1","203616","206300"
-"40","Klebsiella pneumoniae","gyrA",83,"S","I","WP_002913012.1","118326","120959"
-"50","Acinetobacter baumannii","parC",84,"S","L","WP_000202254.1","68782","71001"
-"51","Enterococcus faecalis","gyrA",83,"S","I","WP_002383521.1","8195","10696"
-"56","Enterococcus faecium","gyrA",83,"S","R","WP_002303652.1","24250","26721"
-"63","Enterococcus faecium","parC",80,"S","R","WP_002303213.1","3500","5950"
-"66","Enterococcus faecium","gyrA",83,"S","I","WP_002321575.1","17959","20430"
-"76","Vibrio cholerae","parC",85,"S","L","WP_000102502.1","162731","165016"
-"93","Pseudomonas aeruginosa","gyrA",83,"T","I","WP_012613862.1","2093","4864"
-"95","Staphylococcus aureus","parC",80,"S","F","WP_001558001.1","844858","847260"
-"121","Enterococcus faecalis","gyrA",83,"S","R","WP_002370593.1","58713","61214"
-"124","Enterococcus faecalis","parC",84,"E","K","WP_010820445.1","522611","525073"
-"129","Enterococcus faecalis","parC",80,"S","R","WP_010716991.1","518053","520515"
-"130","Enterococcus faecalis","gyrA",87,"E","K","WP_010717235.1","59326","61827"
-"132","Enterococcus faecalis","gyrA",87,"E","G","WP_010733729.1","59286","61787"
-"133","Enterococcus faecalis","parC",80,"S","I","WP_010706655.1","512722","515184"
-"157","Staphylococcus aureus","parE",432,"D","H","WP_025176334.1","213849","215840"
-"169","Clostridioides difficile","gyrB",139,"I","R","WP_021364100.1","49967","51868"
-"179","Clostridioides difficile","gyrB",426,"D","N","WP_021416065.1","28795","30696"
-"183","Escherichia coli","parE",355,"I","T","WP_000195300.1","826257","828149"
-"187","Escherichia coli","parC",80,"S","I","WP_001281848.1","57164","59422"
-"190","Enterococcus faecium","gyrA",87,"E","G","WP_002317025.1","24261","26732"
-"196","Clostridioides difficile","gyrB",366,"S","V","WP_003420475.1","4144","6045"
-"201","Pseudomonas aeruginosa","gyrB",466,"S","F","WP_031640949.1","56","2476"
-"218","Staphylococcus aureus","parE",451,"P","S","WP_031783666.1","818358","820349"
-"239","Staphylococcus aureus","parC",84,"E","K","WP_001289554.1","216244","218646"
-"278","Clostridioides difficile","gyrB",416,"S","A","WP_003420475.1","4144","6045"
-"285","Staphylococcus aureus","parE",585,"P","S","WP_001622372.1","797806","799797"
-"311","Staphylococcus aureus","gyrA",88,"E","K","WP_000819071.1","7129","9798"
-"317","Klebsiella aerogenes","gyrA",83,"S","T","WP_032710364.1","3419758","3422391"
-"349","Staphylococcus aureus","parE",444,"R","S","WP_031833525.1","480366","482357"
-"370","Staphylococcus aureus","parC",84,"E","V","WP_031901870.1","471319","473721"
-"372","Staphylococcus aureus","parE",432,"D","V","WP_001647844.1","75356","77347"
-"377","Staphylococcus aureus","gyrA",88,"E","A","WP_000819060.1","7005","9674"
-"420","Staphylococcus aureus","parE",432,"D","N","WP_031784331.1","42888","44879"
-"773","Klebsiella pneumoniae","gyrA",87,"D","N","WP_023278787.1","290694","293327"
-"778","Pseudomonas aeruginosa","gyrA",87,"D","Y","WP_024914963.1","342308","345073"
-"960","Acinetobacter baumannii","parC",88,"E","K","WP_000202266.1","22821","25040"
-"1314","Escherichia coli","parC",56,"A","T","WP_032161229.1","149956","152214"
-"1316","Escherichia coli","parE",475,"D","E","EFL9763634.1","241338","243230"
-"1347","Klebsiella pneumoniae","gyrA",87,"D","A","WP_032408608.1","7332","9965"
-"1352","Klebsiella pneumoniae","gyrA",83,"S","F","WP_031588672.1","105858","108491"
-"1363","Salmonella enterica","gyrA",83,"S","Y","EBA1844266.1","233654","236290"
-"1375","Salmonella enterica","parC",80,"S","I","EBF6645181.1","61830","64088"
-"1382","Salmonella enterica","gyrA",87,"D","Y","EDT3624266.1","161429","164065"
-"1385","Salmonella enterica","parC",80,"S","R","EBV6021507.1","174315","176573"
-"1389","Escherichia coli","parE",458,"S","A","WP_022646138.1","3637323","3639215"
-"1394","Pseudomonas aeruginosa","parE",473,"A","V","WP_004347647.1","206522","208411"
-"1398","Pseudomonas aeruginosa","parC",87,"S","W","WP_003158377.1","355882","358146"
-"1439","Escherichia coli","parE",416,"L","F","WP_001586263.1","33986","35878"
-"1483","Escherichia coli","parC",84,"E","G","WP_042634218.1","91151","93409"
-"1491","Clostridioides difficile","gyrB",426,"D","V","WP_022616359.1","4145","6046"
-"1539","Salmonella enterica","gyrA",82,"D","N","EDV1112657.1","138927","141563"
-"1553","Salmonella enterica","parC",78,"G","D","ECN1309426.1","71351","73609"
-"1626","Campylobacter coli","gyrA",90,"D","Y","EAK0322357.1","49995","52562"
-"1642","Campylobacter jejuni","gyrA",104,"P","S","EAK0384985.1","80197","82788"
-"1645","Escherichia coli","parC",57,"S","T","EFL6528468.1","36523","38781"
-"1657","Campylobacter upsaliensis","gyrA",86,"T","K","EAI3916798.1","127405","129963"
-"1662","Campylobacter jejuni","gyrA",90,"D","N","EAJ7119585.1","145023","147614"
-"1670","Pseudomonas aeruginosa","gyrA",87,"D","N","WP_025271482.1","466518","469289"
-"1672","Citrobacter freundii","gyrA",83,"T","I","WP_044701169.1","401882","404518"
-"1692","Pseudomonas aeruginosa","gyrB",466,"S","Y","WP_046688801.1","94687","97107"
-"1700","Neisseria gonorrhoeae","gyrA",95,"D","G","WP_012503694.1","245","2995"
-"1701","Neisseria gonorrhoeae","parC",87,"S","R","WP_012503384.1","2847","5150"
-"1732","Neisseria gonorrhoeae","gyrA",91,"S","F","WP_003691306.1","68776","71526"
-"1751","Enterococcus faecium","gyrA",83,"S","Y","WP_002303991.1","17972","20443"
-"1775","Streptococcus pneumoniae","parC",79,"S","Y","WP_078130731.1","3247","5718"
-"1784","Streptococcus pneumoniae","parC",79,"S","F","WP_078104029.1","3277","5748"
-"1794","Neisseria meningitidis","gyrA",91,"T","I","WP_012221781.1","271205","273955"
-"1797","Neisseria meningitidis","gyrA",173,"T","A","WP_050892686.1","368","3118"
-"1843","Campylobacter jejuni","gyrA",86,"T","A","WP_052821471.1","255720","258311"
-"2067","Klebsiella pneumoniae","gyrA",87,"D","Y","WP_032419896.1","7174","9807"
-"2131","Pseudomonas aeruginosa","gyrA",87,"D","G","EIU7147307.1","59221","61992"
-"2134","Staphylococcus aureus","gyrA",84,"S","A","WP_031588486.1","7005","9668"
-"2161","Klebsiella pneumoniae","gyrA",87,"D","G","WP_055314380.1","127059","129692"
-"2163","Klebsiella michiganensis","gyrA",83,"T","I","WP_014839094.1","103054","105687"
-"2164","Serratia marcescens","gyrA",83,"S","I","WP_055317190.1","98842","101484"
-"2305","Pseudomonas aeruginosa","parE",457,"S","G","WP_043550300.1","199661","201550"
-"2344","Salmonella enterica","gyrA",119,"A","E","ECX6254320.1","265047","267683"
-"2366","Enterobacter cloacae","gyrA",83,"S","Y","WP_058683498.1","71829","74465"
-"2413","Clostridioides difficile","gyrA",118,"A","S","WP_058989968.1","6066","8492"
-"2446","Escherichia coli","parC",84,"E","V","WP_001281848.1","14816","17074"
-"2468","Serratia marcescens","gyrA",83,"S","R","WP_060388057.1","231046","233688"
-"2659","Enterococcus faecalis","parC",84,"E","A","HBI1608412.1","151396","153858"
-"2976","Escherichia coli","parE",464,"I","F","WP_064770203.1","47370","49262"
-"3097","Klebsiella pneumoniae","gyrA",83,"S","Y","WP_015958750.1","118135","120768"
-"3198","Acinetobacter baumannii","parC",84,"S","W","WP_064191044.1","3760","5979"
-"3226","Staphylococcus aureus","gyrB",436,"D","N","WP_064136130.1","30193","32127"
-"3239","Klebsiella oxytoca","parC",80,"S","R","WP_064351648.1","247242","249500"
-"3451","Staphylococcus pseudintermedius","gyrA",84,"S","L","WP_037541979.1","7314","9950"
-"3563","Escherichia coli","parC",80,"S","R","WP_001748758.1","5958","8216"
-"4097","Neisseria gonorrhoeae","gyrA",95,"D","N","WP_014580227.1","183","2933"
-"4100","Neisseria gonorrhoeae","gyrA",95,"D","A","WP_047922714.1","488","3238"
-"4102","Neisseria gonorrhoeae","parC",91,"E","G","WP_050157498.1","3025","5328"
-"4103","Neisseria gonorrhoeae","parC",86,"D","N","WP_050171071.1","2943","5246"
-"4298","Pseudomonas aeruginosa","gyrB",468,"E","D","WP_033948857.1","40522","42942"
-"4636","Escherichia coli","parE",460,"E","K","HAJ8028831.1","234801","236693"
-"4844","Clostridioides difficile","gyrB",130,"V","I","WP_021370727.1","4145","6046"
-"4864","Salmonella enterica","parC",84,"E","G","EDV7701820.1","71356","73614"
-"4887","Burkholderia cenocepacia","gyrA",83,"T","I","WP_077038477.1","69674","72277"
-"5076","Salmonella enterica","gyrA",81,"G","C","WP_079936727.1","152995","155631"
-"5399","Salmonella enterica","gyrB",464,"S","Y","EDG9115308.1","18787","21201"
-"5517","Staphylococcus aureus","gyrA",88,"E","G","WP_086037557.1","26790","29459"
-"5599","Salmonella enterica","gyrB",466,"E","D","EDI0188367.1","20339","22753"
-"5612","Escherichia coli","parE",458,"S","T","EFM6612002.1","37181","39073"
-"5765","Shigella flexneri","parC",84,"E","K","EFY8729715.1","4869","7127"
-"5888","Staphylococcus pseudintermedius","grlA",80,"S","I","EJG1260967.1","43388","45799"
-"6061","Salmonella enterica","parC",84,"E","K","EDK9895603.1","71351","73609"
-"6299","Enterobacter cloacae","gyrA",83,"S","I","WP_058651752.1","208014","210650"
-"6300","Pseudomonas aeruginosa","parE",457,"S","T","WP_033989180.1","170933","172822"
-"6485","Escherichia coli","parE",460,"E","D","WP_060614954.1","105514","107406"
-"6574","Staphylococcus aureus","gyrA",84,"S","V","WP_061732653.1","6489","9152"
-"6863","Vibrio parahaemolyticus","gyrA",83,"S","I","WP_102590738.1","337474","340110"
-"7083","Escherichia coli","parC",108,"A","V","WP_025693397.1","51431","53689"
-"7151","Escherichia fergusonii","gyrA",83,"S","L","WP_104919505.1","89912","92548"
-"7160","Neisseria gonorrhoeae","parC",88,"S","P","WP_104691799.1","82623","84926"
-"8007","Staphylococcus pseudintermedius","grlA",84,"D","N","EGQ4463329.1","63418","65829"
-"8080","Escherichia coli","parC",78,"G","D","EEZ2502348.1","55086","57344"
-"9563","Acinetobacter baumannii","parC",84,"S","F","WP_000202251.1","54916","57135"
-"9924","Haemophilus influenzae","parE",420,"D","N","WP_116940132.1","1477140","1479038"
-"10267","Staphylococcus pseudintermedius","grlA",80,"S","R","EGQ2954046.1","30572","32983"
-"10592","Salmonella enterica","gyrB",464,"S","F","EAM4867560.1","18787","21201"
-"10698","Pseudomonas aeruginosa","gyrA",87,"D","H","WP_040184172.1","562330","565101"
-"10700","Pseudomonas aeruginosa","gyrA",83,"T","A","WP_031769573.1","511762","514533"
-"11461","Staphylococcus pseudintermedius","grlA",84,"D","G","EGQ2884878.1","2060","4471"
-"12365","Salmonella enterica","parE",461,"V","G","EAN9423296.1","78365","80257"
-"12594","Enterobacter cloacae","gyrA",87,"D","N","WP_129252154.1","107106","109742"
-"12612","Staphylococcus pseudintermedius","grlA",84,"D","Y","WP_129944097.1","145721","148132"
-"14001","Enterococcus faecalis","gyrA",83,"S","Y","WP_137010790.1","78718","81219"
-"19111","Klebsiella pneumoniae","gyrA",87,"D","H","HBX0856487.1","208539","211172"
-"20135","Vibrio vulnificus","gyrA",83,"S","I","HAS6071566.1","70007","72718"
-"20817","Pseudomonas aeruginosa","parE",459,"E","D","HBP5230542.1","305079","306968"
-"23696","Neisseria meningitidis","gyrA",95,"D","N","HEZ6456537.1","15323","18073"
-"24307","Enterobacter cloacae","parC",80,"S","I","WP_058651355.1","308986","311244"
-"25985","Salmonella enterica","parE",462,"H","Y","EFZ9148866.1","113698","115590"
-"26576","Escherichia coli","parC",84,"E","A","WP_001281840.1","24142","26400"
-"28831","Enterococcus faecalis","gyrA",83,"S","N","HAP2809444.1","194854","197355"
-"33893","Escherichia coli","parE",445,"L","H","HBB1235704.1","2646","4538"
-"35369","Staphylococcus aureus","parE",443,"D","E","HBC4028163.1","654225","656216"
-"37135","Clostridioides difficile","gyrB",466,"E","K","HBE8485227.1","142400","144301"
-"37436","Clostridioides difficile","gyrA",82,"T","A","HBG8374155.1","2259","4685"
-"42386","Staphylococcus pseudintermedius","gyrA",84,"S","A","HCT0352662.1","23299","25935"
-"42436","Klebsiella oxytoca","parC",80,"S","I","WP_064343840.1","745963","748221"
-"45633","Escherichia coli","parE",476,"D","N","WP_238880688.1","39857","41749"
-"45810","Klebsiella pneumoniae","gyrA",83,"S","L","EIX9643113.1","331284","333917"
-"46065","Citrobacter farmeri","gyrA",87,"D","G","HCA0084990.1","118908","121544"
-"50858","Salmonella enterica","gyrA",83,"S","I","HCH7680867.1","1706","4342"
-"56540","Salmonella enterica","parE",458,"S","P","WP_000195317.1","673267","675159"
-"57937","Staphylococcus aureus","gyrA",85,"S","P","HCV6198850.1","26702","29365"
-"60075","Staphylococcus aureus","parC",116,"A","V","HDC8991212.1","215840","218242"
-"60554","Clostridioides difficile","gyrA",82,"T","V","HDF2647480.1","143910","146336"
-"60948","Staphylococcus aureus","parC",116,"A","E","HDG5892421.1","215845","218247"
-"72599","Escherichia coli","emrR",113,"L","P","EMM5321491.1","99161","99691"
-"72782","Escherichia coli","parC",80,"S","Y","ELQ7193892.1","24012","26270"
-"79477","Pseudomonas aeruginosa","gyrA",81,"G","C","WP_196742030.1","487070","489841"
-"79842","Enterococcus faecium","gyrA",87,"E","K","WP_311794429.1","24836","27307"
-"80171","Vibrio cholerae","gyrA",87,"D","N","HGF7236507.1","130764","133448"
-"82833","Pseudomonas aeruginosa","gyrA",106,"Q","L","HEK3042757.1","388251","391022"
-"94065","Enterobacter cloacae","gyrA",87,"D","G","WP_348578782.1","296729","299365"
-"101279","Pseudomonas aeruginosa","gyrA",72,"D","G","HFQ8265059.1","581592","584363"
-"101336","Neisseria gonorrhoeae","parE",410,"G","V","HFC3478010.1","6118","8103"
-"102621","Haemophilus influenzae","gyrA",88,"D","G","HHF7316390.1","90021","92669"
-"102622","Haemophilus influenzae","gyrA",88,"D","Y","WP_275910343.1","341581","344223"
-"102623","Haemophilus influenzae","parC",84,"S","I","WP_224056823.1","65661","67904"
-"103129","Haemophilus influenzae","gyrA",84,"S","L","HHF6549458.1","60868","63510"
-"103766","Haemophilus influenzae","gyrA",88,"D","N","HHF4614954.1","19674","22316"
-"105493","Escherichia coli","gyrA",87,"D","N","EOK4038233.1","109119","111755"
-"116381","Staphylococcus aureus","parC",84,"E","L","HHA6906867.1","166173","168575"
-"118328","Pseudomonas aeruginosa","gyrA",81,"G","D","HHG4565581.1","368124","370895"
-"125113","Salmonella enterica","gyrA",81,"G","D","EBR5274759.1","210167","212803"
-"126042","Clostridioides difficile","gyrA",71,"D","G","EGT5241176.1","155578","158004"
-"127884","Staphylococcus pseudintermedius","gyrA",88,"E","G","WP_115848360.1","51292","53928"
-"129560","Vibrio cholerae","parE",439,"P","S","HAS8041842.1","272913","274793"
-"130287","Enterobacter cloacae","gyrA",83,"S","F","WP_129252154.1","107106","109742"
-"130469","Shigella flexneri","parE",439,"P","S","EFX1064569.1","60270","62162"
-"130715","Neisseria gonorrhoeae","parC",87,"S","I","WP_047951440.1","194768","197071"
-"131509","Vibrio parahaemolyticus","parC",85,"S","F","WP_140341664.1","156283","158568"
-"138475","Acinetobacter baumannii","gyrA",79,"G","C","HAV3847857.1","15920","18634"
-"139290","Staphylococcus pseudintermedius","grlA",84,"D","H","HAR6287141.1","125392","127803"
-"139859","Raoultella ornithinolytica","gyrA",87,"D","G","WP_182952287.1","1665205","1667844"
-"146680","Vibrio vulnificus","parC",85,"S","L","WP_206622672.1","184034","186319"
-"149662","Clostridioides difficile","gyrB",447,"R","K","HBF0168134.1","142428","144329"
-"152417","Burkholderia dolosa","gyrA",87,"D","H","WP_105773988.1","1693491","1696094"
-"156686","Neisseria gonorrhoeae","parC",87,"S","N","WP_235220065.1","118222","120525"
-"161449","Vibrio parahaemolyticus","parC",85,"S","L","HCH6460177.1","401553","403838"
-"163813","Vibrio cholerae","parE",420,"D","N","HCJ6844716.1","666826","668706"
-"196213","Shigella flexneri","parE",458,"S","L","EMX6907375.1","60306","62198"
-"203832","Escherichia coli","parC",78,"G","C","HFP7176870.1","72928","75186"
-"204274","Streptococcus pneumoniae","parC",83,"D","H","HFN9297689.1","28947","31418"
-"204657","Neisseria gonorrhoeae","gyrA",91,"S","Y","HFC2312656.1","41425","44175"
-"206552","Pseudomonas aeruginosa","nfxB",39,"T","P","WP_126522758.1","87621","88184"
-"212366","Clostridioides difficile","gyrA",71,"D","V","HGS9079559.1","144247","146673"
-"222526","Pseudomonas aeruginosa","gyrA",86,"Y","N","WP_034029961.1","206951","209722"
-"226469","Haemophilus influenzae","gyrA",84,"S","Y","WP_116938087.1","495905","498547"
-"233711","Staphylococcus pseudintermedius","gyrA",88,"E","K","HAR6611207.1","80737","83373"
-"242680","Escherichia coli","qnrB19",NA,NA,NA,"WP_012954666.1","855","1499"
-"257161","Salmonella enterica","gyrA",83,"S","A","EKG8310032.1","20337","22973"
-"270342","Enterococcus faecium","gyrA",83,"S","N","WP_317727300.1","24490","26961"
-"274200","Escherichia coli","parE",444,"I","F","WP_334625552.1","247075","248967"
-"296891","Enterococcus faecium","parC",84,"E","K","WP_002300418.1","8179","10629"
-"307927","Enterococcus faecium","parC",84,"E","A","HAP7551696.1","27120","29570"
-"314222","Clostridioides difficile","gyrA",118,"A","T","HBH0045711.1","144303","146729"
-"353922","Haemophilus influenzae","parE",502,"L","F","HHF3538950.1","8969","10867"
-"353923","Haemophilus influenzae","parC",84,"S","R","HHF3531187.1","316754","318997"
-"360637","Serratia marcescens","gyrA",87,"D","N","HHK5876691.1","13998","16640"
-"361929","Neisseria gonorrhoeae","parC",91,"E","K","WP_047919529.1","1826","4129"
-"362267","Salmonella enterica","parC",106,"W","G","WP_061202035.1","499168","501426"
-"362908","Escherichia coli","parC",80,"S","W","HAH1592486.1","63012","65270"
-"363883","Vibrio vulnificus","gyrA",83,"S","R","WP_103200751.1","115510","118221"
-"364332","Salmonella enterica","gyrA",82,"D","G","EBV5679382.1","153045","155681"
-"374210","Neisseria gonorrhoeae","parC",91,"E","Q","WP_202838263.1","1198010","1200313"
-"378714","Salmonella enterica","parE",499,"A","T","EIA1177254.1","512355","514247"
-"389654","Escherichia coli","gyrA",83,"S","V","HCY2331862.1","24359","26995"
-"397930","Neisseria gonorrhoeae","parC",87,"S","C","WP_203029605.1","719218","721521"
-"413105","Haemophilus influenzae","parE",439,"P","S","HHF3538950.1","8969","10867"
-"424628","Salmonella enterica","gyrA",72,"D","G","EAM7521284.1","62617","65253"
-"429099","Clostridioides difficile","gyrA",81,"D","N","HAT4374236.1","6480","8906"
-"431260","Escherichia coli","parC",85,"A","T","EHK5487852.1","68491","70749"
-"486999","Escherichia coli","emrR",64,"L","R","WP_174401800.1","28218","28748"
-"501450","Enterobacter cloacae","gyrA",87,"D","H","WP_259387409.1","3384117","3386753"
-"533943","Escherichia coli","gyrB",426,"D","N","WP_087762023.1","170784","173198"
-"614372","Staphylococcus aureus","parC",83,"Y","N","HEI8334424.1","62158","64560"
-"623558","Haemophilus influenzae","parC",82,"G","C","WP_342123213.1","1662636","1664879"
-"639458","Staphylococcus pseudintermedius","gyrA",84,"S","W","EGQ4268856.1","173294","175930"
-"640621","Clostridioides difficile","gyrB",466,"E","V","HAU5146312.1","4622","6523"
-"710342","Neisseria gonorrhoeae","gyrA",91,"S","I","EOF9348935.1","40750","43500"
-"791806","Salmonella enterica","gyrB",464,"S","T","WP_129368522.1","20596","23010"
-"829243","Neisseria gonorrhoeae","parC",91,"E","A","HFC1081348.1","1786","4089"
-"849055","Neisseria gonorrhoeae","parC",86,"D","G","HFB8094220.1","2338","4641"
-"924500","Staphylococcus aureus","parE",470,"N","S","WP_260595520.1","1655227","1657218"
-"475048","Haemophilus influenzae","parC",88,"E","K","WP_423994223.1","1605194","1607437"
-"78","Escherichia coli","gyrA",83,"S","A","WP_001281210.1","1108735","1111362"
-"2642","Escherichia coli","gyrA",87,"D","Y","WP_061092622.1","187578","190205"
-"30133","Escherichia coli","gyrA",84,"A","P","WP_195807770.1","239435","242062"
-"35763","Escherichia coli","gyrA",83,"S","W","EHM7423582.1","228484","231111"
-"76935","Escherichia coli","gyrA",81,"G","D","HDY0090848.1","266975","269602"
-"130869","Escherichia coli","gyrA",87,"D","V","WP_121331870.1","145978","148605"
-"261765","Escherichia coli","gyrA",106,"Q","H","HDS1968905.1","13378","16005"
-"375217","Escherichia coli","gyrA",81,"G","C","HAZ7834451.1","31780","34407"
-"441661","Escherichia coli","gyrA",196,"A","E","EJF4179620.1","16518","19145"
-"425673","Staphylococcus pseudintermedius","gyrA",85,"S","A","EGQ4072867.1","186774","189395"
-"41","Klebsiella pneumoniae","parC",80,"S","I","WP_002916828.1","38525","40783"
-"3032","Klebsiella pneumoniae","parC",84,"E","K","EIW9154746.1","126956","129214"
+species,gene,location,wt,mut
+Acinetobacter_baumannii,gyrA,79,S,L
+Acinetobacter_baumannii,gyrA,81,S,L
+Acinetobacter_baumannii,parC,84,E,K
+Acinetobacter_baumannii,parC,84,S,W
+Acinetobacter_baumannii,parC,84,S,F
+Acinetobacter_baumannii,parC,88,G,C
+Burkholderia_cenocepacia,gyrA,83,T,I
+Burkholderia_dolosa,gyrA,87,D,H
+Campylobacter_coli,gyrA,86,T,I
+Campylobacter_coli,gyrA,90,D,Y
+Campylobacter_jejuni,gyrA,86,P,S
+Campylobacter_jejuni,gyrA,90,D,N
+Campylobacter_jejuni,gyrA,104,T,A
+Campylobacter_lari,gyrA,86,T,V
+Campylobacter_upsaliensis,gyrA,86,T,K
+Citrobacter_farmeri,gyrA,87,D,G
+Citrobacter_freundii,gyrA,83,T,I
+Clostridioides_difficile,gyrA,71,T,I
+Clostridioides_difficile,gyrA,71,S,A
+Clostridioides_difficile,gyrA,81,I,R
+Clostridioides_difficile,gyrA,82,D,N
+Clostridioides_difficile,gyrA,82,S,V
+Clostridioides_difficile,gyrA,82,S,A
+Clostridioides_difficile,gyrA,118,D,V
+Clostridioides_difficile,gyrA,118,A,S
+Clostridioides_difficile,gyrB,130,V,I
+Clostridioides_difficile,gyrB,139,E,K
+Clostridioides_difficile,gyrB,366,T,A
+Clostridioides_difficile,gyrB,366,T,V
+Clostridioides_difficile,gyrB,416,D,G
+Clostridioides_difficile,gyrB,426,R,K
+Clostridioides_difficile,gyrB,426,D,V
+Clostridioides_difficile,gyrB,447,A,T
+Clostridioides_difficile,gyrB,466,D,N
+Clostridioides_difficile,gyrB,466,E,V
+Enterobacter_cloacae,gyrA,83,S,Y
+Enterobacter_cloacae,gyrA,83,S,I
+Enterobacter_cloacae,gyrA,83,D,N
+Enterobacter_cloacae,gyrA,87,S,I
+Enterobacter_cloacae,gyrA,87,D,G
+Enterobacter_cloacae,gyrA,87,S,F
+Enterobacter_cloacae,parC,80,D,H
+Enterococcus_faecalis,gyrA,83,S,I
+Enterococcus_faecalis,gyrA,83,S,R
+Enterococcus_faecalis,gyrA,83,E,K
+Enterococcus_faecalis,gyrA,83,S,R
+Enterococcus_faecalis,gyrA,87,E,K
+Enterococcus_faecalis,gyrA,87,E,G
+Enterococcus_faecalis,parC,80,S,I
+Enterococcus_faecalis,parC,80,E,A
+Enterococcus_faecalis,parC,84,S,Y
+Enterococcus_faecalis,parC,84,S,N
+Enterococcus_faecium,gyrA,83,S,I
+Enterococcus_faecium,gyrA,83,S,R
+Enterococcus_faecium,gyrA,83,S,R
+Enterococcus_faecium,gyrA,83,S,I
+Enterococcus_faecium,gyrA,87,E,G
+Enterococcus_faecium,gyrA,87,S,Y
+Enterococcus_faecium,parC,80,E,K
+Enterococcus_faecium,parC,80,S,N
+Enterococcus_faecium,parC,84,E,K
+Enterococcus_faecium,parC,84,E,A
+Escherichia_coli,emrR,64,I,L
+Escherichia_coli,emrR,113,A,T
+Escherichia_coli,gyrA,81,I,T
+Escherichia_coli,gyrA,81,S,I
+Escherichia_coli,gyrA,83,A,T
+Escherichia_coli,gyrA,83,D,E
+Escherichia_coli,gyrA,83,S,A
+Escherichia_coli,gyrA,84,L,F
+Escherichia_coli,gyrA,87,E,G
+Escherichia_coli,gyrA,87,S,T
+Escherichia_coli,gyrA,87,E,V
+Escherichia_coli,gyrA,106,I,F
+Escherichia_coli,gyrA,196,S,R
+Escherichia_coli,gyrB,426,E,K
+Escherichia_coli,parC,56,S,T
+Escherichia_coli,parC,57,E,D
+Escherichia_coli,parC,78,A,V
+Escherichia_coli,parC,78,G,D
+Escherichia_coli,parC,80,E,A
+Escherichia_coli,parC,80,L,H
+Escherichia_coli,parC,80,D,N
+Escherichia_coli,parC,80,L,P
+Escherichia_coli,parC,84,S,Y
+Escherichia_coli,parC,84,D,N
+Escherichia_coli,parC,84,G,C
+Escherichia_coli,parC,85,NA,NA
+Escherichia_coli,parC,108,I,F
+Escherichia_coli,parC,108,S,W
+Escherichia_coli,parE,355,S,V
+Escherichia_coli,parE,416,A,T
+Escherichia_coli,parE,444,L,R
+Escherichia_coli,parE,445,D,N
+Escherichia_coli,parE,458,S,A
+Escherichia_coli,parE,458,D,Y
+Escherichia_coli,parE,460,A,P
+Escherichia_coli,parE,460,S,W
+Escherichia_coli,parE,464,G,D
+Escherichia_coli,parE,475,D,V
+Escherichia_coli,parE,476,Q,H
+Escherichia_coli,parE,529,G,C
+Escherichia_coli,qnrB19,NA,A,E
+Escherichia_fergusonii,gyrA,83,S,L
+Haemophilus_influenzae,gyrA,84,D,N
+Haemophilus_influenzae,gyrA,84,D,G
+Haemophilus_influenzae,gyrA,88,D,Y
+Haemophilus_influenzae,gyrA,88,S,I
+Haemophilus_influenzae,gyrA,88,S,L
+Haemophilus_influenzae,parC,82,D,N
+Haemophilus_influenzae,parC,84,S,Y
+Haemophilus_influenzae,parC,84,L,F
+Haemophilus_influenzae,parC,88,S,R
+Haemophilus_influenzae,parE,420,P,S
+Haemophilus_influenzae,parE,439,G,C
+Haemophilus_influenzae,parE,502,E,K
+Klebsiella_aerogenes,gyrA,83,S,T
+Klebsiella_michiganensis,gyrA,83,T,I
+Klebsiella_oxytoca,parC,80,S,R
+Klebsiella_oxytoca,parC,80,S,I
+Klebsiella_pneumoniae,gyrA,83,S,I
+Klebsiella_pneumoniae,gyrA,83,D,N
+Klebsiella_pneumoniae,gyrA,83,D,A
+Klebsiella_pneumoniae,gyrA,83,S,F
+Klebsiella_pneumoniae,gyrA,87,D,Y
+Klebsiella_pneumoniae,gyrA,87,D,G
+Klebsiella_pneumoniae,gyrA,87,S,Y
+Klebsiella_pneumoniae,gyrA,87,D,H
+Klebsiella_pneumoniae,gyrA,87,S,L
+Klebsiella_pneumoniae,parC,80,S,I
+Klebsiella_pneumoniae,parC,84,E,K
+Neisseria_gonorrhoeae,gyrA,91,D,G
+Neisseria_gonorrhoeae,gyrA,91,S,R
+Neisseria_gonorrhoeae,gyrA,91,S,F
+Neisseria_gonorrhoeae,gyrA,95,D,N
+Neisseria_gonorrhoeae,gyrA,95,D,A
+Neisseria_gonorrhoeae,gyrA,95,E,G
+Neisseria_gonorrhoeae,parC,86,D,N
+Neisseria_gonorrhoeae,parC,86,S,P
+Neisseria_gonorrhoeae,parC,87,G,V
+Neisseria_gonorrhoeae,parC,87,S,I
+Neisseria_gonorrhoeae,parC,87,S,N
+Neisseria_gonorrhoeae,parC,87,S,Y
+Neisseria_gonorrhoeae,parC,88,E,K
+Neisseria_gonorrhoeae,parC,91,E,Q
+Neisseria_gonorrhoeae,parC,91,S,C
+Neisseria_gonorrhoeae,parC,91,S,I
+Neisseria_gonorrhoeae,parC,91,E,A
+Neisseria_gonorrhoeae,parE,410,D,G
+Neisseria_meningitidis,gyrA,91,T,I
+Neisseria_meningitidis,gyrA,95,T,A
+Neisseria_meningitidis,gyrA,173,D,N
+Pseudomonas_aeruginosa,gyrA,72,S,L
+Pseudomonas_aeruginosa,gyrA,81,T,I
+Pseudomonas_aeruginosa,gyrA,81,S,F
+Pseudomonas_aeruginosa,gyrA,83,D,Y
+Pseudomonas_aeruginosa,gyrA,83,A,V
+Pseudomonas_aeruginosa,gyrA,86,S,W
+Pseudomonas_aeruginosa,gyrA,87,D,N
+Pseudomonas_aeruginosa,gyrA,87,S,Y
+Pseudomonas_aeruginosa,gyrA,87,D,G
+Pseudomonas_aeruginosa,gyrA,87,S,G
+Pseudomonas_aeruginosa,gyrA,106,E,D
+Pseudomonas_aeruginosa,gyrB,466,S,T
+Pseudomonas_aeruginosa,gyrB,466,D,H
+Pseudomonas_aeruginosa,gyrB,468,T,A
+Pseudomonas_aeruginosa,nfxB,39,E,D
+Pseudomonas_aeruginosa,parC,87,G,C
+Pseudomonas_aeruginosa,parC,87,Q,L
+Pseudomonas_aeruginosa,parE,457,D,G
+Pseudomonas_aeruginosa,parE,457,G,D
+Pseudomonas_aeruginosa,parE,459,T,P
+Pseudomonas_aeruginosa,parE,473,Y,N
+Raoultella_ornithinolytica,gyrA,87,D,G
+Salmonella_enterica,gyrA,72,D,N
+Salmonella_enterica,gyrA,81,S,Y
+Salmonella_enterica,gyrA,81,S,I
+Salmonella_enterica,gyrA,82,D,Y
+Salmonella_enterica,gyrA,82,S,R
+Salmonella_enterica,gyrA,83,D,N
+Salmonella_enterica,gyrA,83,G,D
+Salmonella_enterica,gyrA,83,A,E
+Salmonella_enterica,gyrA,87,E,G
+Salmonella_enterica,gyrA,87,G,C
+Salmonella_enterica,gyrA,119,S,Y
+Salmonella_enterica,gyrB,464,E,D
+Salmonella_enterica,gyrB,464,E,K
+Salmonella_enterica,gyrB,464,S,F
+Salmonella_enterica,gyrB,466,V,G
+Salmonella_enterica,parC,78,H,Y
+Salmonella_enterica,parC,80,S,I
+Salmonella_enterica,parC,80,S,P
+Salmonella_enterica,parC,84,G,D
+Salmonella_enterica,parC,84,S,A
+Salmonella_enterica,parC,106,W,G
+Salmonella_enterica,parE,458,D,G
+Salmonella_enterica,parE,461,A,T
+Salmonella_enterica,parE,462,D,G
+Salmonella_enterica,parE,499,S,T
+Serratia_marcescens,gyrA,83,S,I
+Serratia_marcescens,gyrA,83,S,R
+Serratia_marcescens,gyrA,87,D,N
+Shigella_flexneri,parC,84,E,K
+Shigella_flexneri,parE,439,P,S
+Shigella_flexneri,parE,458,S,L
+Staphylococcus_aureus,gyrA,84,S,L
+Staphylococcus_aureus,gyrA,84,S,Y
+Staphylococcus_aureus,gyrA,84,G,D
+Staphylococcus_aureus,gyrA,85,E,G
+Staphylococcus_aureus,gyrA,88,S,F
+Staphylococcus_aureus,gyrA,88,D,H
+Staphylococcus_aureus,gyrA,88,P,S
+Staphylococcus_aureus,gyrA,106,E,K
+Staphylococcus_aureus,gyrB,436,P,S
+Staphylococcus_aureus,parC,80,E,K
+Staphylococcus_aureus,parC,80,R,S
+Staphylococcus_aureus,parC,83,E,V
+Staphylococcus_aureus,parC,84,D,V
+Staphylococcus_aureus,parC,84,E,A
+Staphylococcus_aureus,parC,84,D,N
+Staphylococcus_aureus,parC,84,S,A
+Staphylococcus_aureus,parC,116,D,N
+Staphylococcus_aureus,parC,116,E,G
+Staphylococcus_aureus,parE,432,S,V
+Staphylococcus_aureus,parE,432,D,E
+Staphylococcus_aureus,parE,432,S,P
+Staphylococcus_aureus,parE,443,A,V
+Staphylococcus_aureus,parE,444,A,E
+Staphylococcus_aureus,parE,451,E,L
+Staphylococcus_aureus,parE,470,Y,N
+Staphylococcus_aureus,parE,585,N,S
+Staphylococcus_pseudintermedius,grlA,80,S,L
+Staphylococcus_pseudintermedius,grlA,80,S,I
+Staphylococcus_pseudintermedius,grlA,84,D,N
+Staphylococcus_pseudintermedius,grlA,84,S,R
+Staphylococcus_pseudintermedius,grlA,84,D,G
+Staphylococcus_pseudintermedius,grlA,84,D,Y
+Staphylococcus_pseudintermedius,gyrA,84,S,A
+Staphylococcus_pseudintermedius,gyrA,84,E,G
+Staphylococcus_pseudintermedius,gyrA,84,D,H
+Staphylococcus_pseudintermedius,gyrA,85,E,K
+Staphylococcus_pseudintermedius,gyrA,88,S,W
+Staphylococcus_pseudintermedius,gyrA,88,S,A
+Streptococcus_pneumoniae,parC,79,S,Y
+Streptococcus_pneumoniae,parC,79,S,F
+Streptococcus_pneumoniae,parC,83,D,H
+Vibrio_cholerae,gyrA,83,S,I
+Vibrio_cholerae,gyrA,87,S,L
+Vibrio_cholerae,parC,85,D,N
+Vibrio_cholerae,parE,420,P,S
+Vibrio_cholerae,parE,439,D,N
+Vibrio_parahaemolyticus,gyrA,83,S,I
+Vibrio_parahaemolyticus,parC,85,S,F
+Vibrio_parahaemolyticus,parC,85,S,L
+Vibrio_vulnificus,gyrA,83,S,I
+Vibrio_vulnificus,gyrA,83,S,L
+Vibrio_vulnificus,parC,85,S,R

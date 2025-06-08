@@ -2,7 +2,7 @@
 CLINICAL FLUOROQUINOLONE RESISTANCE REPORT
 =====================================
 
-Generated: 2025-06-08 17:09:59
+Generated: 2025-06-08 17:26:57
 
 CLINICAL INTERPRETATION
 ----------------------

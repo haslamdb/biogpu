@@ -1,0 +1,16 @@
+0	Salmonella enterica
+1	Serratia marcescens
+2	Bacteroides fragilis
+3	Campylobacter jejuni
+4	Pseudomonas aeruginosa
+5	Staphylococcus aureus
+6	Enterococcus faecium
+7	Klebsiella pneumoniae
+8	Lactobacillus acidophilus
+9	Acinetobacter baumannii
+10	Streptococcus pneumoniae
+11	Clostridioides difficile
+12	Lactobacillus plantarum
+13	Lactobacillus delbrueckii
+14	Escherichia coli
+15	Enterobacter cloacae

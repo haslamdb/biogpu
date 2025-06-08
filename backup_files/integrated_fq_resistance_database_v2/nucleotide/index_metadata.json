@@ -1,0 +1,167 @@
+{
+  "creation_date": "2025-06-01T07:21:24.938481",
+  "kmer_length": 15,
+  "includes_rc": true,
+  "num_organisms": 16,
+  "num_sequences": 4559,
+  "num_kmer_entries": 10908946,
+  "num_forward_entries": 5454473,
+  "num_rc_entries": 5454473,
+  "num_unique_kmers": 459724,
+  "statistics": {
+    "organisms_processed": 16,
+    "genes_processed": 92,
+    "sequences_processed": 4599,
+    "kmers_generated": 10908946,
+    "forward_kmers": 5454473,
+    "rc_kmers": 5454473,
+    "unique_kmers": 459724,
+    "qrdr_sequences_found": 1638
+  },
+  "organisms": [
+    {
+      "id": 0,
+      "name": "Salmonella enterica"
+    },
+    {
+      "id": 1,
+      "name": "Serratia marcescens"
+    },
+    {
+      "id": 2,
+      "name": "Bacteroides fragilis"
+    },
+    {
+      "id": 3,
+      "name": "Campylobacter jejuni"
+    },
+    {
+      "id": 4,
+      "name": "Pseudomonas aeruginosa"
+    },
+    {
+      "id": 5,
+      "name": "Staphylococcus aureus"
+    },
+    {
+      "id": 6,
+      "name": "Enterococcus faecium"
+    },
+    {
+      "id": 7,
+      "name": "Klebsiella pneumoniae"
+    },
+    {
+      "id": 8,
+      "name": "Lactobacillus acidophilus"
+    },
+    {
+      "id": 9,
+      "name": "Acinetobacter baumannii"
+    },
+    {
+      "id": 10,
+      "name": "Streptococcus pneumoniae"
+    },
+    {
+      "id": 11,
+      "name": "Clostridioides difficile"
+    },
+    {
+      "id": 12,
+      "name": "Lactobacillus plantarum"
+    },
+    {
+      "id": 13,
+      "name": "Lactobacillus delbrueckii"
+    },
+    {
+      "id": 14,
+      "name": "Escherichia coli"
+    },
+    {
+      "id": 15,
+      "name": "Enterobacter cloacae"
+    }
+  ],
+  "species_id_mapping": {
+    "Salmonella enterica": 0,
+    "Serratia marcescens": 1,
+    "Bacteroides fragilis": 2,
+    "Campylobacter jejuni": 3,
+    "Pseudomonas aeruginosa": 4,
+    "Staphylococcus aureus": 5,
+    "Enterococcus faecium": 6,
+    "Klebsiella pneumoniae": 7,
+    "Lactobacillus acidophilus": 8,
+    "Acinetobacter baumannii": 9,
+    "Streptococcus pneumoniae": 10,
+    "Clostridioides difficile": 11,
+    "Lactobacillus plantarum": 12,
+    "Lactobacillus delbrueckii": 13,
+    "Escherichia coli": 14,
+    "Enterobacter cloacae": 15
+  },
+  "gene_id_mapping": {
+    "gyrA": 0,
+    "acrA": 1,
+    "tolC": 2,
+    "acrB": 3,
+    "sdeR": 4,
+    "sdeA": 5,
+    "sdeB": 6,
+    "parC": 7,
+    "bexA": 8,
+    "cmeC": 9,
+    "cmeA": 10,
+    "cmeB": 11,
+    "mexI": 12,
+    "mexH": 13,
+    "mexX": 14,
+    "mexE": 15,
+    "opmD": 16,
+    "opmE": 17,
+    "mexK": 18,
+    "mexD": 19,
+    "mexY": 20,
+    "mexJ": 21,
+    "mexF": 22,
+    "mexQ": 23,
+    "mexB": 24,
+    "mexC": 25,
+    "oprM": 26,
+    "mexG": 27,
+    "mexP": 28,
+    "mexW": 29,
+    "mexV": 30,
+    "oprN": 31,
+    "mexA": 32,
+    "oprJ": 33,
+    "grlA": 34,
+    "mepA": 35,
+    "mdeA": 36,
+    "norA": 37,
+    "norB": 38,
+    "grlB": 39,
+    "norC": 40,
+    "efrA": 41,
+    "efrB": 42,
+    "oqxA": 43,
+    "oqxB": 44,
+    "adeC": 45,
+    "adeA": 46,
+    "adeR": 47,
+    "adeS": 48,
+    "adeB": 49,
+    "pmrA": 50,
+    "patA": 51,
+    "patB": 52,
+    "gyrB": 53,
+    "qepA": 54,
+    "emrA": 55,
+    "mdfA": 56,
+    "macA": 57,
+    "macB": 58,
+    "emrB": 59
+  }
+}

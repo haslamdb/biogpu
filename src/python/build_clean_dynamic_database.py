@@ -43,7 +43,7 @@ class CleanDatabaseBuilder:
         # Protein data
         self.proteins = []
         self.protein_kmers = defaultdict(list)
-        self.kmer_length = 5
+        self.kmer_length = 8
         
         # Mutations from CSV (if provided)
         self.known_mutations = []
@@ -467,7 +467,7 @@ def main():
     parser.add_argument('wildtype_dir', help='Directory containing wildtype protein FASTA files')
     parser.add_argument('output_dir', help='Output directory for database')
     parser.add_argument('--mutations-csv', help='Optional CSV file with known mutations (Gene, Position, etc.)')
-    parser.add_argument('--kmer-length', type=int, default=5, help='K-mer length for protein index (default: 5)')
+    parser.add_argument('--kmer-length', type=int, default=8, help='K-mer length for protein index (default: 8)')
     
     args = parser.parse_args()
     
@@ -478,9 +478,8 @@ def main():
         args.mutations_csv
     )
     
-    # Override k-mer length if specified
-    if args.kmer_length:
-        builder.kmer_length = args.kmer_length
+    # Set k-mer length from command line (always use the value, which defaults to 8)
+    builder.kmer_length = args.kmer_length
     
     # Build database
     if builder.build_all():

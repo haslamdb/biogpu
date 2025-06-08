@@ -1,6 +1,6 @@
 // translated_search.cu
 // GPU-accelerated 6-frame translation and protein search for resistance detection
-// Enhanced with 5-mer seeding, clustering, extension, and optional Smith-Waterman
+// Enhanced with k-mer seeding, clustering, extension, and optional Smith-Waterman
 
 #ifndef TRANSLATED_SEARCH_CU
 #define TRANSLATED_SEARCH_CU
@@ -22,16 +22,16 @@ namespace cg = cooperative_groups;
 #define DEBUG_TRANS 0
 #define DEBUG_PRINT(fmt, ...) if(DEBUG_TRANS) { printf("[TRANS DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
-// Enhanced constants for 5-mer approach
+// Enhanced constants for protein k-mer approach
 #define CODON_SIZE 3
 #define NUM_FRAMES 6
 #define MAX_PROTEIN_LENGTH 200
-#define PROTEIN_KMER_SIZE 5         // Increased from 3 to 5 amino acids
+#define PROTEIN_KMER_SIZE 8         // Increased from 5 to 8 amino acids for better specificity
 #define MIN_PEPTIDE_LENGTH 20       // Minimum peptide length to consider
 #define MIN_SEED_HITS 1            // Require only one k-mer hit for extension
 #define EXTENSION_THRESHOLD 15     // Minimum amino acids for valid match
-#define MIN_IDENTITY_THRESHOLD 0.6f // Minimum 60% identity for valid protein match (lowered for more hits)
-#define SW_SCORE_THRESHOLD 40.0f   // Lowered threshold for Smith-Waterman alignment to detect mutations
+#define MIN_IDENTITY_THRESHOLD 0.8f // Minimum 80% identity for valid protein match
+#define SW_SCORE_THRESHOLD 75.0f   // Threshold for Smith-Waterman alignment to detect mutations
 #define AA_ALPHABET_SIZE 24
 
 // Genetic code table (standard code)
@@ -120,8 +120,8 @@ __device__ inline char translate_codon(const char* codon) {
     return GENETIC_CODE[idx];
 }
 
-// Optimized hash function for 5-mer protein k-mers
-__device__ inline uint64_t hash_protein_5mer(const char* kmer) {
+// Optimized hash function for protein k-mers
+__device__ inline uint64_t hash_protein_kmer(const char* kmer) {
     uint64_t hash = 0;
     const uint64_t prime = 31;
     
@@ -236,9 +236,9 @@ __device__ float smith_waterman_align(
     const int GAP_EXTEND = -1;
     const int BAND_WIDTH = 10;
     
-    // Use local arrays for alignments - increased to handle full 150bp reads (50 AA)
+    // Use local arrays for alignments - handle full 150bp reads (50 AA)
     // For banded alignment, we only need a strip of the matrix
-    const int MAX_ALIGN_LEN = 60; // Support up to 60 AA (180 bp)
+    const int MAX_ALIGN_LEN = 50; // Support up to 50 AA (150 bp)
     float H[MAX_ALIGN_LEN][MAX_ALIGN_LEN] = {0}; // Score matrix
     
     if (query_len > MAX_ALIGN_LEN-1 || ref_len > MAX_ALIGN_LEN-1) {
@@ -246,17 +246,27 @@ __device__ float smith_waterman_align(
         float score = 0.0f;
         int matches = 0;
         int aligned_len = min(query_len, ref_len);
+        uint8_t mut_count = 0;
         
         for (int i = 0; i < aligned_len; i++) {
             float blosum = get_blosum_score(query[i], ref[i]);
             score += blosum;
-            if (blosum > 0) matches++;
+            if (blosum > 0) {
+                matches++;
+            } else if (query[i] != ref[i] && mut_count < 10) {
+                // Record mutation
+                mutations[mut_count] = i;
+                ref_mutations[mut_count] = ref[i];
+                query_mutations[mut_count] = query[i];
+                blosum_mutations[mut_count] = blosum;
+                mut_count++;
+            }
         }
         
         *best_query_start = 0;
         *best_ref_start = 0;
         *best_length = aligned_len;
-        *num_mutations = 0;
+        *num_mutations = mut_count;
         
         return score;
     }
@@ -295,7 +305,7 @@ __device__ float smith_waterman_align(
         if (i > 0 && j > 0 && H[i][j] == H[i-1][j-1] + get_blosum_score(query[i-1], ref[j-1])) {
             // Match or mismatch
             if (query[i-1] != ref[j-1] && mut_count < 10) {
-                mutations[mut_count] = j-1; // Reference position
+                mutations[mut_count] = align_len - 1; // Position in alignment (will be reversed after traceback)
                 ref_mutations[mut_count] = ref[j-1];
                 query_mutations[mut_count] = query[i-1];
                 blosum_mutations[mut_count] = get_blosum_score(query[i-1], ref[j-1]);
@@ -318,6 +328,11 @@ __device__ float smith_waterman_align(
     *best_ref_start = j;
     *best_length = align_len;
     *num_mutations = mut_count;
+    
+    // Fix mutation positions (they were recorded backwards during traceback)
+    for (int k = 0; k < mut_count; k++) {
+        mutations[k] = align_len - 1 - mutations[k];
+    }
     
     return max_score;
 }
@@ -433,7 +448,7 @@ __global__ void six_frame_translate_kernel(
     }
 }
 
-// Enhanced protein k-mer matching kernel with 5-mer seeding and extension
+// Enhanced protein k-mer matching kernel with k-mer seeding and extension
 __global__ void enhanced_protein_kmer_match_kernel(
     const TranslatedFrame* translated_frames,
     const uint32_t* frame_counts,
@@ -463,13 +478,13 @@ __global__ void enhanced_protein_kmer_match_kernel(
         
         if (frame.length < PROTEIN_KMER_SIZE) continue;
         
-        // Collect 5-mer seed hits
+        // Collect k-mer seed hits
         SeedHit seeds[100];
         int num_seeds = 0;
         
-        // Find 5-mer seed matches
+        // Find k-mer seed matches
         for (int pos = 0; pos + PROTEIN_KMER_SIZE <= frame.length && num_seeds < 100; pos++) {
-            uint64_t kmer_hash = hash_protein_5mer(&frame.sequence[pos]);
+            uint64_t kmer_hash = hash_protein_kmer(&frame.sequence[pos]);
             
             int kmer_idx = binary_search_protein_kmer(protein_db, kmer_hash);
             if (kmer_idx >= 0) {
@@ -519,15 +534,9 @@ __global__ void enhanced_protein_kmer_match_kernel(
             int left_mismatches = 0;
             const int max_mismatches = 2;  // Allow up to 2 mismatches during extension
             
-            // Arrays to store mutation information
-            uint8_t mutation_positions[10];
-            char ref_aas[10];
-            char query_aas[10];
-            int num_mutations = 0;
-            
             while (seed_query_pos - left_extend > 0 && 
                    seed_ref_pos - left_extend > 0 &&
-                   left_extend < 20 &&
+                   left_extend < 50 &&
                    left_mismatches <= max_mismatches) {
                 char query_aa = frame.sequence[seed_query_pos - left_extend - 1];
                 char ref_aa = ref_seq[seed_ref_pos - left_extend - 1];
@@ -535,13 +544,6 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 if (query_aa == ref_aa) {
                     left_extend++;
                 } else {
-                    // Record mutation details
-                    if (num_mutations < 10) {
-                        mutation_positions[num_mutations] = left_extend - 1;
-                        ref_aas[num_mutations] = ref_aa;
-                        query_aas[num_mutations] = query_aa;
-                        num_mutations++;
-                    }
                     left_mismatches++;
                     left_extend++;  // Continue extending despite mismatch
                 }
@@ -561,13 +563,6 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 if (query_aa == ref_aa) {
                     right_extend++;
                 } else {
-                    // Record mutation details
-                    if (num_mutations < 10) {
-                        mutation_positions[num_mutations] = seed_query_pos - (seed_query_pos - left_extend) + right_extend;
-                        ref_aas[num_mutations] = ref_aa;
-                        query_aas[num_mutations] = query_aa;
-                        num_mutations++;
-                    }
                     right_mismatches++;
                     right_extend++;  // Continue extending despite mismatch
                 }
@@ -596,15 +591,8 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 int total_mismatches = left_mismatches + right_mismatches;
                 temp_match.identity = 1.0f - (float)total_mismatches / query_span;
                 temp_match.alignment_score = query_span * 2.0f - total_mismatches * 4.0f;  // Penalize mismatches
-                temp_match.num_mutations = num_mutations;
+                temp_match.num_mutations = 0;  // Will be calculated after final alignment
                 temp_match.used_smith_waterman = false;
-                
-                // Copy mutation details
-                for (int i = 0; i < num_mutations && i < 10; i++) {
-                    temp_match.mutation_positions[i] = mutation_positions[i];
-                    temp_match.ref_aas[i] = ref_aas[i];
-                    temp_match.query_aas[i] = query_aas[i];
-                }
                 
                 // Initialize new fields
                 temp_match.is_qrdr_alignment = false;  // Will be set on host side
@@ -638,11 +626,11 @@ __global__ void enhanced_protein_kmer_match_kernel(
                     
                     if (temp_match.ref_start < ref_len) {
                         // Use the already extended region for Smith-Waterman
-                        // Allow SW to see the full remaining sequence (up to 60 AA)
+                        // Allow SW to see the full remaining sequence (up to 50 AA)
                         uint16_t available_ref = ref_len - temp_match.ref_start;
                         uint16_t available_query = frame.length - temp_match.query_start;
-                        uint16_t sw_ref_len = min(available_ref, (uint16_t)60);
-                        uint16_t sw_query_len = min(available_query, (uint16_t)60);
+                        uint16_t sw_ref_len = min(available_ref, (uint16_t)50);
+                        uint16_t sw_query_len = min(available_query, (uint16_t)50);
                         
                         uint16_t sw_query_start, sw_ref_start, sw_length;
                         uint8_t sw_num_mutations;
@@ -679,6 +667,30 @@ __global__ void enhanced_protein_kmer_match_kernel(
                             
                             // Remove hardcoded QRDR detection - this should be done by the global FQ mapper
                         }
+                    }
+                }
+                
+                // Now detect mutations in the final alignment
+                if (!temp_match.used_smith_waterman) {
+                    // For non-SW alignments, scan through the alignment to find mutations
+                    uint8_t mut_count = 0;
+                    const char* ref_seq_aligned = &protein_db->sequences[protein_db->seq_offsets[protein_id] + temp_match.ref_start];
+                    const char* query_seq_aligned = &frame.sequence[temp_match.query_start];
+                    
+                    for (uint16_t i = 0; i < temp_match.match_length && mut_count < 10; i++) {
+                        if (query_seq_aligned[i] != ref_seq_aligned[i]) {
+                            temp_match.mutation_positions[mut_count] = i;
+                            temp_match.ref_aas[mut_count] = ref_seq_aligned[i];
+                            temp_match.query_aas[mut_count] = query_seq_aligned[i];
+                            temp_match.blosum_scores[mut_count] = get_blosum_score(query_seq_aligned[i], ref_seq_aligned[i]);
+                            mut_count++;
+                        }
+                    }
+                    temp_match.num_mutations = mut_count;
+                    
+                    // Recalculate identity based on actual mutations found
+                    if (temp_match.match_length > 0) {
+                        temp_match.identity = (float)(temp_match.match_length - mut_count) / temp_match.match_length;
                     }
                 }
                                 
@@ -809,10 +821,10 @@ public:
     }
     
     bool loadProteinDatabase(const std::string& db_path) {
-        DEBUG_PRINT("Loading enhanced protein database from %s", db_path.c_str());
+        printf("[PROTEIN DB] Loading enhanced protein database from %s\n", db_path.c_str());
         
         if (d_protein_db) {
-            DEBUG_PRINT("Protein database already loaded");
+            printf("[PROTEIN DB] Protein database already loaded\n");
             return true;
         }
         
@@ -820,7 +832,8 @@ public:
         std::string kmer_path = db_path + "/protein_kmers.bin";
         std::ifstream kmer_file(kmer_path, std::ios::binary);
         if (!kmer_file.good()) {
-            DEBUG_PRINT("ERROR: Cannot read k-mer file: %s", kmer_path.c_str());
+            printf("[PROTEIN DB ERROR] Cannot read k-mer file: %s\n", kmer_path.c_str());
+            printf("[PROTEIN DB ERROR] Check if file exists and is readable\n");
             return false;
         }
         
@@ -829,17 +842,17 @@ public:
         kmer_file.read(reinterpret_cast<char*>(&num_kmers), sizeof(uint32_t));
         
         if (kmer_length != PROTEIN_KMER_SIZE) {
-            DEBUG_PRINT("ERROR: K-mer size mismatch: expected %d, got %d", PROTEIN_KMER_SIZE, kmer_length);
+            printf("[PROTEIN DB ERROR] K-mer size mismatch: expected %d, got %d\n", PROTEIN_KMER_SIZE, kmer_length);
             return false;
         }
         
-        DEBUG_PRINT("Loading %d protein 5-mers", num_kmers);
+        printf("[PROTEIN DB] Loading %d protein k-mers\n", num_kmers);
         
         // Load and sort k-mers
         std::map<uint64_t, std::vector<uint32_t>> kmer_map;
         
         for (uint32_t i = 0; i < num_kmers; i++) {
-            char kmer_seq[6] = {0};
+            char kmer_seq[9] = {0};  // Support up to 8-mer + null terminator
             kmer_file.read(kmer_seq, kmer_length);
             
             uint64_t hash = 0;
@@ -882,7 +895,8 @@ public:
         std::string protein_path = db_path + "/proteins.bin";
         std::ifstream protein_file(protein_path, std::ios::binary);
         if (!protein_file.good()) {
-            DEBUG_PRINT("ERROR: Cannot read protein file: %s", protein_path.c_str());
+            printf("[PROTEIN DB ERROR] Cannot read protein file: %s\n", protein_path.c_str());
+            printf("[PROTEIN DB ERROR] Check if file exists and is readable\n");
             return false;
         }
         
@@ -1017,13 +1031,25 @@ public:
         
         // K-mer data
         err = cudaMalloc(&h_db.sorted_kmer_hashes, sorted_hashes.size() * sizeof(uint64_t));
-        if (err != cudaSuccess) return false;
+        if (err != cudaSuccess) {
+            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for kmer hashes: %s\n", cudaGetErrorString(err));
+            return false;
+        }
         err = cudaMalloc(&h_db.kmer_start_indices, start_indices.size() * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
+        if (err != cudaSuccess) {
+            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for kmer indices: %s\n", cudaGetErrorString(err));
+            return false;
+        }
         err = cudaMalloc(&h_db.kmer_counts, kmer_counts.size() * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
+        if (err != cudaSuccess) {
+            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for kmer counts: %s\n", cudaGetErrorString(err));
+            return false;
+        }
         err = cudaMalloc(&h_db.position_data, position_data.size() * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
+        if (err != cudaSuccess) {
+            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for position data: %s\n", cudaGetErrorString(err));
+            return false;
+        }
         
         // Protein metadata
         err = cudaMalloc(&h_db.protein_ids, num_proteins * sizeof(uint32_t));
@@ -1057,7 +1083,7 @@ public:
         err = cudaMemcpy(d_protein_db, &h_db, sizeof(ProteinDatabase), cudaMemcpyHostToDevice);
         if (err != cudaSuccess) return false;
         
-        DEBUG_PRINT("Enhanced protein database loaded: %d proteins, %d unique 5-mers, SW=%s", 
+        DEBUG_PRINT("Enhanced protein database loaded: %d proteins, %d unique k-mers, SW=%s", 
                    num_proteins, (int)sorted_hashes.size(), smith_waterman_enabled ? "enabled" : "disabled");
         return true;
     }
@@ -1113,7 +1139,7 @@ public:
             return;
         }
         
-        // Stage 2: Enhanced 5-mer protein matching with optional Smith-Waterman
+        // Stage 2: Enhanced k-mer protein matching with optional Smith-Waterman
         enhanced_protein_kmer_match_kernel<<<grid_size, block_size>>>(
             d_translated_frames, d_frame_counts,
             num_reads, d_protein_db,

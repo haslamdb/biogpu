@@ -1,0 +1,13 @@
+species_gene_id	species	gene
+0	Enterococcus_faecium	gyrA
+1	Escherichia_coli	gyrA
+2	Klebsiella_pneumoniae	gyrA
+3	Klebsiella_oxytoca	gyrA
+4	Pseudomonas_aeruginosa_A	gyrA
+5	Pseudomonas_aeruginosa_B	gyrA
+6	Staphylococcus_aureus	gyrA
+7	Enterococcus_faecium	parC
+8	Escherichia_coli	parE
+9	Klebsiella_pneumoniae	parE
+10	Pseudomonas_aeruginosa	parE
+11	Staphylococcus_aureus	grlA

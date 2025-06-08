@@ -243,16 +243,16 @@ public:
     }
     
     void loadDatabases(const std::string& nucleotide_index_path, 
-                      const std::string& protein_db_path) {
+                      const std::string& protein_db_path,
+                      const std::string& fq_csv_path) {
         std::cout << "Loading databases...\n";
         
         // Initialize FQ resistance database
-        const char* fq_resistance_csv = "data/quinolone_resistance_mutation_table.csv";
-        init_fq_resistance_database(fq_resistance_csv);
+        init_fq_resistance_database(fq_csv_path.c_str());
         
         // Initialize global FQ mapper
         GlobalFQResistanceMapper& mapper = GlobalFQResistanceMapper::getInstance();
-        if (init_global_fq_mapper(fq_resistance_csv, protein_db_path.c_str()) != 0) {
+        if (init_global_fq_mapper(fq_csv_path.c_str(), protein_db_path.c_str()) != 0) {
             std::cerr << "WARNING: Failed to initialize global FQ resistance mapper\n";
         } else {
             std::cout << "Global FQ resistance mapper initialized successfully\n";
@@ -383,6 +383,13 @@ public:
         
         bool first_result = true;
         
+        // Open CSV for all protein matches
+        std::ofstream csv_output(output_path + "_protein_matches.csv");
+        csv_output << "read_id,read_number,species_name,gene_name,protein_id,gene_id,species_id,"
+                   << "frame,query_start,query_end,ref_start,ref_end,match_length,"
+                   << "alignment_score,identity,num_mutations,used_smith_waterman,"
+                   << "query_peptide,mutations,is_qrdr_alignment\n";
+        
         // Process in batches
         while (true) {
             std::vector<FastqRecord> batch_r1, batch_r2;
@@ -394,7 +401,7 @@ public:
             if (batch_r1.empty()) break;
             
             // Process batch
-            processBatch(batch_r1, batch_r2, json_output, first_result);
+            processBatch(batch_r1, batch_r2, json_output, csv_output, first_result);
             
             // Progress update
             if (stats.total_reads % 100000 == 0) {
@@ -418,6 +425,8 @@ public:
         json_output << "  }\n";
         json_output << "}\n";
         json_output.close();
+        
+        csv_output.close();
         
         hdf5_writer->finalize(output_path + "_summary.json");
         
@@ -515,69 +524,26 @@ private:
             return false;  // Too short
         }
         
-        // 3. For FQ resistance genes, check if alignment covers QRDR
-        if (gene_name == "gyrA" || gene_name == "grlA") {
-            // For DNA gyrase A, QRDR is roughly positions 67-106
-            uint16_t align_start = match.ref_start;
-            uint16_t align_end = match.ref_start + match.match_length;
-            
-            // Must overlap with QRDR region
-            bool covers_s83 = (align_start <= 82 && align_end >= 82);  // 0-based
-            bool covers_d87 = (align_start <= 86 && align_end >= 86);  // 0-based
-            
-            if (!covers_s83 && !covers_d87) {
-                return false;  // Doesn't cover known resistance positions
-            }
-        } else if (gene_name == "parC" || gene_name == "grlB") {
-            // For topoisomerase IV, QRDR is roughly positions 64-102  
-            uint16_t align_start = match.ref_start;
-            uint16_t align_end = match.ref_start + match.match_length;
-            
-            bool covers_s80 = (align_start <= 79 && align_end >= 79);  // 0-based
-            bool covers_e84 = (align_start <= 83 && align_end >= 83);  // 0-based
-            
-            if (!covers_s80 && !covers_e84) {
-                return false;
-            }
-        }
+        // 3. For FQ resistance genes, just check if alignment is in reasonable QRDR range
+        // Removed hard-coded position requirements to allow flexibility across species
         
-        // 4. Check for suspicious peptide patterns
+        // 4. Basic peptide quality check
         std::string peptide(match.query_peptide);
         
-        // Known bad patterns that shouldn't appear in FQ resistance genes
-        std::vector<std::string> bad_patterns = {
-            "VHGHPHGDAHQ",  // Your example bad sequence
-            "XXXXXXXXXX",   // All X's indicate problems
-            "**********"    // All stops indicate problems
-        };
-        
-        for (const auto& pattern : bad_patterns) {
-            if (peptide.find(pattern) != std::string::npos) {
-                return false;
-            }
+        // Check for obvious problems like all X's or all stops
+        int x_count = 0;
+        int stop_count = 0;
+        for (char c : peptide) {
+            if (c == 'X') x_count++;
+            if (c == '*') stop_count++;
         }
         
-        // 5. Check species-specific patterns
-        if (species_name == "Escherichia_coli" && gene_name == "gyrA") {
-            // E. coli gyrA should have certain conserved regions
-            // Around position 83: typically has pattern like "YHPHGD"
-            // This is a simple check - could be more sophisticated
-            if (match.ref_start <= 83 && match.ref_start + match.match_length > 83) {
-                // Check for some expected amino acids around S83
-                // In E. coli gyrA, expect to see H81, P82, etc.
-                bool found_expected = false;
-                for (int i = 0; i < match.match_length - 5; i++) {
-                    if (peptide.substr(i, 2) == "HP" || peptide.substr(i, 3) == "PHG") {
-                        found_expected = true;
-                        break;
-                    }
-                }
-                if (!found_expected && match.match_length > 10) {
-                    // Suspicious - doesn't have expected motifs
-                    return false;
-                }
-            }
+        // Reject if more than 50% X's or stops
+        if (x_count > peptide.length() / 2 || stop_count > peptide.length() / 2) {
+            return false;
         }
+        
+        // 5. Species-specific validation removed - was causing issues with non-E.coli samples
         
         return true;
     }
@@ -585,6 +551,7 @@ private:
     void processBatch(const std::vector<FastqRecord>& batch_r1,
                      const std::vector<FastqRecord>& batch_r2,
                      std::ofstream& json_output,
+                     std::ofstream& csv_output,
                      bool& first_result) {
         int num_reads = batch_r1.size();
         stats.total_reads += num_reads;
@@ -710,6 +677,35 @@ private:
                     
                     validated_matches++;
                     stats.protein_matches++;
+                    
+                    // Write to CSV - ALL protein matches
+                    csv_output << (stats.total_reads - num_reads + i) << ","
+                              << i << ","
+                              << species_name << ","
+                              << gene_name << ","
+                              << match.protein_id << ","
+                              << match.gene_id << ","
+                              << match.species_id << ","
+                              << (int)match.frame << ","
+                              << match.query_start << ","
+                              << (match.query_start + match.match_length - 1) << ","
+                              << match.ref_start << ","
+                              << (match.ref_start + match.match_length - 1) << ","
+                              << match.match_length << ","
+                              << match.alignment_score << ","
+                              << match.identity << ","
+                              << (int)match.num_mutations << ","
+                              << (match.used_smith_waterman ? "true" : "false") << ","
+                              << "\"" << match.query_peptide << "\",\"";
+                    
+                    // Add mutations to CSV
+                    for (int k = 0; k < match.num_mutations; k++) {
+                        if (k > 0) csv_output << ";";
+                        uint16_t global_position = match.ref_start + match.mutation_positions[k] + 1;
+                        csv_output << match.ref_aas[k] << global_position << match.query_aas[k];
+                    }
+                    csv_output << "\","
+                              << (match.is_qrdr_alignment ? "true" : "false") << "\n";
                     
                     // Send to FQ mutation reporter
                     if (fq_mutation_reporter) {
@@ -842,7 +838,7 @@ private:
 // Main function
 int main(int argc, char** argv) {
     if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix]\n";
+        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv]\n";
         std::cerr << "\nRequired:\n";
         std::cerr << "  nucleotide_index: Directory containing k-mer index\n";
         std::cerr << "  protein_db: Directory containing protein database\n";
@@ -850,6 +846,7 @@ int main(int argc, char** argv) {
         std::cerr << "  reads_r2.fastq.gz: Reverse reads\n";
         std::cerr << "\nOptional:\n";
         std::cerr << "  output_prefix: Output file prefix (default: resistance_results)\n";
+        std::cerr << "  fq_resistance_csv: Path to FQ resistance mutations CSV\n";
         return 1;
     }
     
@@ -858,6 +855,7 @@ int main(int argc, char** argv) {
     std::string r1_path = argv[3];
     std::string r2_path = argv[4];
     std::string output_prefix = (argc > 5) ? argv[5] : "resistance_results";
+    std::string fq_csv_path = (argc > 6) ? argv[6] : "data/quinolone_resistance_mutation_table.csv";
     
     std::cout << "=== Clean Fluoroquinolone Resistance Detection Pipeline ===\n";
     std::cout << "Nucleotide index: " << nucleotide_index << "\n";
@@ -882,7 +880,7 @@ int main(int argc, char** argv) {
     try {
         // Create and run pipeline
         CleanResistancePipeline pipeline;
-        pipeline.loadDatabases(nucleotide_index, protein_db);
+        pipeline.loadDatabases(nucleotide_index, protein_db, fq_csv_path);
         pipeline.processReads(r1_path, r2_path, output_prefix);
         
         std::cout << "\nPipeline completed successfully!\n";

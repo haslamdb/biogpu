@@ -1,0 +1,12 @@
+Index Validation Summary
+=======================
+Total organisms: 16
+Total sequences: 4559
+Total k-mers generated: 10908946
+Forward k-mers: 5454473
+RC k-mers: 5454473
+Unique k-mers: 459724
+QRDR sequences found: 1638
+K-mer length: 15
+
+Potential Issues:

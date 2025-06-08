@@ -1,0 +1,10 @@
+Reverse Complement K-mer Analysis
+=================================
+Total unique k-mers: 459724
+Forward-only k-mers: 229627
+RC-only k-mers: 229627
+Shared k-mers (appear in both): 470
+
+Total k-mer entries: 10908946
+Forward entries: 5454473
+RC entries: 5454473

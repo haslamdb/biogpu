@@ -1,0 +1,558 @@
+Organism/Gene Summary
+====================
+
+Organism: Salmonella enterica (ID: 0)
+  Total sequences: 147
+  Total k-mers: 212290
+  Forward k-mers: 106145
+  RC k-mers: 106145
+  Gene gyrA:
+    Sequences: 103
+    K-mers: 85458 (42729 forward, 42729 RC)
+    QRDR sequences: 101
+    Mutations: 6
+  Gene acrA:
+    Sequences: 16
+    K-mers: 27712 (13856 forward, 13856 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene tolC:
+    Sequences: 14
+    K-mers: 37592 (18796 forward, 18796 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene acrB:
+    Sequences: 14
+    K-mers: 61528 (30764 forward, 30764 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Serratia marcescens (ID: 1)
+  Total sequences: 61
+  Total k-mers: 119478
+  Forward k-mers: 59739
+  RC k-mers: 59739
+  Gene gyrA:
+    Sequences: 5
+    K-mers: 9084 (4542 forward, 4542 RC)
+    QRDR sequences: 4
+    Mutations: 1
+  Gene sdeR:
+    Sequences: 8
+    K-mers: 5488 (2744 forward, 2744 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene sdeA:
+    Sequences: 40
+    K-mers: 93572 (46786 forward, 46786 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene sdeB:
+    Sequences: 4
+    K-mers: 712 (356 forward, 356 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 4
+    K-mers: 10622 (5311 forward, 5311 RC)
+    QRDR sequences: 4
+    Mutations: 1
+
+Organism: Bacteroides fragilis (ID: 2)
+  Total sequences: 7
+  Total k-mers: 24694
+  Forward k-mers: 12347
+  RC k-mers: 12347
+  Gene gyrA:
+    Sequences: 5
+    K-mers: 19326 (9663 forward, 9663 RC)
+    QRDR sequences: 4
+    Mutations: 3
+  Gene bexA:
+    Sequences: 2
+    K-mers: 5368 (2684 forward, 2684 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Campylobacter jejuni (ID: 3)
+  Total sequences: 192
+  Total k-mers: 467646
+  Forward k-mers: 233823
+  RC k-mers: 233823
+  Gene gyrA:
+    Sequences: 100
+    K-mers: 210842 (105421 forward, 105421 RC)
+    QRDR sequences: 98
+    Mutations: 1
+  Gene cmeC:
+    Sequences: 44
+    K-mers: 74644 (37322 forward, 37322 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene cmeA:
+    Sequences: 24
+    K-mers: 44688 (22344 forward, 22344 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene cmeB:
+    Sequences: 24
+    K-mers: 137472 (68736 forward, 68736 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Pseudomonas aeruginosa (ID: 4)
+  Total sequences: 808
+  Total k-mers: 2185740
+  Forward k-mers: 1092870
+  RC k-mers: 1092870
+  Gene gyrA:
+    Sequences: 100
+    K-mers: 50338 (25169 forward, 25169 RC)
+    QRDR sequences: 99
+    Mutations: 4
+  Gene mexI:
+    Sequences: 2
+    K-mers: 12304 (6152 forward, 6152 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexH:
+    Sequences: 3
+    K-mers: 10638 (5319 forward, 5319 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexX:
+    Sequences: 2
+    K-mers: 4624 (2312 forward, 2312 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexE:
+    Sequences: 14
+    K-mers: 30384 (15192 forward, 15192 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene opmD:
+    Sequences: 3
+    K-mers: 8700 (4350 forward, 4350 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene opmE:
+    Sequences: 2
+    K-mers: 5848 (2924 forward, 2924 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexK:
+    Sequences: 100
+    K-mers: 612800 (306400 forward, 306400 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexD:
+    Sequences: 6
+    K-mers: 25632 (12816 forward, 12816 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexY:
+    Sequences: 30
+    K-mers: 68712 (34356 forward, 34356 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexJ:
+    Sequences: 100
+    K-mers: 218000 (109000 forward, 109000 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexF:
+    Sequences: 40
+    K-mers: 105728 (52864 forward, 52864 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexQ:
+    Sequences: 1
+    K-mers: 6296 (3148 forward, 3148 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexB:
+    Sequences: 60
+    K-mers: 43536 (21768 forward, 21768 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexC:
+    Sequences: 6
+    K-mers: 10164 (5082 forward, 5082 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene oprM:
+    Sequences: 6
+    K-mers: 14956 (7478 forward, 7478 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexG:
+    Sequences: 4
+    K-mers: 4640 (2320 forward, 2320 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexP:
+    Sequences: 1
+    K-mers: 2288 (1144 forward, 1144 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexW:
+    Sequences: 100
+    K-mers: 608600 (304300 forward, 304300 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexV:
+    Sequences: 100
+    K-mers: 223400 (111700 forward, 111700 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene oprN:
+    Sequences: 12
+    K-mers: 33720 (16860 forward, 16860 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mexA:
+    Sequences: 12
+    K-mers: 13376 (6688 forward, 6688 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 100
+    K-mers: 59648 (29824 forward, 29824 RC)
+    QRDR sequences: 70
+    Mutations: 1
+  Gene oprJ:
+    Sequences: 4
+    K-mers: 11408 (5704 forward, 5704 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Staphylococcus aureus (ID: 5)
+  Total sequences: 311
+  Total k-mers: 500426
+  Forward k-mers: 250213
+  RC k-mers: 250213
+  Gene grlA:
+    Sequences: 81
+    K-mers: 116780 (58390 forward, 58390 RC)
+    QRDR sequences: 73
+    Mutations: 2
+  Gene mepA:
+    Sequences: 6
+    K-mers: 11552 (5776 forward, 5776 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene mdeA:
+    Sequences: 6
+    K-mers: 2494 (1247 forward, 1247 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene norA:
+    Sequences: 55
+    K-mers: 38882 (19441 forward, 19441 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene norB:
+    Sequences: 1
+    K-mers: 530 (265 forward, 265 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene grlB:
+    Sequences: 62
+    K-mers: 56944 (28472 forward, 28472 RC)
+    QRDR sequences: 3
+    Mutations: 1
+  Gene norC:
+    Sequences: 100
+    K-mers: 273244 (136622 forward, 136622 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Enterococcus faecium (ID: 6)
+  Total sequences: 589
+  Total k-mers: 1517122
+  Forward k-mers: 758561
+  RC k-mers: 758561
+  Gene gyrA:
+    Sequences: 101
+    K-mers: 53530 (26765 forward, 26765 RC)
+    QRDR sequences: 101
+    Mutations: 1
+  Gene efrA:
+    Sequences: 194
+    K-mers: 666196 (333098 forward, 333098 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene efrB:
+    Sequences: 194
+    K-mers: 677836 (338918 forward, 338918 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 100
+    K-mers: 119560 (59780 forward, 59780 RC)
+    QRDR sequences: 20
+    Mutations: 1
+
+Organism: Klebsiella pneumoniae (ID: 7)
+  Total sequences: 420
+  Total k-mers: 1093694
+  Forward k-mers: 546847
+  RC k-mers: 546847
+  Gene gyrA:
+    Sequences: 100
+    K-mers: 133976 (66988 forward, 66988 RC)
+    QRDR sequences: 100
+    Mutations: 4
+  Gene oqxA:
+    Sequences: 58
+    K-mers: 99380 (49690 forward, 49690 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene acrA:
+    Sequences: 28
+    K-mers: 51044 (25522 forward, 25522 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene oqxB:
+    Sequences: 94
+    K-mers: 531340 (265670 forward, 265670 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene tolC:
+    Sequences: 12
+    K-mers: 30948 (15474 forward, 15474 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene acrB:
+    Sequences: 28
+    K-mers: 122160 (61080 forward, 61080 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 100
+    K-mers: 124846 (62423 forward, 62423 RC)
+    QRDR sequences: 60
+    Mutations: 2
+
+Organism: Lactobacillus acidophilus (ID: 8)
+  Total sequences: 92
+  Total k-mers: 448408
+  Forward k-mers: 224204
+  RC k-mers: 224204
+  Gene parC:
+    Sequences: 92
+    K-mers: 448408 (224204 forward, 224204 RC)
+    QRDR sequences: 92
+    Mutations: 1
+
+Organism: Acinetobacter baumannii (ID: 9)
+  Total sequences: 659
+  Total k-mers: 805030
+  Forward k-mers: 402515
+  RC k-mers: 402515
+  Gene adeC:
+    Sequences: 26
+    K-mers: 15364 (7682 forward, 7682 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene gyrA:
+    Sequences: 23
+    K-mers: 14848 (7424 forward, 7424 RC)
+    QRDR sequences: 17
+    Mutations: 1
+  Gene adeA:
+    Sequences: 48
+    K-mers: 42896 (21448 forward, 21448 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene adeR:
+    Sequences: 188
+    K-mers: 256480 (128240 forward, 128240 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene adeS:
+    Sequences: 188
+    K-mers: 360644 (180322 forward, 180322 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene adeB:
+    Sequences: 86
+    K-mers: 68772 (34386 forward, 34386 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 100
+    K-mers: 46026 (23013 forward, 23013 RC)
+    QRDR sequences: 98
+    Mutations: 1
+
+Organism: Streptococcus pneumoniae (ID: 10)
+  Total sequences: 74
+  Total k-mers: 132922
+  Forward k-mers: 66461
+  RC k-mers: 66461
+  Gene pmrA:
+    Sequences: 68
+    K-mers: 112246 (56123 forward, 56123 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene patA:
+    Sequences: 3
+    K-mers: 10158 (5079 forward, 5079 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene patB:
+    Sequences: 3
+    K-mers: 10518 (5259 forward, 5259 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Clostridioides difficile (ID: 11)
+  Total sequences: 100
+  Total k-mers: 95096
+  Forward k-mers: 47548
+  RC k-mers: 47548
+  Gene gyrA:
+    Sequences: 100
+    K-mers: 95096 (47548 forward, 47548 RC)
+    QRDR sequences: 100
+    Mutations: 1
+
+Organism: Lactobacillus plantarum (ID: 12)
+  Total sequences: 192
+  Total k-mers: 955142
+  Forward k-mers: 477571
+  RC k-mers: 477571
+  Gene gyrA:
+    Sequences: 96
+    K-mers: 488996 (244498 forward, 244498 RC)
+    QRDR sequences: 95
+    Mutations: 4
+  Gene parC:
+    Sequences: 96
+    K-mers: 466146 (233073 forward, 233073 RC)
+    QRDR sequences: 95
+    Mutations: 1
+
+Organism: Lactobacillus delbrueckii (ID: 13)
+  Total sequences: 180
+  Total k-mers: 887040
+  Forward k-mers: 443520
+  RC k-mers: 443520
+  Gene gyrA:
+    Sequences: 90
+    K-mers: 442440 (221220 forward, 221220 RC)
+    QRDR sequences: 90
+    Mutations: 1
+  Gene parC:
+    Sequences: 90
+    K-mers: 444600 (222300 forward, 222300 RC)
+    QRDR sequences: 90
+    Mutations: 2
+
+Organism: Escherichia coli (ID: 14)
+  Total sequences: 697
+  Total k-mers: 1395286
+  Forward k-mers: 697643
+  RC k-mers: 697643
+  Gene gyrA:
+    Sequences: 114
+    K-mers: 153020 (76510 forward, 76510 RC)
+    QRDR sequences: 110
+    Mutations: 8
+  Gene gyrB:
+    Sequences: 100
+    K-mers: 182266 (91133 forward, 91133 RC)
+    QRDR sequences: 23
+    Mutations: 2
+  Gene oqxA:
+    Sequences: 52
+    K-mers: 70628 (35314 forward, 35314 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene acrA:
+    Sequences: 20
+    K-mers: 36392 (18196 forward, 18196 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene oqxB:
+    Sequences: 58
+    K-mers: 197116 (98558 forward, 98558 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene qepA:
+    Sequences: 56
+    K-mers: 77824 (38912 forward, 38912 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene tolC:
+    Sequences: 30
+    K-mers: 75288 (37644 forward, 37644 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene acrB:
+    Sequences: 26
+    K-mers: 104028 (52014 forward, 52014 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene emrA:
+    Sequences: 14
+    K-mers: 30640 (15320 forward, 15320 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 100
+    K-mers: 111190 (55595 forward, 55595 RC)
+    QRDR sequences: 80
+    Mutations: 3
+  Gene mdfA:
+    Sequences: 30
+    K-mers: 65476 (32738 forward, 32738 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene macA:
+    Sequences: 44
+    K-mers: 96190 (48095 forward, 48095 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene macB:
+    Sequences: 46
+    K-mers: 176558 (88279 forward, 88279 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene emrB:
+    Sequences: 7
+    K-mers: 18670 (9335 forward, 9335 RC)
+    QRDR sequences: 0
+    Mutations: 0
+
+Organism: Enterobacter cloacae (ID: 15)
+  Total sequences: 30
+  Total k-mers: 68932
+  Forward k-mers: 34466
+  RC k-mers: 34466
+  Gene gyrA:
+    Sequences: 13
+    K-mers: 12418 (6209 forward, 6209 RC)
+    QRDR sequences: 10
+    Mutations: 2
+  Gene acrA:
+    Sequences: 6
+    K-mers: 13048 (6524 forward, 6524 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene tolC:
+    Sequences: 2
+    K-mers: 4912 (2456 forward, 2456 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene acrB:
+    Sequences: 6
+    K-mers: 37596 (18798 forward, 18798 RC)
+    QRDR sequences: 0
+    Mutations: 0
+  Gene parC:
+    Sequences: 3
+    K-mers: 958 (479 forward, 479 RC)
+    QRDR sequences: 1
+    Mutations: 1

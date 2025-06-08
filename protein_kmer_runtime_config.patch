@@ -1,0 +1,165 @@
+diff --git a/runtime/kernels/resistance/clean_resistance_pipeline_main.cpp b/runtime/kernels/resistance/clean_resistance_pipeline_main.cpp
+index abc123..def456 100644
+--- a/runtime/kernels/resistance/clean_resistance_pipeline_main.cpp
++++ b/runtime/kernels/resistance/clean_resistance_pipeline_main.cpp
+@@ -149,10 +149,13 @@ private:
+     const int batch_size = 10000;
+     const int max_read_length = 300;
+     const int bloom_min_kmers = 3;
++    
++    // Configuration flags
++    bool use_bloom_filter = true;        // Enable bloom filtering by default
++    bool use_smith_waterman = true;      // Enable Smith-Waterman by default
++    int protein_kmer_size = 8;           // Default to 8 (increased from 5)
+     const int kmer_length = 15;
+     const int max_candidates_per_read = 64;
+     const int max_protein_matches_per_read = 32;
+-    
+-    // Statistics
+     struct Stats {
+         int total_reads = 0;
+@@ -165,17 +168,26 @@ private:
+ 
+ public:
+-    CleanResistancePipeline() {
++    CleanResistancePipeline(bool enable_bloom = true, bool enable_sw = true, int protein_ksize = 8) 
++        : use_bloom_filter(enable_bloom), use_smith_waterman(enable_sw), protein_kmer_size(protein_ksize) {
++        
+         std::cout << "Initializing Clean Resistance Detection Pipeline\n";
++        std::cout << "  Bloom filter: " << (use_bloom_filter ? "ENABLED" : "DISABLED") << "\n";
++        std::cout << "  Smith-Waterman: " << (use_smith_waterman ? "ENABLED" : "DISABLED") << "\n";
++        std::cout << "  Protein k-mer size: " << protein_kmer_size << "\n";
+         
+-        // Create bloom filter
+-        bloom_filter = create_bloom_filter(kmer_length);
+-        if (!bloom_filter) {
+-            throw std::runtime_error("Failed to create bloom filter");
++        // Validate protein k-mer size
++        if (protein_kmer_size < 5 || protein_kmer_size > 12) {
++            throw std::runtime_error("Protein k-mer size must be between 5 and 12");
++        }
++        
++        // Only create bloom filter if enabled
++        if (use_bloom_filter) {
++            bloom_filter = create_bloom_filter(kmer_length);
++            if (!bloom_filter) {
++                throw std::runtime_error("Failed to create bloom filter");
++            }
++        } else {
++            bloom_filter = nullptr;
+         }
+         
+-        // Create translated search engine with Smith-Waterman
+-        translated_search_engine = create_translated_search_engine_with_sw(batch_size, true);
++        // Create translated search engine with configurable Smith-Waterman and k-mer size
++        translated_search_engine = create_translated_search_engine_with_config(
++            batch_size, use_smith_waterman, protein_kmer_size);
+         if (!translated_search_engine) {
+             throw std::runtime_error("Failed to create translated search engine");
+         }
+@@ -243,6 +255,33 @@ public:
+         cudaFree(d_protein_match_counts);
+     }
+     
++    void setBloomFilterEnabled(bool enabled) {
++        if (enabled && !bloom_filter) {
++            bloom_filter = create_bloom_filter(kmer_length);
++            if (!bloom_filter) {
++                std::cerr << "Warning: Failed to create bloom filter\n";
++                use_bloom_filter = false;
++                return;
++            }
++        } else if (!enabled && bloom_filter) {
++            destroy_bloom_filter(bloom_filter);
++            bloom_filter = nullptr;
++        }
++        use_bloom_filter = enabled;
++        std::cout << "Bloom filter " << (enabled ? "ENABLED" : "DISABLED") << "\n";
++    }
++    
++    void setSmithWatermanEnabled(bool enabled) {
++        use_smith_waterman = enabled;
++        if (translated_search_engine) {
++            set_smith_waterman_enabled(translated_search_engine, enabled);
++        }
++        std::cout << "Smith-Waterman " << (enabled ? "ENABLED" : "DISABLED") << "\n";
++    }
++    
++    void setProteinKmerSize(int size) {
++        protein_kmer_size = size;
++        std::cout << "Protein k-mer size set to " << size << "\n";
++        // Note: This requires recreating the search engine with the new size
++    }
++    
+     void loadDatabases(const std::string& nucleotide_index_path, 
+@@ -275,8 +314,13 @@ public:
+         }
+         
+         // Load protein database
++        // First check if protein DB has matching k-mer size
++        if (!validate_protein_db_kmer_size(protein_db_path.c_str(), protein_kmer_size)) {
++            std::cerr << "WARNING: Protein database k-mer size doesn't match pipeline setting (" 
++                      << protein_kmer_size << "). Rebuild database with matching k-mer size.\n";
++        }
++        
+         if (load_protein_database(translated_search_engine, protein_db_path.c_str()) == 0) {
+-            std::cout << "Protein database loaded from " << protein_db_path << "\n";
++            std::cout << "Protein database loaded from " << protein_db_path 
++                      << " (k-mer size: " << protein_kmer_size << ")\n";
+         } else {
+             std::cerr << "Warning: Failed to load protein database\n";
+         }
+@@ -565,6 +609,14 @@ private:
+         CUDA_CHECK(cudaMemset(d_protein_match_counts, 0, num_reads * sizeof(uint32_t)));
+         
+         // Stage 1: Bloom filter screening
++        if (use_bloom_filter && bloom_filter) {
++            // ... bloom filtering code ...
++        } else {
++            // If bloom filtering is disabled, mark all reads as passed
++            CUDA_CHECK(cudaMemset(d_bloom_passes_r1, 1, num_reads * sizeof(bool)));
++            CUDA_CHECK(cudaMemset(d_bloom_passes_r2, 1, num_reads * sizeof(bool)));
++            stats.bloom_passed += num_reads;
++        }
+         
+         // ... rest of the processing ...
+     }
+@@ -779,7 +831,10 @@ private:
+ 
+ int main(int argc, char* argv[]) {
+     if (argc < 7) {
+-        std::cerr << "Usage: " << argv[0] << " <r1.fq.gz> <r2.fq.gz> <nucleotide_index> <protein_db> <fq_csv> <output_prefix>\n";
++        std::cerr << "Usage: " << argv[0] << " <r1.fq.gz> <r2.fq.gz> <nucleotide_index> <protein_db> <fq_csv> <output_prefix> "
++                  << "[--no-bloom] [--no-sw] [--protein-kmer-size N]\n";
++        std::cerr << "  --no-bloom: Disable bloom filtering\n";
++        std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
++        std::cerr << "  --protein-kmer-size N: Set protein k-mer size (default: 8, range: 5-12)\n";
+         return 1;
+     }
+     
++    // Parse optional flags
++    bool use_bloom = true;
++    bool use_sw = true;
++    int protein_kmer_size = 8;
++    
++    for (int i = 7; i < argc; i++) {
++        std::string arg(argv[i]);
++        if (arg == "--no-bloom") {
++            use_bloom = false;
++        } else if (arg == "--no-sw") {
++            use_sw = false;
++        } else if (arg == "--protein-kmer-size" && i + 1 < argc) {
++            protein_kmer_size = std::atoi(argv[++i]);
++            if (protein_kmer_size < 5 || protein_kmer_size > 12) {
++                std::cerr << "Error: Protein k-mer size must be between 5 and 12\n";
++                return 1;
++            }
++        }
++    }
++    
+     try {
+-        CleanResistancePipeline pipeline;
++        CleanResistancePipeline pipeline(use_bloom, use_sw, protein_kmer_size);
+         
+         std::string r1_path(argv[1]);
+         std::string r2_path(argv[2]);

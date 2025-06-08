@@ -106,7 +106,7 @@ target_link_libraries(global_fq_mapper
 
 # Enhanced mutation detection library
 add_library(enhanced_mutation_detection STATIC
-    runtime/kernels/resistance/enhanced_mutation_detection.cu
+    runtime/kernels/resistance/enhanced_mutation_detection_unified.cu
 )
 
 set_target_properties(enhanced_mutation_detection PROPERTIES

@@ -104,10 +104,17 @@ rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc)
     data/test_fastq/test_small_R1.fastq.gz data/test_fastq/test_small_R2.fastq.gz \
     test_small_output
 
-
+## no longer used
 python build_species_specific_protein_database.py \
     --input-dir data/wildtype_protein_seqs/ \
     --output-dir data/integrated_fq_resistance_database_v2/
+
+## use instead 
+python3 src/python/build_clean_dynamic_database.py \
+    data/wildtype_protein_seqs \
+    data/integrated_clean_db \
+    --mutations-csv data/quinolone_resistance_mutation_table.csv \
+    --kmer-length 5
 
 
   ./build/clean_resistance_pipeline data/integrated_clean_db/nucleotide data/integrated_clean_db/protein test_small_R1.fastq.gz
@@ -129,3 +136,10 @@ python build_species_specific_protein_database.py \
 
 make clean_resistance_pipeline -j8 
 or make -j8 
+
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz \
+    results/569_reads_test

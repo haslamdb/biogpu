@@ -1,0 +1,496 @@
+[
+  {
+    "accession": "MT912025.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain 48 RND-efflux pump (adeC) gene, partial cds",
+    "sequence_length": 277,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "RND-efflux pump",
+        "start": 0,
+        "end": 277,
+        "strand": 1,
+        "nucleotide_sequence": "GCGCCACAGCCTGCAATTACATCTCATATTCCTCAAAATTTTAGTCAAAATCATTCTGGAAAAATGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTATTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAAGAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGTGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCA",
+        "protein_sequence": "APQPAITSHIPQNFSQNHSGKMIAEKSYKEFISDPKLLQVIEISLNNNRDLRTATLNIERVQQEYQITKNSQLPTIGVTGNAVRQVSPSINP",
+        "length_nt": 277,
+        "length_aa": 92
+      }
+    ]
+  },
+  {
+    "accession": "MT912020.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain 34 RND-efflux pump (adeC) gene, partial cds",
+    "sequence_length": 286,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "RND-efflux pump",
+        "start": 0,
+        "end": 286,
+        "strand": 1,
+        "nucleotide_sequence": "GCGCCACAGCCTGCAATTACATCTCATATTCCTCAAAATTTTAGTCAAAATCATTCTGGAAAAATGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTATTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAAGAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGTGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAG",
+        "protein_sequence": "APQPAITSHIPQNFSQNHSGKMIAEKSYKEFISDPKLLQVIEISLNNNRDLRTATLNIERVQQEYQITKNSQLPTIGVTGNAVRQVSPSINPNNP",
+        "length_nt": 286,
+        "length_aa": 95
+      }
+    ]
+  },
+  {
+    "accession": "MT912016.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain 8 RND-efflux pump (adeC) gene, partial cds",
+    "sequence_length": 300,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "RND-efflux pump",
+        "start": 0,
+        "end": 300,
+        "strand": 1,
+        "nucleotide_sequence": "GCATGTGTCAATATGCAAGCGCCACAGCCTGCAATTACATCTCATATTCCTCAAAATTTTAGTCAAAATCATTCTGGAAAAATGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTATTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAAGAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGTGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAAC",
+        "protein_sequence": "ACVNMQAPQPAITSHIPQNFSQNHSGKMIAEKSYKEFISDPKLLQVIEISLNNNRDLRTATLNIERVQQEYQITKNSQLPTIGVTGNAVRQVSPSINPNN",
+        "length_nt": 300,
+        "length_aa": 100
+      }
+    ]
+  },
+  {
+    "accession": "MG242456.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain HZ114 AdeC (adeC) gene, partial cds",
+    "sequence_length": 560,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC",
+        "start": 0,
+        "end": 560,
+        "strand": 1,
+        "nucleotide_sequence": "TTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTAGTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAACAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGCGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAAGTTGGCTTGGGAATGACTGCCTATGAGCTAGATTTTTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTATCTTGCAACTCAAAGTGCAAAAGAAGCTGTACAAATTGGTTTAATCAGTAATATTACACAGGTCTGGTTAAATTATGCTTTTGCACAAGCAAATTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAACCTTAACAAGAAGCGCTTTGATGTTGGTATTGATAGTGAAGTGCCATTAAAACAAGCACAAATTTCGGTAGAGACTGCTCGAAATGATGTTGCAACTTATAAAACT",
+        "protein_sequence": "AEKSYKEFISDPKLVQVIEISLNNNRDLRTATLNIERVQQQYQITKNSQLPTIGVTGNAVRQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQIGLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLNKKRFDVGIDSEVPLKQAQISVETARNDVATYKT",
+        "length_nt": 560,
+        "length_aa": 186
+      }
+    ]
+  },
+  {
+    "accession": "JN662491.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain ACM1 AdeC outer membrane protein (adeC) gene, partial cds",
+    "sequence_length": 435,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC outer membrane protein",
+        "start": 0,
+        "end": 435,
+        "strand": 1,
+        "nucleotide_sequence": "TGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAAGTTGGCTTGGGAATGACTGCCTATGAGCTAGATTTTTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTATCTTGCAACTCAAAGTGCAAAAGAAGCTGTACAAATTGGTTTAATCAGTAATATTACACAGGTCTGGTTAAATTATGCTTTTGCACAAGCAAATTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAACCTTAACAAGAAGCGCTTTGATGTTGGTATTGATAGTGAAGTGCCATTAAAACAAGCACAAATTTCGGTAGAGACTGCTCGAAATGATGTTGCAACTTATAAAACTCAAATTCAACAGGCAAAAAATTTACTGGATTTGTTAGCAGGTCATCCTGTTCCGC",
+        "protein_sequence": "RQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQIGLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLNKKRFDVGIDSEVPLKQAQISVETARNDVATYKTQIQQAKNLLDLLAGHPVP",
+        "length_nt": 435,
+        "length_aa": 144
+      }
+    ]
+  },
+  {
+    "accession": "KJ711554.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain Ab81 outer membrane protein (adeC) gene, partial cds",
+    "sequence_length": 324,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "outer membrane protein",
+        "start": 0,
+        "end": 324,
+        "strand": 1,
+        "nucleotide_sequence": "GCCTATGAGCTAGATTTTTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTATCTTGCAACTCAAAGTGCAAAAGAAGCTGTACAAATTGGTTTAATCAGTAATATTACACAGGTCTGGTTAAATTATGCTTTTGCACAAGCAAATTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAACCTTAACAAGAAGCGCTTTGATGTTGGTATTGATAGTGAAGTGCCATTAAAACAAGCACAAATTTCGGTAGAGACTGCTCGAAATGATGTTGCAACTTATAAAACTCAAATTCAACAGGCA",
+        "protein_sequence": "AYELDFWGRVQNLKDAALNNYLATQSAKEAVQIGLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLNKKRFDVGIDSEVPLKQAQISVETARNDVATYKTQIQQA",
+        "length_nt": 324,
+        "length_aa": 108
+      }
+    ]
+  },
+  {
+    "accession": "LC031680.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 16",
+    "sequence_length": 183,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 183,
+        "strand": 1,
+        "nucleotide_sequence": "AACCGGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTCCTACACATGCACCAACTA",
+        "protein_sequence": "NRHFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALLHMHQL",
+        "length_nt": 183,
+        "length_aa": 61
+      }
+    ]
+  },
+  {
+    "accession": "LC031679.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 14",
+    "sequence_length": 180,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 180,
+        "strand": 1,
+        "nucleotide_sequence": "ACGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGTTACACATGCACTGATT",
+        "protein_sequence": "THFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALVTHALI",
+        "length_nt": 180,
+        "length_aa": 60
+      }
+    ]
+  },
+  {
+    "accession": "LC031676.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 11",
+    "sequence_length": 183,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 183,
+        "strand": 1,
+        "nucleotide_sequence": "ATAACGGGCAATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGCTACACATGCACCA",
+        "protein_sequence": "ITGNFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALATHAP",
+        "length_nt": 183,
+        "length_aa": 61
+      }
+    ]
+  },
+  {
+    "accession": "LC027726.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 08",
+    "sequence_length": 177,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 177,
+        "strand": 1,
+        "nucleotide_sequence": "CGGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGCTACACATGCACCA",
+        "protein_sequence": "RHFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALATHAP",
+        "length_nt": 177,
+        "length_aa": 59
+      }
+    ]
+  },
+  {
+    "accession": "LC027725.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 07",
+    "sequence_length": 177,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 177,
+        "strand": 1,
+        "nucleotide_sequence": "CGGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGCTACACATGCACCA",
+        "protein_sequence": "RHFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALATHAP",
+        "length_nt": 177,
+        "length_aa": 59
+      }
+    ]
+  },
+  {
+    "accession": "JN657063.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain A65 AdeC (adeC) gene, partial cds",
+    "sequence_length": 481,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC",
+        "start": 0,
+        "end": 481,
+        "strand": 1,
+        "nucleotide_sequence": "AATCATTCTGGAAAAACGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTAGTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAACAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGCGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAGGTGGGTTTAGGAATGACTGCATATGAACTAGACTTCTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTACCTTGCAACTCAAAGCGCGAAAGAGGCTGTGCAAATTAGTTTAATCAGTAACATCACACAGGTTTGGTTAAATTATGCTTTTGCACAAGCCAACTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAATCTAAATA",
+        "protein_sequence": "NHSGKTIAEKSYKEFISDPKLVQVIEISLNNNRDLRTATLNIERVQQQYQITKNSQLPTIGVTGNAVRQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQISLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLN",
+        "length_nt": 481,
+        "length_aa": 160
+      }
+    ]
+  },
+  {
+    "accession": "JN657062.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain A44 AdeC (adeC) gene, partial cds",
+    "sequence_length": 460,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC",
+        "start": 0,
+        "end": 460,
+        "strand": 1,
+        "nucleotide_sequence": "ATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTAGTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAACAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGCGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAGGTGGGTTTAGGAATGACTGCATATGAACTAGACTTCTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTACCTTGCAACTCAAAGCGCGAAAGAGGCTGTGCAAATTAGTTTAATCAGTAACATCACACAGGTTTGGTTAAATTATGCTTTTGCACAAGCCAACTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAATCTAA",
+        "protein_sequence": "IAEKSYKEFISDPKLVQVIEISLNNNRDLRTATLNIERVQQQYQITKNSQLPTIGVTGNAVRQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQISLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNL",
+        "length_nt": 460,
+        "length_aa": 153
+      }
+    ]
+  },
+  {
+    "accession": "MT912025.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain 48 RND-efflux pump (adeC) gene, partial cds",
+    "sequence_length": 277,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "RND-efflux pump",
+        "start": 0,
+        "end": 277,
+        "strand": 1,
+        "nucleotide_sequence": "GCGCCACAGCCTGCAATTACATCTCATATTCCTCAAAATTTTAGTCAAAATCATTCTGGAAAAATGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTATTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAAGAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGTGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCA",
+        "protein_sequence": "APQPAITSHIPQNFSQNHSGKMIAEKSYKEFISDPKLLQVIEISLNNNRDLRTATLNIERVQQEYQITKNSQLPTIGVTGNAVRQVSPSINP",
+        "length_nt": 277,
+        "length_aa": 92
+      }
+    ]
+  },
+  {
+    "accession": "MT912020.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain 34 RND-efflux pump (adeC) gene, partial cds",
+    "sequence_length": 286,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "RND-efflux pump",
+        "start": 0,
+        "end": 286,
+        "strand": 1,
+        "nucleotide_sequence": "GCGCCACAGCCTGCAATTACATCTCATATTCCTCAAAATTTTAGTCAAAATCATTCTGGAAAAATGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTATTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAAGAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGTGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAG",
+        "protein_sequence": "APQPAITSHIPQNFSQNHSGKMIAEKSYKEFISDPKLLQVIEISLNNNRDLRTATLNIERVQQEYQITKNSQLPTIGVTGNAVRQVSPSINPNNP",
+        "length_nt": 286,
+        "length_aa": 95
+      }
+    ]
+  },
+  {
+    "accession": "MT912016.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain 8 RND-efflux pump (adeC) gene, partial cds",
+    "sequence_length": 300,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "RND-efflux pump",
+        "start": 0,
+        "end": 300,
+        "strand": 1,
+        "nucleotide_sequence": "GCATGTGTCAATATGCAAGCGCCACAGCCTGCAATTACATCTCATATTCCTCAAAATTTTAGTCAAAATCATTCTGGAAAAATGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTATTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAAGAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGTGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAAC",
+        "protein_sequence": "ACVNMQAPQPAITSHIPQNFSQNHSGKMIAEKSYKEFISDPKLLQVIEISLNNNRDLRTATLNIERVQQEYQITKNSQLPTIGVTGNAVRQVSPSINPNN",
+        "length_nt": 300,
+        "length_aa": 100
+      }
+    ]
+  },
+  {
+    "accession": "MG242456.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain HZ114 AdeC (adeC) gene, partial cds",
+    "sequence_length": 560,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC",
+        "start": 0,
+        "end": 560,
+        "strand": 1,
+        "nucleotide_sequence": "TTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTAGTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAACAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGCGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAAGTTGGCTTGGGAATGACTGCCTATGAGCTAGATTTTTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTATCTTGCAACTCAAAGTGCAAAAGAAGCTGTACAAATTGGTTTAATCAGTAATATTACACAGGTCTGGTTAAATTATGCTTTTGCACAAGCAAATTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAACCTTAACAAGAAGCGCTTTGATGTTGGTATTGATAGTGAAGTGCCATTAAAACAAGCACAAATTTCGGTAGAGACTGCTCGAAATGATGTTGCAACTTATAAAACT",
+        "protein_sequence": "AEKSYKEFISDPKLVQVIEISLNNNRDLRTATLNIERVQQQYQITKNSQLPTIGVTGNAVRQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQIGLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLNKKRFDVGIDSEVPLKQAQISVETARNDVATYKT",
+        "length_nt": 560,
+        "length_aa": 186
+      }
+    ]
+  },
+  {
+    "accession": "JN662491.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain ACM1 AdeC outer membrane protein (adeC) gene, partial cds",
+    "sequence_length": 435,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC outer membrane protein",
+        "start": 0,
+        "end": 435,
+        "strand": 1,
+        "nucleotide_sequence": "TGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAAGTTGGCTTGGGAATGACTGCCTATGAGCTAGATTTTTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTATCTTGCAACTCAAAGTGCAAAAGAAGCTGTACAAATTGGTTTAATCAGTAATATTACACAGGTCTGGTTAAATTATGCTTTTGCACAAGCAAATTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAACCTTAACAAGAAGCGCTTTGATGTTGGTATTGATAGTGAAGTGCCATTAAAACAAGCACAAATTTCGGTAGAGACTGCTCGAAATGATGTTGCAACTTATAAAACTCAAATTCAACAGGCAAAAAATTTACTGGATTTGTTAGCAGGTCATCCTGTTCCGC",
+        "protein_sequence": "RQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQIGLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLNKKRFDVGIDSEVPLKQAQISVETARNDVATYKTQIQQAKNLLDLLAGHPVP",
+        "length_nt": 435,
+        "length_aa": 144
+      }
+    ]
+  },
+  {
+    "accession": "KJ711554.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain Ab81 outer membrane protein (adeC) gene, partial cds",
+    "sequence_length": 324,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "outer membrane protein",
+        "start": 0,
+        "end": 324,
+        "strand": 1,
+        "nucleotide_sequence": "GCCTATGAGCTAGATTTTTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTATCTTGCAACTCAAAGTGCAAAAGAAGCTGTACAAATTGGTTTAATCAGTAATATTACACAGGTCTGGTTAAATTATGCTTTTGCACAAGCAAATTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAACCTTAACAAGAAGCGCTTTGATGTTGGTATTGATAGTGAAGTGCCATTAAAACAAGCACAAATTTCGGTAGAGACTGCTCGAAATGATGTTGCAACTTATAAAACTCAAATTCAACAGGCA",
+        "protein_sequence": "AYELDFWGRVQNLKDAALNNYLATQSAKEAVQIGLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLNKKRFDVGIDSEVPLKQAQISVETARNDVATYKTQIQQA",
+        "length_nt": 324,
+        "length_aa": 108
+      }
+    ]
+  },
+  {
+    "accession": "LC031680.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 16",
+    "sequence_length": 183,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 183,
+        "strand": 1,
+        "nucleotide_sequence": "AACCGGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTCCTACACATGCACCAACTA",
+        "protein_sequence": "NRHFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALLHMHQL",
+        "length_nt": 183,
+        "length_aa": 61
+      }
+    ]
+  },
+  {
+    "accession": "LC031679.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 14",
+    "sequence_length": 180,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 180,
+        "strand": 1,
+        "nucleotide_sequence": "ACGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGTTACACATGCACTGATT",
+        "protein_sequence": "THFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALVTHALI",
+        "length_nt": 180,
+        "length_aa": 60
+      }
+    ]
+  },
+  {
+    "accession": "LC031676.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 11",
+    "sequence_length": 183,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 183,
+        "strand": 1,
+        "nucleotide_sequence": "ATAACGGGCAATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGCTACACATGCACCA",
+        "protein_sequence": "ITGNFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALATHAP",
+        "length_nt": 183,
+        "length_aa": 61
+      }
+    ]
+  },
+  {
+    "accession": "LC027726.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 08",
+    "sequence_length": 177,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 177,
+        "strand": 1,
+        "nucleotide_sequence": "CGGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGCTACACATGCACCA",
+        "protein_sequence": "RHFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALATHAP",
+        "length_nt": 177,
+        "length_aa": 59
+      }
+    ]
+  },
+  {
+    "accession": "LC027725.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii adeC gene, partial cds, strain: AG 07",
+    "sequence_length": 177,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 177,
+        "strand": 1,
+        "nucleotide_sequence": "CGGCATTTTGCATGGTCGATTGGACCTAATATCGATCTACCAATTTTTGATTGGGGAACAAGAAAAACTAATATTAAAATTGCGGAAACTGACCAGAAAATTGCTTTAGCTAAATATGAAAAAGCCATTCAATCAGCTTTTCGTGAAGTTAATGATGCACTTGCTACACATGCACCA",
+        "protein_sequence": "RHFAWSIGPNIDLPIFDWGTRKTNIKIAETDQKIALAKYEKAIQSAFREVNDALATHAP",
+        "length_nt": 177,
+        "length_aa": 59
+      }
+    ]
+  },
+  {
+    "accession": "JN657063.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain A65 AdeC (adeC) gene, partial cds",
+    "sequence_length": 481,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC",
+        "start": 0,
+        "end": 481,
+        "strand": 1,
+        "nucleotide_sequence": "AATCATTCTGGAAAAACGATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTAGTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAACAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGCGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAGGTGGGTTTAGGAATGACTGCATATGAACTAGACTTCTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTACCTTGCAACTCAAAGCGCGAAAGAGGCTGTGCAAATTAGTTTAATCAGTAACATCACACAGGTTTGGTTAAATTATGCTTTTGCACAAGCCAACTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAATCTAAATA",
+        "protein_sequence": "NHSGKTIAEKSYKEFISDPKLVQVIEISLNNNRDLRTATLNIERVQQQYQITKNSQLPTIGVTGNAVRQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQISLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNLN",
+        "length_nt": 481,
+        "length_aa": 160
+      }
+    ]
+  },
+  {
+    "accession": "JN657062.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain A44 AdeC (adeC) gene, partial cds",
+    "sequence_length": 460,
+    "gene_features": [
+      {
+        "gene_name": "adeC",
+        "product": "AdeC",
+        "start": 0,
+        "end": 460,
+        "strand": 1,
+        "nucleotide_sequence": "ATTGCAGAAAAAAGTTATAAAGAATTTATTTCTGATCCGAAATTAGTACAGGTCATTGAAATCAGTTTAAATAACAACCGTGATTTACGGACTGCTACGCTTAATATTGAACGTGTACAGCAACAATACCAAATCACAAAAAATAGCCAGCTCCCAACCATTGGCGTAACGGGAAATGCAGTGCGGCAGGTTAGCCCATCGATTAACCCCAATAACCCAGTTTCTACATTTCAGGTGGGTTTAGGAATGACTGCATATGAACTAGACTTCTGGGGCCGTGTTCAAAATTTAAAAGATGCTGCATTAAATAACTACCTTGCAACTCAAAGCGCGAAAGAGGCTGTGCAAATTAGTTTAATCAGTAACATCACACAGGTTTGGTTAAATTATGCTTTTGCACAAGCCAACTTAAACCTTGCCGAGCAAACCTTAAAAGCACAAGTCGATGCTTATAATCTAA",
+        "protein_sequence": "IAEKSYKEFISDPKLVQVIEISLNNNRDLRTATLNIERVQQQYQITKNSQLPTIGVTGNAVRQVSPSINPNNPVSTFQVGLGMTAYELDFWGRVQNLKDAALNNYLATQSAKEAVQISLISNITQVWLNYAFAQANLNLAEQTLKAQVDAYNL",
+        "length_nt": 460,
+        "length_aa": 153
+      }
+    ]
+  }
+]

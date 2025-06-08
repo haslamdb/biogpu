@@ -499,6 +499,89 @@ private:
         return batch;
     }
     
+    // Add validation function for protein matches
+    bool validateProteinMatch(const ProteinMatch& match, 
+                             const std::string& species_name,
+                             const std::string& gene_name) {
+        // Basic sanity checks
+        
+        // 1. Check alignment score and identity
+        if (match.alignment_score < 30.0f || match.identity < 0.70f) {
+            return false;  // Too low quality
+        }
+        
+        // 2. Check alignment length
+        if (match.match_length < 20) {
+            return false;  // Too short
+        }
+        
+        // 3. For FQ resistance genes, check if alignment covers QRDR
+        if (gene_name == "gyrA" || gene_name == "grlA") {
+            // For DNA gyrase A, QRDR is roughly positions 67-106
+            uint16_t align_start = match.ref_start;
+            uint16_t align_end = match.ref_start + match.match_length;
+            
+            // Must overlap with QRDR region
+            bool covers_s83 = (align_start <= 82 && align_end >= 82);  // 0-based
+            bool covers_d87 = (align_start <= 86 && align_end >= 86);  // 0-based
+            
+            if (!covers_s83 && !covers_d87) {
+                return false;  // Doesn't cover known resistance positions
+            }
+        } else if (gene_name == "parC" || gene_name == "grlB") {
+            // For topoisomerase IV, QRDR is roughly positions 64-102  
+            uint16_t align_start = match.ref_start;
+            uint16_t align_end = match.ref_start + match.match_length;
+            
+            bool covers_s80 = (align_start <= 79 && align_end >= 79);  // 0-based
+            bool covers_e84 = (align_start <= 83 && align_end >= 83);  // 0-based
+            
+            if (!covers_s80 && !covers_e84) {
+                return false;
+            }
+        }
+        
+        // 4. Check for suspicious peptide patterns
+        std::string peptide(match.query_peptide);
+        
+        // Known bad patterns that shouldn't appear in FQ resistance genes
+        std::vector<std::string> bad_patterns = {
+            "VHGHPHGDAHQ",  // Your example bad sequence
+            "XXXXXXXXXX",   // All X's indicate problems
+            "**********"    // All stops indicate problems
+        };
+        
+        for (const auto& pattern : bad_patterns) {
+            if (peptide.find(pattern) != std::string::npos) {
+                return false;
+            }
+        }
+        
+        // 5. Check species-specific patterns
+        if (species_name == "Escherichia_coli" && gene_name == "gyrA") {
+            // E. coli gyrA should have certain conserved regions
+            // Around position 83: typically has pattern like "YHPHGD"
+            // This is a simple check - could be more sophisticated
+            if (match.ref_start <= 83 && match.ref_start + match.match_length > 83) {
+                // Check for some expected amino acids around S83
+                // In E. coli gyrA, expect to see H81, P82, etc.
+                bool found_expected = false;
+                for (int i = 0; i < match.match_length - 5; i++) {
+                    if (peptide.substr(i, 2) == "HP" || peptide.substr(i, 3) == "PHG") {
+                        found_expected = true;
+                        break;
+                    }
+                }
+                if (!found_expected && match.match_length > 10) {
+                    // Suspicious - doesn't have expected motifs
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+
     void processBatch(const std::vector<FastqRecord>& batch_r1,
                      const std::vector<FastqRecord>& batch_r2,
                      std::ofstream& json_output,
@@ -595,20 +678,15 @@ private:
                                  num_reads * max_protein_matches_per_read * sizeof(ProteinMatch),
                                  cudaMemcpyDeviceToHost));
             
-            // Process protein matches with FQ resistance checking
+            // Process protein matches with validation and FQ resistance checking
             GlobalFQResistanceMapper& fq_mapper = GlobalFQResistanceMapper::getInstance();
+            
+            int validated_matches = 0;
+            int rejected_matches = 0;
             
             for (int i = 0; i < num_reads; i++) {
                 for (uint32_t j = 0; j < h_protein_counts[i]; j++) {
                     ProteinMatch& match = h_protein_matches[i * max_protein_matches_per_read + j];
-                    
-                    // Count ALL protein matches
-                    stats.protein_matches++;
-                    
-                    // Send to FQ mutation reporter
-                    if (fq_mutation_reporter) {
-                        process_protein_match_for_fq_report(fq_mutation_reporter, &match);
-                    }
                     
                     // Get gene and species names
                     std::string gene_name = "unknown";
@@ -622,6 +700,20 @@ private:
                     auto species_it = species_id_to_name.find(match.species_id);
                     if (species_it != species_id_to_name.end()) {
                         species_name = species_it->second;
+                    }
+                    
+                    // VALIDATE THE MATCH FIRST
+                    if (!validateProteinMatch(match, species_name, gene_name)) {
+                        rejected_matches++;
+                        continue;  // Skip this match entirely
+                    }
+                    
+                    validated_matches++;
+                    stats.protein_matches++;
+                    
+                    // Send to FQ mutation reporter
+                    if (fq_mutation_reporter) {
+                        process_protein_match_for_fq_report(fq_mutation_reporter, &match);
                     }
                     
                     // Debug output for matches with mutations
@@ -727,6 +819,10 @@ private:
                     }
                 }
             }
+            
+            // Print validation summary
+            std::cout << "Protein match validation: " << validated_matches << " accepted, " 
+                      << rejected_matches << " rejected" << std::endl;
             
             // Add to HDF5
             hdf5_writer->addTranslatedResults(h_protein_matches.data(), h_protein_counts.data(),

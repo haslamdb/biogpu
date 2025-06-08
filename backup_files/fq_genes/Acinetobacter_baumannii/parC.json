@@ -1,0 +1,1902 @@
+[
+  {
+    "accession": "OQ513838.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain Rzn.Mnr ParC (parc) gene, partial cds",
+    "sequence_length": 161,
+    "gene_features": [
+      {
+        "gene_name": "parc",
+        "product": "ParC",
+        "start": 0,
+        "end": 161,
+        "strand": 1,
+        "nucleotide_sequence": "ATCCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGAG",
+        "protein_sequence": "IHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLS",
+        "length_nt": 161,
+        "length_aa": 53
+      }
+    ]
+  },
+  {
+    "accession": "OQ513837.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain Elh.Ssn ParC (parc) gene, partial cds",
+    "sequence_length": 161,
+    "gene_features": [
+      {
+        "gene_name": "parc",
+        "product": "ParC",
+        "start": 0,
+        "end": 161,
+        "strand": 1,
+        "nucleotide_sequence": "ATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGT",
+        "protein_sequence": "YHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLS",
+        "length_nt": 161,
+        "length_aa": 53
+      }
+    ]
+  },
+  {
+    "accession": "MZ936479.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain arums.A.400.4.13 topoisomerase IV subunit A (parC) gene, partial cds",
+    "sequence_length": 520,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "topoisomerase IV subunit A",
+        "start": 0,
+        "end": 520,
+        "strand": 1,
+        "nucleotide_sequence": "GCGTTATACCGAAGCCAAACTCTCGGCTTATAGTGAATTATTGCTGAGCGAATTAGGTCAGGGCACTAGCGAATGGCAAGATAACTTTGATGGTTCTTTAAAAGAACCGATCACTTTACCTGCACGTGTACCTAATATTCTTCTTAATGGTACGACAGGTATTGCTGTCGGGATGGCAACTGATATCCCGCCACATAATTTGCGTGAAGTTGTAAAAGGCACAATTGCTTTAATCCGTAATCCGCAAACCTCGGACGAAAAATTAGCTGAATATATTCCAGCTCCGGATTTACCAACCAAAGCTGAAATTATTACCCCGCCAGAAGAATTACTCAAAATCCAGACCACTGGTCGTGGCAGTTACCGTATGCGAGCGGTATATACCATTGAGAAAAATGAAATCGTAATTACTGAGCTGCCATATCAAGTCTCTGGTTCTAAGGTAATTACTCAAATTGCTGACCAGATGCAGGCTAAAAAGCTGCCATTAGTCGTCGATGTGCGTGATGAGTCGGATCAT",
+        "protein_sequence": "RYTEAKLSAYSELLLSELGQGTSEWQDNFDGSLKEPITLPARVPNILLNGTTGIAVGMATDIPPHNLREVVKGTIALIRNPQTSDEKLAEYIPAPDLPTKAEIITPPEELLKIQTTGRGSYRMRAVYTIEKNEIVITELPYQVSGSKVITQIADQMQAKKLPLVVDVRDESDH",
+        "length_nt": 520,
+        "length_aa": 173
+      }
+    ]
+  },
+  {
+    "accession": "MZ615172.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.99.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615171.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.97.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615170.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.95.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615169.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.94.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615168.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.93.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615167.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.92.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615166.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.91.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615165.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.83.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615164.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.82.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615163.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.77.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615162.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.76.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615161.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.73.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615160.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.69.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615159.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.68.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615158.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.66.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615157.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.61.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615156.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.17.2017 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTATCGTTATCCGCTAATTGAAGGACAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615155.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.9956.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615154.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.9867.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615153.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8842.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615152.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8790.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCTGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615151.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8752.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615150.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8061.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615149.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7377.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615148.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7226.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615147.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7189.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615146.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7060.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615145.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6029.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615144.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5818.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615143.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5103.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615142.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.4834.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615141.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.4040.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615140.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.3967.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615139.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.3864.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615138.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.3714.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615137.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2955.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615136.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2883.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615135.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2820.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615134.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2730.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615133.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2726.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615132.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2707.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615131.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2383.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615130.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2156.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615129.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2121.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615128.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1781.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615127.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1729.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615126.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1685.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615125.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1373.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615124.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0793.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615123.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0715.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615122.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0720.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615121.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0600.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615120.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.9138.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615119.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0100.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615118.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6931.2018 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615117.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.9343.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615116.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6781.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCTATGGTACTCATGGCTCAGCCATTTAGTTATCGTTATCCGCTAATTGAAGGACAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615115.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6530.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615114.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6505.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615113.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6145.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615112.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5795.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615111.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5790.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615110.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5789.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615109.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5668.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615108.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5504.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615107.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5341.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615106.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5236.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGGTCACCAGATGACCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615105.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.5129.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615104.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.4900.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615103.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.4302.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615102.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8830.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615101.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8430.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGGTCACCAGATGACCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615100.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.8266.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615099.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7966.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615098.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7950.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615097.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7749.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGTTGGGCTTAAAAAGTAGTGGTAAGCCAAAAAAATCGGCCCGTACTGTAGGTGACGTACTAGGTAAATATCATCCGCATGGTGATTCGGCATGTTATGAAGCCATGGTGTTGATGGCTCAGCCGTTTAGTTATCGCTATCCTTTGATTGAAGGTCAAGGGAACTGGGGTTCACCAGATGATCCTAAATCGTTTGCTGCGATGCGTTATACCGAGGCAAAACTTTCTGCCTACAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615096.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7580.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615095.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.7240.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615094.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.6860.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615093.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2938.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAGAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCTGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATTGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615092.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2681.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615091.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2502.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615090.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2434.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615089.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2376.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615088.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2239.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615087.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.2227.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAACTAGGCTTAAAAAATAGTGGTAAGCCTAAAAAATCAGCGCGTACAGTGGGTGATGTACTGGGTAAATACCATCCACATGGTGACTCGGCATGTTATGAAGCCATGGTCTTAATGGCCCAGCCATTTAGTTATCGCTATCCTTTAATTGAAGGTCAAGGTAACTGGGGTTCGCCAGATGACCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCTAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKNSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615086.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1843.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615085.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1755.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615084.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1725.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615083.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1308.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615082.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1296.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615081.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.1134.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615080.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0721.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615079.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0605.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCAGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615078.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0331.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTTGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGTTCACCTGATGATCCTAAATCTTTTGCTGCGATGCGTTATACCGAAGCCAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDLACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615077.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0145.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  },
+  {
+    "accession": "MZ615076.1",
+    "organism": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii strain AB.0029.2020 DNA topoisomarase 4 (parC) gene, partial cds",
+    "sequence_length": 243,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "DNA topoisomarase 4",
+        "start": 0,
+        "end": 243,
+        "strand": 1,
+        "nucleotide_sequence": "ATGAGCGAGCTAGGCTTAAAAAGCAGTGGCAAGCCAAAAAAATCAGCGCGTACAGTGGGTGATGTACTTGGTAAATACCACCCACATGGTGACTCGGCATGTTATGAAGCCATGGTACTCATGGCTCAGCCATTTAGTTACCGCTATCCTTTAATCGAAGGTCAGGGGAACTGGGGCTCACCTGATGATCCTAAGTCTTTTGCTGCGATGCGTTATACCGAAGCAAAACTCTCGGCTTATAGT",
+        "protein_sequence": "MSELGLKSSGKPKKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLIEGQGNWGSPDDPKSFAAMRYTEAKLSAYS",
+        "length_nt": 243,
+        "length_aa": 81
+      }
+    ]
+  }
+]

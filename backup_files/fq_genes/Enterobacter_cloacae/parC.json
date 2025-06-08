@@ -1,0 +1,59 @@
+[
+  {
+    "accession": "DQ983228.1",
+    "organism": "Enterobacter cloacae",
+    "description": "Enterobacter cloacae topoisomerase IV subunit A (parC) gene, partial cds",
+    "sequence_length": 103,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "topoisomerase IV subunit A",
+        "start": 0,
+        "end": 103,
+        "strand": 1,
+        "nucleotide_sequence": "CAAGAAATCCGCCCGTACCGTCGGTGACGTGCTGGGGAAATACCATCCGCACGGTGACAGCGCCTGCTATGAAGCGATGGTGCTGATGGCCCAGCCGTTCTCT",
+        "protein_sequence": "KKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFS",
+        "length_nt": 103,
+        "length_aa": 34
+      }
+    ]
+  },
+  {
+    "accession": "AF302678.2",
+    "organism": "Enterobacter cloacae",
+    "description": "Enterobacter cloacae topoisomerase IV subunit A (parC) gene, partial cds",
+    "sequence_length": 270,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "topoisomerase IV subunit A",
+        "start": 0,
+        "end": 270,
+        "strand": 1,
+        "nucleotide_sequence": "GCCAAGTTCAAGAAATCCGACCGTACCGTCGGTGACGTACTGGGTAAATACCATCCGCACGGCGACAGCGCCTGTTATGAAGCGATGGTGCTGATGGCGCAGCCGTTCTCTTACCGCTATCCGCTGGTGGACGGGCAGGGGAACTGGAGAGCGCCTGACGATCCTAAATCCTTCGTGGTGATACGTTATACCGAATCCCGCCTGTCTAAATACGCCGAAGTGCTGCTGGGCGAGCTGGGTCAGGTAACCGTTGACTGGGTGCCAAACTTC",
+        "protein_sequence": "AKFKKSDRTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLVDGQGNWRAPDDPKSFVVIRYTESRLSKYAEVLLGELGQVTVDWVPNF",
+        "length_nt": 270,
+        "length_aa": 90
+      }
+    ]
+  },
+  {
+    "accession": "D88981.1",
+    "organism": "Enterobacter cloacae",
+    "description": "Enterobacter cloacae parC gene, partial cds",
+    "sequence_length": 148,
+    "gene_features": [
+      {
+        "gene_name": "parC",
+        "product": "Unknown",
+        "start": 0,
+        "end": 148,
+        "strand": 1,
+        "nucleotide_sequence": "CAAGAAATCCGCCCGTACCGTCGGTGACGTACTGGGTAAATATCATCCGCACGGCGACAGCGCCTGCTATGAAGCGATGGTGCTGATGGCCCAGCCGTTCTCTTATCGTTACCCGCTGGTGGACGGTCAGGGGAACTGGGGGGCACCG",
+        "protein_sequence": "KKSARTVGDVLGKYHPHGDSACYEAMVLMAQPFSYRYPLVDGQGNWGAP",
+        "length_nt": 148,
+        "length_aa": 49
+      }
+    ]
+  }
+]

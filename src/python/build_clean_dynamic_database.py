@@ -133,23 +133,24 @@ class CleanDatabaseBuilder:
         try:
             df = pd.read_csv(self.mutations_csv)
             
-            # We only care about: Gene, Position, Wildtype AA, and Mutant AA
-            required_cols = ['Gene', 'Position']
+            # We only care about: gene, location (position), wt, and mut
+            # Check for both uppercase and lowercase column names
+            gene_col = 'gene' if 'gene' in df.columns else 'Gene'
+            pos_col = 'location' if 'location' in df.columns else 'Position'
             
-            for col in required_cols:
-                if col not in df.columns:
-                    logger.warning(f"Missing required column: {col}")
-                    return
+            if gene_col not in df.columns or pos_col not in df.columns:
+                logger.warning(f"Missing required columns. Found columns: {list(df.columns)}")
+                return
                     
             for _, row in df.iterrows():
-                gene = str(row.get('Gene', '')).strip()
+                gene = str(row.get(gene_col, '')).strip()
                 
                 # Skip if gene not in our database
                 if gene not in self.gene_to_id:
                     continue
                     
                 try:
-                    position = int(row.get('Position', 0))
+                    position = int(row.get(pos_col, 0))
                     if position <= 0:
                         continue
                         
@@ -158,14 +159,22 @@ class CleanDatabaseBuilder:
                     mutants = []
                     
                     # Try different column names
-                    if 'Wildtype' in row:
+                    if 'wt' in row:
+                        wildtype = str(row['wt']).strip()
+                    elif 'Wildtype' in row:
                         wildtype = str(row['Wildtype']).strip()
                     elif 'Wild-type Amino Acid' in row:
                         wildtype = str(row['Wild-type Amino Acid']).strip()
                     elif 'WT' in row:
                         wildtype = str(row['WT']).strip()
                         
-                    if 'Mutant' in row:
+                    if 'mut' in row:
+                        mutant_str = str(row['mut']).strip()
+                        if ',' in mutant_str:
+                            mutants = [m.strip() for m in mutant_str.split(',')]
+                        else:
+                            mutants = [mutant_str]
+                    elif 'Mutant' in row:
                         mutant_str = str(row['Mutant']).strip()
                         if ',' in mutant_str:
                             mutants = [m.strip() for m in mutant_str.split(',')]

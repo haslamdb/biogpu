@@ -333,7 +333,7 @@ target_link_libraries(test_translated_search
 add_custom_target(build_clean_resistance_db
     COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/build_clean_resistance_db.py
             --fasta-dir ${CMAKE_SOURCE_DIR}/data/fq_genes
-            --csv ${CMAKE_SOURCE_DIR}/data/Known_Quinolone_Changes.csv
+            --csv ${CMAKE_SOURCE_DIR}/data/quinolone_resistance_mutation_table.csv
             --output-dir ${CMAKE_SOURCE_DIR}/data/clean_resistance_db
             --position-only
     COMMENT "Building clean resistance database with position information only"

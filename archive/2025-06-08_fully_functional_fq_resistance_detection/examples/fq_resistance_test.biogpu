@@ -1,0 +1,144 @@
+# simple_fq_resistance.biogpu
+# A simple example of detecting fluoroquinolone resistance in a patient sample
+
+# Import the standard library
+import biogpu.stdlib as bio
+import biogpu.clinical as clinical
+
+# Simple pipeline for clinical use
+pipeline QuickFQScreen {
+    # Just need the FASTQ file
+    input: fastq_file patient_sample
+    
+    # Use pre-built references
+    references: {
+        genomes: bio.RefSeqBacteria,
+        mutations: clinical.FluoroquinoloneMutations
+    }
+    
+    # Single-stage analysis
+    @gpu_kernel
+    stage analyze {
+        # Find what bacteria are present
+        bacteria = bio.identify_species(patient_sample, genomes) {
+            min_abundance: 0.01  # Report if >1% of sample
+        }
+        
+        # Check for resistance mutations
+        resistance = clinical.check_fq_resistance(patient_sample, mutations) {
+            focus_species: bacteria.top_10  # Only check abundant species
+        }
+        
+        # Generate simple report
+        report {
+            if resistance.high_risk_mutations.any() {
+                alert: "⚠️ Fluoroquinolone resistance detected!"
+                
+                print "High-risk mutations found:"
+                for mutation in resistance.high_risk_mutations {
+                    print "- {mutation.gene} {mutation.change} in {mutation.species}"
+                    print "  Expected {mutation.mic_change}x increase in MIC"
+                }
+                
+                recommendation: "Consider alternative antibiotics"
+            } else {
+                print "✓ No significant fluoroquinolone resistance detected"
+                recommendation: "Fluoroquinolones likely effective"
+            }
+            
+            print "\nMicrobiome composition:"
+            for species in bacteria.abundant_species {
+                print "- {species.name}: {species.abundance}%"
+            }
+        }
+    }
+}
+
+# Example usage:
+# biogpu run simple_fq_resistance.biogpu --input patient_001.fastq.gz
+
+# =============================================================================
+# Example with drug concentration data
+# =============================================================================
+
+pipeline FQResistanceWithDrugLevels {
+    input: {
+        sample: fastq_file,
+        levofloxacin_concentration: float  # µg/g from LCMS
+    }
+    
+    stage analyze {
+        resistance = QuickFQScreen(sample)
+        
+        # Add drug level interpretation
+        if levofloxacin_concentration > 10.0 {
+            print "\n⚠️ High levofloxacin levels detected: {levofloxacin_concentration} µg/g"
+            print "This concentration is likely selecting for resistance"
+            
+            if resistance.mutations.any() {
+                risk_score = calculate_risk(
+                    resistance_fraction: resistance.total_resistant_abundance,
+                    drug_level: levofloxacin_concentration,
+                    formula: "logistic"
+                )
+                
+                print "Risk of treatment failure: {risk_score}%"
+            }
+        }
+    }
+}
+
+# =============================================================================
+# Batch processing multiple samples
+# =============================================================================
+
+pipeline ProcessPatientSamples {
+    input: folder samples_directory
+    
+    # Find all FASTQ files
+    samples = find_files(samples_directory, pattern: "*.fastq.gz")
+    
+    # Process each one
+    results = parallel_map(samples) { sample_file ->
+        QuickFQScreen(sample_file)
+    }
+    
+    # Summary statistics
+    summary {
+        total_samples: results.count
+        resistant_samples: results.filter(r -> r.has_resistance).count
+        resistance_rate: (resistant_samples / total_samples) * 100
+        
+        print "Processed {total_samples} samples"
+        print "Found resistance in {resistant_samples} ({resistance_rate}%)"
+        
+        # Save detailed results
+        save_csv(results, "resistance_summary.csv")
+    }
+}
+
+# =============================================================================
+# Real-time monitoring mode
+# =============================================================================
+
+pipeline MonitorResistance {
+    input: watch_folder sequencer_output
+    
+    # Watch for new files
+    on_new_file(sequencer_output, pattern: "*.fastq") { new_file ->
+        # Immediately process
+        result = QuickFQScreen(new_file)
+        
+        # Alert if resistance found
+        if result.high_risk_mutations.any() {
+            send_alert {
+                to: "clinical_team@hospital.org",
+                subject: "FQ Resistance Detected - {new_file.sample_id}",
+                priority: "high"
+            }
+        }
+        
+        # Update dashboard
+        update_dashboard(result)
+    }
+}

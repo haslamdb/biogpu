@@ -1,4 +1,14 @@
-  ./fq_pipeline_gpu ../data/fq_resistance_index ../data/test_fastq/VRE12_R1.fastq.gz ../data/test_fastq/VRE12_R2.fastq.gz vre12_results_fixed.json
 
-  ./fq_pipeline_gpu ../data/fq_resistance_index synthetic_reads_20250529_R1.fastq.gz synthetic_reads_20250529_R1.fastq.gz test_results_20250530
+python src/python/build_protein_resistance_db.py \
+    data/fq_genes \
+    data/Known_Quinolone_Changes.csv \
+    data/protein_resistance_db
 
+
+  ./build/fq_pipeline_gpu data/fq_resistance_index \
+     569_A_038_R1.fastq.gz \
+     569_A_038_R2.fastq.gz \
+     --enable-translated-search \
+    --enable-smith-waterman \
+    --protein-db data/wildtype_protein_db \
+    --enable-diagnostic-reporting

@@ -2,22 +2,14 @@
 
 ## Overview
 
-BioGPU is a domain-specific programming language and computational framework designed to accelerate microbial community profiling and antimicrobial resistance (AMR) detection using GPU computing. Initially focused on fluoroquinolone resistance detection through mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes, BioGPU aims to provide real-time metagenomic analysis capabilities for clinical decision-making.
-
-## Project Status: ✅ **Almost PRODUCTION READY**
-
-The BioGPU pipeline has been successfully tested with synthetic and real metagenomic data, demonstrating:
-- **High performance**: Processing ~1M reads efficiently with 10K read batches
-- **Excellent sensitivity**: High candidate detection rate from k-mer filtering
-- **Good specificity**: 67% alignment success rate preventing false positives
-- **Clinical readiness**: Real FQ resistance index (115MB, 230K unique k-mers) validated
+BioGPU is a domain-specific programming language and computational framework designed to accelerate microbial community profiling and antimicrobial resistance (AMR) detection using GPU computing. Initially focused on fluoroquinolone resistance detection through mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes, BioGPU aims to provide real-time metagenomic analysis capabilities for clinical decision-making. 
 
 ## Project Goals
 
 ### Primary Objectives
 1. **Rapid Microbial Community Profiling**: Map sequencing reads to comprehensive microbial genome databases to determine community structure and relative abundances in real-time
 2. **Fluoroquinolone Resistance Detection**: Identify known resistance mutations in quinolone resistance-determining regions (QRDRs) and plasmid-mediated resistance genes
-3. **Clinical Integration**: Generate actionable reports linking detected resistance to specific organisms with confidence scores for informed treatment decisions
+3. **Clinical Integration**: Generate actionable reports linking detected resistance to specific organisms with confidence scores, ultimately for informed treatment decisions
 
 ### Technical Features
 - Native GPU acceleration for bioinformatics operations
@@ -110,9 +102,9 @@ pipeline FluoroquinoloneResistance {
 - **Antimicrobial stewardship support**: Evidence-based therapy guidance
 
 ### 📊 **Validated Performance Metrics**
-- **Speed**: Processing ~1M reads efficiently in batched workflow
-- **Sensitivity**: High candidate detection rate (150K+ candidates per 10K reads)
-- **Specificity**: Excellent alignment filtering (67% success rate prevents false positives)
+- **Speed**: Processing ~10 to 50M reads efficiently in batched workflow
+- **Sensitivity**: High candidate detection rate 
+- **Specificity**: Excellent alignment filtering 
 - **Scalability**: Proven batch processing handles large clinical datasets
 
 ## Performance Targets
@@ -137,17 +129,13 @@ pipeline FluoroquinoloneResistance {
 ### 1. Production Optimization and Clinical Integration
 
 #### Immediate Workflow Optimizations
-- [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and S aureus
+- [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and E faecium
 - [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
-- [ ] **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
-- [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems
-- [ ] **Real-time monitoring dashboard**: Clinical decision support interface
+
 
 #### Enhanced Clinical Interpretation
 - [ ] **Confidence scoring system**: Implement tiered confidence levels for resistance calls
-- [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
-- [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
-- [ ] **Resistance trend tracking**: Temporal analysis for hospital surveillance
+       **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
 
 ### 2. Advanced Resistance Detection
 
@@ -164,9 +152,17 @@ pipeline FluoroquinoloneResistance {
 - [ ] **Aminoglycoside resistance**: aac, aph, ant gene families
 - [ ] **Macrolide resistance**: erm, mef genes for respiratory pathogens
 
+#### Possible future goals
+- [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems
+- [ ] **Real-time monitoring dashboard**: Clinical decision support interface
+- [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
+- [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
+- [ ] **Resistance trend tracking**: Temporal analysis for hospital surveillance
+
+
 ### 3. Algorithm Enhancements
 
-#### K-mer Matching with Extension (Kraken2-style)
+#### Microbiome profiling with K-mer Matching with Extension (Kraken2-style)
 - [ ] **Three-phase k-mer matching algorithm**: Implement prefilter → match → extension workflow
   - **Phase 1: Bloom Filter Pre-screening**:
     - [ ] Space-efficient probabilistic filtering to eliminate non-matching k-mers
@@ -186,7 +182,7 @@ pipeline FluoroquinoloneResistance {
                 if (!test_bit(bit_array, hash % size_bits))
                     return false;
             }
-            return true;  // Possibly in set (may be false positive)
+            return true;  // Possibly in set (may be false positive - if so dropped later)
         }
     };
     ```
@@ -304,7 +300,6 @@ pipeline FluoroquinoloneResistance {
 #### Translated Search Implementation (for FQ resistance testing)
 - [ ] **Nucleotide-to-peptide alignment**: Implement 6-frame translation search
   - **Preprocessing Phase**:
-    - [ ] CPU-based 6-frame translation (all 3 forward + 3 reverse frames)
     - [ ] SIMD optimization for codon lookup tables
     - [ ] Optional GPU translation kernel for very large datasets
     - [ ] K-mer pre-filtering to reduce search space
@@ -322,7 +317,7 @@ pipeline FluoroquinoloneResistance {
     - [ ] Build system: CMake + NVCC integration
     - [ ] Profiling: Nsight Compute for kernel optimization
     - [ ] Debugging: CUDA-GDB for kernel debugging, valgrind for host code
-    - [ ] Performance targets: Process 1M translated frames in <30 seconds
+    - [ ] Performance targets: Process 10M paired translated frames in <30 seconds
 - [ ] **Codon-aware alignment**: Optimize for protein-coding sequences
 - [ ] **Stop codon handling**: Proper translation boundary detection
 - [ ] **Genetic code variations**: Support alternative genetic codes for different organisms
@@ -377,10 +372,10 @@ pipeline FluoroquinoloneResistance {
 - [ ] **Data encryption**: End-to-end security for sensitive medical data
 
 ### 7. Build Resistance Gene and Mutation Database
-- [x] Design GPU-friendly mutation index structure from files in data/fq_resistance_db
-- [x] Simplified data structure and index building
-- [x] Working draft: `./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5`
-- [x] Fixed k-mer matching phase
+- [ ] ✅ **COMPLETED**: Design GPU-friendly mutation index structure from files in data/fq_resistance_db
+- [ ] ✅ **COMPLETED**: Simplified data structure and index building
+- [ ] ✅ **COMPLETED**: Working draft: `./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5`
+- [ ] ✅ **COMPLETED**: Fixed k-mer matching phase
 - [ ] ✅ **COMPLETED**: Mapping phase optimization (67% success rate achieved)
 - [ ] Implement mutation confidence scoring system
 

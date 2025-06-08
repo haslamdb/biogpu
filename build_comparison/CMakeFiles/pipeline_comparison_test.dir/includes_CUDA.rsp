@@ -1,0 +1,1 @@
+-I/usr/include/hdf5/serial -I/home/david/Documents/Code/biogpu/build_comparison/../include -I/home/david/Documents/Code/biogpu/build_comparison/../runtime/kernels/resistance -I/usr/local/cuda/include -I"/usr/local/cuda-12.5/targets/x86_64-linux/include"

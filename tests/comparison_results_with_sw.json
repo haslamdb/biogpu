@@ -1,0 +1,6 @@
+{
+  "Full Pipeline (Bloom -> K-mer -> Translation)": {},
+  "Skip Bloom (K-mer -> Translation)": {},
+  "Skip K-mer (Bloom -> Translation)": {},
+  "Translation Only": {}
+}

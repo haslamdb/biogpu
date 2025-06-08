@@ -1,0 +1,321 @@
+// BioGPU DSL for Fluoroquinolone Resistance Detection Pipeline
+// Two-stage approach: k-mer filtering followed by position-weighted alignment
+
+import "biogpu/types.h"
+import "biogpu/io.h"
+import "biogpu/kernels.h"
+
+// Define mutation detection parameters
+struct MutationDetectionParams {
+    kmer_length: int = 15
+    min_kmer_hits: int = 3
+    match_score: float = 2.0
+    mismatch_score: float = -1.0
+    mutation_match_bonus: float = 3.0
+    mutation_mismatch_penalty: float = 2.0
+    min_alignment_score: float = 50.0
+    min_identity: float = 0.8
+}
+
+// Define the resistance index structure
+index FQResistanceIndex {
+    kmers: KmerIndex
+    references: ReferenceDB
+    position_weights: PositionWeightMatrix
+    mutations: MutationCatalog
+}
+
+// Stage 1: K-mer based candidate filtering
+kernel kmer_filter(reads: ReadArray, index: FQResistanceIndex, params: MutationDetectionParams) -> CandidateArray {
+    // Launch configuration
+    @gpu_config {
+        blocks: (reads.count + 255) / 256
+        threads: 256
+        shared_memory: 0
+    }
+    
+    // Extract k-mers from each read and find matches
+    parallel_for read_id in reads {
+        read = reads[read_id]
+        candidates = []
+        
+        // Sliding window k-mer extraction
+        for pos in 0..(read.length - params.kmer_length) {
+            kmer = extract_kmer(read.sequence, pos, params.kmer_length)
+            
+            // Lookup in index
+            matches = index.kmers.lookup(kmer)
+            
+            // Aggregate candidates by gene/species
+            for match in matches {
+                update_candidate(candidates, match.gene_id, match.species_id, match.seq_id)
+            }
+        }
+        
+        // Filter by minimum k-mer hits
+        output_candidates = filter(candidates, c => c.hits >= params.min_kmer_hits)
+        return output_candidates
+    }
+}
+
+// Stage 2: Position-weighted sequence alignment
+kernel position_weighted_align(
+    reads: ReadArray, 
+    candidates: CandidateArray, 
+    index: FQResistanceIndex, 
+    params: MutationDetectionParams
+) -> AlignmentResultArray {
+    
+    @gpu_config {
+        blocks: (candidates.count + 127) / 128
+        threads: 128
+        shared_memory: 4096  // For DP matrix
+    }
+    
+    parallel_for cand_id in candidates {
+        candidate = candidates[cand_id]
+        read = reads[candidate.read_id]
+        reference = index.references[candidate.seq_id]
+        weights = index.position_weights[candidate.seq_id]
+        
+        // Sliding window alignment with position weights
+        best_alignment = null
+        best_score = -inf
+        
+        // Try different starting positions
+        for start_pos in (reference.length - read.length - 50)..(reference.length - read.length + 50) {
+            if start_pos < 0 or start_pos >= reference.length {
+                continue
+            }
+            
+            // Score alignment with position-specific weights
+            score = 0.0
+            matches = 0
+            
+            for i in 0..read.length {
+                if start_pos + i >= reference.length {
+                    break
+                }
+                
+                read_base = read.sequence[i]
+                ref_base = reference.sequence[start_pos + i]
+                pos_weight = weights[start_pos + i]
+                
+                if read_base == ref_base {
+                    score += params.match_score * pos_weight
+                    matches += 1
+                    
+                    // Bonus for matching at mutation site
+                    if index.mutations.is_mutation_site(candidate.gene_id, start_pos + i) {
+                        score += params.mutation_match_bonus * pos_weight
+                    }
+                } else {
+                    score += params.mismatch_score * pos_weight
+                    
+                    // Penalty for mismatch at mutation site
+                    if index.mutations.is_mutation_site(candidate.gene_id, start_pos + i) {
+                        score -= params.mutation_mismatch_penalty * pos_weight
+                    }
+                }
+            }
+            
+            // Update best alignment
+            if score > best_score {
+                best_score = score
+                best_alignment = Alignment {
+                    read_id: candidate.read_id,
+                    gene_id: candidate.gene_id,
+                    species_id: candidate.species_id,
+                    seq_id: candidate.seq_id,
+                    start_pos: start_pos,
+                    score: score,
+                    identity: float(matches) / read.length,
+                    matches: matches
+                }
+            }
+        }
+        
+        // Check if alignment passes thresholds
+        if best_alignment != null and 
+           best_alignment.score >= params.min_alignment_score and
+           best_alignment.identity >= params.min_identity {
+            
+            // Detect mutations in aligned region
+            mutations_found = detect_mutations(
+                read, 
+                best_alignment, 
+                index.references[candidate.seq_id],
+                index.mutations[candidate.gene_id]
+            )
+            
+            best_alignment.mutations = mutations_found
+            return best_alignment
+        }
+        
+        return null
+    }
+}
+
+// Helper function to detect mutations in aligned region
+function detect_mutations(
+    read: Read, 
+    alignment: Alignment, 
+    reference: Reference, 
+    mutations: MutationList
+) -> MutationResultArray {
+    
+    results = []
+    
+    for mutation in mutations {
+        // Check if mutation position is covered by alignment
+        if alignment.start_pos <= mutation.position < alignment.start_pos + read.length {
+            read_pos = mutation.position - alignment.start_pos
+            read_base = read.sequence[read_pos]
+            
+            // Check if read has mutant or wild-type
+            is_mutant = (read_base == mutation.mutant_base)
+            
+            results.append(MutationResult {
+                codon_position: mutation.codon_position,
+                wild_type: mutation.wild_type,
+                mutant: mutation.mutant,
+                detected_base: read_base,
+                is_mutant: is_mutant
+            })
+        }
+    }
+    
+    return results
+}
+
+// Main pipeline
+pipeline FQResistanceDetection {
+    input {
+        r1_reads: string  // Path to R1 FASTQ file
+        r2_reads: string  // Path to R2 FASTQ file
+        index_path: string  // Path to resistance index
+        output_path: string  // Path for results
+        batch_size: int = 10000
+    }
+    
+    // Load the pre-built index
+    index = load_index(index_path)
+    params = MutationDetectionParams()
+    
+    // Initialize output
+    results = []
+    
+    // Process reads in batches
+    r1_reader = FastqReader(r1_reads)
+    r2_reader = FastqReader(r2_reads)
+    
+    while !r1_reader.eof() and !r2_reader.eof() {
+        // Read batch of paired reads
+        batch_r1 = r1_reader.read_batch(batch_size)
+        batch_r2 = r2_reader.read_batch(batch_size)
+        
+        // Stage 1: K-mer filtering for both read pairs
+        candidates_r1 = kmer_filter(batch_r1, index, params)
+        candidates_r2 = kmer_filter(batch_r2, index, params)
+        
+        // Stage 2: Position-weighted alignment
+        alignments_r1 = position_weighted_align(batch_r1, candidates_r1, index, params)
+        alignments_r2 = position_weighted_align(batch_r2, candidates_r2, index, params)
+        
+        // Merge results from paired reads
+        paired_results = merge_paired_results(alignments_r1, alignments_r2)
+        
+        // Add to results
+        results.extend(paired_results)
+    }
+    
+    // Generate report
+    report = generate_resistance_report(results)
+    write_json(output_path, report)
+    
+    return report
+}
+
+// Merge results from paired-end reads
+function merge_paired_results(r1_aligns: AlignmentResultArray, r2_aligns: AlignmentResultArray) -> ResultArray {
+    merged = []
+    
+    // Group by read pair ID
+    for i in 0..r1_aligns.length {
+        r1 = r1_aligns[i]
+        r2 = find_pair(r2_aligns, r1.read_id)
+        
+        // Combine evidence from both reads
+        if r1 != null and r2 != null {
+            // Both reads aligned - combine mutations
+            all_mutations = concat(r1.mutations, r2.mutations)
+            merged.append(PairedResult {
+                read_pair_id: r1.read_id,
+                gene_id: r1.gene_id,
+                species_id: r1.species_id,
+                mutations: deduplicate(all_mutations),
+                confidence: max(r1.score, r2.score)
+            })
+        } else if r1 != null {
+            // Only R1 aligned
+            merged.append(PairedResult {
+                read_pair_id: r1.read_id,
+                gene_id: r1.gene_id,
+                species_id: r1.species_id,
+                mutations: r1.mutations,
+                confidence: r1.score
+            })
+        }
+    }
+    
+    return merged
+}
+
+// Generate resistance report
+function generate_resistance_report(results: ResultArray) -> Report {
+    report = Report {
+        timestamp: current_time(),
+        total_reads: count_unique_reads(results),
+        mutations_detected: [],
+        resistance_profile: []
+    }
+    
+    // Aggregate mutations by gene and type
+    mutation_counts = {}
+    
+    for result in results {
+        for mutation in result.mutations {
+            if mutation.is_mutant {
+                key = f"{result.gene_id}:{mutation.codon_position}:{mutation.mutant}"
+                mutation_counts[key] = mutation_counts.get(key, 0) + 1
+            }
+        }
+    }
+    
+    // Build resistance profile
+    for key, count in mutation_counts {
+        parts = key.split(":")
+        gene_id = parts[0]
+        position = parts[1]
+        mutation = parts[2]
+        
+        report.mutations_detected.append({
+            gene: gene_id,
+            position: position,
+            mutation: mutation,
+            count: count,
+            frequency: float(count) / report.total_reads
+        })
+        
+        // Determine resistance level based on known mutations
+        resistance = determine_resistance(gene_id, position, mutation)
+        if resistance != null {
+            report.resistance_profile.append(resistance)
+        }
+    }
+    
+    return report
+}
+
+// Entry point
+export pipeline FQResistanceDetection

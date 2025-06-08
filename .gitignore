@@ -19,6 +19,7 @@ build/
 build_integrated/
 cmake-build-*/
 out/
+build_comparison/
 
 # Results directories
 results/
@@ -43,6 +44,10 @@ sequences.bin
 *_results.json
 *_debug_results.json
 synthetic_*.json
+
+# HDF5 files (often large)
+*.h5
+*.hdf5
 
 # Large index files
 *.idx
@@ -89,3 +94,4 @@ __pycache__/
 .Python
 env/
 venv/
+synthetic_reads.fq_report/synthetic_reads_qrdr_alignments.csv

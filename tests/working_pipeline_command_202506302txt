@@ -1,0 +1,38 @@
+
+python src/python/build_protein_resistance_db.py \
+    data/fq_genes \
+    data/Known_Quinolone_Changes.csv \
+    data/protein_resistance_db
+
+ python src/python/build_wildtype_protein_db.py \
+    data/wildtype_protein_seqs/ \
+    data/wildtype_protein_db \
+    --fasta
+
+./build/fq_pipeline_gpu data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
+	--enable-translated-search \
+	--enable-smith-waterman \
+	--protein-db data/wildtype_protein_db \
+	--enable-diagnostic-reporting
+
+./build/fq_pipeline_gpu data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
+	--enable-translated-search \
+	--enable-smith-waterman \
+	--protein-db data/wildtype_protein_db \
+	--enable-diagnostic-reporting
+
+
+tests/run_pipeline_comparison_test.py \
+    data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
+    data/protein_resistance_db \
+    --batch-size 10000 \
+    --output comparison_results.txt
+
+
+python generate_synthetic_reads.py data/ecoli_gyrA_parE_mutant_sequences.fasta -n 1000000 -o data/synthetic_reads

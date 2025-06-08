@@ -62,6 +62,10 @@ struct ClinicalFQReport {
     int reads_with_any_mutations;
     int reads_with_fq_resistance;
     
+    // Performance metrics
+    double processing_time_seconds;
+    double reads_per_second;
+    
     // Clinical interpretation
     std::string overall_interpretation;
     std::vector<std::string> clinical_notes;
@@ -107,6 +111,8 @@ public:
         report.reads_with_any_mutations = 0;
         report.reads_with_fq_resistance = 0;
         report.resistance_confidence = 0.0f;
+        report.processing_time_seconds = 0.0;
+        report.reads_per_second = 0.0;
     }
     
     // Process a protein match from the pipeline
@@ -209,6 +215,12 @@ public:
         report.reads_with_protein_matches = reads_with_matches;
     }
     
+    // Update performance statistics
+    void updatePerformanceStats(double processing_seconds, double reads_per_sec) {
+        report.processing_time_seconds = processing_seconds;
+        report.reads_per_second = reads_per_sec;
+    }
+    
     // Generate clinical interpretation
     void generateClinicalInterpretation() {
         // Calculate confidence based on mutation quality and quantity
@@ -298,7 +310,9 @@ private:
         json_file << "    \"total_reads_analyzed\": " << report.total_reads_analyzed << ",\n";
         json_file << "    \"reads_with_protein_matches\": " << report.reads_with_protein_matches << ",\n";
         json_file << "    \"reads_with_mutations\": " << report.reads_with_any_mutations << ",\n";
-        json_file << "    \"reads_with_fq_resistance\": " << report.reads_with_fq_resistance << "\n";
+        json_file << "    \"reads_with_fq_resistance\": " << report.reads_with_fq_resistance << ",\n";
+        json_file << "    \"processing_time_seconds\": " << report.processing_time_seconds << ",\n";
+        json_file << "    \"reads_per_second\": " << std::fixed << std::setprecision(0) << report.reads_per_second << "\n";
         json_file << "  },\n";
         
         // Clinical notes
@@ -461,6 +475,13 @@ private:
                   << "%)</p>\n";
         html_file << "<p>Reads with mutations: " << report.reads_with_any_mutations << "</p>\n";
         html_file << "<p>Reads with FQ resistance mutations: " << report.reads_with_fq_resistance << "</p>\n";
+        html_file << "<p><strong>Performance:</strong> " << std::fixed << std::setprecision(0) 
+                  << report.reads_per_second << " reads/second";
+        if (report.processing_time_seconds > 0) {
+            html_file << " (" << report.total_reads_analyzed << " reads in " 
+                      << std::fixed << std::setprecision(1) << report.processing_time_seconds << " seconds)";
+        }
+        html_file << "</p>\n";
         html_file << "</div>\n";
         
         // Species breakdown
@@ -570,7 +591,14 @@ private:
         text_file << "Total reads analyzed: " << report.total_reads_analyzed << "\n";
         text_file << "Reads with protein matches: " << report.reads_with_protein_matches << "\n";
         text_file << "Reads with mutations: " << report.reads_with_any_mutations << "\n";
-        text_file << "Reads with FQ resistance: " << report.reads_with_fq_resistance << "\n\n";
+        text_file << "Reads with FQ resistance: " << report.reads_with_fq_resistance << "\n";
+        text_file << "Performance: " << std::fixed << std::setprecision(0) 
+                  << report.reads_per_second << " reads/second";
+        if (report.processing_time_seconds > 0) {
+            text_file << " (" << report.total_reads_analyzed << " reads in " 
+                      << std::fixed << std::setprecision(1) << report.processing_time_seconds << " seconds)";
+        }
+        text_file << "\n\n";
         
         text_file << "SPECIES BREAKDOWN\n";
         text_file << "-----------------\n";
@@ -667,6 +695,12 @@ extern "C" {
     void update_clinical_report_stats(void* generator, int total_reads, int reads_with_matches) {
         if (generator) {
             static_cast<ClinicalFQReportGenerator*>(generator)->updateReadStats(total_reads, reads_with_matches);
+        }
+    }
+    
+    void update_clinical_report_performance(void* generator, double processing_seconds, double reads_per_sec) {
+        if (generator) {
+            static_cast<ClinicalFQReportGenerator*>(generator)->updatePerformanceStats(processing_seconds, reads_per_sec);
         }
     }
     

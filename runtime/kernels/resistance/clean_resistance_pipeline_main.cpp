@@ -47,6 +47,7 @@ extern "C" {
                                          float alignment_score, float identity,
                                          int match_length, int ref_start, int ref_end);
     void update_clinical_report_stats(void* generator, int total_reads, int reads_with_matches);
+    void update_clinical_report_performance(void* generator, double processing_seconds, double reads_per_sec);
     void generate_clinical_report(void* generator);
 }
 
@@ -236,12 +237,6 @@ public:
         //     generate_fq_mutation_report(fq_mutation_reporter);
         //     destroy_fq_mutation_reporter(fq_mutation_reporter);
         // }
-        
-        // Generate clinical report before cleanup
-        if (clinical_report_generator) {
-            generate_clinical_report(clinical_report_generator);
-            destroy_clinical_report_generator(clinical_report_generator);
-        }
         
         // Clean up FQ resistance database
         cleanup_fq_resistance_database();
@@ -468,13 +463,18 @@ public:
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
         
-        // Update clinical report with final statistics
-        if (clinical_report_generator) {
-            update_clinical_report_stats(clinical_report_generator, stats.total_reads, stats.protein_matches);
-        }
-        
         // Calculate reads per second
         double reads_per_second = stats.total_reads / static_cast<double>(duration.count());
+        
+        // Update clinical report with final statistics and performance
+        if (clinical_report_generator) {
+            update_clinical_report_stats(clinical_report_generator, stats.total_reads, stats.protein_matches);
+            update_clinical_report_performance(clinical_report_generator, static_cast<double>(duration.count()), reads_per_second);
+            
+            // Generate the clinical report now that we have all the data
+            generate_clinical_report(clinical_report_generator);
+            destroy_clinical_report_generator(clinical_report_generator);
+        }
         
         // Print summary
         std::cout << "\n=== PROCESSING COMPLETE ===\n";

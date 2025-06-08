@@ -22,7 +22,11 @@ out/
 build_comparison/
 
 # Results directories
-results/
+# Ignore everything in results/
+results/*
+# But don't ignore HTML and TXT files
+!results/*.html
+!results/*.txt
 
 # Genomic data
 data/

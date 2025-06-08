@@ -118,12 +118,24 @@ public:
             return;
         }
         
+        // Debug output for E. coli gyrA
+        if (species_name == "Escherichia_coli" && gene_name == "gyrA" && match.num_mutations > 0) {
+            std::cerr << "[FQ DEBUG] E.coli gyrA match: species_id=" << match.species_id 
+                      << " gene_id=" << match.gene_id << " with " << (int)match.num_mutations << " mutations\n";
+        }
+        
         // Process each mutation
         for (int i = 0; i < match.num_mutations; i++) {
             int mutation_pos_in_protein = match.ref_start + match.mutation_positions[i];
             
             // Check if this is a QRDR mutation using the dynamic database
             bool is_qrdr_mutation = g_fq_resistance_db->isQRDRPosition(gene_name, mutation_pos_in_protein);
+            
+            // Debug for E. coli gyrA
+            if (species_name == "Escherichia_coli" && gene_name == "gyrA") {
+                std::cerr << "[FQ DEBUG] E.coli gyrA mutation at pos " << mutation_pos_in_protein 
+                          << " (0-based), is_qrdr=" << is_qrdr_mutation << "\n";
+            }
             
             // Only process QRDR mutations for FQ resistance reporting
             if (!is_qrdr_mutation) continue;

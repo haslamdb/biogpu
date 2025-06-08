@@ -16,6 +16,7 @@
 
 #include "fq_mutation_detector.cuh"
 #include "hdf5_alignment_writer.h"
+#include "global_fq_resistance_mapper.h"
 
 // FQ mutation reporter declarations
 extern "C" {
@@ -140,6 +141,10 @@ private:
     void* fq_mutation_reporter;
     std::string protein_db_path;
     
+    // Mappings
+    std::map<uint32_t, std::string> gene_id_to_name;
+    std::map<uint32_t, std::string> species_id_to_name;
+    
     // Configuration
     const int batch_size = 10000;
     const int max_read_length = 300;
@@ -155,6 +160,7 @@ private:
         int nucleotide_matches = 0;
         int protein_matches = 0;
         int resistance_mutations = 0;
+        int fq_resistance_mutations = 0;
     } stats;
 
 public:
@@ -244,6 +250,15 @@ public:
         const char* fq_resistance_csv = "data/quinolone_resistance_mutation_table.csv";
         init_fq_resistance_database(fq_resistance_csv);
         
+        // Initialize global FQ mapper
+        GlobalFQResistanceMapper& mapper = GlobalFQResistanceMapper::getInstance();
+        if (init_global_fq_mapper(fq_resistance_csv, protein_db_path.c_str()) != 0) {
+            std::cerr << "WARNING: Failed to initialize global FQ resistance mapper\n";
+        } else {
+            std::cout << "Global FQ resistance mapper initialized successfully\n";
+            mapper.printSummary();
+        }
+        
         // Store protein DB path for later use
         this->protein_db_path = protein_db_path;
         
@@ -278,6 +293,9 @@ public:
             return;
         }
         
+        gene_id_to_name.clear();
+        species_id_to_name.clear();
+        
         std::string line;
         bool in_species_map = false;
         bool in_gene_map = false;
@@ -309,8 +327,10 @@ public:
                     try {
                         uint32_t id = std::stoi(id_str);
                         if (in_species_map) {
+                            species_id_to_name[id] = name;
                             set_fq_reporter_species_mapping(fq_mutation_reporter, id, name.c_str());
                         } else if (in_gene_map) {
+                            gene_id_to_name[id] = name;
                             set_fq_reporter_gene_mapping(fq_mutation_reporter, id, name.c_str());
                         }
                     } catch (...) {
@@ -327,7 +347,8 @@ public:
         }
         
         metadata_file.close();
-        std::cout << "Loaded gene and species mappings for FQ mutation reporter\n";
+        std::cout << "Loaded " << gene_id_to_name.size() << " gene mappings and " 
+                  << species_id_to_name.size() << " species mappings\n";
     }
     
     void processReads(const std::string& r1_path, const std::string& r2_path,
@@ -392,7 +413,8 @@ public:
         json_output << "    \"bloom_passed\": " << stats.bloom_passed << ",\n";
         json_output << "    \"nucleotide_matches\": " << stats.nucleotide_matches << ",\n";
         json_output << "    \"protein_matches\": " << stats.protein_matches << ",\n";
-        json_output << "    \"resistance_mutations\": " << stats.resistance_mutations << "\n";
+        json_output << "    \"resistance_mutations\": " << stats.resistance_mutations << ",\n";
+        json_output << "    \"fq_resistance_mutations\": " << stats.fq_resistance_mutations << "\n";
         json_output << "  }\n";
         json_output << "}\n";
         json_output.close();
@@ -409,7 +431,8 @@ public:
                   << (100.0 * stats.bloom_passed / stats.total_reads) << "%)\n";
         std::cout << "Nucleotide matches: " << stats.nucleotide_matches << "\n";
         std::cout << "Protein matches: " << stats.protein_matches << "\n";
-        std::cout << "Resistance mutations: " << stats.resistance_mutations << "\n";
+        std::cout << "Total mutations detected: " << stats.resistance_mutations << "\n";
+        std::cout << "FQ resistance mutations: " << stats.fq_resistance_mutations << "\n";
         std::cout << "Processing time: " << duration.count() << " seconds\n";
         std::cout << "Output: " << output_path << ".json and " << hdf5_path << "\n";
     }
@@ -572,12 +595,14 @@ private:
                                  num_reads * max_protein_matches_per_read * sizeof(ProteinMatch),
                                  cudaMemcpyDeviceToHost));
             
-            // Process protein matches
+            // Process protein matches with FQ resistance checking
+            GlobalFQResistanceMapper& fq_mapper = GlobalFQResistanceMapper::getInstance();
+            
             for (int i = 0; i < num_reads; i++) {
                 for (uint32_t j = 0; j < h_protein_counts[i]; j++) {
                     ProteinMatch& match = h_protein_matches[i * max_protein_matches_per_read + j];
                     
-                    // Count ALL protein matches, not just Smith-Waterman
+                    // Count ALL protein matches
                     stats.protein_matches++;
                     
                     // Send to FQ mutation reporter
@@ -585,45 +610,121 @@ private:
                         process_protein_match_for_fq_report(fq_mutation_reporter, &match);
                     }
                     
-                    // Debug: print first few matches
-                    if (stats.protein_matches <= 10) {
-                        std::cout << "DEBUG: Protein match " << stats.protein_matches << ": "
-                                  << "gene_id=" << match.gene_id 
-                                  << ", identity=" << match.identity
-                                  << ", num_mutations=" << (int)match.num_mutations
-                                  << ", match_length=" << match.match_length
-                                  << ", used_sw=" << match.used_smith_waterman << "\n";
+                    // Get gene and species names
+                    std::string gene_name = "unknown";
+                    std::string species_name = "unknown";
+                    
+                    auto gene_it = gene_id_to_name.find(match.gene_id);
+                    if (gene_it != gene_id_to_name.end()) {
+                        gene_name = gene_it->second;
                     }
                     
-                    // Check for resistance mutations in ALL matches
-                    if (match.num_mutations > 0) {
-                        stats.resistance_mutations++;
-                            
-                            // Output to JSON
-                            if (!first_result) json_output << ",\n";
-                            json_output << "    {\n";
-                            json_output << "      \"read_id\": " << (stats.total_reads - num_reads + i) << ",\n";
-                            json_output << "      \"gene_id\": " << match.gene_id << ",\n";
-                            json_output << "      \"species_id\": " << match.species_id << ",\n";
-                            json_output << "      \"frame\": " << (int)match.frame << ",\n";
-                            json_output << "      \"alignment_score\": " << match.alignment_score << ",\n";
-                            json_output << "      \"identity\": " << match.identity << ",\n";
-                            json_output << "      \"mutations\": [\n";
-                            
-                            for (int k = 0; k < match.num_mutations; k++) {
-                                if (k > 0) json_output << ",\n";
-                                json_output << "        {\n";
-                                json_output << "          \"position\": " << (match.ref_start + match.mutation_positions[k]) << ",\n";
-                                json_output << "          \"ref_aa\": \"" << match.ref_aas[k] << "\",\n";
-                                json_output << "          \"query_aa\": \"" << match.query_aas[k] << "\"\n";
-                                json_output << "        }";
-                            }
-                            
-                            json_output << "\n      ],\n";
-                            json_output << "      \"peptide\": \"" << match.query_peptide << "\"\n";
-                            json_output << "    }";
-                            first_result = false;
+                    auto species_it = species_id_to_name.find(match.species_id);
+                    if (species_it != species_id_to_name.end()) {
+                        species_name = species_it->second;
+                    }
+                    
+                    // Debug output for matches with mutations
+                    if (match.num_mutations > 0 && stats.protein_matches <= 100) {
+                        std::cout << "DEBUG: Protein match " << stats.protein_matches << ": "
+                                  << species_name << " " << gene_name
+                                  << ", mutations=" << (int)match.num_mutations
+                                  << ", score=" << match.alignment_score
+                                  << ", identity=" << match.identity << "\n";
+                    }
+                    
+                    // Check each mutation for FQ resistance
+                    int fq_mutations_in_match = 0;
+                    bool has_fq_resistance = false;
+                    
+                    for (int k = 0; k < match.num_mutations; k++) {
+                        // Calculate global position (1-based)
+                        uint16_t global_position = match.ref_start + match.mutation_positions[k] + 1;
+                        char ref_aa = match.ref_aas[k];
+                        char query_aa = match.query_aas[k];
+                        
+                        // Debug output for each mutation
+                        if (stats.protein_matches <= 100) {
+                            std::cout << "  Mutation " << (k+1) << ": " << ref_aa << global_position 
+                                      << query_aa << " in " << gene_name;
                         }
+                        
+                        // Check if this is a known FQ resistance mutation
+                        bool is_fq = fq_mapper.isResistanceMutation(
+                            species_name, gene_name, global_position, ref_aa, query_aa
+                        );
+                        
+                        if (is_fq) {
+                            fq_mutations_in_match++;
+                            has_fq_resistance = true;
+                            stats.fq_resistance_mutations++;
+                            
+                            if (stats.protein_matches <= 100) {
+                                std::cout << " -> FQ RESISTANCE!";
+                            }
+                        } else {
+                            // Check if this position is known to have resistance mutations
+                            char expected_wt = fq_mapper.getWildtypeAA(
+                                species_name, gene_name, global_position
+                            );
+                            
+                            if (expected_wt != 'X' && expected_wt != ref_aa) {
+                                if (stats.protein_matches <= 100) {
+                                    std::cout << " -> Note: Expected WT=" << expected_wt;
+                                }
+                            }
+                        }
+                        
+                        if (stats.protein_matches <= 100) {
+                            std::cout << "\n";
+                        }
+                    }
+                    
+                    // Always count mutations (not just FQ resistance)
+                    stats.resistance_mutations += match.num_mutations;
+                    
+                    // Output FQ resistance to JSON
+                    if (has_fq_resistance) {
+                        if (!first_result) json_output << ",\n";
+                        json_output << "    {\n";
+                        json_output << "      \"type\": \"FQ_RESISTANCE\",\n";
+                        json_output << "      \"read_id\": " << (stats.total_reads - num_reads + i) << ",\n";
+                        json_output << "      \"gene_name\": \"" << gene_name << "\",\n";
+                        json_output << "      \"species_name\": \"" << species_name << "\",\n";
+                        json_output << "      \"gene_id\": " << match.gene_id << ",\n";
+                        json_output << "      \"species_id\": " << match.species_id << ",\n";
+                        json_output << "      \"frame\": " << (int)match.frame << ",\n";
+                        json_output << "      \"alignment_score\": " << match.alignment_score << ",\n";
+                        json_output << "      \"identity\": " << match.identity << ",\n";
+                        json_output << "      \"num_mutations\": " << (int)match.num_mutations << ",\n";
+                        json_output << "      \"num_fq_mutations\": " << fq_mutations_in_match << ",\n";
+                        json_output << "      \"mutations\": [\n";
+                        
+                        bool first_mut = true;
+                        for (int k = 0; k < match.num_mutations; k++) {
+                            uint16_t global_position = match.ref_start + match.mutation_positions[k] + 1;
+                            char ref_aa = match.ref_aas[k];
+                            char query_aa = match.query_aas[k];
+                            
+                            bool is_fq = fq_mapper.isResistanceMutation(
+                                species_name, gene_name, global_position, ref_aa, query_aa
+                            );
+                            
+                            if (!first_mut) json_output << ",\n";
+                            json_output << "        {\n";
+                            json_output << "          \"position\": " << global_position << ",\n";
+                            json_output << "          \"ref_aa\": \"" << ref_aa << "\",\n";
+                            json_output << "          \"query_aa\": \"" << query_aa << "\",\n";
+                            json_output << "          \"is_fq_resistance\": " << (is_fq ? "true" : "false") << "\n";
+                            json_output << "        }";
+                            first_mut = false;
+                        }
+                        
+                        json_output << "\n      ],\n";
+                        json_output << "      \"peptide\": \"" << match.query_peptide << "\"\n";
+                        json_output << "    }";
+                        first_result = false;
+                    }
                 }
             }
             

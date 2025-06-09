@@ -28,10 +28,11 @@ make hybrid_profiler_pipeline  # Just the hybrid profiler
 ./test_minimizer --benchmark
 
 # Process a FASTQ file (can be gzipped)
-./test_fastq_pipeline /path/to/your/reads.fastq.gz
+./test_fastq_pipeline ../../../../1M_synthetic_reads_R1.fastq.gz
 
-# Or uncompressed
-./test_fastq_pipeline /path/to/your/reads.fastq
+# Or uncompressed (though compressed reads run fine - except got stalled)
+zcat ../../../../1M_synthetic_reads_R1.fastq.gz > test_reads.fastq
+./test_fastq_pipeline test_reads.fastq
 
 # This needs a Kraken2 database
 ./hybrid_profiler_pipeline /path/to/kraken2_db /path/to/reads.fastq

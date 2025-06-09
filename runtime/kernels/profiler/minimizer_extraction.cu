@@ -130,12 +130,12 @@ __global__ void extract_minimizers_kernel(
                     uint64_t min_hash = UINT64_MAX;
                     int min_idx = 0;
                     
-                    int window_start = (window_size > m) ? (window_size - m) : 0;
-                    for (int i = 0; i < m && window_start + i < window_size; i++) {
-                        int idx = (window_start + i) % m;
-                        if (window_kmers[idx] < min_hash) {
-                            min_hash = window_kmers[idx];
-                            min_idx = idx;
+                    // Look at the last m k-mers in the circular buffer
+                    int actual_window_size = min(window_size, m);
+                    for (int i = 0; i < actual_window_size; i++) {
+                        if (window_kmers[i] < min_hash) {
+                            min_hash = window_kmers[i];
+                            min_idx = i;
                         }
                     }
                     

@@ -35,3 +35,5 @@ make hybrid_profiler_pipeline  # Just the hybrid profiler
 
 # This needs a Kraken2 database
 ./hybrid_profiler_pipeline /path/to/kraken2_db /path/to/reads.fastq
+
+./hybrid_profiler_pipeline /path/to/kraken_db /path/to/reads.fastq

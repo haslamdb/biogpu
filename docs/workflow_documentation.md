@@ -32,17 +32,29 @@ biogpu/
 │   │   └── resistance_db.json          # Resistance mutation positions
 │   └── clean_resistance_db/             # Alternative simplified DB format
 ├── runtime/                             # ✅ PRODUCTION CODE
-│   └── kernels/resistance/
-│       ├── clean_resistance_pipeline_main.cpp  # Main clean pipeline executable
-│       ├── enhanced_mutation_detection.cu      # GPU mutation detection with wildtype comparison
-│       ├── fix_pipeline_resistance_loader.cpp  # Clean resistance DB loader
-│       ├── bloom_filter.cu                    # Bloom filter pre-screening
-│       ├── kmer_screening.cu                  # K-mer filtering
-│       ├── translated_search_revised.cu       # 6-frame translated search
-│       ├── hdf5_alignment_writer.cpp          # HDF5 output formatting
-│       ├── clinical_fq_report_generator.cpp   # ✅ NEW: Clinical report generation
-│       ├── global_fq_resistance_mapper.cpp    # ✅ FQ resistance database interface
-│       └── fq_resistance_positions.h          # ✅ QRDR position definitions
+│   └── kernels/
+│       ├── resistance/
+│       │   ├── clean_resistance_pipeline_main.cpp  # Main clean pipeline executable
+│       │   ├── enhanced_mutation_detection.cu      # GPU mutation detection with wildtype comparison
+│       │   ├── fix_pipeline_resistance_loader.cpp  # Clean resistance DB loader
+│       │   ├── bloom_filter.cu                    # Bloom filter pre-screening
+│       │   ├── kmer_screening.cu                  # K-mer filtering
+│       │   ├── translated_search_revised.cu       # 6-frame translated search
+│       │   ├── hdf5_alignment_writer.cpp          # HDF5 output formatting
+│       │   ├── clinical_fq_report_generator.cpp   # ✅ NEW: Clinical report generation
+│       │   ├── global_fq_resistance_mapper.cpp    # ✅ FQ resistance database interface
+│       │   └── fq_resistance_positions.h          # ✅ QRDR position definitions
+│       └── profiler/                          # ✅ NEW: Microbiome profiler components
+│           ├── CMakeLists.txt                 # Build configuration
+│           ├── minimizer_extraction.cu        # GPU minimizer extraction kernel
+│           ├── minimizer_extractor.h          # Minimizer extractor interface
+│           ├── minimizer_common.h             # Common data structures
+│           ├── fastq_processing.h/cpp         # FASTQ I/O and pipeline
+│           ├── fastq_pipeline_main.cpp        # Main FASTQ processing executable
+│           ├── fastq_pipeline_debug.cpp       # Debug version with timing
+│           ├── test_minimizer.cpp             # Minimizer testing utility
+│           ├── debug_minimizer.cpp            # Debug tool for minimizer extraction
+│           └── hybrid_profiler_pipeline.cu    # Hybrid CPU-GPU profiler (Kraken2 integration)
 ├── src/                                 
 │   └── python/                         
 │       ├── build_integrated_resistance_db.py  # ✅ Builds integrated database
@@ -231,6 +243,45 @@ The pipeline generates multiple output files:
    - `output_prefix_clinical_fq_report.json` - Machine-readable clinical data
    - `output_prefix_clinical_fq_report.txt` - Text summary
    - Includes confidence scoring and clinical interpretation
+
+## 🎉 Key Changes in Version 0.6.1 (June 9, 2025)
+
+### Microbiome Profiler Development
+
+1. **New Minimizer Extraction Module**
+   - Added GPU-accelerated minimizer extraction (`runtime/kernels/profiler/minimizer_extraction.cu`)
+   - Achieves ~87 Mbases/second throughput on TITAN Xp
+   - K-mer size: 31, Window size: 15
+   - Extracts ~17 minimizers per 150bp read
+
+2. **FASTQ Processing Pipeline**
+   - Modularized FASTQ reading and processing (`fastq_processing.h/cpp`)
+   - Supports gzipped FASTQ files
+   - Multi-threaded GPU processing with configurable batch sizes
+   - Namespace organization: `biogpu::FastqReader`, `biogpu::GPUMinimizerPipeline`
+
+3. **Build System Updates**
+   - Separated profiler components into `runtime/kernels/profiler/`
+   - Fixed CUDA device linking issues with static libraries
+   - Added debug tools: `fastq_pipeline_debug`, `debug_minimizer`
+
+4. **Performance Optimization Attempts**
+   - Attempted pinned memory optimizations (reverted due to issues)
+   - Current implementation uses standard CUDA memory transfers
+   - Processing 1M reads takes ~1 second
+   - File reading: 77-84ms for 100k reads
+   - GPU processing: 10-16ms for 10k sequences
+
+5. **Known Issues and Solutions**
+   - Fixed namespace confusion: `ReadBatch` and `Minimizer` are NOT in biogpu namespace
+   - Fixed CUDA linking issues by enabling `CUDA_RESOLVE_DEVICE_SYMBOLS`
+   - Statistics collection hanging issue still under investigation
+   - Low minimizer count (0.71 per read) in main pipeline needs debugging
+
+6. **Files to Keep/Remove**
+   - KEEP: `minimizer_extraction.cu` (working version)
+   - REMOVE: `minimizer_extraction_optimized_attempt2.cu`
+   - REMOVE: `minimizer_extraction_optimized.cu.backup`
 
 ## 🎉 Key Changes in Version 0.6.0 (June 8, 2025)
 

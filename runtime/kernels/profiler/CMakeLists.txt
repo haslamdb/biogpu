@@ -104,6 +104,21 @@ add_executable(test_fastq_pipeline
     fastq_pipeline_main.cpp
 )
 
+# Debug minimizer program
+add_executable(debug_minimizer
+    debug_minimizer.cpp
+)
+
+# Test stats program
+add_executable(test_stats
+    test_stats.cpp
+)
+
+# Debug pipeline program
+add_executable(fastq_pipeline_debug
+    fastq_pipeline_debug.cpp
+)
+
 set_target_properties(test_fastq_pipeline PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
@@ -111,6 +126,36 @@ set_target_properties(test_fastq_pipeline PROPERTIES
 )
 
 target_link_libraries(test_fastq_pipeline
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+set_target_properties(debug_minimizer PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(debug_minimizer
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+target_link_libraries(test_stats
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+target_link_libraries(fastq_pipeline_debug
     fastq_processing
     minimizer_extraction
     cudart

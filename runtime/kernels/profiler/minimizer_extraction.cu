@@ -7,6 +7,7 @@
 #include <cstring>
 #include <algorithm>
 #include "minimizer_common.h"
+#include "minimizer_extractor.h"
 
 // Constants
 #define BATCH_SIZE 10000
@@ -162,115 +163,102 @@ __global__ void extract_minimizers_kernel(
     minimizer_counts[tid] = minimizer_count;
 }
 
-// Host wrapper class
-class MinimizerExtractor {
-private:
-    // Device memory
-    char* d_sequences;
-    uint32_t* d_sequence_offsets;
-    uint32_t* d_sequence_lengths;
-    Minimizer* d_minimizers;
-    uint32_t* d_minimizer_counts;
-    
-    // Parameters
-    int k;
-    int m;
-    size_t allocated_reads;
-    
-public:
-    MinimizerExtractor(int k_size = 31, int window_size = 15) 
-        : k(k_size), m(window_size), allocated_reads(0) {
-        init_nucleotide_map();
-    }
-    
-    ~MinimizerExtractor() {
+// Host wrapper class implementation
+MinimizerExtractor::MinimizerExtractor(int k_size, int window_size) 
+    : k(k_size), m(window_size), allocated_reads(0), 
+      d_sequences(nullptr), d_sequence_offsets(nullptr),
+      d_sequence_lengths(nullptr), d_minimizers(nullptr),
+      d_minimizer_counts(nullptr) {
+    init_nucleotide_map();
+}
+
+MinimizerExtractor::~MinimizerExtractor() {
+    if (d_sequences) cudaFree(d_sequences);
+    if (d_sequence_offsets) cudaFree(d_sequence_offsets);
+    if (d_sequence_lengths) cudaFree(d_sequence_lengths);
+    if (d_minimizers) cudaFree(d_minimizers);
+    if (d_minimizer_counts) cudaFree(d_minimizer_counts);
+}
+
+void MinimizerExtractor::allocate_device_memory(size_t num_reads, size_t total_sequence_length) {
+    if (num_reads > allocated_reads) {
         if (d_sequences) cudaFree(d_sequences);
         if (d_sequence_offsets) cudaFree(d_sequence_offsets);
         if (d_sequence_lengths) cudaFree(d_sequence_lengths);
         if (d_minimizers) cudaFree(d_minimizers);
         if (d_minimizer_counts) cudaFree(d_minimizer_counts);
+        
+        cudaMalloc(&d_sequences, total_sequence_length);
+        cudaMalloc(&d_sequence_offsets, (num_reads + 1) * sizeof(uint32_t));
+        cudaMalloc(&d_sequence_lengths, num_reads * sizeof(uint32_t));
+        cudaMalloc(&d_minimizers, num_reads * MAX_MINIMIZERS_PER_READ * sizeof(Minimizer));
+        cudaMalloc(&d_minimizer_counts, num_reads * sizeof(uint32_t));
+        
+        allocated_reads = num_reads;
+    }
+}
+
+std::vector<std::vector<Minimizer>> MinimizerExtractor::extract_minimizers(
+    const std::vector<std::string>& sequences
+) {
+    size_t num_reads = sequences.size();
+    
+    // Prepare data for GPU
+    std::vector<char> concatenated_sequences;
+    std::vector<uint32_t> offsets(num_reads + 1);
+    std::vector<uint32_t> lengths(num_reads);
+    
+    uint32_t current_offset = 0;
+    for (size_t i = 0; i < num_reads; i++) {
+        offsets[i] = current_offset;
+        lengths[i] = sequences[i].length();
+        concatenated_sequences.insert(concatenated_sequences.end(), 
+                                    sequences[i].begin(), 
+                                    sequences[i].end());
+        current_offset += lengths[i];
+    }
+    offsets[num_reads] = current_offset;
+    
+    // Allocate device memory
+    allocate_device_memory(num_reads, concatenated_sequences.size());
+    
+    // Copy to device
+    cudaMemcpy(d_sequences, concatenated_sequences.data(), 
+               concatenated_sequences.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sequence_offsets, offsets.data(), 
+               offsets.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_sequence_lengths, lengths.data(), 
+               lengths.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    
+    // Launch kernel
+    int block_size = 256;
+    int num_blocks = (num_reads + block_size - 1) / block_size;
+    
+    extract_minimizers_kernel<<<num_blocks, block_size>>>(
+        d_sequences, d_sequence_offsets, d_sequence_lengths,
+        d_minimizers, d_minimizer_counts,
+        num_reads, k, m
+    );
+    
+    cudaDeviceSynchronize();
+    
+    // Copy results back
+    std::vector<Minimizer> all_minimizers(num_reads * MAX_MINIMIZERS_PER_READ);
+    std::vector<uint32_t> minimizer_counts(num_reads);
+    
+    cudaMemcpy(all_minimizers.data(), d_minimizers, 
+               all_minimizers.size() * sizeof(Minimizer), cudaMemcpyDeviceToHost);
+    cudaMemcpy(minimizer_counts.data(), d_minimizer_counts, 
+               minimizer_counts.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    
+    // Organize results
+    std::vector<std::vector<Minimizer>> results(num_reads);
+    for (size_t i = 0; i < num_reads; i++) {
+        results[i].reserve(minimizer_counts[i]);
+        for (uint32_t j = 0; j < minimizer_counts[i]; j++) {
+            results[i].push_back(all_minimizers[i * MAX_MINIMIZERS_PER_READ + j]);
+        }
     }
     
-    void allocate_device_memory(size_t num_reads, size_t total_sequence_length) {
-        if (num_reads > allocated_reads) {
-            if (d_sequences) cudaFree(d_sequences);
-            if (d_sequence_offsets) cudaFree(d_sequence_offsets);
-            if (d_sequence_lengths) cudaFree(d_sequence_lengths);
-            if (d_minimizers) cudaFree(d_minimizers);
-            if (d_minimizer_counts) cudaFree(d_minimizer_counts);
-            
-            cudaMalloc(&d_sequences, total_sequence_length);
-            cudaMalloc(&d_sequence_offsets, (num_reads + 1) * sizeof(uint32_t));
-            cudaMalloc(&d_sequence_lengths, num_reads * sizeof(uint32_t));
-            cudaMalloc(&d_minimizers, num_reads * MAX_MINIMIZERS_PER_READ * sizeof(Minimizer));
-            cudaMalloc(&d_minimizer_counts, num_reads * sizeof(uint32_t));
-            
-            allocated_reads = num_reads;
-        }
-    }
-    
-    std::vector<std::vector<Minimizer>> extract_minimizers(
-        const std::vector<std::string>& sequences
-    ) {
-        size_t num_reads = sequences.size();
-        
-        // Prepare data for GPU
-        std::vector<char> concatenated_sequences;
-        std::vector<uint32_t> offsets(num_reads + 1);
-        std::vector<uint32_t> lengths(num_reads);
-        
-        uint32_t current_offset = 0;
-        for (size_t i = 0; i < num_reads; i++) {
-            offsets[i] = current_offset;
-            lengths[i] = sequences[i].length();
-            concatenated_sequences.insert(concatenated_sequences.end(), 
-                                        sequences[i].begin(), 
-                                        sequences[i].end());
-            current_offset += lengths[i];
-        }
-        offsets[num_reads] = current_offset;
-        
-        // Allocate device memory
-        allocate_device_memory(num_reads, concatenated_sequences.size());
-        
-        // Copy to device
-        cudaMemcpy(d_sequences, concatenated_sequences.data(), 
-                   concatenated_sequences.size(), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_sequence_offsets, offsets.data(), 
-                   offsets.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_sequence_lengths, lengths.data(), 
-                   lengths.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        
-        // Launch kernel
-        int block_size = 256;
-        int num_blocks = (num_reads + block_size - 1) / block_size;
-        
-        extract_minimizers_kernel<<<num_blocks, block_size>>>(
-            d_sequences, d_sequence_offsets, d_sequence_lengths,
-            d_minimizers, d_minimizer_counts,
-            num_reads, k, m
-        );
-        
-        cudaDeviceSynchronize();
-        
-        // Copy results back
-        std::vector<Minimizer> all_minimizers(num_reads * MAX_MINIMIZERS_PER_READ);
-        std::vector<uint32_t> minimizer_counts(num_reads);
-        
-        cudaMemcpy(all_minimizers.data(), d_minimizers, 
-                   all_minimizers.size() * sizeof(Minimizer), cudaMemcpyDeviceToHost);
-        cudaMemcpy(minimizer_counts.data(), d_minimizer_counts, 
-                   minimizer_counts.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-        
-        // Organize results
-        std::vector<std::vector<Minimizer>> results(num_reads);
-        for (size_t i = 0; i < num_reads; i++) {
-            results[i].reserve(minimizer_counts[i]);
-            for (uint32_t j = 0; j < minimizer_counts[i]; j++) {
-                results[i].push_back(all_minimizers[i * MAX_MINIMIZERS_PER_READ + j]);
-            }
-        }
-        
-        return results;
-    }
-};
+    return results;
+}

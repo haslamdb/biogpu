@@ -1,5 +1,6 @@
 // hybrid_kraken_pipeline.cpp
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -16,37 +17,10 @@
 #include <cuda_runtime.h>
 #include <omp.h>
 #include "minimizer_common.h"
+#include "fastq_processing.h"
+#include "minimizer_extractor.h"
 
-// Forward declarations
-class MinimizerExtractor {
-public:
-    MinimizerExtractor(int k_size = 31, int window_size = 15);
-    ~MinimizerExtractor();
-    std::vector<std::vector<Minimizer>> extract_minimizers(const std::vector<std::string>& sequences);
-private:
-    void allocate_device_memory(size_t num_reads, size_t total_sequence_length);
-    int k;
-    int m;
-    size_t allocated_reads;
-    void* d_sequences;
-    void* d_sequence_offsets;
-    void* d_sequence_lengths;
-    void* d_minimizers;
-    void* d_minimizer_counts;
-};
-
-class FastqReader {
-public:
-    FastqReader(const std::string& filename);
-    ~FastqReader();
-    bool read_batch(ReadBatch& batch, size_t batch_size);
-private:
-    std::string filename;
-    void* gz_file;
-    bool is_gzipped;
-    std::ifstream text_file;
-    bool getline(std::string& line);
-};
+// FastqReader is now provided by fastq_processing.h
 
 // Kraken2 database structures
 struct KrakenDBHeader {
@@ -451,7 +425,7 @@ int main(int argc, char** argv) {
         HybridKrakenPipeline pipeline(db_path);
         
         // Process file in batches
-        FastqReader reader(fastq_file);
+        biogpu::FastqReader reader(fastq_file);
         ReadBatch batch;
         size_t total_reads = 0;
         size_t classified_reads = 0;

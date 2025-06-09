@@ -5,25 +5,10 @@
 #include <string>
 #include <fstream>
 #include <chrono>
+#include <cstdlib>
+#include <algorithm>
 #include "minimizer_common.h"
-
-// Forward declaration of MinimizerExtractor class
-class MinimizerExtractor {
-public:
-    MinimizerExtractor(int k_size = 31, int window_size = 15);
-    ~MinimizerExtractor();
-    std::vector<std::vector<Minimizer>> extract_minimizers(const std::vector<std::string>& sequences);
-private:
-    void allocate_device_memory(size_t num_reads, size_t total_sequence_length);
-    int k;
-    int m;
-    size_t allocated_reads;
-    void* d_sequences;
-    void* d_sequence_offsets;
-    void* d_sequence_lengths;
-    void* d_minimizers;
-    void* d_minimizer_counts;
-};
+#include "minimizer_extractor.h"
 
 // Simple FASTQ reader for testing
 class SimpleFastqReader {
@@ -89,8 +74,15 @@ std::vector<std::string> generate_test_sequences(size_t count = 1000) {
 int main(int argc, char** argv) {
     try {
         std::vector<std::string> sequences;
+        bool benchmark_mode = false;
         
-        if (argc == 2) {
+        // Check for benchmark flag
+        if (argc >= 2 && std::string(argv[1]) == "--benchmark") {
+            benchmark_mode = true;
+            std::cout << "Running in benchmark mode...\n";
+        }
+        
+        if (argc >= 2 && !benchmark_mode) {
             // Read from FASTQ file
             std::string filename = argv[1];
             std::cout << "Reading sequences from " << filename << "...\n";
@@ -107,14 +99,21 @@ int main(int argc, char** argv) {
             }
         } else {
             // Generate test sequences
-            std::cout << "Generating 1000 test sequences...\n";
-            sequences = generate_test_sequences(1000);
+            size_t num_sequences = benchmark_mode ? 10000 : 1000;
+            std::cout << "Generating " << num_sequences << " test sequences...\n";
+            sequences = generate_test_sequences(num_sequences);
         }
         
         // Test minimizer extraction
         std::cout << "\nTesting minimizer extraction (k=31, m=15)...\n";
         
         MinimizerExtractor extractor(31, 15);
+        
+        // Warm-up run for GPU
+        if (benchmark_mode) {
+            std::cout << "Performing warm-up run...\n";
+            auto warmup = extractor.extract_minimizers(sequences);
+        }
         
         auto start = std::chrono::high_resolution_clock::now();
         auto minimizers = extractor.extract_minimizers(sequences);
@@ -130,8 +129,12 @@ int main(int argc, char** argv) {
         for (const auto& seq_minimizers : minimizers) {
             total_minimizers += seq_minimizers.size();
             max_minimizers = std::max(max_minimizers, seq_minimizers.size());
-            min_minimizers = std::min(min_minimizers, seq_minimizers.size());
+            if (seq_minimizers.size() > 0) {
+                min_minimizers = std::min(min_minimizers, seq_minimizers.size());
+            }
         }
+        
+        if (min_minimizers == SIZE_MAX) min_minimizers = 0;
         
         std::cout << "\nResults:\n";
         std::cout << "- Processed " << sequences.size() << " sequences\n";
@@ -144,8 +147,17 @@ int main(int argc, char** argv) {
         std::cout << "- Throughput: " << (sequences.size() * 1000.0 / duration.count()) 
                   << " sequences/second\n";
         
+        // Calculate total bases processed
+        size_t total_bases = 0;
+        for (const auto& seq : sequences) {
+            total_bases += seq.length();
+        }
+        std::cout << "- Total bases: " << total_bases << "\n";
+        std::cout << "- Throughput: " << (total_bases * 1000.0 / duration.count() / 1000000.0) 
+                  << " Mbases/second\n";
+        
         // Print first few minimizers as examples
-        if (minimizers.size() > 0 && minimizers[0].size() > 0) {
+        if (!benchmark_mode && minimizers.size() > 0 && minimizers[0].size() > 0) {
             std::cout << "\nFirst sequence minimizers (showing first 5):\n";
             for (size_t i = 0; i < std::min(size_t(5), minimizers[0].size()); i++) {
                 std::cout << "  Hash: " << minimizers[0][i].hash
@@ -153,6 +165,19 @@ int main(int argc, char** argv) {
                           << ", Reverse: " << (minimizers[0][i].is_reverse ? "yes" : "no")
                           << "\n";
             }
+        }
+        
+        // Additional benchmark statistics
+        if (benchmark_mode) {
+            std::cout << "\nBenchmark Summary:\n";
+            std::cout << "- GPU kernel time: ~" << duration.count() * 0.95 << " ms (estimated)\n";
+            std::cout << "- Data transfer overhead: ~" << duration.count() * 0.05 << " ms (estimated)\n";
+            
+            // Memory usage estimate
+            size_t gpu_memory_used = sequences.size() * 300 +  // sequences
+                                    sequences.size() * 4 * 3 +  // offsets, lengths, counts
+                                    sequences.size() * 50 * sizeof(Minimizer);  // minimizers
+            std::cout << "- Estimated GPU memory used: " << gpu_memory_used / (1024.0 * 1024.0) << " MB\n";
         }
         
     } catch (const std::exception& e) {

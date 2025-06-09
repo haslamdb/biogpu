@@ -45,12 +45,15 @@ endif()
 # Minimizer extraction library
 add_library(minimizer_extraction STATIC
     minimizer_extraction.cu
+    minimizer_extractor.h
     minimizer_common.h
 )
 
 set_target_properties(minimizer_extraction PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
 )
 
 target_compile_options(minimizer_extraction PRIVATE
@@ -63,6 +66,23 @@ target_compile_options(minimizer_extraction PRIVATE
         -O3
     >
 )
+
+# FASTQ processing library
+add_library(fastq_processing STATIC
+    fastq_processing.cpp
+    fastq_processing.h
+)
+
+target_link_libraries(fastq_processing
+    minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    cuda
+    cudart
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(fastq_processing OpenMP::OpenMP_CXX)
+endif()
 
 # ===========================
 # Test Executables
@@ -79,35 +99,47 @@ target_link_libraries(test_minimizer
     cuda
 )
 
-# Standalone FASTQ pipeline test (if we build it separately)
-# Uncomment when fastq_gpu_pipeline.cpp has its own main()
-# add_executable(test_fastq_pipeline
-#     fastq_gpu_pipeline.cpp
-# )
-# 
-# target_link_libraries(test_fastq_pipeline
-#     minimizer_extraction
-#     cudart
-#     cuda
-#     ${ZLIB_LIBRARIES}
-# )
+# Test FASTQ pipeline
+add_executable(test_fastq_pipeline
+    fastq_pipeline_main.cpp
+)
 
-# Hybrid profiler pipeline - currently just a test
-# Uncomment when we have proper separation of concerns
-# add_executable(hybrid_profiler_pipeline
-#     hybrid_profiler_profile.cpp
-# )
-# 
-# target_link_libraries(hybrid_profiler_pipeline
-#     minimizer_extraction
-#     cudart
-#     cuda
-#     ${ZLIB_LIBRARIES}
-# )
-# 
-# if(OpenMP_CXX_FOUND)
-#     target_link_libraries(hybrid_profiler_pipeline OpenMP::OpenMP_CXX)
-# endif()
+set_target_properties(test_fastq_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(test_fastq_pipeline
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# Hybrid profiler pipeline
+add_executable(hybrid_profiler_pipeline
+    hybrid_profiler_pipeline.cu
+)
+
+set_target_properties(hybrid_profiler_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(hybrid_profiler_pipeline
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(hybrid_profiler_pipeline OpenMP::OpenMP_CXX)
+endif()
 
 # ===========================
 # Custom Targets for Testing
@@ -127,6 +159,13 @@ add_custom_target(test_real_fastq
     COMMENT "Testing with real FASTQ - set FASTQ_FILE environment variable"
 )
 
+# Test FASTQ pipeline
+add_custom_target(test_fastq_pipeline_run
+    COMMAND ./test_fastq_pipeline $ENV{FASTQ_FILE}
+    DEPENDS test_fastq_pipeline
+    COMMENT "Testing FASTQ pipeline - set FASTQ_FILE environment variable"
+)
+
 # ===========================
 # Installation Rules
 # ===========================
@@ -134,18 +173,24 @@ add_custom_target(test_real_fastq
 # Install executables
 install(TARGETS 
     test_minimizer
+    test_fastq_pipeline
+    hybrid_profiler_pipeline
     RUNTIME DESTINATION bin
 )
 
 # Install libraries
 install(TARGETS 
     minimizer_extraction
+    fastq_processing
     ARCHIVE DESTINATION lib
 )
 
 # Install headers
 install(FILES 
     minimizer_common.h
+    minimizer_extractor.h
+    fastq_processing.h
+    kraken_database_loader.h
     DESTINATION include/biogpu/profiler
 )
 
@@ -165,13 +210,18 @@ message(STATUS "")
 message(STATUS "Currently Available Components:")
 message(STATUS "  ✓ GPU minimizer extraction")
 message(STATUS "  ✓ Test program for minimizers")
+message(STATUS "  ✓ FASTQ GPU pipeline with zlib support")
+message(STATUS "  ✓ Hybrid profiler pipeline (needs Kraken2 database)")
 message(STATUS "")
 message(STATUS "Build targets:")
-message(STATUS "  test_minimizer - Test GPU minimizer extraction")
+message(STATUS "  test_minimizer           - Test GPU minimizer extraction")
+message(STATUS "  test_fastq_pipeline      - Full FASTQ processing pipeline")
+message(STATUS "  hybrid_profiler_pipeline - Hybrid CPU-GPU profiler (needs Kraken2 DB)")
 message(STATUS "")
 message(STATUS "Testing targets:")
-message(STATUS "  make test_synthetic - Test with synthetic data")
-message(STATUS "  make test_real_fastq - Test with real FASTQ (set FASTQ_FILE)")
+message(STATUS "  make test_synthetic      - Test with synthetic data")
+message(STATUS "  make test_real_fastq     - Test minimizer with real FASTQ")
+message(STATUS "  make test_fastq_pipeline_run - Test full pipeline with FASTQ")
 message(STATUS "")
 message(STATUS "Usage examples:")
 message(STATUS "  1. Build:")
@@ -186,4 +236,10 @@ message(STATUS "  3. Test with your FASTQ file:")
 message(STATUS "     ./test_minimizer /path/to/reads.fastq")
 message(STATUS "     # or")
 message(STATUS "     FASTQ_FILE=/path/to/reads.fastq make test_real_fastq")
+message(STATUS "")
+message(STATUS "  4. Test full FASTQ pipeline:")
+message(STATUS "     ./test_fastq_pipeline /path/to/reads.fastq.gz")
+message(STATUS "")
+message(STATUS "  5. Test hybrid profiler (requires Kraken2 database):")
+message(STATUS "     ./hybrid_profiler_pipeline /path/to/kraken_db /path/to/reads.fastq")
 message(STATUS "")

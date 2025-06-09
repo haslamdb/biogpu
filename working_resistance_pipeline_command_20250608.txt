@@ -204,3 +204,6 @@ or make -j8
 the recommended command is:
 
 ./build/clean_resistance_pipeline data/integrated_clean_db/nucleotide data/integrated_clean_db/protein data/569_A_038_R1.fastq.gz data/569_A_038_R2.fastq.gz results/569_no_bloom data/quinolone_resistance_mutation_table.csv --no-bloom 
+
+####### alright we're starting with a new profiler workflow at runtime/kernels/profiler #####
+# We now split out CMakeLists.txt into the individual directories so the build locations will be within the kernel subdirectories

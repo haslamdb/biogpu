@@ -274,29 +274,3 @@ public:
         return results;
     }
 };
-
-// Example usage
-int main() {
-    // Example sequences
-    std::vector<std::string> test_sequences = {
-        "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
-        "TGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCA",
-        "AAAAAAAAAACCCCCCCCCCGGGGGGGGGGTTTTTTTTTTAAAAAAAAAACCCCCCCCCC"
-    };
-    
-    MinimizerExtractor extractor(31, 15);  // k=31, m=15
-    
-    auto minimizers = extractor.extract_minimizers(test_sequences);
-    
-    // Print results
-    for (size_t i = 0; i < minimizers.size(); i++) {
-        std::cout << "Sequence " << i << " has " << minimizers[i].size() << " minimizers:\n";
-        for (const auto& m : minimizers[i]) {
-            std::cout << "  Hash: " << m.hash 
-                      << " Position: " << m.position 
-                      << " Reverse: " << m.is_reverse << "\n";
-        }
-    }
-    
-    return 0;
-}

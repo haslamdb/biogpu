@@ -1,0 +1,5 @@
+# alright we're starting with a new profiler workflow at runtime/kernels/profiler
+# We now split out CMakeLists.txt into the individual directories so the build locations will be within the kernel subdirectories
+
+
+

@@ -199,3 +199,8 @@ or make -j8
 
 # Or flags can be mixed in
 ./clean_resistance_pipeline nucleotide_index protein_db reads_R1.fq.gz reads_R2.fq.gz --no-bloom my_output --no-sw /path/to/mutations.csv
+
+## based on testing, the --no-bloom flag doesn't significantly impair speed. Keeping sw intact (which is the default) has better sensitivity than turning off sw
+the recommended command is:
+
+./build/clean_resistance_pipeline data/integrated_clean_db/nucleotide data/integrated_clean_db/protein data/569_A_038_R1.fastq.gz data/569_A_038_R2.fastq.gz results/569_no_bloom data/quinolone_resistance_mutation_table.csv --no-bloom 

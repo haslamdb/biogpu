@@ -1,6 +1,7 @@
 // clean_resistance_pipeline_main.cpp
 // Clean integrated pipeline for GPU-accelerated fluoroquinolone resistance detection
 // Uses existing CUDA kernels for nucleotide k-mer matching and translated protein search
+// Now with configurable bloom filter and Smith-Waterman alignment
 
 #include <iostream>
 #include <fstream>
@@ -171,6 +172,10 @@ private:
     const int batch_size = 10000;
     const int max_read_length = 300;
     const int bloom_min_kmers = 3;
+    
+    // Configuration flags
+    bool use_bloom_filter = true;        // Enable bloom filtering by default
+    bool use_smith_waterman = true;      // Enable Smith-Waterman by default
     const int kmer_length = 15;
     const int max_candidates_per_read = 64;
     const int max_protein_matches_per_read = 32;
@@ -186,17 +191,25 @@ private:
     } stats;
 
 public:
-    CleanResistancePipeline() {
-        std::cout << "Initializing Clean Resistance Detection Pipeline\n";
+    CleanResistancePipeline(bool enable_bloom = true, bool enable_sw = true) 
+        : use_bloom_filter(enable_bloom), use_smith_waterman(enable_sw) {
         
-        // Create bloom filter
-        bloom_filter = create_bloom_filter(kmer_length);
-        if (!bloom_filter) {
-            throw std::runtime_error("Failed to create bloom filter");
+        std::cout << "Initializing Clean Resistance Detection Pipeline\n";
+        std::cout << "  Bloom filter: " << (use_bloom_filter ? "ENABLED" : "DISABLED") << "\n";
+        std::cout << "  Smith-Waterman: " << (use_smith_waterman ? "ENABLED" : "DISABLED") << "\n";
+        
+        // Only create bloom filter if enabled
+        if (use_bloom_filter) {
+            bloom_filter = create_bloom_filter(kmer_length);
+            if (!bloom_filter) {
+                throw std::runtime_error("Failed to create bloom filter");
+            }
+        } else {
+            bloom_filter = nullptr;
         }
         
-        // Create translated search engine with Smith-Waterman
-        translated_search_engine = create_translated_search_engine_with_sw(batch_size, true);
+        // Create translated search engine with configurable Smith-Waterman
+        translated_search_engine = create_translated_search_engine_with_sw(batch_size, use_smith_waterman);
         if (!translated_search_engine) {
             throw std::runtime_error("Failed to create translated search engine");
         }
@@ -265,6 +278,30 @@ public:
         cudaFree(d_protein_match_counts);
     }
     
+    void setBloomFilterEnabled(bool enabled) {
+        if (enabled && !bloom_filter) {
+            bloom_filter = create_bloom_filter(kmer_length);
+            if (!bloom_filter) {
+                std::cerr << "Warning: Failed to create bloom filter\n";
+                use_bloom_filter = false;
+                return;
+            }
+        } else if (!enabled && bloom_filter) {
+            destroy_bloom_filter(bloom_filter);
+            bloom_filter = nullptr;
+        }
+        use_bloom_filter = enabled;
+        std::cout << "Bloom filter " << (enabled ? "ENABLED" : "DISABLED") << "\n";
+    }
+    
+    void setSmithWatermanEnabled(bool enabled) {
+        use_smith_waterman = enabled;
+        if (translated_search_engine) {
+            set_smith_waterman_enabled(translated_search_engine, enabled);
+        }
+        std::cout << "Smith-Waterman " << (enabled ? "ENABLED" : "DISABLED") << "\n";
+    }
+    
     void loadDatabases(const std::string& nucleotide_index_path, 
                       const std::string& protein_db_path,
                       const std::string& fq_csv_path) {
@@ -288,8 +325,8 @@ public:
         // Load nucleotide k-mer index
         detector.loadIndex(nucleotide_index_path.c_str());
         
-        // Build bloom filter from k-mer index
-        if (detector.d_kmer_sorted && detector.num_kmers > 0) {
+        // Build bloom filter from k-mer index (only if enabled)
+        if (use_bloom_filter && bloom_filter && detector.d_kmer_sorted && detector.num_kmers > 0) {
             if (build_bloom_filter_from_index(bloom_filter, detector.d_kmer_sorted, 
                                             detector.num_kmers) == 0) {
                 std::cout << "Bloom filter built with " << detector.num_kmers << " k-mers\n";
@@ -409,6 +446,10 @@ public:
         json_output << "{\n";
         json_output << "  \"pipeline\": \"clean_resistance_detection\",\n";
         json_output << "  \"version\": \"1.0\",\n";
+        json_output << "  \"configuration\": {\n";
+        json_output << "    \"bloom_filter\": " << (use_bloom_filter ? "true" : "false") << ",\n";
+        json_output << "    \"smith_waterman\": " << (use_smith_waterman ? "true" : "false") << "\n";
+        json_output << "  },\n";
         json_output << "  \"results\": [\n";
         
         bool first_result = true;
@@ -621,28 +662,35 @@ private:
         CUDA_CHECK(cudaMemset(d_protein_match_counts, 0, num_reads * sizeof(uint32_t)));
         
         // Stage 1: Bloom filter screening
-        int bloom_result_r1 = bloom_filter_screen_reads_with_rc(
-            bloom_filter, d_reads_r1, d_lengths_r1, d_offsets_r1,
-            num_reads, d_bloom_passes_r1, d_bloom_kmers_r1,
-            bloom_min_kmers, false, nullptr
-        );
+        if (use_bloom_filter && bloom_filter) {
+            int bloom_result_r1 = bloom_filter_screen_reads_with_rc(
+                bloom_filter, d_reads_r1, d_lengths_r1, d_offsets_r1,
+                num_reads, d_bloom_passes_r1, d_bloom_kmers_r1,
+                bloom_min_kmers, false, nullptr
+            );
+            
+            int bloom_result_r2 = bloom_filter_screen_reads_with_rc(
+                bloom_filter, d_reads_r2, d_lengths_r2, d_offsets_r2,
+                num_reads, d_bloom_passes_r2, d_bloom_kmers_r2,
+                bloom_min_kmers, true, nullptr
+            );
         
-        int bloom_result_r2 = bloom_filter_screen_reads_with_rc(
-            bloom_filter, d_reads_r2, d_lengths_r2, d_offsets_r2,
-            num_reads, d_bloom_passes_r2, d_bloom_kmers_r2,
-            bloom_min_kmers, true, nullptr
-        );
-        
-        // Get bloom results
-        std::vector<uint8_t> h_bloom_r1(num_reads), h_bloom_r2(num_reads);
-        CUDA_CHECK(cudaMemcpy(h_bloom_r1.data(), d_bloom_passes_r1, num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
-        CUDA_CHECK(cudaMemcpy(h_bloom_r2.data(), d_bloom_passes_r2, num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
-        
-        // Count bloom passes
-        for (int i = 0; i < num_reads; i++) {
-            if (h_bloom_r1[i] || h_bloom_r2[i]) {
-                stats.bloom_passed++;
+            // Get bloom results
+            std::vector<uint8_t> h_bloom_r1(num_reads), h_bloom_r2(num_reads);
+            CUDA_CHECK(cudaMemcpy(h_bloom_r1.data(), d_bloom_passes_r1, num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
+            CUDA_CHECK(cudaMemcpy(h_bloom_r2.data(), d_bloom_passes_r2, num_reads * sizeof(bool), cudaMemcpyDeviceToHost));
+            
+            // Count bloom passes
+            for (int i = 0; i < num_reads; i++) {
+                if (h_bloom_r1[i] || h_bloom_r2[i]) {
+                    stats.bloom_passed++;
+                }
             }
+        } else {
+            // If bloom filtering is disabled, mark all reads as passed
+            CUDA_CHECK(cudaMemset(d_bloom_passes_r1, 1, num_reads * sizeof(bool)));
+            CUDA_CHECK(cudaMemset(d_bloom_passes_r2, 1, num_reads * sizeof(bool)));
+            stats.bloom_passed += num_reads;
         }
         
         // Stage 2: Nucleotide k-mer matching
@@ -944,7 +992,7 @@ private:
 // Main function
 int main(int argc, char** argv) {
     if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv]\n";
+        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv] [--no-bloom] [--no-sw]\n";
         std::cerr << "\nRequired:\n";
         std::cerr << "  nucleotide_index: Directory containing k-mer index\n";
         std::cerr << "  protein_db: Directory containing protein database\n";
@@ -952,7 +1000,9 @@ int main(int argc, char** argv) {
         std::cerr << "  reads_r2.fastq.gz: Reverse reads\n";
         std::cerr << "\nOptional:\n";
         std::cerr << "  output_prefix: Output file prefix (default: resistance_results)\n";
-        std::cerr << "  fq_resistance_csv: Path to FQ resistance mutations CSV\n";
+        std::cerr << "  fq_resistance_csv: Path to FQ resistance mutations CSV (default: data/quinolone_resistance_mutation_table.csv)\n";
+        std::cerr << "  --no-bloom: Disable bloom filter pre-screening\n";
+        std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
         return 1;
     }
     
@@ -960,15 +1010,45 @@ int main(int argc, char** argv) {
     std::string protein_db = argv[2];
     std::string r1_path = argv[3];
     std::string r2_path = argv[4];
-    std::string output_prefix = (argc > 5) ? argv[5] : "resistance_results";
-    std::string fq_csv_path = (argc > 6) ? argv[6] : "data/quinolone_resistance_mutation_table.csv";
+    
+    // Default values
+    std::string output_prefix = "resistance_results";
+    std::string fq_csv_path = "data/quinolone_resistance_mutation_table.csv";
+    bool use_bloom = true;
+    bool use_sw = true;
+    
+    // Parse optional arguments
+    int positional_arg_count = 4; // We've consumed 4 required args
+    
+    for (int i = 5; i < argc; i++) {
+        std::string arg(argv[i]);
+        
+        // Check if it's a flag
+        if (arg == "--no-bloom") {
+            use_bloom = false;
+        } else if (arg == "--no-sw") {
+            use_sw = false;
+        } else if (arg[0] != '-') {
+            // It's a positional argument
+            positional_arg_count++;
+            if (positional_arg_count == 5) {
+                output_prefix = arg;
+            } else if (positional_arg_count == 6) {
+                fq_csv_path = arg;
+            }
+        }
+    }
     
     std::cout << "=== Clean Fluoroquinolone Resistance Detection Pipeline ===\n";
     std::cout << "Nucleotide index: " << nucleotide_index << "\n";
     std::cout << "Protein database: " << protein_db << "\n";
     std::cout << "R1 reads: " << r1_path << "\n";
     std::cout << "R2 reads: " << r2_path << "\n";
-    std::cout << "Output prefix: " << output_prefix << "\n\n";
+    std::cout << "Output prefix: " << output_prefix << "\n";
+    std::cout << "FQ resistance CSV: " << fq_csv_path << "\n";
+    std::cout << "Configuration:\n";
+    std::cout << "  Bloom filter: " << (use_bloom ? "ENABLED" : "DISABLED") << "\n";
+    std::cout << "  Smith-Waterman: " << (use_sw ? "ENABLED" : "DISABLED") << "\n\n";
     
     // Check CUDA device
     int device_count;
@@ -984,8 +1064,8 @@ int main(int argc, char** argv) {
     std::cout << "Memory: " << (prop.totalGlobalMem / (1024*1024*1024)) << " GB\n\n";
     
     try {
-        // Create and run pipeline
-        CleanResistancePipeline pipeline;
+        // Create and run pipeline with configuration
+        CleanResistancePipeline pipeline(use_bloom, use_sw);
         pipeline.loadDatabases(nucleotide_index, protein_db, fq_csv_path);
         pipeline.processReads(r1_path, r2_path, output_prefix);
         

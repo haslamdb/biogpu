@@ -474,73 +474,101 @@ class CleanDatabaseBuilder:
         all_sequences = []
         sequence_id = 0
         
+        # Create separate ID mappings for nucleotide sequences
+        # (to include all species/genes, not just those in protein DB)
+        nucleotide_species_to_id = {}
+        nucleotide_gene_to_id = {}
+        next_species_id = 0
+        next_gene_id = 0
+        
         # Process each species directory
         for species_dir in sorted(self.nucleotide_sequences_dir.iterdir()):
             if not species_dir.is_dir():
                 continue
                 
             species_name = species_dir.name
-            if species_name not in self.species_to_id:
-                logger.warning(f"Species {species_name} not found in protein database, skipping")
-                continue
-                
-            species_id = self.species_to_id[species_name]
+            
+            # Assign species ID (create new if not in protein DB)
+            if species_name not in nucleotide_species_to_id:
+                if species_name in self.species_to_id:
+                    nucleotide_species_to_id[species_name] = self.species_to_id[species_name]
+                else:
+                    nucleotide_species_to_id[species_name] = len(self.species_to_id) + next_species_id
+                    next_species_id += 1
+                    
+            species_id = nucleotide_species_to_id[species_name]
             logger.info(f"Processing nucleotide sequences for {species_name} (ID: {species_id})")
             
             # Process JSON files in species directory
             for json_file in sorted(species_dir.glob("*.json")):
                 gene_name = json_file.stem
                 
-                if gene_name not in self.gene_to_id:
-                    logger.warning(f"Gene {gene_name} not found in protein database, skipping")
-                    continue
-                    
-                gene_id = self.gene_to_id[gene_name]
+                # Assign gene ID (create new if not in protein DB)
+                if gene_name not in nucleotide_gene_to_id:
+                    if gene_name in self.gene_to_id:
+                        nucleotide_gene_to_id[gene_name] = self.gene_to_id[gene_name]
+                    else:
+                        nucleotide_gene_to_id[gene_name] = len(self.gene_to_id) + next_gene_id
+                        next_gene_id += 1
+                        
+                gene_id = nucleotide_gene_to_id[gene_name]
                 
                 # Load sequence data
                 with open(json_file, 'r') as f:
-                    seq_data = json.load(f)
+                    sequences = json.load(f)
                 
-                if 'nucleotide_sequence' not in seq_data:
-                    logger.warning(f"No nucleotide sequence in {json_file}")
+                if not isinstance(sequences, list) or len(sequences) == 0:
+                    logger.warning(f"No sequences in {json_file}")
                     continue
+                
+                # Process each sequence in the file
+                for seq_idx, seq_data in enumerate(sequences):
+                    if 'gene_features' not in seq_data or not seq_data['gene_features']:
+                        continue
+                        
+                    # Get the first gene feature (usually there's only one)
+                    gene_feature = seq_data['gene_features'][0]
                     
-                nucleotide_seq = seq_data['nucleotide_sequence']
-                
-                # Store sequence
-                seq_entry = {
-                    'sequence_id': sequence_id,
-                    'species_id': species_id,
-                    'gene_id': gene_id,
-                    'species_name': species_name,
-                    'gene_name': gene_name,
-                    'sequence': nucleotide_seq,
-                    'length': len(nucleotide_seq),
-                    'accession': seq_data.get('accession', '')
-                }
-                all_sequences.append(seq_entry)
-                
-                # Generate k-mers
-                if self.include_rc:
-                    forward_kmers, rc_kmers = self.generate_kmers_with_rc(nucleotide_seq, self.nucleotide_kmer_length)
-                    all_kmers = forward_kmers + rc_kmers
-                else:
-                    forward_kmers, rc_kmers = self.generate_kmers_with_rc(nucleotide_seq, self.nucleotide_kmer_length)
-                    all_kmers = forward_kmers  # Only use forward k-mers
-                
-                # Add k-mer entries
-                for kmer_seq, position, is_rc in all_kmers:
-                    encoded = self.encode_kmer(kmer_seq)
-                    if encoded is not None:
-                        kmer_entries.append({
-                            'kmer': encoded,
-                            'gene_id': gene_id,
-                            'species_id': species_id,
-                            'seq_id': sequence_id,
-                            'position': position
-                        })
-                
-                sequence_id += 1
+                    if 'nucleotide_sequence' not in gene_feature:
+                        logger.warning(f"No nucleotide sequence in {json_file} entry {seq_idx}")
+                        continue
+                        
+                    nucleotide_seq = gene_feature['nucleotide_sequence']
+                    
+                    # Store sequence
+                    seq_entry = {
+                        'sequence_id': sequence_id,
+                        'species_id': species_id,
+                        'gene_id': gene_id,
+                        'species_name': species_name,
+                        'gene_name': gene_name,
+                        'sequence': nucleotide_seq,
+                        'length': len(nucleotide_seq),
+                        'accession': seq_data.get('accession', '')
+                    }
+                    all_sequences.append(seq_entry)
+                    
+                    # Generate k-mers
+                    if self.include_rc:
+                        forward_kmers, rc_kmers = self.generate_kmers_with_rc(nucleotide_seq, self.nucleotide_kmer_length)
+                        all_kmers = forward_kmers + rc_kmers
+                    else:
+                        forward_kmers, rc_kmers = self.generate_kmers_with_rc(nucleotide_seq, self.nucleotide_kmer_length)
+                        all_kmers = forward_kmers  # Only use forward k-mers
+                    
+                    # Add k-mer entries
+                    for kmer_seq, position, is_rc in all_kmers:
+                        encoded = self.encode_kmer(kmer_seq)
+                        if encoded is not None:
+                            kmer_entries.append({
+                                'kmer': encoded,
+                                'gene_id': gene_id,
+                                'species_id': species_id,
+                                'seq_id': sequence_id,
+                                'position': position
+                            })
+                    
+                    sequence_id += 1
                 
         # Sort k-mer entries by encoded k-mer value for binary search
         kmer_entries.sort(key=lambda x: x['kmer'])
@@ -591,14 +619,31 @@ class CleanDatabaseBuilder:
             'num_sequences': len(all_sequences),
             'include_rc': self.include_rc,
             'species_included': list(set(seq['species_name'] for seq in all_sequences)),
-            'genes_included': list(set(seq['gene_name'] for seq in all_sequences))
+            'genes_included': list(set(seq['gene_name'] for seq in all_sequences)),
+            'species_map': {str(v): k for k, v in nucleotide_species_to_id.items()},
+            'gene_map': {str(v): k for k, v in nucleotide_gene_to_id.items()},
+            'num_species': len(nucleotide_species_to_id),
+            'num_genes': len(nucleotide_gene_to_id)
         }
         
         metadata_path = self.nucleotide_dir / "metadata.json"
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
+        
+        # Also write nucleotide-specific ID mappings
+        nucleotide_mappings = {
+            'species_to_id': nucleotide_species_to_id,
+            'gene_to_id': nucleotide_gene_to_id,
+            'id_to_species': {v: k for k, v in nucleotide_species_to_id.items()},
+            'id_to_gene': {v: k for k, v in nucleotide_gene_to_id.items()}
+        }
+        
+        with open(self.nucleotide_dir / 'id_mappings.json', 'w') as f:
+            json.dump(nucleotide_mappings, f, indent=2)
             
         logger.info(f"Nucleotide k-mer index built successfully")
+        logger.info(f"  Total species: {len(nucleotide_species_to_id)} ({len(nucleotide_species_to_id) - len(self.species_to_id)} new)")
+        logger.info(f"  Total genes: {len(nucleotide_gene_to_id)} ({len(nucleotide_gene_to_id) - len(self.gene_to_id)} new)")
         return True
                 
     def build_all(self):

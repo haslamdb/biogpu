@@ -56,6 +56,26 @@ struct ClinicalFQReport {
     std::vector<GeneMutation> all_mutations;
     std::map<std::string, int> mutation_counts;  // mutation_code -> count
     
+    // Allele frequency data
+    struct AlleleFrequencyEntry {
+        std::string species;
+        std::string gene;
+        uint16_t position;
+        uint32_t total_depth;
+        char wildtype_aa;
+        uint32_t wildtype_count;
+        float wildtype_frequency;
+        char dominant_mutant_aa;
+        uint32_t dominant_mutant_count;
+        float dominant_mutant_frequency;
+        float total_resistant_frequency;
+        bool has_resistance_mutation;
+        std::string mutation_summary;
+        std::map<char, uint32_t> aa_counts;
+    };
+    std::vector<AlleleFrequencyEntry> allele_frequencies;
+    bool has_allele_frequency_data;
+    
     // Statistics
     int total_reads_analyzed;
     int reads_with_protein_matches;
@@ -106,6 +126,7 @@ public:
         report.has_fq_resistance = false;
         report.has_qrdr_mutations = false;
         report.has_high_confidence_resistance = false;
+        report.has_allele_frequency_data = false;
         report.total_reads_analyzed = 0;
         report.reads_with_protein_matches = 0;
         report.reads_with_any_mutations = 0;
@@ -219,6 +240,34 @@ public:
     void updatePerformanceStats(double processing_seconds, double reads_per_sec) {
         report.processing_time_seconds = processing_seconds;
         report.reads_per_second = reads_per_sec;
+    }
+    
+    // Add allele frequency data
+    void addAlleleFrequencyData(const std::string& species, const std::string& gene,
+                                uint16_t position, uint32_t total_depth,
+                                char wildtype_aa, uint32_t wildtype_count, float wildtype_frequency,
+                                char dominant_mutant_aa, uint32_t dominant_mutant_count, 
+                                float dominant_mutant_frequency, float total_resistant_frequency,
+                                bool has_resistance_mutation, const std::string& mutation_summary,
+                                const std::map<char, uint32_t>& aa_counts) {
+        ClinicalFQReport::AlleleFrequencyEntry entry;
+        entry.species = species;
+        entry.gene = gene;
+        entry.position = position;
+        entry.total_depth = total_depth;
+        entry.wildtype_aa = wildtype_aa;
+        entry.wildtype_count = wildtype_count;
+        entry.wildtype_frequency = wildtype_frequency;
+        entry.dominant_mutant_aa = dominant_mutant_aa;
+        entry.dominant_mutant_count = dominant_mutant_count;
+        entry.dominant_mutant_frequency = dominant_mutant_frequency;
+        entry.total_resistant_frequency = total_resistant_frequency;
+        entry.has_resistance_mutation = has_resistance_mutation;
+        entry.mutation_summary = mutation_summary;
+        entry.aa_counts = aa_counts;
+        
+        report.allele_frequencies.push_back(entry);
+        report.has_allele_frequency_data = true;
     }
     
     // Generate clinical interpretation
@@ -558,6 +607,96 @@ private:
         }
         
         html_file << "</table>\n";
+        
+        // Allele Frequency Analysis section
+        if (report.has_allele_frequency_data && !report.allele_frequencies.empty()) {
+            html_file << "<h3>Allele Frequency Analysis</h3>\n";
+            html_file << "<p>This section shows the frequency of amino acid variants at key resistance positions.</p>\n";
+            
+            // Sort allele frequencies by resistance frequency
+            std::vector<ClinicalFQReport::AlleleFrequencyEntry> sorted_freqs = report.allele_frequencies;
+            std::sort(sorted_freqs.begin(), sorted_freqs.end(),
+                [](const auto& a, const auto& b) {
+                    if (a.has_resistance_mutation != b.has_resistance_mutation)
+                        return a.has_resistance_mutation;
+                    return a.total_resistant_frequency > b.total_resistant_frequency;
+                }
+            );
+            
+            html_file << "<table>\n";
+            html_file << "<tr><th>Species</th><th>Gene</th><th>Position</th><th>Depth</th>"
+                      << "<th>Wildtype</th><th>WT Freq</th><th>Dominant Mutant</th><th>Mut Freq</th>"
+                      << "<th>Resistance Freq</th><th>Mutation Summary</th></tr>\n";
+            
+            for (const auto& freq : sorted_freqs) {
+                html_file << "<tr";
+                if (freq.has_resistance_mutation && freq.total_resistant_frequency > 0.1) {
+                    html_file << " class='resistance'";
+                } else if (freq.has_resistance_mutation) {
+                    html_file << " class='qrdr'";
+                }
+                html_file << ">\n";
+                
+                html_file << "<td>" << freq.species << "</td>\n";
+                html_file << "<td>" << freq.gene << "</td>\n";
+                html_file << "<td>" << freq.position << "</td>\n";
+                html_file << "<td>" << freq.total_depth << "</td>\n";
+                html_file << "<td>" << freq.wildtype_aa << "</td>\n";
+                html_file << "<td>" << std::fixed << std::setprecision(1) 
+                          << (freq.wildtype_frequency * 100) << "%</td>\n";
+                html_file << "<td>" << freq.dominant_mutant_aa << "</td>\n";
+                html_file << "<td>" << std::fixed << std::setprecision(1) 
+                          << (freq.dominant_mutant_frequency * 100) << "%</td>\n";
+                html_file << "<td";
+                if (freq.total_resistant_frequency > 0.5) {
+                    html_file << " style='color: #dc3545; font-weight: bold;'";
+                } else if (freq.total_resistant_frequency > 0.1) {
+                    html_file << " style='color: #ffc107; font-weight: bold;'";
+                }
+                html_file << ">" << std::fixed << std::setprecision(1) 
+                          << (freq.total_resistant_frequency * 100) << "%</td>\n";
+                html_file << "<td>" << freq.mutation_summary << "</td>\n";
+                html_file << "</tr>\n";
+            }
+            
+            html_file << "</table>\n";
+            
+            // Add interpretation for allele frequencies
+            html_file << "<div class='summary-box'>\n";
+            html_file << "<h4>Allele Frequency Interpretation</h4>\n";
+            html_file << "<ul>\n";
+            
+            // Count high-frequency resistance
+            int high_freq_resistance = 0;
+            int moderate_freq_resistance = 0;
+            for (const auto& freq : report.allele_frequencies) {
+                if (freq.has_resistance_mutation) {
+                    if (freq.total_resistant_frequency > 0.5) {
+                        high_freq_resistance++;
+                    } else if (freq.total_resistant_frequency > 0.1) {
+                        moderate_freq_resistance++;
+                    }
+                }
+            }
+            
+            if (high_freq_resistance > 0) {
+                html_file << "<li><strong>High-frequency resistance detected:</strong> " 
+                          << high_freq_resistance << " position(s) with >50% resistant alleles. "
+                          << "This indicates established resistance in the population.</li>\n";
+            }
+            if (moderate_freq_resistance > 0) {
+                html_file << "<li><strong>Moderate-frequency resistance detected:</strong> " 
+                          << moderate_freq_resistance << " position(s) with 10-50% resistant alleles. "
+                          << "This may indicate emerging resistance or mixed populations.</li>\n";
+            }
+            if (high_freq_resistance == 0 && moderate_freq_resistance == 0) {
+                html_file << "<li>No significant resistance allele frequencies detected.</li>\n";
+            }
+            
+            html_file << "</ul>\n";
+            html_file << "</div>\n";
+        }
+        
         html_file << "</div>\n";
         html_file << "</body>\n</html>\n";
         html_file.close();
@@ -707,6 +846,36 @@ extern "C" {
     void generate_clinical_report(void* generator) {
         if (generator) {
             static_cast<ClinicalFQReportGenerator*>(generator)->generateReport();
+        }
+    }
+    
+    void add_allele_frequency_to_clinical_report(void* generator, 
+                                                  const char* species, const char* gene,
+                                                  uint16_t position, uint32_t total_depth,
+                                                  char wildtype_aa, uint32_t wildtype_count, 
+                                                  float wildtype_frequency,
+                                                  char dominant_mutant_aa, uint32_t dominant_mutant_count, 
+                                                  float dominant_mutant_frequency, 
+                                                  float total_resistant_frequency,
+                                                  bool has_resistance_mutation, 
+                                                  const char* mutation_summary) {
+        if (generator) {
+            // For simplicity, we'll pass an empty aa_counts map
+            // In production, you might want to pass the full counts
+            std::map<char, uint32_t> aa_counts;
+            if (wildtype_aa != 'X' && wildtype_count > 0) {
+                aa_counts[wildtype_aa] = wildtype_count;
+            }
+            if (dominant_mutant_aa != 'X' && dominant_mutant_count > 0) {
+                aa_counts[dominant_mutant_aa] = dominant_mutant_count;
+            }
+            
+            static_cast<ClinicalFQReportGenerator*>(generator)->addAlleleFrequencyData(
+                std::string(species), std::string(gene), position, total_depth,
+                wildtype_aa, wildtype_count, wildtype_frequency,
+                dominant_mutant_aa, dominant_mutant_count, dominant_mutant_frequency,
+                total_resistant_frequency, has_resistance_mutation,
+                std::string(mutation_summary), aa_counts);
         }
     }
 }

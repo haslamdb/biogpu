@@ -15,6 +15,8 @@
 #include <iomanip>
 #include <cuda_runtime.h>
 #include <zlib.h>
+#include <unordered_map>
+#include <climits>
 
 #include "fq_mutation_detector.cuh"
 #include "hdf5_alignment_writer.h"
@@ -50,6 +52,16 @@ extern "C" {
     void update_clinical_report_stats(void* generator, int total_reads, int reads_with_matches);
     void update_clinical_report_performance(void* generator, double processing_seconds, double reads_per_sec);
     void generate_clinical_report(void* generator);
+    void add_allele_frequency_to_clinical_report(void* generator, 
+                                                  const char* species, const char* gene,
+                                                  uint16_t position, uint32_t total_depth,
+                                                  char wildtype_aa, uint32_t wildtype_count, 
+                                                  float wildtype_frequency,
+                                                  char dominant_mutant_aa, uint32_t dominant_mutant_count, 
+                                                  float dominant_mutant_frequency, 
+                                                  float total_resistant_frequency,
+                                                  bool has_resistance_mutation, 
+                                                  const char* mutation_summary);
 }
 
 // External CUDA kernel declarations
@@ -119,6 +131,25 @@ struct ReadBatch {
     int total_bases;
 };
 
+// Allele frequency tracking structure
+struct AlleleFrequencyData {
+    uint32_t species_id;
+    uint32_t gene_id;
+    std::string species_name;
+    std::string gene_name;
+    uint16_t position;           // 1-based position
+    char wildtype_aa;
+    std::map<char, uint32_t> aa_counts;  // amino acid -> count
+    uint32_t total_depth;
+    float wildtype_frequency;
+    float dominant_mutant_frequency;
+    char dominant_mutant_aa;
+    std::vector<char> known_resistant_aas;
+    float total_resistant_frequency;
+    bool has_resistance_mutation;
+    std::string mutation_summary;  // e.g., "S83L(45%),S83F(12%)"
+};
+
 // CUDA error checking
 #define CUDA_CHECK(call) do { \
     cudaError_t error = call; \
@@ -131,6 +162,268 @@ struct ReadBatch {
 
 class CleanResistancePipeline {
 private:
+    // Allele Frequency Analyzer class
+    class AlleleFrequencyAnalyzer {
+    private:
+        // Pileup data structure: [species_gene_key][position][amino_acid] = count
+        std::unordered_map<std::string, std::unordered_map<uint16_t, std::unordered_map<char, uint32_t>>> pileup_data;
+        std::unordered_map<std::string, std::unordered_map<uint16_t, uint32_t>> depth_data;
+        
+        const std::map<uint32_t, std::string>& gene_id_to_name;
+        const std::map<uint32_t, std::string>& species_id_to_name;
+        
+    public:
+        AlleleFrequencyAnalyzer(const std::map<uint32_t, std::string>& genes,
+                               const std::map<uint32_t, std::string>& species)
+            : gene_id_to_name(genes), species_id_to_name(species) {}
+        
+        void addProteinAlignment(const ProteinMatch& match) {
+            // Get species and gene names
+            std::string species_name = species_id_to_name.count(match.species_id) ? 
+                                      species_id_to_name.at(match.species_id) : 
+                                      "Species" + std::to_string(match.species_id);
+            std::string gene_name = gene_id_to_name.count(match.gene_id) ? 
+                                   gene_id_to_name.at(match.gene_id) : 
+                                   "Gene" + std::to_string(match.gene_id);
+            
+            std::string species_gene_key = species_name + "_" + gene_name;
+            
+            // Process each mutation in the alignment
+            for (int i = 0; i < match.num_mutations; i++) {
+                uint16_t global_pos = match.ref_start + match.mutation_positions[i] + 1; // Convert to 1-based
+                char observed_aa = match.query_aas[i];
+                
+                // Add to pileup
+                pileup_data[species_gene_key][global_pos][observed_aa]++;
+                depth_data[species_gene_key][global_pos]++;
+            }
+            
+            // Also add reference positions (positions without mutations in this alignment)
+            // This requires knowing the reference sequence, so we'll approximate by assuming
+            // positions covered by the alignment but not mutated are wildtype
+            for (uint16_t rel_pos = 0; rel_pos < match.match_length; rel_pos++) {
+                bool is_mutated = false;
+                char ref_aa = 'X';  // Default unknown
+                
+                // Check if this position has a mutation
+                for (int j = 0; j < match.num_mutations; j++) {
+                    if (match.mutation_positions[j] == rel_pos) {
+                        is_mutated = true;
+                        ref_aa = match.ref_aas[j];
+                        break;
+                    }
+                }
+                
+                if (!is_mutated) {
+                    // This position matches reference - but we need to know what the reference AA is
+                    // For now, we'll only count the depth (mutations are counted above)
+                    uint16_t global_pos = match.ref_start + rel_pos + 1;
+                    depth_data[species_gene_key][global_pos]++;
+                    
+                    // If we have reference info from other mutations at this position, use it
+                    if (pileup_data[species_gene_key][global_pos].empty()) {
+                        // Try to infer wildtype from known resistance positions
+                        char wt_aa = getWildtypeAA(species_name, gene_name, global_pos);
+                        if (wt_aa != 'X') {
+                            pileup_data[species_gene_key][global_pos][wt_aa]++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        std::vector<AlleleFrequencyData> generateAlleleFrequencies(uint32_t min_depth = 5) {
+            std::vector<AlleleFrequencyData> results;
+            
+            for (const auto& species_gene_pair : pileup_data) {
+                const std::string& species_gene_key = species_gene_pair.first;
+                const auto& positions = species_gene_pair.second;
+                
+                // Parse species and gene names
+                size_t underscore_pos = species_gene_key.find_last_of('_');
+                if (underscore_pos == std::string::npos) continue;
+                
+                std::string species_name = species_gene_key.substr(0, underscore_pos);
+                std::string gene_name = species_gene_key.substr(underscore_pos + 1);
+                
+                // Get species and gene IDs
+                uint32_t species_id = getSpeciesId(species_name);
+                uint32_t gene_id = getGeneId(gene_name);
+                
+                for (const auto& pos_pair : positions) {
+                    uint16_t position = pos_pair.first;
+                    const auto& aa_counts = pos_pair.second;
+                    
+                    uint32_t total_depth = depth_data[species_gene_key][position];
+                    if (total_depth < min_depth) continue;
+                    
+                    AlleleFrequencyData freq_data;
+                    freq_data.species_id = species_id;
+                    freq_data.gene_id = gene_id;
+                    freq_data.species_name = species_name;
+                    freq_data.gene_name = gene_name;
+                    freq_data.position = position;
+                    // Convert unordered_map to map
+                    for (const auto& pair : aa_counts) {
+                        freq_data.aa_counts[pair.first] = pair.second;
+                    }
+                    freq_data.total_depth = total_depth;
+                    
+                    // Get wildtype and known resistant amino acids
+                    freq_data.wildtype_aa = getWildtypeAA(species_name, gene_name, position);
+                    freq_data.known_resistant_aas = getKnownResistantAAs(species_name, gene_name, position);
+                    
+                    // Calculate frequencies
+                    uint32_t wt_count = aa_counts.count(freq_data.wildtype_aa) ? 
+                                       aa_counts.at(freq_data.wildtype_aa) : 0;
+                    freq_data.wildtype_frequency = (float)wt_count / total_depth;
+                    
+                    // Find dominant mutant
+                    uint32_t max_mutant_count = 0;
+                    char dominant_mutant = 'X';
+                    uint32_t total_resistant_count = 0;
+                    std::vector<std::string> mutation_details;
+                    
+                    for (const auto& aa_pair : aa_counts) {
+                        char aa = aa_pair.first;
+                        uint32_t count = aa_pair.second;
+                        
+                        if (aa != freq_data.wildtype_aa) {
+                            if (count > max_mutant_count) {
+                                max_mutant_count = count;
+                                dominant_mutant = aa;
+                            }
+                            
+                            // Check if this is a known resistance mutation
+                            bool is_resistant = std::find(freq_data.known_resistant_aas.begin(),
+                                                         freq_data.known_resistant_aas.end(),
+                                                         aa) != freq_data.known_resistant_aas.end();
+                            if (is_resistant) {
+                                total_resistant_count += count;
+                                freq_data.has_resistance_mutation = true;
+                            }
+                            
+                            // Add to mutation summary
+                            float aa_freq = (float)count / total_depth;
+                            if (aa_freq >= 0.05) {  // Only include variants ≥5%
+                                std::string change = std::string(1, freq_data.wildtype_aa) + 
+                                                    std::to_string(position) + aa;
+                                mutation_details.push_back(change + "(" + 
+                                                          std::to_string((int)(aa_freq * 100)) + "%)");
+                            }
+                        }
+                    }
+                    
+                    freq_data.dominant_mutant_aa = dominant_mutant;
+                    freq_data.dominant_mutant_frequency = (float)max_mutant_count / total_depth;
+                    freq_data.total_resistant_frequency = (float)total_resistant_count / total_depth;
+                    
+                    // Create mutation summary string
+                    if (!mutation_details.empty()) {
+                        freq_data.mutation_summary = "";
+                        for (size_t i = 0; i < mutation_details.size(); i++) {
+                            if (i > 0) freq_data.mutation_summary += ",";
+                            freq_data.mutation_summary += mutation_details[i];
+                        }
+                    } else {
+                        freq_data.mutation_summary = "None";
+                    }
+                    
+                    results.push_back(freq_data);
+                }
+            }
+            
+            // Sort by resistance frequency (descending)
+            std::sort(results.begin(), results.end(),
+                      [](const AlleleFrequencyData& a, const AlleleFrequencyData& b) {
+                          return a.total_resistant_frequency > b.total_resistant_frequency;
+                      });
+            
+            return results;
+        }
+        
+    private:
+        char getWildtypeAA(const std::string& species, const std::string& gene, uint16_t position) {
+            // Use global FQ resistance database if available
+            if (g_fq_resistance_db) {
+                char wt = g_fq_resistance_db->getWildtypeAA(gene, position);
+                if (wt != 'X') return wt;
+            }
+            
+            // Fallback to known wildtype amino acids for common FQ resistance positions
+            static const std::map<std::string, std::map<uint16_t, char>> wildtype_map = {
+                {"gyrA", {{83, 'S'}, {87, 'D'}}},
+                {"parC", {{80, 'S'}, {84, 'E'}}},
+                {"gyrB", {{426, 'D'}, {447, 'K'}}},
+                {"parE", {{416, 'S'}, {420, 'L'}}},
+                {"grlA", {{80, 'S'}, {84, 'E'}}}  // S. aureus
+            };
+            
+            auto gene_it = wildtype_map.find(gene);
+            if (gene_it != wildtype_map.end()) {
+                auto pos_it = gene_it->second.find(position);
+                if (pos_it != gene_it->second.end()) {
+                    return pos_it->second;
+                }
+            }
+            
+            return 'X';  // Unknown
+        }
+        
+        std::vector<char> getKnownResistantAAs(const std::string& species, const std::string& gene, uint16_t position) {
+            // Use global FQ resistance database if available
+            if (g_fq_resistance_db) {
+                std::vector<char> resistant_aas;
+                // Query the database for known resistant amino acids at this position
+                // This would require adding a method to FQResistanceDatabase
+                // For now, fall back to hardcoded values
+            }
+            
+            // Known resistant amino acids by species/gene/position
+            static const std::map<std::string, std::map<std::string, std::map<uint16_t, std::vector<char>>>> resistance_map = {
+                {"Escherichia_coli", {
+                    {"gyrA", {{83, {'L', 'F', 'W'}}, {87, {'N', 'G', 'Y', 'H'}}}},
+                    {"parC", {{80, {'I', 'R', 'F'}}, {84, {'V', 'K', 'G', 'A'}}}}
+                }},
+                {"Enterococcus_faecium", {
+                    {"gyrA", {{83, {'R', 'I', 'Y', 'N'}}, {87, {'G', 'K'}}}},
+                    {"parC", {{80, {'I', 'R'}}, {84, {'K', 'A'}}}}
+                }},
+                {"Staphylococcus_aureus", {
+                    {"gyrA", {{84, {'L'}}, {88, {'Y'}}}},
+                    {"grlA", {{80, {'F', 'Y'}}, {84, {'L', 'V'}}}}
+                }}
+            };
+            
+            auto species_it = resistance_map.find(species);
+            if (species_it != resistance_map.end()) {
+                auto gene_it = species_it->second.find(gene);
+                if (gene_it != species_it->second.end()) {
+                    auto pos_it = gene_it->second.find(position);
+                    if (pos_it != gene_it->second.end()) {
+                        return pos_it->second;
+                    }
+                }
+            }
+            
+            return std::vector<char>();
+        }
+        
+        uint32_t getSpeciesId(const std::string& species_name) {
+            for (const auto& pair : species_id_to_name) {
+                if (pair.second == species_name) return pair.first;
+            }
+            return UINT32_MAX;
+        }
+        
+        uint32_t getGeneId(const std::string& gene_name) {
+            for (const auto& pair : gene_id_to_name) {
+                if (pair.second == gene_name) return pair.first;
+            }
+            return UINT32_MAX;
+        }
+    };
+
     // GPU memory for reads
     char* d_reads_r1;
     char* d_reads_r2;
@@ -162,6 +455,7 @@ private:
     HDF5AlignmentWriter* hdf5_writer;
     void* fq_mutation_reporter;
     void* clinical_report_generator;
+    AlleleFrequencyAnalyzer* allele_analyzer;
     std::string protein_db_path;
     
     // Mappings
@@ -242,6 +536,7 @@ public:
         hdf5_writer = nullptr;
         fq_mutation_reporter = nullptr;
         clinical_report_generator = nullptr;
+        allele_analyzer = nullptr;
     }
     
     ~CleanResistancePipeline() {
@@ -258,6 +553,7 @@ public:
         if (bloom_filter) destroy_bloom_filter(bloom_filter);
         if (translated_search_engine) destroy_translated_search_engine(translated_search_engine);
         if (hdf5_writer) delete hdf5_writer;
+        if (allele_analyzer) delete allele_analyzer;
         
         // Free GPU memory
         cudaFree(d_reads_r1);
@@ -412,6 +708,12 @@ public:
         metadata_file.close();
         std::cout << "Loaded " << gene_id_to_name.size() << " gene mappings and " 
                   << species_id_to_name.size() << " species mappings\n";
+        
+        // Initialize allele frequency analyzer with loaded mappings
+        if (allele_analyzer) {
+            delete allele_analyzer;
+        }
+        allele_analyzer = new AlleleFrequencyAnalyzer(gene_id_to_name, species_id_to_name);
     }
     
     void processReads(const std::string& r1_path, const std::string& r2_path,
@@ -484,6 +786,52 @@ public:
         gzclose(gz_r1);
         gzclose(gz_r2);
         
+        // Generate allele frequency analysis before finalizing JSON
+        std::string allele_frequency_json = "";
+        std::vector<AlleleFrequencyData> allele_frequencies;  // Declare outside if block
+        if (allele_analyzer) {
+            allele_frequencies = allele_analyzer->generateAlleleFrequencies(5); // min depth = 5
+            
+            // Write allele frequencies to CSV
+            std::string allele_csv_path = output_path + "_allele_frequencies.csv";
+            
+            // Extract sample name from output path
+            std::string sample_name = output_path;
+            size_t last_slash = sample_name.find_last_of("/");
+            if (last_slash != std::string::npos) {
+                sample_name = sample_name.substr(last_slash + 1);
+            }
+            
+            writeAlleleFrequenciesToCSV(allele_frequencies, allele_csv_path, sample_name);
+            
+            // Prepare allele frequency summary for JSON
+            int total_resistance_positions = 0;
+            int positions_with_resistance = 0;
+            float max_resistance_freq = 0.0f;
+            
+            for (const auto& freq : allele_frequencies) {
+                if (freq.total_depth >= 5) {  // Only count positions with sufficient depth
+                    total_resistance_positions++;
+                    if (freq.has_resistance_mutation) {
+                        positions_with_resistance++;
+                    }
+                    if (freq.total_resistant_frequency > max_resistance_freq) {
+                        max_resistance_freq = freq.total_resistant_frequency;
+                    }
+                }
+            }
+            
+            // Build allele frequency JSON section
+            std::stringstream af_json;
+            af_json << "    \"allele_frequency_analysis\": {\n";
+            af_json << "      \"total_positions_analyzed\": " << total_resistance_positions << ",\n";
+            af_json << "      \"positions_with_resistance\": " << positions_with_resistance << ",\n";
+            af_json << "      \"max_resistance_frequency\": " << std::fixed << std::setprecision(4) << max_resistance_freq << ",\n";
+            af_json << "      \"allele_frequency_csv\": \"" << sample_name << "_allele_frequencies.csv\"\n";
+            af_json << "    },\n";
+            allele_frequency_json = af_json.str();
+        }
+        
         // Finalize output
         json_output << "\n  ],\n";
         json_output << "  \"summary\": {\n";
@@ -492,7 +840,9 @@ public:
         json_output << "    \"nucleotide_matches\": " << stats.nucleotide_matches << ",\n";
         json_output << "    \"protein_matches\": " << stats.protein_matches << ",\n";
         json_output << "    \"resistance_mutations\": " << stats.resistance_mutations << ",\n";
-        json_output << "    \"fq_resistance_mutations\": " << stats.fq_resistance_mutations << "\n";
+        json_output << "    \"fq_resistance_mutations\": " << stats.fq_resistance_mutations << ",\n";
+        json_output << allele_frequency_json;
+        json_output << "    \"processing_completed\": true\n";
         json_output << "  }\n";
         json_output << "}\n";
         json_output.close();
@@ -511,6 +861,34 @@ public:
         if (clinical_report_generator) {
             update_clinical_report_stats(clinical_report_generator, stats.total_reads, stats.protein_matches);
             update_clinical_report_performance(clinical_report_generator, static_cast<double>(duration.count()), reads_per_second);
+            
+            // Add allele frequency data to clinical report
+            if (allele_analyzer) {
+                for (const auto& freq : allele_frequencies) {
+                    // Calculate counts
+                    uint32_t wt_count = freq.aa_counts.count(freq.wildtype_aa) ? 
+                                       freq.aa_counts.at(freq.wildtype_aa) : 0;
+                    uint32_t dominant_count = freq.aa_counts.count(freq.dominant_mutant_aa) ? 
+                                             freq.aa_counts.at(freq.dominant_mutant_aa) : 0;
+                    
+                    add_allele_frequency_to_clinical_report(
+                        clinical_report_generator,
+                        freq.species_name.c_str(),
+                        freq.gene_name.c_str(),
+                        freq.position,
+                        freq.total_depth,
+                        freq.wildtype_aa,
+                        wt_count,
+                        freq.wildtype_frequency,
+                        freq.dominant_mutant_aa,
+                        dominant_count,
+                        freq.dominant_mutant_frequency,
+                        freq.total_resistant_frequency,
+                        freq.has_resistance_mutation,
+                        freq.mutation_summary.c_str()
+                    );
+                }
+            }
             
             // Generate the clinical report now that we have all the data
             generate_clinical_report(clinical_report_generator);
@@ -534,6 +912,57 @@ public:
     }
 
 private:
+    void writeAlleleFrequenciesToCSV(const std::vector<AlleleFrequencyData>& allele_data,
+                                    const std::string& csv_path,
+                                    const std::string& sample_name) {
+        std::ofstream csv_file(csv_path);
+        if (!csv_file.good()) {
+            std::cerr << "ERROR: Failed to create allele frequency CSV file: " << csv_path << std::endl;
+            return;
+        }
+        
+        // Write CSV header
+        csv_file << "sample_name,species,gene,position,total_depth,wildtype_aa,wildtype_count,"
+                 << "wildtype_frequency,dominant_mutant_aa,dominant_mutant_count,dominant_mutant_frequency,"
+                 << "total_resistant_frequency,has_resistance_mutation,mutation_summary,all_amino_acids\n";
+        
+        for (const auto& freq : allele_data) {
+            // Calculate wildtype count
+            uint32_t wt_count = freq.aa_counts.count(freq.wildtype_aa) ? 
+                               freq.aa_counts.at(freq.wildtype_aa) : 0;
+            
+            // Calculate dominant mutant count
+            uint32_t dominant_count = freq.aa_counts.count(freq.dominant_mutant_aa) ? 
+                                     freq.aa_counts.at(freq.dominant_mutant_aa) : 0;
+            
+            // Create amino acid summary
+            std::string aa_summary = "";
+            for (const auto& aa_pair : freq.aa_counts) {
+                if (!aa_summary.empty()) aa_summary += ";";
+                aa_summary += std::string(1, aa_pair.first) + ":" + std::to_string(aa_pair.second);
+            }
+            
+            csv_file << sample_name << ","
+                     << freq.species_name << ","
+                     << freq.gene_name << ","
+                     << freq.position << ","
+                     << freq.total_depth << ","
+                     << freq.wildtype_aa << ","
+                     << wt_count << ","
+                     << std::fixed << std::setprecision(4) << freq.wildtype_frequency << ","
+                     << freq.dominant_mutant_aa << ","
+                     << dominant_count << ","
+                     << std::fixed << std::setprecision(4) << freq.dominant_mutant_frequency << ","
+                     << std::fixed << std::setprecision(4) << freq.total_resistant_frequency << ","
+                     << (freq.has_resistance_mutation ? "TRUE" : "FALSE") << ","
+                     << freq.mutation_summary << ","
+                     << aa_summary << "\n";
+        }
+        
+        csv_file.close();
+        std::cout << "Wrote allele frequencies for " << allele_data.size() << " positions to: " << csv_path << std::endl;
+    }
+
     bool readBatch(gzFile gz_r1, gzFile gz_r2, std::vector<FastqRecord>& batch_r1,
                   std::vector<FastqRecord>& batch_r2, int max_size) {
         char buffer[1024];
@@ -771,6 +1200,11 @@ private:
                     
                     validated_matches++;
                     stats.protein_matches++;
+                    
+                    // Add to allele frequency analysis
+                    if (allele_analyzer) {
+                        allele_analyzer->addProteinAlignment(match);
+                    }
                     
                     // Check if this alignment covers QRDR region
                     // Use the FQ resistance database to check each mutation position

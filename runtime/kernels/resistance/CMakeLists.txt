@@ -1,5 +1,10 @@
 # Resistance Detection Pipeline CMakeLists.txt
+cmake_minimum_required(VERSION 3.18)
+project(ResistanceDetectionPipeline LANGUAGES C CXX CUDA)
 
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required dependencies
 find_package(HDF5 REQUIRED COMPONENTS C CXX)
@@ -22,6 +27,9 @@ endif()
 
 # Include directories for resistance kernels
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+# Add CUDA include directories for C++ files
+include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
 # ===========================
 # Core Libraries
@@ -248,33 +256,7 @@ target_link_libraries(clean_resistance_pipeline
 # Test Executables
 # ===========================
 
-# Test program for resistance detection GPU
-add_executable(test_resistance_gpu
-    ${CMAKE_SOURCE_DIR}/tests/test_resistance_detection_gpu.cu
-)
-
-set_target_properties(test_resistance_gpu PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_link_libraries(test_resistance_gpu
-    resistance_detection_gpu
-    cudart
-    cuda
-)
-
-# Test executable for FQ mapper
-add_executable(test_fq_mapper
-    ${CMAKE_SOURCE_DIR}/tests/test_fq_mapper.cpp
-)
-
-target_link_libraries(test_fq_mapper
-    global_fq_mapper
-    cudart
-)
-
-# Test bloom filter
+# Test bloom filter (only test that exists in current directory)
 add_executable(test_bloom_filter
     test_bloom_filter.cu
 )
@@ -290,28 +272,57 @@ target_link_libraries(test_bloom_filter
     cuda
 )
 
-# Test HDF5 reader
-add_executable(test_hdf5_reader
-    ${CMAKE_SOURCE_DIR}/tests/test_hdf5_reader.cpp
-)
+# Comment out test executables that reference missing files
+# These can be uncommented when the test files are available
 
-target_link_libraries(test_hdf5_reader
-    ${HDF5_LIBRARIES}
-    ${HDF5_CXX_LIBRARIES}
-)
-
-# Test translated search
-add_executable(test_translated_search
-    ${CMAKE_SOURCE_DIR}/tests/test_translated_search.cu
-)
-
-set_target_properties(test_translated_search PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_link_libraries(test_translated_search
-    translated_search
-    cudart
-    cuda
-)
+# # Test program for resistance detection GPU
+# add_executable(test_resistance_gpu
+#     ${CMAKE_SOURCE_DIR}/tests/test_resistance_detection_gpu.cu
+# )
+# 
+# set_target_properties(test_resistance_gpu PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+# )
+# 
+# target_link_libraries(test_resistance_gpu
+#     resistance_detection_gpu
+#     cudart
+#     cuda
+# )
+# 
+# # Test executable for FQ mapper
+# add_executable(test_fq_mapper
+#     ${CMAKE_SOURCE_DIR}/tests/test_fq_mapper.cpp
+# )
+# 
+# target_link_libraries(test_fq_mapper
+#     global_fq_mapper
+#     cudart
+# )
+# 
+# # Test HDF5 reader
+# add_executable(test_hdf5_reader
+#     ${CMAKE_SOURCE_DIR}/tests/test_hdf5_reader.cpp
+# )
+# 
+# target_link_libraries(test_hdf5_reader
+#     ${HDF5_LIBRARIES}
+#     ${HDF5_CXX_LIBRARIES}
+# )
+# 
+# # Test translated search
+# add_executable(test_translated_search
+#     ${CMAKE_SOURCE_DIR}/tests/test_translated_search.cu
+# )
+# 
+# set_target_properties(test_translated_search PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+# )
+# 
+# target_link_libraries(test_translated_search
+#     translated_search
+#     cudart
+#     cuda
+# )

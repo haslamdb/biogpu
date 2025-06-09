@@ -1,0 +1,6 @@
+{
+  "hdf5_output": "/home/david/Documents/Code/biogpu/runtime/kernels/resistance/results_allele_frequency_20250609_193648/1M_synthetic_allele_freq.h5",
+  "total_alignments": 814423,
+  "total_translated_alignments": 1000000,
+  "total_reads_processed": 0
+}

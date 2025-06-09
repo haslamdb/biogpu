@@ -21,10 +21,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class CleanDatabaseBuilder:
-    def __init__(self, wildtype_dir, output_dir, mutations_csv=None):
+    def __init__(self, wildtype_dir, output_dir, mutations_csv=None, nucleotide_dir=None):
         self.wildtype_dir = Path(wildtype_dir)
         self.output_dir = Path(output_dir)
         self.mutations_csv = mutations_csv
+        self.nucleotide_sequences_dir = Path(nucleotide_dir) if nucleotide_dir else None
         
         # Create output structure
         self.nucleotide_dir = self.output_dir / "nucleotide"
@@ -44,6 +45,10 @@ class CleanDatabaseBuilder:
         self.proteins = []
         self.protein_kmers = defaultdict(list)
         self.kmer_length = 8
+        
+        # Nucleotide k-mer data
+        self.nucleotide_kmer_length = 15
+        self.include_rc = True  # Include reverse complement k-mers
         
         # Mutations from CSV (if provided)
         self.known_mutations = []
@@ -81,6 +86,61 @@ class CleanDatabaseBuilder:
         logger.info(f"Discovered {len(discovered_species)} species: {sorted(discovered_species)}")
         
         return True
+    
+    def reverse_complement(self, seq):
+        """Get reverse complement of sequence"""
+        complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'U': 'A'}
+        seq = seq.upper().replace('U', 'T')  # Convert RNA to DNA
+        return ''.join(complement.get(base, 'N') for base in seq[::-1])
+    
+    def encode_kmer(self, kmer):
+        """Encode k-mer as 64-bit integer (2 bits per base)"""
+        if len(kmer) > 32:  # Can't fit in 64 bits
+            return None
+        
+        encoded = 0
+        base_map = {'A': 0, 'T': 3, 'C': 1, 'G': 2}
+        
+        for base in kmer:
+            if base not in base_map:
+                return None
+            encoded = (encoded << 2) | base_map[base]
+        
+        return encoded
+    
+    def generate_kmers_with_rc(self, sequence, k):
+        """Generate k-mers from both forward and reverse complement strands"""
+        sequence = sequence.upper().replace('U', 'T')  # Convert RNA to DNA
+        
+        if len(sequence) < k:
+            return [], []
+        
+        valid_bases = set('ATCG')
+        forward_kmers = []
+        rc_kmers = []
+        
+        # Generate forward k-mers
+        for i in range(len(sequence) - k + 1):
+            kmer = sequence[i:i+k]
+            kmer_bases = set(kmer)
+            
+            if kmer_bases.issubset(valid_bases):
+                forward_kmers.append((kmer, i, False))  # (kmer, position, is_rc)
+        
+        # Generate reverse complement k-mers
+        rc_sequence = self.reverse_complement(sequence)
+        rc_length = len(rc_sequence)
+        
+        for i in range(len(rc_sequence) - k + 1):
+            kmer = rc_sequence[i:i+k]
+            kmer_bases = set(kmer)
+            
+            if kmer_bases.issubset(valid_bases):
+                # Calculate original position (from end of sequence)
+                original_pos = rc_length - i - k
+                rc_kmers.append((kmer, original_pos, True))  # (kmer, position, is_rc)
+        
+        return forward_kmers, rc_kmers
         
     def parse_header(self, header):
         """Parse FASTA header to extract species and gene"""
@@ -400,6 +460,146 @@ class CleanDatabaseBuilder:
             f.write("species_name\tspecies_id\n")
             for species, sid in sorted(self.species_to_id.items()):
                 f.write(f"{species}\t{sid}\n")
+    
+    def build_nucleotide_index(self):
+        """Build nucleotide k-mer index from sequence files"""
+        if not self.nucleotide_sequences_dir or not self.nucleotide_sequences_dir.exists():
+            logger.warning("No nucleotide sequences directory provided or directory doesn't exist")
+            return False
+            
+        logger.info(f"Building nucleotide k-mer index from {self.nucleotide_sequences_dir}")
+        
+        # Data structures for k-mer index
+        kmer_entries = []
+        all_sequences = []
+        sequence_id = 0
+        
+        # Process each species directory
+        for species_dir in sorted(self.nucleotide_sequences_dir.iterdir()):
+            if not species_dir.is_dir():
+                continue
+                
+            species_name = species_dir.name
+            if species_name not in self.species_to_id:
+                logger.warning(f"Species {species_name} not found in protein database, skipping")
+                continue
+                
+            species_id = self.species_to_id[species_name]
+            logger.info(f"Processing nucleotide sequences for {species_name} (ID: {species_id})")
+            
+            # Process JSON files in species directory
+            for json_file in sorted(species_dir.glob("*.json")):
+                gene_name = json_file.stem
+                
+                if gene_name not in self.gene_to_id:
+                    logger.warning(f"Gene {gene_name} not found in protein database, skipping")
+                    continue
+                    
+                gene_id = self.gene_to_id[gene_name]
+                
+                # Load sequence data
+                with open(json_file, 'r') as f:
+                    seq_data = json.load(f)
+                
+                if 'nucleotide_sequence' not in seq_data:
+                    logger.warning(f"No nucleotide sequence in {json_file}")
+                    continue
+                    
+                nucleotide_seq = seq_data['nucleotide_sequence']
+                
+                # Store sequence
+                seq_entry = {
+                    'sequence_id': sequence_id,
+                    'species_id': species_id,
+                    'gene_id': gene_id,
+                    'species_name': species_name,
+                    'gene_name': gene_name,
+                    'sequence': nucleotide_seq,
+                    'length': len(nucleotide_seq),
+                    'accession': seq_data.get('accession', '')
+                }
+                all_sequences.append(seq_entry)
+                
+                # Generate k-mers
+                if self.include_rc:
+                    forward_kmers, rc_kmers = self.generate_kmers_with_rc(nucleotide_seq, self.nucleotide_kmer_length)
+                    all_kmers = forward_kmers + rc_kmers
+                else:
+                    forward_kmers, rc_kmers = self.generate_kmers_with_rc(nucleotide_seq, self.nucleotide_kmer_length)
+                    all_kmers = forward_kmers  # Only use forward k-mers
+                
+                # Add k-mer entries
+                for kmer_seq, position, is_rc in all_kmers:
+                    encoded = self.encode_kmer(kmer_seq)
+                    if encoded is not None:
+                        kmer_entries.append({
+                            'kmer': encoded,
+                            'gene_id': gene_id,
+                            'species_id': species_id,
+                            'seq_id': sequence_id,
+                            'position': position
+                        })
+                
+                sequence_id += 1
+                
+        # Sort k-mer entries by encoded k-mer value for binary search
+        kmer_entries.sort(key=lambda x: x['kmer'])
+        
+        # Write binary k-mer index
+        kmer_index_path = self.nucleotide_dir / "kmer_index.bin"
+        with open(kmer_index_path, 'wb') as f:
+            # Header
+            f.write(struct.pack('I', len(kmer_entries)))  # Number of entries
+            f.write(struct.pack('I', self.nucleotide_kmer_length))  # K-mer length
+            
+            # K-mer entries
+            for entry in kmer_entries:
+                f.write(struct.pack('Q', entry['kmer']))      # 64-bit k-mer
+                f.write(struct.pack('I', entry['gene_id']))   # Gene ID
+                f.write(struct.pack('I', entry['species_id'])) # Species ID  
+                f.write(struct.pack('I', entry['seq_id']))    # Sequence ID
+                f.write(struct.pack('H', entry['position']))  # Position (16-bit)
+        
+        logger.info(f"Wrote {len(kmer_entries)} k-mer entries to {kmer_index_path}")
+        
+        # Write sequence database
+        seq_db_path = self.nucleotide_dir / "sequences.bin"
+        with open(seq_db_path, 'wb') as f:
+            # Header
+            f.write(struct.pack('I', len(all_sequences)))
+            
+            # Sequences
+            for seq in all_sequences:
+                seq_bytes = seq['sequence'].encode('utf-8')
+                f.write(struct.pack('I', len(seq_bytes)))
+                f.write(seq_bytes)
+                f.write(struct.pack('I', seq['length']))
+                f.write(struct.pack('I', seq['species_id']))
+                f.write(struct.pack('I', seq['gene_id']))
+                
+                # Accession
+                acc_bytes = seq['accession'].encode('utf-8')
+                f.write(struct.pack('I', len(acc_bytes)))
+                f.write(acc_bytes)
+        
+        logger.info(f"Wrote {len(all_sequences)} sequences to {seq_db_path}")
+        
+        # Write metadata
+        metadata = {
+            'kmer_length': self.nucleotide_kmer_length,
+            'num_kmers': len(kmer_entries),
+            'num_sequences': len(all_sequences),
+            'include_rc': self.include_rc,
+            'species_included': list(set(seq['species_name'] for seq in all_sequences)),
+            'genes_included': list(set(seq['gene_name'] for seq in all_sequences))
+        }
+        
+        metadata_path = self.nucleotide_dir / "metadata.json"
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+            
+        logger.info(f"Nucleotide k-mer index built successfully")
+        return True
                 
     def build_all(self):
         """Build all database components"""
@@ -423,6 +623,10 @@ class CleanDatabaseBuilder:
         self.write_protein_database()
         self.write_resistance_database()
         self.write_mappings()
+        
+        # Step 6: Build nucleotide index if sequences provided
+        if self.nucleotide_sequences_dir:
+            self.build_nucleotide_index()
         
         # Print summary
         self.print_summary()
@@ -461,13 +665,27 @@ class CleanDatabaseBuilder:
         print(f"  database_mappings.json")
         print(f"  gene_mappings.tsv")
         print(f"  species_mappings.tsv")
+        
+        if self.nucleotide_sequences_dir and (self.nucleotide_dir / "kmer_index.bin").exists():
+            print(f"\nNucleotide index files:")
+            print(f"  nucleotide/kmer_index.bin")
+            print(f"  nucleotide/sequences.bin")
+            print(f"  nucleotide/metadata.json")
+            print(f"  Nucleotide k-mer length: {self.nucleotide_kmer_length}")
+            print(f"  Reverse complement k-mers: {'ENABLED' if self.include_rc else 'DISABLED'}")
 
 def main():
     parser = argparse.ArgumentParser(description='Build clean dynamic resistance database')
-    parser.add_argument('wildtype_dir', help='Directory containing wildtype protein FASTA files')
-    parser.add_argument('output_dir', help='Output directory for database')
+    parser.add_argument('wildtype_dir', nargs='?', default='data/wildtype_protein_seqs', 
+                        help='Directory containing wildtype protein FASTA files (default: data/wildtype_protein_seqs)')
+    parser.add_argument('output_dir', nargs='?', default='data/integrated_clean_db',
+                        help='Output directory for database (default: data/integrated_clean_db)')
     parser.add_argument('--mutations-csv', help='Optional CSV file with known mutations (Gene, Position, etc.)')
     parser.add_argument('--kmer-length', type=int, default=8, help='K-mer length for protein index (default: 8)')
+    parser.add_argument('--nucleotide-kmer-length', type=int, default=15, help='K-mer length for nucleotide index (default: 15)')
+    parser.add_argument('--nucleotide-sequences', default='data/fq_genes', 
+                        help='Directory containing nucleotide sequences (default: data/fq_genes)')
+    parser.add_argument('--no-rc', action='store_true', help='Disable reverse complement k-mers for nucleotide index')
     
     args = parser.parse_args()
     
@@ -475,11 +693,14 @@ def main():
     builder = CleanDatabaseBuilder(
         args.wildtype_dir,
         args.output_dir,
-        args.mutations_csv
+        args.mutations_csv,
+        args.nucleotide_sequences
     )
     
-    # Set k-mer length from command line (always use the value, which defaults to 8)
+    # Set k-mer lengths from command line
     builder.kmer_length = args.kmer_length
+    builder.nucleotide_kmer_length = args.nucleotide_kmer_length
+    builder.include_rc = not args.no_rc
     
     # Build database
     if builder.build_all():

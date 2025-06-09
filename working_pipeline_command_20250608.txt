@@ -77,6 +77,7 @@ Options:
     -n 1000000 -l 150 \
     -o 1M_synthetic_reads
 
+# no longer used
 python src/python/build_wildtype_protein_db.py \
   data/wildtype_protein_seqs \
   wildtype_protein_db \
@@ -110,13 +111,13 @@ python build_species_specific_protein_database.py \
     --output-dir data/integrated_fq_resistance_database_v2/
 
 ## use instead 
-## note that inclusion of the restance info isn't used in making the kmers
+## note that inclusion of the resistance info isn't used in making the kmers
 ## it does make metadata for offline use
   python3 src/python/build_clean_dynamic_database.py \
-      data/wildtype_protein_seqs \
-      data/integrated_clean_db \
+      data/wildtype_protein_seqs \  # input dir
+      data/integrated_clean_db \ # output dir
       --mutations-csv data/quinolone_resistance_mutation_table.csv \
-      --kmer-length 8 
+      --kmer-length 8  # kmer length of 8 is hardcoded in clean_resistance_pipeline so need to change that if kmer changes here
 
   ./build/clean_resistance_pipeline data/integrated_clean_db/nucleotide data/integrated_clean_db/protein test_small_R1.fastq.gz
   test_small_R2.fastq.gz output_prefix
@@ -180,3 +181,21 @@ or make -j8
     data/569_A_038_R2.fastq.gz \
     results/569_A_reporter \
     data/quinolone_resistance_mutation_table.csv
+
+
+
+## This is after implementation of the bloom and sw flags that allow them to be disabled:
+# All defaults
+./clean_resistance_pipeline nucleotide_index protein_db reads_R1.fq.gz reads_R2.fq.gz
+
+# Custom output prefix
+./clean_resistance_pipeline nucleotide_index protein_db reads_R1.fq.gz reads_R2.fq.gz my_output
+
+# Custom output prefix and FQ CSV
+./clean_resistance_pipeline nucleotide_index protein_db reads_R1.fq.gz reads_R2.fq.gz my_output /path/to/mutations.csv
+
+# With flags (can be placed after positional args)
+./clean_resistance_pipeline nucleotide_index protein_db reads_R1.fq.gz reads_R2.fq.gz my_output /path/to/mutations.csv --no-bloom
+
+# Or flags can be mixed in
+./clean_resistance_pipeline nucleotide_index protein_db reads_R1.fq.gz reads_R2.fq.gz --no-bloom my_output --no-sw /path/to/mutations.csv

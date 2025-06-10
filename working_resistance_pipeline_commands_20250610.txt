@@ -266,5 +266,8 @@ cd ~/Documents/Code/biogpu
 cd ~/Documents/Code/biogpu
 ./runtime/kernels/resistance/build/clean_resistance_pipeline     data/integrated_clean_db/nucleotide     data/integrated_clean_db/protein     --csv example_csv.csv
 
-  cd /home/david/Documents/Code/biogpu && ./runtime/kernels/resistance/build/clean_resistance_pipeline data/integrated_clean_db/nucleotide
-  data/integrated_clean_db/protein --csv runtime/kernels/resistance/example_csv.csv --output-dir results_fq_positions_only
+  cd /home/david/Documents/Code/biogpu  
+  ./runtime/kernels/resistance/build/clean_resistance_pipeline \
+  data/integrated_clean_db/nucleotide \
+  data/integrated_clean_db/protein \
+  --csv runtime/kernels/resistance/example_csv.csv 

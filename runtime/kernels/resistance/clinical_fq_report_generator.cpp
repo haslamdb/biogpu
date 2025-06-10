@@ -756,7 +756,7 @@ private:
             html_file << "<td><em>" << freq.gene << "</em></td>\n";
             html_file << "<td>" << freq.position << "</td>\n";
             html_file << "<td>" << freq.total_depth << "</td>\n";
-            html_file << "<td><code>" << freq.wildtype_aa << "</code></td>\n";
+            html_file << "<td style='font-size: 1em;'><code>" << freq.wildtype_aa << "</code></td>\n";
             
             // Wildtype frequency with bar
             html_file << "<td>";
@@ -765,7 +765,7 @@ private:
             html_file << "</div>";
             html_file << " " << std::fixed << std::setprecision(1) << (freq.wildtype_frequency * 100) << "%</td>\n";
             
-            html_file << "<td><code>" << freq.dominant_mutant_aa << "</code></td>\n";
+            html_file << "<td style='font-size: 1em;'><code>" << freq.dominant_mutant_aa << "</code></td>\n";
             
             // Dominant mutant frequency with bar
             html_file << "<td>";
@@ -802,29 +802,6 @@ private:
         }
         
         html_file << "</table>\n";
-        
-        // Clinical interpretation
-        html_file << "<div class='summary-box'>\n";
-        html_file << "<h4>Clinical Interpretation</h4>\n";
-        html_file << "<ul>\n";
-        
-        if (high_freq_resistance > 0) {
-            html_file << "<li><strong style='color: #dc3545;'>High-frequency resistance detected:</strong> " 
-                      << high_freq_resistance << " position(s) with >50% resistant alleles. "
-                      << "This indicates established resistance in the population.</li>\n";
-        }
-        if (moderate_freq_resistance > 0) {
-            html_file << "<li><strong style='color: #ffc107;'>Moderate-frequency resistance detected:</strong> " 
-                      << moderate_freq_resistance << " position(s) with 10-50% resistant alleles. "
-                      << "This may indicate emerging resistance or mixed populations.</li>\n";
-        }
-        if (high_freq_resistance == 0 && moderate_freq_resistance == 0) {
-            html_file << "<li><strong style='color: #28a745;'>No significant resistance allele frequencies detected.</strong> "
-                      << "The sample appears susceptible to fluoroquinolones based on allele frequency analysis.</li>\n";
-        }
-        
-        html_file << "</ul>\n";
-        html_file << "</div>\n";
         
         html_file << "</div>\n"; // End content
         

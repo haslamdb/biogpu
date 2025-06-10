@@ -240,10 +240,10 @@ Path specifications in CSV:
    - Species and gene-aware tracking
    - Identifies candidate resistance genes
 
-3. **6-Frame Translated Search with Smith-Waterman**
+3. **6-Frame Translated Search with banded Smith-Waterman**
    - Translates reads in all 6 frames
    - 8-mer protein k-mer seeding for efficiency
-   - Smith-Waterman alignment for high-scoring matches
+   - Banded Smith-Waterman alignment for very rapid identification of top-scoring matches
    - Enhanced mutation detection against known wildtype sequences
 
 ### Stage 2: Enhanced Mutation Detection

@@ -2,7 +2,6 @@
 // Clean integrated pipeline for GPU-accelerated fluoroquinolone resistance detection
 // Uses existing CUDA kernels for nucleotide k-mer matching and translated protein search
 // Now with configurable bloom filter and Smith-Waterman alignment
-// INCLUDES: Batch processing, hardcoded FQ mutations, AND fixed allele frequency tracking
 
 #include <iostream>
 #include <fstream>
@@ -165,16 +164,14 @@ struct AlleleFrequencyData {
 
 class CleanResistancePipeline {
 private:
-    // FIXED Allele Frequency Analyzer class with proper wildtype tracking
+    // Allele Frequency Analyzer class
     class AlleleFrequencyAnalyzer {
     private:
         // Pileup data structure: [species_gene_key][position][amino_acid] = count
         std::unordered_map<std::string, std::unordered_map<uint16_t, std::unordered_map<char, uint32_t>>> pileup_data;
         std::unordered_map<std::string, std::unordered_map<uint16_t, uint32_t>> depth_data;
-        
-        // FIXED: Store reference amino acids observed from actual alignments
-        // [species_gene_key][position] = reference_amino_acid
-        std::unordered_map<std::string, std::unordered_map<uint16_t, char>> reference_aas;
+        // Track wildtype amino acids at each position from the protein matches
+        std::unordered_map<std::string, std::unordered_map<uint16_t, char>> wildtype_data;
         
         const std::map<uint32_t, std::string>& gene_id_to_name;
         const std::map<uint32_t, std::string>& species_id_to_name;
@@ -195,30 +192,54 @@ private:
             
             std::string species_gene_key = species_name + "_" + gene_name;
             
-            // FIXED: First, store reference amino acids from mutations
-            // This gives us the wildtype at mutated positions
-            for (uint8_t i = 0; i < match.num_mutations && i < 10; i++) {
-                uint16_t global_pos = match.ref_start + match.mutation_positions[i] + 1; // Convert to 1-based
-                char ref_aa = match.ref_aas[i];
+            // Process each mutation position
+            for (uint8_t k = 0; k < match.num_mutations; k++) {
+                uint16_t global_pos = match.ref_start + match.mutation_positions[k] + 1; // Convert to 1-based
+                char ref_aa = match.ref_aas[k];     // Wildtype amino acid
+                char mut_aa = match.query_aas[k];   // Mutant amino acid
                 
-                // Store the reference amino acid if we haven't seen it before
-                if (reference_aas[species_gene_key].find(global_pos) == reference_aas[species_gene_key].end()) {
-                    reference_aas[species_gene_key][global_pos] = ref_aa;
+                // Store wildtype amino acid for this position
+                wildtype_data[species_gene_key][global_pos] = ref_aa;
+                
+                // Count the mutant amino acid
+                if (mut_aa != 'X' && mut_aa != '*') { // Skip unknown/stop codons
+                    pileup_data[species_gene_key][global_pos][mut_aa]++;
+                    depth_data[species_gene_key][global_pos]++;
                 }
+                
+                // Also count wildtype occurrences at this position
+                // (for reads that don't have mutations at this position)
+                // This is handled when we see matches without mutations at this position
             }
             
-            // FIXED: Process ALL positions in the alignment using query_peptide
-            // This ensures we count both wildtype and mutant amino acids correctly
+            // For positions covered by this alignment but without mutations,
+            // we assume they match the reference (wildtype)
+            // Process ALL positions in the alignment to count wildtype amino acids
             for (uint16_t i = 0; i < match.match_length && i < 50; i++) { // query_peptide max length is 50
                 char query_aa = match.query_peptide[i];
                 if (query_aa == '\0') break; // End of peptide
                 
                 uint16_t global_pos = match.ref_start + i + 1; // Convert to 1-based
                 
-                // Add the observed amino acid to pileup
-                if (query_aa != 'X' && query_aa != '*') { // Skip unknown/stop codons
+                // Check if this position is a mutation position
+                bool is_mutation_pos = false;
+                for (uint8_t k = 0; k < match.num_mutations; k++) {
+                    if (match.mutation_positions[k] == i) {
+                        is_mutation_pos = true;
+                        break;
+                    }
+                }
+                
+                // If not a mutation position, count it as wildtype
+                if (!is_mutation_pos && query_aa != 'X' && query_aa != '*') {
+                    // For non-mutation positions, the query matches the reference
                     pileup_data[species_gene_key][global_pos][query_aa]++;
                     depth_data[species_gene_key][global_pos]++;
+                    
+                    // Store this as the wildtype if we haven't seen it before
+                    if (wildtype_data[species_gene_key].find(global_pos) == wildtype_data[species_gene_key].end()) {
+                        wildtype_data[species_gene_key][global_pos] = query_aa;
+                    }
                 }
             }
         }
@@ -248,29 +269,29 @@ private:
                     uint32_t total_depth = depth_data[species_gene_key][position];
                     if (total_depth < min_depth) continue;
                     
-                    // FIXED: Skip positions with no variation (only one amino acid observed)
-                    if (aa_counts.size() <= 1) continue;
-                    
                     AlleleFrequencyData freq_data;
                     freq_data.species_id = species_id;
                     freq_data.gene_id = gene_id;
                     freq_data.species_name = species_name;
                     freq_data.gene_name = gene_name;
                     freq_data.position = position;
+                    freq_data.has_resistance_mutation = false;  // Initialize to false
                     // Convert unordered_map to map
                     for (const auto& pair : aa_counts) {
                         freq_data.aa_counts[pair.first] = pair.second;
                     }
                     freq_data.total_depth = total_depth;
                     
-                    // FIXED: Get wildtype and known resistant amino acids
-                    // First try to get wildtype from our observed reference sequences
-                    if (reference_aas[species_gene_key].find(position) != reference_aas[species_gene_key].end()) {
-                        freq_data.wildtype_aa = reference_aas[species_gene_key][position];
+                    // Get wildtype from our tracked data
+                    auto wt_it = wildtype_data[species_gene_key].find(position);
+                    if (wt_it != wildtype_data[species_gene_key].end()) {
+                        freq_data.wildtype_aa = wt_it->second;
                     } else {
-                        // Fall back to FQ resistance database
+                        // Fallback to FQ resistance database for known positions
                         freq_data.wildtype_aa = getWildtypeAA(species_name, gene_name, position);
                     }
+                    
+                    // Get known resistant amino acids
                     freq_data.known_resistant_aas = getKnownResistantAAs(species_name, gene_name, position);
                     
                     // Calculate frequencies
@@ -280,7 +301,7 @@ private:
                     
                     // Find dominant mutant
                     uint32_t max_mutant_count = 0;
-                    char dominant_mutant = 'X';
+                    char dominant_mutant = '-';  // Use '-' for no mutation instead of 'X'
                     uint32_t total_resistant_count = 0;
                     std::vector<std::string> mutation_details;
                     
@@ -333,10 +354,38 @@ private:
                 }
             }
             
-            // Sort by resistance frequency (descending)
+            // Sort to match clinical report ordering:
+            // 1. First show positions with actual resistance mutations (sorted by frequency)
+            // 2. Then show positions that are known resistance positions but currently wildtype
+            // 3. Finally other positions (if any)
             std::sort(results.begin(), results.end(),
                       [](const AlleleFrequencyData& a, const AlleleFrequencyData& b) {
-                          return a.total_resistant_frequency > b.total_resistant_frequency;
+                          // First priority: positions with actual resistance mutations
+                          bool a_has_mutations = a.total_resistant_frequency > 0;
+                          bool b_has_mutations = b.total_resistant_frequency > 0;
+                          
+                          if (a_has_mutations != b_has_mutations) {
+                              return a_has_mutations > b_has_mutations;
+                          }
+                          
+                          // If both have mutations, sort by resistance frequency
+                          if (a_has_mutations && b_has_mutations) {
+                              return a.total_resistant_frequency > b.total_resistant_frequency;
+                          }
+                          
+                          // Second priority: known resistance positions
+                          bool a_is_known = !a.known_resistant_aas.empty();
+                          bool b_is_known = !b.known_resistant_aas.empty();
+                          
+                          if (a_is_known != b_is_known) {
+                              return a_is_known > b_is_known;
+                          }
+                          
+                          // Finally, sort by position for consistency
+                          if (a.gene_name != b.gene_name) {
+                              return a.gene_name < b.gene_name;
+                          }
+                          return a.position < b.position;
                       });
             
             return results;
@@ -902,7 +951,6 @@ public:
             // Generate the clinical report now that we have all the data
             generate_clinical_report(clinical_report_generator);
             destroy_clinical_report_generator(clinical_report_generator);
-            clinical_report_generator = nullptr;  // Set to nullptr after destruction
         }
         
         // Print summary

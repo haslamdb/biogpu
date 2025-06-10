@@ -1,0 +1,189 @@
+
+python src/python/build_protein_resistance_db.py \
+    data/fq_genes \
+    data/Known_Quinolone_Changes.csv \
+    data/protein_resistance_db
+
+ python src/python/build_wildtype_protein_db.py \
+    data/wildtype_protein_seqs/ \
+    data/wildtype_protein_db \
+    --fasta
+
+./build/fq_pipeline_gpu data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
+	--enable-translated-search \
+	--enable-smith-waterman \
+	--protein-db data/wildtype_protein_db \
+	--enable-diagnostic-reporting
+
+./build/fq_pipeline_gpu data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
+	--enable-translated-search \
+	--enable-smith-waterman \
+	--protein-db data/wildtype_protein_db \
+	--enable-diagnostic-reporting
+
+
+tests/run_pipeline_comparison_test.py \
+    data/fq_resistance_index \
+	569_A_038_R1.fastq.gz \
+	569_A_038_R2.fastq.gz \
+    data/protein_resistance_db \
+    --batch-size 10000 \
+    --output comparison_results.txt \
+    --skip-build 
+
+
+
+tests/run_pipeline_comparison_test.py \
+    data/fq_resistance_index \
+	synthetic_reads_20250529_R1.fastq.gz \
+	synthetic_reads_20250529_R2.fastq.gz \
+    data/protein_resistance_db \
+    --batch-size 10000 \
+    --output comparison_results.txt \
+    --skip-build 
+
+
+./fq_pipeline_gpu index_path reads_R1.fastq.gz reads_R2.fastq.gz [options]
+
+Options:
+  --enable-bloom-filter          Enable bloom filter pre-screening (default: on)
+  --disable-bloom-filter         Disable bloom filter pre-screening
+  --enable-kmer-match            Enable k-mer matching (default: on)  
+  --disable-kmer-match           Disable k-mer matching
+  --enable-translated-search     Enable 6-frame translated search
+  --enable-smith-waterman        Enable Smith-Waterman alignment
+  --enable-diagnostic-reporting  Enable detailed diagnostic reporting
+  --protein-db <path>            Path to protein resistance database
+
+
+
+  ./build/fq_pipeline_gpu data/fq_resistance_index \
+	data/synthetic_reads_R1.fastq.gz \
+	data/synthetic_reads_R2.fastq.gz \
+	--disable-bloom-filter \
+	--disable-kmer-match \
+	--enable-translated-search \
+	--enable-smith-waterman \
+	--protein-db data/wildtype_protein_db \
+	--enable-diagnostic-reporting
+
+
+ python src/python/generate_synthetic_reads.py \
+    data/ecoli_gyrA_parE_mutant_sequences.fasta \
+    -n 1000000 -l 150 \
+    -o 1M_synthetic_reads
+
+python src/python/build_wildtype_protein_db.py \
+  data/wildtype_protein_seqs \
+  wildtype_protein_db \
+  --fasta
+
+./build/fq_pipeline_gpu data/fq_resistance_index \
+1M_synthetic_reads_R1.fastq.gz \
+1M_synthetic_reads_R2.fastq.gz \
+--disable-bloom-filter \
+--disable-kmer-match \
+--enable-translated-search \
+--enable-smith-waterman \
+--protein-db data/wildtype_protein_db \
+--enable-diagnostic-reporting
+
+
+rm -rf build && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+./build_integrated_database.sh 2>&1 # this builds the build_integrated_database from data/wildtype_protein_seqs and uses the script src/python/build_integrated_resistance_db.py
+
+ ./build/integrated_resistance_pipeline \
+    data/integrated_fq_resistance_database/nucleotide \
+    data/integrated_fq_resistance_database/protein \
+    data/integrated_fq_resistance_database \
+    data/test_fastq/test_small_R1.fastq.gz data/test_fastq/test_small_R2.fastq.gz \
+    test_small_output
+
+## no longer used
+python build_species_specific_protein_database.py \
+    --input-dir data/wildtype_protein_seqs/ \
+    --output-dir data/integrated_fq_resistance_database_v2/
+
+## use instead 
+## note that inclusion of the restance info isn't used in making the kmers
+## it does make metadata for offline use
+  python3 src/python/build_clean_dynamic_database.py \
+      data/wildtype_protein_seqs \
+      data/integrated_clean_db \
+      --mutations-csv data/quinolone_resistance_mutation_table.csv \
+      --kmer-length 8 
+
+  ./build/clean_resistance_pipeline data/integrated_clean_db/nucleotide data/integrated_clean_db/protein test_small_R1.fastq.gz
+  test_small_R2.fastq.gz output_prefix
+
+  This command structure follows the required format:
+  - data/integrated_clean_db/nucleotide - nucleotide k-mer index directory
+  - data/integrated_clean_db/protein - protein database directory
+  - test_small_R1.fastq.gz - forward reads
+  - test_small_R2.fastq.gz - reverse reads
+  - output_prefix - output file prefix 
+
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    1M_synthetic_reads_R1.fastq.gz \
+    1M_synthetic_reads_R2.fastq.gz \
+    results/1M_reads_test
+
+# this may be obsolete
+ ./build/integrated_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    data/integrated_clean_db \
+    data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz \
+    results/integrated
+
+make clean_resistance_pipeline -j8 
+or make -j8 
+
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db_new/nucleotide \
+    data/integrated_clean_db_new/protein \
+    data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz \
+    results/569_reads_stricter
+
+
+  ./clean_resistance_pipeline \
+      ../data/integrated_clean_db/nucleotide \
+      ../data/integrated_clean_db/protein \
+      ../data/569_A_038_R1.fastq.gz \
+      ../data/569_A_038_R2.fastq.gz \
+      ../results/569_reads_test \
+      ../data/quinolone_resistance_mutation_table.csv
+
+
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    1M_synthetic_reads_R1.fastq.gz \
+    1M_synthetic_reads_R2.fastq.gz \
+    results/1M_reads_reporter
+
+
+./build/clean_resistance_pipeline \ 
+    data/integrated_clean_db/nucleotide \    
+    data/integrated_clean_db/protein \ 
+    1M_synthetic_reads_R1.fastq.gz \  
+    1M_synthetic_reads_R2.fastq.gz \  
+    results/1M_reads_reporter \   
+    data/quinolone_resistance_mutation_table.csv 
+
+./build/clean_resistance_pipeline \ 
+    data/integrated_clean_db/nucleotide \    
+    data/integrated_clean_db/protein \ 
+    data/569_A_038_R1.fastq.gz \ 
+    data/569_A_038_R2.fastq.gz \  
+    results/569_A_reporter \   
+    data/quinolone_resistance_mutation_table.csv 

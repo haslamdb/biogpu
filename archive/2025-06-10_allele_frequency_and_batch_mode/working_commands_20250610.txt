@@ -1,0 +1,84 @@
+# Working BioGPU Commands - June 10, 2025
+# Tested on NVIDIA TITAN Xp with CUDA 12.1
+
+## Database Building (if needed)
+cd /home/david/Documents/Code/biogpu
+python3 src/python/build_clean_dynamic_database.py \
+    --mutations-csv data/quinolone_resistance_mutation_table.csv
+
+## Single Sample Processing
+
+# Basic command with recommended settings
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz \
+    --no-bloom
+
+# With allele frequency filtering
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz \
+    --no-bloom \
+    --min-allele-depth 10 \
+    --min-report-depth 20
+
+# With custom output directory
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz \
+    --no-bloom \
+    --output-dir /home/david/fq_analysis_results
+
+## Batch Processing
+
+# Generate CSV from directory
+python runtime/kernels/resistance/generate_sample_csv.py \
+    ~/sequencing/batch1/ \
+    -o batch1_samples.csv \
+    --recursive
+
+# Validate CSV without processing
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    --csv runtime/kernels/resistance/example_csv.csv \
+    --dry-run
+
+# Process batch with recommended settings
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --no-bloom \
+    --min-allele-depth 10 \
+    --output-dir /results/batch_analysis
+
+# Process batch with error handling
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --no-bloom \
+    --stop-on-error
+
+## Output Files (per sample)
+# Located in results/<sample_name>/ by default:
+# - <sample_name>.h5                          # HDF5 alignment data
+# - <sample_name>.json                        # Resistance calls
+# - <sample_name>_protein_matches.csv         # Protein alignments
+# - <sample_name>_allele_frequencies.csv      # Allele frequency data
+# - <sample_name>_clinical_fq_report.html     # Clinical report (HTML)
+# - <sample_name>_clinical_fq_report.json     # Clinical report (JSON)
+# - <sample_name>_clinical_fq_report.txt      # Clinical report (text)
+
+## Performance Notes
+# - Use --no-bloom for 6% speed improvement
+# - Keep Smith-Waterman enabled (default) for sensitivity
+# - Processes ~16,667-21,739 reads/second on TITAN Xp
+# - Batch mode reduces per-sample overhead

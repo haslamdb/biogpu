@@ -279,8 +279,8 @@
     "resistance_mutations": 7251,
     "fq_resistance_mutations": 7,
     "allele_frequency_analysis": {
-      "total_positions_analyzed": 1410,
-      "positions_with_resistance": 443,
+      "total_positions_analyzed": 1591,
+      "positions_with_resistance": 1591,
       "max_resistance_frequency": 0.0667,
       "allele_frequency_csv": "569_A_038_allele_frequencies.csv"
     },

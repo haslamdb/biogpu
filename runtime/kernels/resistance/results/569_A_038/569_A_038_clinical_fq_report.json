@@ -1,6 +1,6 @@
 {
   "report_type": "clinical_fluoroquinolone_resistance",
-  "generated": "2025-06-10 10:15:14",
+  "generated": "2025-06-10 10:50:23",
   "summary": {
     "overall_interpretation": "LOW CONFIDENCE: Possible fluoroquinolone resistance",
     "resistance_confidence": 0.600,
@@ -10,8 +10,8 @@
     "reads_with_protein_matches": 1326,
     "reads_with_mutations": 1289,
     "reads_with_fq_resistance": 6,
-    "processing_time_seconds": 17.000,
-    "reads_per_second": 200295
+    "processing_time_seconds": 18.000,
+    "reads_per_second": 189167
   },
   "clinical_notes": [
     "Resistance detected in: Klebsiella_pneumoniae, Staphylococcus_aureus"

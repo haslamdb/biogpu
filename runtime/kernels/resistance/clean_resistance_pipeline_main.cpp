@@ -170,6 +170,8 @@ private:
         // Pileup data structure: [species_gene_key][position][amino_acid] = count
         std::unordered_map<std::string, std::unordered_map<uint16_t, std::unordered_map<char, uint32_t>>> pileup_data;
         std::unordered_map<std::string, std::unordered_map<uint16_t, uint32_t>> depth_data;
+        // Track wildtype amino acids at each position from the protein matches
+        std::unordered_map<std::string, std::unordered_map<uint16_t, char>> wildtype_data;
         
         const std::map<uint32_t, std::string>& gene_id_to_name;
         const std::map<uint32_t, std::string>& species_id_to_name;
@@ -190,18 +192,54 @@ private:
             
             std::string species_gene_key = species_name + "_" + gene_name;
             
-            // NEW APPROACH: Process ALL positions in the alignment using query_peptide
-            // This ensures we count both wildtype and mutant amino acids correctly
+            // Process each mutation position
+            for (uint8_t k = 0; k < match.num_mutations; k++) {
+                uint16_t global_pos = match.ref_start + match.mutation_positions[k] + 1; // Convert to 1-based
+                char ref_aa = match.ref_aas[k];     // Wildtype amino acid
+                char mut_aa = match.query_aas[k];   // Mutant amino acid
+                
+                // Store wildtype amino acid for this position
+                wildtype_data[species_gene_key][global_pos] = ref_aa;
+                
+                // Count the mutant amino acid
+                if (mut_aa != 'X' && mut_aa != '*') { // Skip unknown/stop codons
+                    pileup_data[species_gene_key][global_pos][mut_aa]++;
+                    depth_data[species_gene_key][global_pos]++;
+                }
+                
+                // Also count wildtype occurrences at this position
+                // (for reads that don't have mutations at this position)
+                // This is handled when we see matches without mutations at this position
+            }
+            
+            // For positions covered by this alignment but without mutations,
+            // we assume they match the reference (wildtype)
+            // Process ALL positions in the alignment to count wildtype amino acids
             for (uint16_t i = 0; i < match.match_length && i < 50; i++) { // query_peptide max length is 50
                 char query_aa = match.query_peptide[i];
                 if (query_aa == '\0') break; // End of peptide
                 
                 uint16_t global_pos = match.ref_start + i + 1; // Convert to 1-based
                 
-                // Add the observed amino acid to pileup
-                if (query_aa != 'X' && query_aa != '*') { // Skip unknown/stop codons
+                // Check if this position is a mutation position
+                bool is_mutation_pos = false;
+                for (uint8_t k = 0; k < match.num_mutations; k++) {
+                    if (match.mutation_positions[k] == i) {
+                        is_mutation_pos = true;
+                        break;
+                    }
+                }
+                
+                // If not a mutation position, count it as wildtype
+                if (!is_mutation_pos && query_aa != 'X' && query_aa != '*') {
+                    // For non-mutation positions, the query matches the reference
                     pileup_data[species_gene_key][global_pos][query_aa]++;
                     depth_data[species_gene_key][global_pos]++;
+                    
+                    // Store this as the wildtype if we haven't seen it before
+                    if (wildtype_data[species_gene_key].find(global_pos) == wildtype_data[species_gene_key].end()) {
+                        wildtype_data[species_gene_key][global_pos] = query_aa;
+                    }
                 }
             }
         }
@@ -243,8 +281,16 @@ private:
                     }
                     freq_data.total_depth = total_depth;
                     
-                    // Get wildtype and known resistant amino acids
-                    freq_data.wildtype_aa = getWildtypeAA(species_name, gene_name, position);
+                    // Get wildtype from our tracked data
+                    auto wt_it = wildtype_data[species_gene_key].find(position);
+                    if (wt_it != wildtype_data[species_gene_key].end()) {
+                        freq_data.wildtype_aa = wt_it->second;
+                    } else {
+                        // Fallback to FQ resistance database for known positions
+                        freq_data.wildtype_aa = getWildtypeAA(species_name, gene_name, position);
+                    }
+                    
+                    // Get known resistant amino acids
                     freq_data.known_resistant_aas = getKnownResistantAAs(species_name, gene_name, position);
                     
                     // Calculate frequencies

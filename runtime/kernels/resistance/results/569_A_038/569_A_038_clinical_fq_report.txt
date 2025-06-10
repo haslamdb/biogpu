@@ -2,7 +2,7 @@
 CLINICAL FLUOROQUINOLONE RESISTANCE REPORT
 =====================================
 
-Generated: 2025-06-10 10:15:14
+Generated: 2025-06-10 10:50:23
 
 CLINICAL INTERPRETATION
 ----------------------
@@ -19,7 +19,7 @@ Total reads analyzed: 3405007
 Reads with protein matches: 1326
 Reads with mutations: 1289
 Reads with FQ resistance: 6
-Performance: 200295 reads/second (3405007 reads in 17.0 seconds)
+Performance: 189167 reads/second (3405007 reads in 18.0 seconds)
 
 SPECIES BREAKDOWN
 -----------------

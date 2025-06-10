@@ -3,9 +3,9 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data.
 
-**Last Updated**: June 8 2025  
-**Pipeline Version**: 0.6.0  
-**Status**: Fully functional FQ resistance detection with clinical reporting
+**Last Updated**: June 10 2025  
+**Pipeline Version**: 0.6.4  
+**Status**: Fully functional FQ resistance detection with clinical reporting and hardcoded mutations database
 
 ---
 
@@ -43,7 +43,10 @@ biogpu/
 │       │   ├── hdf5_alignment_writer.cpp          # HDF5 output formatting
 │       │   ├── clinical_fq_report_generator.cpp   # ✅ NEW: Clinical report generation
 │       │   ├── global_fq_resistance_mapper.cpp    # ✅ FQ resistance database interface
-│       │   └── fq_resistance_positions.h          # ✅ QRDR position definitions
+│       │   ├── fq_resistance_positions.h          # ✅ QRDR position definitions
+│       │   ├── fq_mutations_hardcoded.h           # ✅ NEW: Hardcoded FQ mutations (v0.6.4+)
+│       │   ├── convert_fq_csv_to_cpp.py           # ✅ NEW: Script to convert CSV to C++ header
+│       │   └── sample_csv_parser.cpp              # ✅ NEW: CSV parser for batch processing
 │       └── profiler/                          # ✅ NEW: Microbiome profiler components
 │           ├── CMakeLists.txt                 # Build configuration
 │           ├── minimizer_extraction.cu        # GPU minimizer extraction kernel
@@ -482,6 +485,76 @@ KNOWN FQ RESISTANCE MUTATIONS:
 - `--csv FILE`: Process multiple samples from CSV file (batch mode) (v0.6.3+)
 - `--dry-run`: Validate CSV and show what would be processed without running (v0.6.3+)
 - `--stop-on-error`: Stop batch processing on first error (batch mode only) (v0.6.3+)
+- `--fq-csv FILE`: Path to fluoroquinolone resistance mutations CSV (optional, uses hardcoded data if not provided) (v0.6.4+)
+
+### Fluoroquinolone Resistance Mutations Database (v0.6.4+)
+
+The pipeline includes a comprehensive database of known fluoroquinolone resistance mutations. By default, it uses 255 hardcoded mutations across 33 species without requiring any external files.
+
+**Default Behavior**: The pipeline automatically uses built-in resistance mutations data:
+```bash
+# No --fq-csv needed, uses hardcoded mutations
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    sample_R1.fastq.gz \
+    sample_R2.fastq.gz
+```
+
+**Custom Mutations Database**: You can override the hardcoded mutations with your own CSV file:
+```bash
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    sample_R1.fastq.gz \
+    sample_R2.fastq.gz \
+    --fq-csv /path/to/custom_mutations.csv
+```
+
+**Adding New Mutations**: To extend the database with additional mutations:
+
+1. **Start with the existing database**:
+   ```bash
+   cp data/quinolone_resistance_mutation_table.csv my_mutations.csv
+   ```
+
+2. **Add your mutations** to the CSV file:
+   ```csv
+   species,gene,location,wt,mut
+   Klebsiella_pneumoniae,gyrA,91,T,I
+   Mycobacterium_tuberculosis,gyrA,94,G,S
+   ```
+
+3. **Convert to C++ header** using the helper script:
+   ```bash
+   python3 runtime/kernels/resistance/convert_fq_csv_to_cpp.py my_mutations.csv > \
+       runtime/kernels/resistance/fq_mutations_hardcoded.h
+   ```
+
+4. **Rebuild the pipeline**:
+   ```bash
+   cd runtime/kernels/resistance/build
+   make clean_resistance_pipeline
+   ```
+
+**CSV Format Requirements**:
+- **species**: Species name with underscores (e.g., `Escherichia_coli`)
+- **gene**: Gene name (e.g., `gyrA`, `parC`, `gyrB`, `parE`)
+- **location**: Amino acid position (1-based)
+- **wt**: Wild-type amino acid (single letter)
+- **mut**: Mutant amino acid that confers resistance (single letter)
+
+**Why Add Custom Mutations?**:
+- Include newly discovered resistance mutations from recent literature
+- Add species-specific mutations not in the default database
+- Include mutations specific to your local epidemiology
+- Support novel or emerging resistance patterns
+
+The `convert_fq_csv_to_cpp.py` script:
+- Validates CSV format and amino acid codes
+- Generates proper C++ header with include guards
+- Provides summary statistics by species and gene
+- Skips invalid entries (with warnings)
 
 ### Performance Parameters
 - Batch size: 10,000 reads (configurable)

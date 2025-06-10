@@ -583,12 +583,15 @@ public:
                       const std::string& fq_csv_path) {
         std::cout << "Loading databases...\n";
         
-        // Initialize FQ resistance database
-        init_fq_resistance_database(fq_csv_path.c_str());
+        // Initialize FQ resistance database (if path provided)
+        if (!fq_csv_path.empty()) {
+            init_fq_resistance_database(fq_csv_path.c_str());
+        }
         
-        // Initialize global FQ mapper
+        // Initialize global FQ mapper (will use hardcoded data if no CSV provided)
         GlobalFQResistanceMapper& mapper = GlobalFQResistanceMapper::getInstance();
-        if (init_global_fq_mapper(fq_csv_path.c_str(), protein_db_path.c_str()) != 0) {
+        const char* csv_path_ptr = fq_csv_path.empty() ? nullptr : fq_csv_path.c_str();
+        if (init_global_fq_mapper(csv_path_ptr, protein_db_path.c_str()) != 0) {
             std::cerr << "WARNING: Failed to initialize global FQ resistance mapper\n";
         } else {
             std::cout << "Global FQ resistance mapper initialized successfully\n";
@@ -1474,7 +1477,7 @@ void printUsage(const char* program_name) {
     std::cerr << "\nOptions:\n";
     std::cerr << "  --output-prefix <prefix>: Output file prefix (single sample only)\n";
     std::cerr << "  --output-dir <dir>: Base output directory (default: results)\n";
-    std::cerr << "  --fq-csv <path>: Path to FQ resistance mutations CSV (default: data/quinolone_resistance_mutation_table.csv)\n";
+    std::cerr << "  --fq-csv <path>: Path to FQ resistance mutations CSV (optional; uses hardcoded data if not provided)\n";
     std::cerr << "  --no-bloom: Disable bloom filter pre-screening\n";
     std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
     std::cerr << "  --min-allele-depth <N>: Minimum depth for allele frequency analysis (default: 5)\n";
@@ -1500,7 +1503,7 @@ int main(int argc, char** argv) {
     
     // Default values
     std::string output_dir = "results";
-    std::string fq_csv_path = "data/quinolone_resistance_mutation_table.csv";
+    std::string fq_csv_path = "";  // Empty by default - will use hardcoded data
     std::string csv_input_path = "";
     std::string single_output_prefix = "";
     bool use_bloom = true;
@@ -1586,7 +1589,11 @@ int main(int argc, char** argv) {
     std::cout << "Mode: " << (batch_mode ? "BATCH" : "SINGLE SAMPLE") << std::endl;
     std::cout << "Nucleotide index: " << nucleotide_index << std::endl;
     std::cout << "Protein database: " << protein_db << std::endl;
-    std::cout << "FQ resistance CSV: " << fq_csv_path << std::endl;
+    if (!fq_csv_path.empty()) {
+        std::cout << "FQ resistance CSV: " << fq_csv_path << std::endl;
+    } else {
+        std::cout << "FQ resistance data: Using hardcoded mutations" << std::endl;
+    }
     std::cout << "Output directory: " << output_dir << std::endl;
     std::cout << "Configuration:" << std::endl;
     std::cout << "  Bloom filter: " << (use_bloom ? "ENABLED" : "DISABLED") << std::endl;

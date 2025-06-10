@@ -82,6 +82,9 @@ public:
     // Load resistance data from CSV file
     bool loadFromCSV(const std::string& csv_path);
     
+    // Load hardcoded resistance data (used when CSV not provided)
+    bool loadHardcodedData();
+    
     // Load ID mappings from protein database metadata
     bool loadDatabaseMappings(const std::string& protein_db_path);
     

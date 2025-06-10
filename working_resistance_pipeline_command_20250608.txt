@@ -248,5 +248,15 @@ test_allele_freq_corrected /home/david/Documents/Code/biogpu/data/quinolone_resi
       --output-dir /home/david/fq_analysis_results
 
 # updated to include csv parsing
-│   ./clean_resistance_pipeline /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide                                  │
-│   /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein --csv ../example_csv.csv --dry-run 2>&1 | head -50 
+  cd runtime/kernels/resistance
+  ./build/clean_resistance_pipeline \
+   /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+  /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+  /home/david/Documents/Code/biogpu/data/quinolone_resistance_mutation_table.csv \
+  --csv example_csv.csv | head -50 
+
+
+./build/clean_resistance_pipeline /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+/home/david/Documents/Code/biogpu/data/integrated_clean_db/protein  \
+--csv example_csv.csv \
+--fq-csv /home/david/Documents/Code/biogpu/data/quinolone_resistance_mutation_table.csv 

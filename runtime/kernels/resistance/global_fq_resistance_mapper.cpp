@@ -6,7 +6,11 @@
 #include <sstream>
 #include <algorithm>
 #include <iostream>
+#include <cstring>
 #include <cuda_runtime.h>
+
+// Include hardcoded FQ resistance mutations
+#include "fq_mutations_hardcoded.h"
 
 GlobalFQResistanceMapper::GlobalFQResistanceMapper() 
     : gpu_mutations(nullptr), num_gpu_mutations(0), gpu_data_ready(false) {
@@ -196,6 +200,20 @@ bool GlobalFQResistanceMapper::loadFromCSV(const std::string& csv_path) {
     buildLookupTables();
     
     std::cout << "Loaded " << all_mutations.size() << " FQ resistance mutations from CSV" << std::endl;
+    return true;
+}
+
+bool GlobalFQResistanceMapper::loadHardcodedData() {
+    // Clear any existing data
+    all_mutations.clear();
+    
+    // Load from hardcoded data
+    all_mutations = HARDCODED_FQ_MUTATIONS;
+    
+    // Build lookup tables
+    buildLookupTables();
+    
+    std::cout << "Loaded " << all_mutations.size() << " hardcoded FQ resistance mutations" << std::endl;
     return true;
 }
 
@@ -592,8 +610,20 @@ extern "C" {
     int init_global_fq_mapper(const char* csv_path, const char* protein_db_path) {
         GlobalFQResistanceMapper& mapper = GlobalFQResistanceMapper::getInstance();
         
-        if (!mapper.loadFromCSV(csv_path)) {
-            return -1;
+        // If CSV path is provided, try to load from it
+        if (csv_path && strlen(csv_path) > 0) {
+            if (!mapper.loadFromCSV(csv_path)) {
+                std::cerr << "WARNING: Failed to load FQ CSV from " << csv_path 
+                          << ", falling back to hardcoded data" << std::endl;
+                if (!mapper.loadHardcodedData()) {
+                    return -1;
+                }
+            }
+        } else {
+            // No CSV provided, use hardcoded data
+            if (!mapper.loadHardcodedData()) {
+                return -1;
+            }
         }
         
         if (protein_db_path && !mapper.loadDatabaseMappings(protein_db_path)) {

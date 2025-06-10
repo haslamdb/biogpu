@@ -1,3 +1,0 @@
-/home/david/Documents/Code/biogpu/build_comparison/CMakeFiles/pipeline_comparison_test.dir
-/home/david/Documents/Code/biogpu/build_comparison/CMakeFiles/edit_cache.dir
-/home/david/Documents/Code/biogpu/build_comparison/CMakeFiles/rebuild_cache.dir

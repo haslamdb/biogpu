@@ -567,7 +567,7 @@ make build_integrated_resistance_db
     --output-dir /custom/output/path
 ```
 
-### High-Sensitivity Mode (Disable Pre-filtering)
+### High-Sensitivity Mode (Disable Pre-filtering, Report all alignments and alleles)
 ```bash
 ./runtime/kernels/resistance/build/clean_resistance_pipeline \
     data/integrated_clean_db/nucleotide \
@@ -575,7 +575,9 @@ make build_integrated_resistance_db
     sample_R1.fastq.gz \
     sample_R2.fastq.gz \
     --disable-bloom-filter \
-    --disable-kmer-match
+    --disable-kmer-match \
+    --min-allele-depth 1 \
+    --min-report-depth 1 
 ```
 
 ### Validation with Synthetic Data

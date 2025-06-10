@@ -164,8 +164,8 @@ This creates:
 
 # Custom output directory - outputs to /home/david/fq_analysis_results/569_A_038/
 ./runtime/kernels/resistance/build/clean_resistance_pipeline \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
     data/569_A_038_R1.fastq.gz \
     data/569_A_038_R2.fastq.gz \
     --no-bloom \
@@ -178,22 +178,22 @@ This creates:
 ```bash
 # Process multiple samples from CSV file
 ./runtime/kernels/resistance/build/clean_resistance_pipeline \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
     --csv samples.csv \
     --no-bloom
 
-# Validate CSV without processing (dry run)
+# Validate CSV without processing (dry run to check sample names and paths)
 ./runtime/kernels/resistance/build/clean_resistance_pipeline \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
     --csv samples.csv \
     --dry-run
 
 # Process with custom options and stop on first error
 ./runtime/kernels/resistance/build/clean_resistance_pipeline \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
-    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
     --csv samples.csv \
     --no-bloom \
     --min-allele-depth 10 \

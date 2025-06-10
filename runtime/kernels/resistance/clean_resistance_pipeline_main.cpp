@@ -13,6 +13,7 @@
 #include <sstream>
 #include <cstring>
 #include <iomanip>
+#include <cstdlib>
 #include <cuda_runtime.h>
 #include <zlib.h>
 #include <unordered_map>
@@ -1423,19 +1424,20 @@ private:
 // Main function
 int main(int argc, char** argv) {
     if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv] [--no-bloom] [--no-sw] [--min-allele-depth N] [--min-report-depth N]\n";
+        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv] [--no-bloom] [--no-sw] [--min-allele-depth N] [--min-report-depth N] [--output-dir DIR]\n";
         std::cerr << "\nRequired:\n";
         std::cerr << "  nucleotide_index: Directory containing k-mer index\n";
         std::cerr << "  protein_db: Directory containing protein database\n";
         std::cerr << "  reads_r1.fastq.gz: Forward reads\n";
         std::cerr << "  reads_r2.fastq.gz: Reverse reads\n";
         std::cerr << "\nOptional:\n";
-        std::cerr << "  output_prefix: Output file prefix (default: resistance_results)\n";
+        std::cerr << "  output_prefix: Output file prefix (default: auto-generated from sample name)\n";
         std::cerr << "  fq_resistance_csv: Path to FQ resistance mutations CSV (default: data/quinolone_resistance_mutation_table.csv)\n";
         std::cerr << "  --no-bloom: Disable bloom filter pre-screening\n";
         std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
         std::cerr << "  --min-allele-depth N: Minimum depth for allele frequency analysis (default: 5)\n";
         std::cerr << "  --min-report-depth N: Minimum depth for reporting polymorphisms (default: 0)\n";
+        std::cerr << "  --output-dir DIR: Base output directory (default: results)\n";
         return 1;
     }
     
@@ -1444,13 +1446,32 @@ int main(int argc, char** argv) {
     std::string r1_path = argv[3];
     std::string r2_path = argv[4];
     
+    // Extract sample name from R1 path
+    std::string sample_name;
+    size_t split_pos = r1_path.find("_R1.fastq.gz");
+    if (split_pos != std::string::npos) {
+        // Find the last directory separator to get just the filename
+        size_t dir_pos = r1_path.find_last_of("/\\");
+        size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
+        sample_name = r1_path.substr(start_pos, split_pos - start_pos);
+    } else {
+        // Fallback: use base filename without extension
+        size_t dir_pos = r1_path.find_last_of("/\\");
+        size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
+        size_t dot_pos = r1_path.find_last_of(".");
+        size_t end_pos = (dot_pos != std::string::npos) ? dot_pos : r1_path.length();
+        sample_name = r1_path.substr(start_pos, end_pos - start_pos);
+    }
+    
     // Default values
-    std::string output_prefix = "resistance_results";
+    std::string output_dir = "results";  // Default output directory
     std::string fq_csv_path = "data/quinolone_resistance_mutation_table.csv";
     bool use_bloom = true;
     bool use_sw = true;
     uint32_t min_allele_depth = 5;  // Default minimum depth for allele frequency analysis
     uint32_t min_report_depth = 0;  // Default minimum depth for reporting polymorphisms (no filter)
+    bool output_prefix_specified = false;  // Track if user provided output prefix
+    std::string output_prefix = "";  // Will be set after parsing args
     
     // Parse optional arguments
     int positional_arg_count = 4; // We've consumed 4 required args
@@ -1467,22 +1488,39 @@ int main(int argc, char** argv) {
             min_allele_depth = std::stoi(argv[++i]);
         } else if (arg == "--min-report-depth" && i + 1 < argc) {
             min_report_depth = std::stoi(argv[++i]);
+        } else if (arg == "--output-dir" && i + 1 < argc) {
+            output_dir = argv[++i];
         } else if (arg[0] != '-') {
             // It's a positional argument
             positional_arg_count++;
             if (positional_arg_count == 5) {
                 output_prefix = arg;
+                output_prefix_specified = true;
             } else if (positional_arg_count == 6) {
                 fq_csv_path = arg;
             }
         }
     }
     
+    // Set output prefix if not specified by user
+    if (!output_prefix_specified) {
+        // Default: output_dir/sample_name/sample_name
+        output_prefix = output_dir + "/" + sample_name + "/" + sample_name;
+        
+        // Create the output directory structure
+        std::string mkdir_cmd = "mkdir -p " + output_dir + "/" + sample_name;
+        system(mkdir_cmd.c_str());
+    }
+    
     std::cout << "=== Clean Fluoroquinolone Resistance Detection Pipeline ===\n";
+    std::cout << "Sample name: " << sample_name << "\n";
     std::cout << "Nucleotide index: " << nucleotide_index << "\n";
     std::cout << "Protein database: " << protein_db << "\n";
     std::cout << "R1 reads: " << r1_path << "\n";
     std::cout << "R2 reads: " << r2_path << "\n";
+    if (!output_prefix_specified) {
+        std::cout << "Output directory: " << output_dir << "/" << sample_name << "/ (auto-generated)\n";
+    }
     std::cout << "Output prefix: " << output_prefix << "\n";
     std::cout << "FQ resistance CSV: " << fq_csv_path << "\n";
     std::cout << "Configuration:\n";

@@ -228,3 +228,23 @@ test_allele_freq_corrected /home/david/Documents/Code/biogpu/data/quinolone_resi
   /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
   /home/david/Documents/Code/biogpu/data/569_A_038_R1.fastq.gz /home/david/Documents/Code/biogpu/data/569_A_038_R2.fastq.gz \
    569_A_038_allele_freq_20250109 /home/david/Documents/Code/biogpu/data/quinolone_resistance_mutation_table.csv
+
+## updated to remove output dir as a command line. Now defaults to results/samplename
+  ./runtime/kernels/resistance/build/clean_resistance_pipeline \
+      /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+      /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+      data/569_A_038_R1.fastq.gz \
+      data/569_A_038_R2.fastq.gz \
+      --no-bloom
+
+  ./runtime/kernels/resistance/build/clean_resistance_pipeline \
+      /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+      /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+      data/569_A_038_R1.fastq.gz \
+      data/569_A_038_R2.fastq.gz \
+      --no-bloom \
+      --min-allele-depth 10 \
+      --min-report-depth 20 \
+      --output-dir /home/david/fq_analysis_results
+
+  This would create files in /home/david/fq_analysis_results/569_A_038/

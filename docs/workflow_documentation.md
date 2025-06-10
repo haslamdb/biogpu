@@ -227,24 +227,6 @@ Path specifications in CSV:
 - Smith-Waterman should remain ENABLED for sensitivity (30% more matches: 1,326 vs 922)
 - This configuration balances speed and accuracy
 
-**Alternative Commands**:
-```bash
-# Maximum sensitivity (default - slower)
-./runtime/kernels/resistance/build/clean_resistance_pipeline \
-    data/integrated_clean_db/nucleotide \
-    data/integrated_clean_db/protein \
-    reads_R1.fastq.gz \
-    reads_R2.fastq.gz
-
-# Maximum speed (least sensitive)
-./runtime/kernels/resistance/build/clean_resistance_pipeline \
-    data/integrated_clean_db/nucleotide \
-    data/integrated_clean_db/protein \
-    reads_R1.fastq.gz \
-    reads_R2.fastq.gz \
-    --no-bloom --no-sw
-```
-
 **Pipeline Stages**:
 
 1. **Bloom Filter Pre-screening** (Optional, default ON - **recommend OFF**)

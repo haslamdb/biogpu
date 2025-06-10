@@ -79,7 +79,7 @@ biogpu/
 #### 1. Download Reference Sequences
 ```bash
 python src/python/download_ncbi_20250529.py \
-    data/known_quinolone_resistance_mutations.csv \
+    data/quinolone_resistance_mutation_table.csv \
     data/fq_genes \
     --email your_email@example.com \
     --max-per-gene 300

@@ -217,9 +217,14 @@ test_allele_freq_corrected /home/david/Documents/Code/biogpu/data/quinolone_resi
 ./build/clean_resistance_pipeline /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein /home/david/Documents/Code/biogpu/data/5.fastq.gz /home/david/Documents/Code/biogpu/1M_synthetic_reads_R2.fastq.gz
 test_allele_freq_corrected /home/david/Documents/Code/biogpu/data/quinolone_resistance_mutation_table.csv
 #
-#this owrks
+#this works
 
- ./build/clean_resistance_pipeline /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide
-  /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein
-  /home/david/Documents/Code/biogpu/1M_synthetic_reads_R1.fastq.gz /home/david/Documents/Code/biogpu/1M_synthetic_reads_R2.fastq.gz
+ ./build/clean_resistance_pipeline /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+  /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+  /home/david/Documents/Code/biogpu/1M_synthetic_reads_R1.fastq.gz /home/david/Documents/Code/biogpu/1M_synthetic_reads_R2.fastq.gz \
    test_allele_freq_20250109 /home/david/Documents/Code/biogpu/data/quinolone_resistance_mutation_table.csv
+
+    ./build/clean_resistance_pipeline /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+  /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+  /home/david/Documents/Code/biogpu/data/569_A_038_R1.fastq.gz /home/david/Documents/Code/biogpu/data/569_A_038_R2.fastq.gz \
+   569_A_038_allele_freq_20250109 /home/david/Documents/Code/biogpu/data/quinolone_resistance_mutation_table.csv

@@ -247,4 +247,4 @@ test_allele_freq_corrected /home/david/Documents/Code/biogpu/data/quinolone_resi
       --min-report-depth 20 \
       --output-dir /home/david/fq_analysis_results
 
-  This would create files in /home/david/fq_analysis_results/569_A_038/
+# updated to include csv parsing

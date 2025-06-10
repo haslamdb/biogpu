@@ -278,57 +278,81 @@ target_link_libraries(test_bloom_filter
     cuda
 )
 
-# Comment out test executables that reference missing files
-# These can be uncommented when the test files are available
+# Test CSV parser (NEW)
+add_executable(test_csv_parser
+    test_csv_parser.cpp
+)
 
-# # Test program for resistance detection GPU
-# add_executable(test_resistance_gpu
-#     ${CMAKE_SOURCE_DIR}/tests/test_resistance_detection_gpu.cu
-# )
-# 
-# set_target_properties(test_resistance_gpu PROPERTIES
-#     CUDA_SEPARABLE_COMPILATION ON
-#     CUDA_ARCHITECTURES "61;70;75;80;86"
-# )
-# 
-# target_link_libraries(test_resistance_gpu
-#     resistance_detection_gpu
-#     cudart
-#     cuda
-# )
-# 
-# # Test executable for FQ mapper
-# add_executable(test_fq_mapper
-#     ${CMAKE_SOURCE_DIR}/tests/test_fq_mapper.cpp
-# )
-# 
-# target_link_libraries(test_fq_mapper
-#     global_fq_mapper
-#     cudart
-# )
-# 
-# # Test HDF5 reader
-# add_executable(test_hdf5_reader
-#     ${CMAKE_SOURCE_DIR}/tests/test_hdf5_reader.cpp
-# )
-# 
-# target_link_libraries(test_hdf5_reader
-#     ${HDF5_LIBRARIES}
-#     ${HDF5_CXX_LIBRARIES}
-# )
-# 
-# # Test translated search
-# add_executable(test_translated_search
-#     ${CMAKE_SOURCE_DIR}/tests/test_translated_search.cu
-# )
-# 
-# set_target_properties(test_translated_search PROPERTIES
-#     CUDA_SEPARABLE_COMPILATION ON
-#     CUDA_ARCHITECTURES "61;70;75;80;86"
-# )
-# 
-# target_link_libraries(test_translated_search
-#     translated_search
-#     cudart
-#     cuda
-# )
+target_link_libraries(test_csv_parser
+    sample_csv_parser
+)
+
+# ===========================
+# Utility Scripts
+# ===========================
+
+# Install Python utility scripts
+install(PROGRAMS
+    generate_sample_csv.py
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+)
+
+# Install documentation
+install(FILES
+    BATCH_PROCESSING_README.md
+    example_samples.csv
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/doc/biogpu
+)
+
+# ===========================
+# Installation Rules
+# ===========================
+
+# Install executables
+install(TARGETS
+    clean_resistance_pipeline
+    fq_pipeline_gpu
+    integrated_resistance_pipeline
+    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+)
+
+# Install libraries (if other projects need them)
+install(TARGETS
+    sample_csv_parser
+    bloom_filter
+    hdf5_writer
+    translated_search
+    kmer_screening
+    diagnostic_reporter
+    global_fq_mapper
+    enhanced_mutation_detection
+    clean_resistance_loader
+    resistance_detection_gpu
+    fixed_database_loader
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+)
+
+# Install headers (if other projects need them)
+install(FILES
+    sample_csv_parser.h
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/include/biogpu
+)
+
+# ===========================
+# Configuration Summary
+# ===========================
+
+message(STATUS "")
+message(STATUS "Configuration Summary:")
+message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "  CUDA Architectures: 61;70;75;80;86")
+message(STATUS "  HDF5 Version: ${HDF5_VERSION}")
+message(STATUS "  jsoncpp Found: ${JSONCPP_FOUND}")
+message(STATUS "  Install Prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "")
+message(STATUS "Build with:")
+message(STATUS "  mkdir build && cd build")
+message(STATUS "  cmake .. -DCMAKE_INSTALL_PREFIX=/path/to/install")
+message(STATUS "  make -j$(nproc)")
+message(STATUS "  make install")
+message(STATUS "")

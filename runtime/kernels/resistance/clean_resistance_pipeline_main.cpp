@@ -23,6 +23,7 @@
 #include "hdf5_alignment_writer.h"
 #include "global_fq_resistance_mapper.h"
 #include "fq_resistance_positions.h"
+#include "sample_csv_parser.h"
 
 // External global FQ resistance database
 extern FQResistanceDatabase* g_fq_resistance_db;
@@ -1421,66 +1422,114 @@ private:
     }
 };
 
+// Function to process a single sample
+int processSingleSample(const BioGPU::SampleInfo& sample, 
+                       const std::string& output_prefix,
+                       const std::string& nucleotide_index,
+                       const std::string& protein_db,
+                       const std::string& fq_csv_path,
+                       bool use_bloom,
+                       bool use_sw,
+                       uint32_t min_allele_depth,
+                       uint32_t min_report_depth) {
+    try {
+        std::cout << "\n=== Processing Sample: " << sample.sample_name << " ===" << std::endl;
+        std::cout << "Directory: " << sample.file_path << std::endl;
+        std::cout << "R1 file: " << sample.read1_filename << " => " << sample.read1_path << std::endl;
+        if (!sample.read2_filename.empty()) {
+            std::cout << "R2 file: " << sample.read2_filename << " => " << sample.read2_path << std::endl;
+        }
+        std::cout << "Output: " << output_prefix << std::endl;
+        
+        // Create and run pipeline
+        CleanResistancePipeline pipeline(use_bloom, use_sw, min_allele_depth, min_report_depth);
+        pipeline.loadDatabases(nucleotide_index, protein_db, fq_csv_path);
+        pipeline.processReads(sample.read1_path, sample.read2_path, output_prefix);
+        
+        std::cout << "Sample " << sample.sample_name << " completed successfully!" << std::endl;
+        return 0;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR processing sample " << sample.sample_name << ": " << e.what() << std::endl;
+        return 1;
+    }
+}
+
+// Print usage information
+void printUsage(const char* program_name) {
+    std::cerr << "Usage:\n";
+    std::cerr << "\nSingle sample mode:\n";
+    std::cerr << "  " << program_name << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [options]\n";
+    std::cerr << "\nBatch mode:\n";
+    std::cerr << "  " << program_name << " <nucleotide_index> <protein_db> --csv <samples.csv> [options]\n";
+    std::cerr << "\nRequired:\n";
+    std::cerr << "  nucleotide_index: Directory containing k-mer index\n";
+    std::cerr << "  protein_db: Directory containing protein database\n";
+    std::cerr << "\nFor single sample:\n";
+    std::cerr << "  reads_r1.fastq.gz: Forward reads\n";
+    std::cerr << "  reads_r2.fastq.gz: Reverse reads\n";
+    std::cerr << "\nFor batch mode:\n";
+    std::cerr << "  --csv <samples.csv>: CSV file with sample information\n";
+    std::cerr << "    CSV columns: SampleName, FilePath, R1 file, R2 file (optional)\n";
+    std::cerr << "\nOptions:\n";
+    std::cerr << "  --output-prefix <prefix>: Output file prefix (single sample only)\n";
+    std::cerr << "  --output-dir <dir>: Base output directory (default: results)\n";
+    std::cerr << "  --fq-csv <path>: Path to FQ resistance mutations CSV (default: data/quinolone_resistance_mutation_table.csv)\n";
+    std::cerr << "  --no-bloom: Disable bloom filter pre-screening\n";
+    std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
+    std::cerr << "  --min-allele-depth <N>: Minimum depth for allele frequency analysis (default: 5)\n";
+    std::cerr << "  --min-report-depth <N>: Minimum depth for reporting polymorphisms (default: 0)\n";
+    std::cerr << "  --stop-on-error: Stop batch processing on first error (batch mode only)\n";
+    std::cerr << "  --dry-run: Validate CSV and show what would be processed without running (batch mode only)\n";
+    std::cerr << "\nExample CSV format:\n";
+    std::cerr << "  SampleName,FilePath,R1 file,R2 file\n";
+    std::cerr << "  Sample1,~/data/,sample1_R1.fastq.gz,sample1_R2.fastq.gz\n";
+    std::cerr << "  Sample2,~/data/,sample2_R1.fastq.gz,sample2_R2.fastq.gz\n";
+}
+
 // Main function
 int main(int argc, char** argv) {
-    if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv] [--no-bloom] [--no-sw] [--min-allele-depth N] [--min-report-depth N] [--output-dir DIR]\n";
-        std::cerr << "\nRequired:\n";
-        std::cerr << "  nucleotide_index: Directory containing k-mer index\n";
-        std::cerr << "  protein_db: Directory containing protein database\n";
-        std::cerr << "  reads_r1.fastq.gz: Forward reads\n";
-        std::cerr << "  reads_r2.fastq.gz: Reverse reads\n";
-        std::cerr << "\nOptional:\n";
-        std::cerr << "  output_prefix: Output file prefix (default: auto-generated from sample name)\n";
-        std::cerr << "  fq_resistance_csv: Path to FQ resistance mutations CSV (default: data/quinolone_resistance_mutation_table.csv)\n";
-        std::cerr << "  --no-bloom: Disable bloom filter pre-screening\n";
-        std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
-        std::cerr << "  --min-allele-depth N: Minimum depth for allele frequency analysis (default: 5)\n";
-        std::cerr << "  --min-report-depth N: Minimum depth for reporting polymorphisms (default: 0)\n";
-        std::cerr << "  --output-dir DIR: Base output directory (default: results)\n";
+    if (argc < 3) {
+        printUsage(argv[0]);
         return 1;
     }
     
+    // Required arguments
     std::string nucleotide_index = argv[1];
     std::string protein_db = argv[2];
-    std::string r1_path = argv[3];
-    std::string r2_path = argv[4];
-    
-    // Extract sample name from R1 path
-    std::string sample_name;
-    size_t split_pos = r1_path.find("_R1.fastq.gz");
-    if (split_pos != std::string::npos) {
-        // Find the last directory separator to get just the filename
-        size_t dir_pos = r1_path.find_last_of("/\\");
-        size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
-        sample_name = r1_path.substr(start_pos, split_pos - start_pos);
-    } else {
-        // Fallback: use base filename without extension
-        size_t dir_pos = r1_path.find_last_of("/\\");
-        size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
-        size_t dot_pos = r1_path.find_last_of(".");
-        size_t end_pos = (dot_pos != std::string::npos) ? dot_pos : r1_path.length();
-        sample_name = r1_path.substr(start_pos, end_pos - start_pos);
-    }
     
     // Default values
-    std::string output_dir = "results";  // Default output directory
+    std::string output_dir = "results";
     std::string fq_csv_path = "data/quinolone_resistance_mutation_table.csv";
+    std::string csv_input_path = "";
+    std::string single_output_prefix = "";
     bool use_bloom = true;
     bool use_sw = true;
-    uint32_t min_allele_depth = 5;  // Default minimum depth for allele frequency analysis
-    uint32_t min_report_depth = 0;  // Default minimum depth for reporting polymorphisms (no filter)
-    bool output_prefix_specified = false;  // Track if user provided output prefix
-    std::string output_prefix = "";  // Will be set after parsing args
+    uint32_t min_allele_depth = 5;
+    uint32_t min_report_depth = 0;
+    bool stop_on_error = false;
+    bool dry_run = false;
+    bool batch_mode = false;
     
-    // Parse optional arguments
-    int positional_arg_count = 4; // We've consumed 4 required args
+    // For single sample mode
+    std::string r1_path = "";
+    std::string r2_path = "";
     
-    for (int i = 5; i < argc; i++) {
+    // Parse command line arguments
+    int i = 3;
+    while (i < argc) {
         std::string arg(argv[i]);
         
-        // Check if it's a flag
-        if (arg == "--no-bloom") {
+        if (arg == "--csv" && i + 1 < argc) {
+            csv_input_path = argv[++i];
+            batch_mode = true;
+        } else if (arg == "--output-prefix" && i + 1 < argc) {
+            single_output_prefix = argv[++i];
+        } else if (arg == "--output-dir" && i + 1 < argc) {
+            output_dir = argv[++i];
+        } else if (arg == "--fq-csv" && i + 1 < argc) {
+            fq_csv_path = argv[++i];
+        } else if (arg == "--no-bloom") {
             use_bloom = false;
         } else if (arg == "--no-sw") {
             use_sw = false;
@@ -1488,15 +1537,36 @@ int main(int argc, char** argv) {
             min_allele_depth = std::stoi(argv[++i]);
         } else if (arg == "--min-report-depth" && i + 1 < argc) {
             min_report_depth = std::stoi(argv[++i]);
-        } else if (arg == "--output-dir" && i + 1 < argc) {
-            output_dir = argv[++i];
-        } else if (arg[0] != '-') {
-            // It's a positional argument
-            positional_arg_count++;
-            if (positional_arg_count == 5) {
-                output_prefix = arg;
-                output_prefix_specified = true;
-            } else if (positional_arg_count == 6) {
+        } else if (arg == "--stop-on-error") {
+            stop_on_error = true;
+        } else if (arg == "--dry-run") {
+            dry_run = true;
+        } else if (arg[0] != '-' && r1_path.empty()) {
+            // First non-option argument is R1 (single sample mode)
+            r1_path = arg;
+        } else if (arg[0] != '-' && r2_path.empty()) {
+            // Second non-option argument is R2 (single sample mode)
+            r2_path = arg;
+        } else {
+            std::cerr << "Unknown argument: " << arg << std::endl;
+            printUsage(argv[0]);
+            return 1;
+        }
+        i++;
+    }
+    
+    // Validate arguments
+    if (batch_mode && !r1_path.empty()) {
+        std::cerr << "Error: Cannot specify both --csv and individual read files" << std::endl;
+        printUsage(argv[0]);
+        return 1;
+    }
+    
+    if (!batch_mode && (r1_path.empty() || r2_path.empty())) {
+        std::cerr << "Error: Must specify either --csv for batch mode or both R1 and R2 files" << std::endl;
+        printUsage(argv[0]);
+        return 1;
+    }
                 fq_csv_path = arg;
             }
         }

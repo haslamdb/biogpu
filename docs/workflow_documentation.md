@@ -244,12 +244,27 @@ The pipeline generates multiple output files:
    - `output_prefix_clinical_fq_report.txt` - Text summary
    - Includes confidence scoring and clinical interpretation
 
-5. **Allele Frequency Report** (NEW in v0.6.1)
+5. **Allele Frequency Report** (NEW in v0.6.1, Enhanced in v0.6.2)
    - `output_prefix_allele_frequencies.csv` - Comprehensive allele frequency data
    - Reports mutation frequencies at all detected positions
    - Includes wildtype and mutant amino acid counts and percentages
    - Tracks resistance mutations with position-specific depth information
    - Essential for monitoring mutation prevalence in metagenomic samples
+   - **v0.6.2 Enhancement**: Configurable depth filtering (see Configuration Options)
+
+## 🎉 Key Changes in Version 0.6.2 (June 10, 2025)
+
+### Configurable Depth Filtering for Allele Frequencies
+- Added `--min-allele-depth N` parameter to control minimum depth for allele frequency analysis
+  - Default: 5 (only positions with ≥5 reads are included in frequency calculations)
+  - Set to 0 to include all positions regardless of coverage
+- Added `--min-report-depth N` parameter to control minimum depth for reporting polymorphisms
+  - Default: 0 (no filtering - all calculated frequencies are reported)
+  - Set to higher values to only report high-confidence positions in CSV output
+- These parameters work independently:
+  - `--min-allele-depth` filters which positions are analyzed
+  - `--min-report-depth` filters which analyzed positions are written to CSV
+- Example: `--min-allele-depth 1 --min-report-depth 10` analyzes all positions with any coverage but only reports those with ≥10 reads
 
 ## 🎉 Key Changes in Version 0.6.1 (June 9, 2025)
 
@@ -380,6 +395,8 @@ KNOWN FQ RESISTANCE MUTATIONS:
 ### Pipeline Flags (v0.6.0+)
 - `--no-bloom`: Disable Bloom filter pre-screening (RECOMMENDED for 6% speed improvement)
 - `--no-sw`: Disable Smith-Waterman alignment (NOT recommended - reduces sensitivity by 30%)
+- `--min-allele-depth N`: Minimum read depth for allele frequency analysis (default: 5) (v0.6.2+)
+- `--min-report-depth N`: Minimum read depth for reporting in CSV output (default: 0) (v0.6.2+)
 
 ### Performance Parameters
 - Batch size: 10,000 reads (configurable)
@@ -433,6 +450,39 @@ python src/python/generate_synthetic_reads.py \
     1M_synthetic_reads_R2.fastq.gz \
     1M_reads_test \
     data/quinolone_resistance_mutation_table.csv
+```
+
+### Depth Filtering Examples (v0.6.2+)
+```bash
+# Include all positions in analysis, report only high-confidence (≥20 reads)
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    sample_R1.fastq.gz sample_R2.fastq.gz \
+    results/high_confidence \
+    data/quinolone_resistance_mutation_table.csv \
+    --min-allele-depth 1 \
+    --min-report-depth 20
+
+# Standard analysis (≥5 reads) but report everything
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    sample_R1.fastq.gz sample_R2.fastq.gz \
+    results/standard \
+    data/quinolone_resistance_mutation_table.csv \
+    --min-allele-depth 5 \
+    --min-report-depth 0
+
+# Ultra-sensitive: analyze and report all positions
+./build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    sample_R1.fastq.gz sample_R2.fastq.gz \
+    results/ultra_sensitive \
+    data/quinolone_resistance_mutation_table.csv \
+    --min-allele-depth 0 \
+    --min-report-depth 0
 ```
 
 ## 🔧 Building from Source
@@ -492,6 +542,13 @@ make build_integrated_resistance_db
 - **Sensitivity**: Detects mutations at 10% allele frequency
 
 ## 🤝 Version History
+
+### v0.6.2 (June 10 2025) - CONFIGURABLE DEPTH FILTERING
+- **Added configurable minimum depth parameters** for allele frequency analysis
+- `--min-allele-depth`: Controls which positions are included in analysis
+- `--min-report-depth`: Controls which positions are written to output
+- Allows flexible filtering based on coverage requirements
+- Default behavior unchanged (min 5 reads for analysis, no filtering for output)
 
 ### v0.6.0 (June 8 2025) - FULLY FUNCTIONAL FQ RESISTANCE DETECTION
 - **Fixed QRDR detection** - now properly identifies QRDR alignments

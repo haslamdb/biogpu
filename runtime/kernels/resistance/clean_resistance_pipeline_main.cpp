@@ -442,6 +442,8 @@ private:
     // Configuration flags
     bool use_bloom_filter = true;        // Enable bloom filtering by default
     bool use_smith_waterman = true;      // Enable Smith-Waterman by default
+    uint32_t min_allele_depth = 5;       // Minimum depth for allele frequency analysis
+    uint32_t min_report_depth = 0;       // Minimum depth for reporting (0 = no filter)
     const int kmer_length = 15;
     const int max_candidates_per_read = 64;
     const int max_protein_matches_per_read = 32;
@@ -457,12 +459,16 @@ private:
     } stats;
 
 public:
-    CleanResistancePipeline(bool enable_bloom = true, bool enable_sw = true) 
-        : use_bloom_filter(enable_bloom), use_smith_waterman(enable_sw) {
+    CleanResistancePipeline(bool enable_bloom = true, bool enable_sw = true,
+                            uint32_t min_allele_d = 5, uint32_t min_report_d = 0) 
+        : use_bloom_filter(enable_bloom), use_smith_waterman(enable_sw),
+          min_allele_depth(min_allele_d), min_report_depth(min_report_d) {
         
         std::cout << "Initializing Clean Resistance Detection Pipeline\n";
         std::cout << "  Bloom filter: " << (use_bloom_filter ? "ENABLED" : "DISABLED") << "\n";
         std::cout << "  Smith-Waterman: " << (use_smith_waterman ? "ENABLED" : "DISABLED") << "\n";
+        std::cout << "  Min allele depth: " << min_allele_depth << "\n";
+        std::cout << "  Min report depth: " << min_report_depth << "\n";
         
         // Only create bloom filter if enabled
         if (use_bloom_filter) {
@@ -762,7 +768,7 @@ public:
         std::string allele_frequency_json = "";
         std::vector<AlleleFrequencyData> allele_frequencies;  // Declare outside if block
         if (allele_analyzer) {
-            allele_frequencies = allele_analyzer->generateAlleleFrequencies(5); // min depth = 5
+            allele_frequencies = allele_analyzer->generateAlleleFrequencies(min_allele_depth);
             
             // Write allele frequencies to CSV
             std::string allele_csv_path = output_path + "_allele_frequencies.csv";
@@ -774,7 +780,7 @@ public:
                 sample_name = sample_name.substr(last_slash + 1);
             }
             
-            writeAlleleFrequenciesToCSV(allele_frequencies, allele_csv_path, sample_name);
+            writeAlleleFrequenciesToCSV(allele_frequencies, allele_csv_path, sample_name, min_report_depth);
             
             // Prepare allele frequency summary for JSON
             int total_resistance_positions = 0;
@@ -886,7 +892,8 @@ public:
 private:
     void writeAlleleFrequenciesToCSV(const std::vector<AlleleFrequencyData>& allele_data,
                                     const std::string& csv_path,
-                                    const std::string& sample_name) {
+                                    const std::string& sample_name,
+                                    uint32_t min_report_depth = 0) {
         std::ofstream csv_file(csv_path);
         if (!csv_file.good()) {
             std::cerr << "ERROR: Failed to create allele frequency CSV file: " << csv_path << std::endl;
@@ -899,6 +906,11 @@ private:
                  << "total_resistant_frequency,has_resistance_mutation,mutation_summary,all_amino_acids\n";
         
         for (const auto& freq : allele_data) {
+            // Skip positions below minimum reporting depth
+            if (freq.total_depth < min_report_depth) {
+                continue;
+            }
+            
             // Calculate wildtype count
             uint32_t wt_count = freq.aa_counts.count(freq.wildtype_aa) ? 
                                freq.aa_counts.at(freq.wildtype_aa) : 0;
@@ -932,7 +944,20 @@ private:
         }
         
         csv_file.close();
-        std::cout << "Wrote allele frequencies for " << allele_data.size() << " positions to: " << csv_path << std::endl;
+        
+        // Count how many positions were actually written
+        size_t positions_written = 0;
+        for (const auto& freq : allele_data) {
+            if (freq.total_depth >= min_report_depth) {
+                positions_written++;
+            }
+        }
+        
+        std::cout << "Wrote allele frequencies for " << positions_written << " positions";
+        if (min_report_depth > 0) {
+            std::cout << " (filtered from " << allele_data.size() << " total, min depth=" << min_report_depth << ")";
+        }
+        std::cout << " to: " << csv_path << std::endl;
     }
 
     bool readBatch(gzFile gz_r1, gzFile gz_r2, std::vector<FastqRecord>& batch_r1,
@@ -1398,7 +1423,7 @@ private:
 // Main function
 int main(int argc, char** argv) {
     if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv] [--no-bloom] [--no-sw]\n";
+        std::cerr << "Usage: " << argv[0] << " <nucleotide_index> <protein_db> <reads_r1.fastq.gz> <reads_r2.fastq.gz> [output_prefix] [fq_resistance_csv] [--no-bloom] [--no-sw] [--min-allele-depth N] [--min-report-depth N]\n";
         std::cerr << "\nRequired:\n";
         std::cerr << "  nucleotide_index: Directory containing k-mer index\n";
         std::cerr << "  protein_db: Directory containing protein database\n";
@@ -1409,6 +1434,8 @@ int main(int argc, char** argv) {
         std::cerr << "  fq_resistance_csv: Path to FQ resistance mutations CSV (default: data/quinolone_resistance_mutation_table.csv)\n";
         std::cerr << "  --no-bloom: Disable bloom filter pre-screening\n";
         std::cerr << "  --no-sw: Disable Smith-Waterman alignment\n";
+        std::cerr << "  --min-allele-depth N: Minimum depth for allele frequency analysis (default: 5)\n";
+        std::cerr << "  --min-report-depth N: Minimum depth for reporting polymorphisms (default: 0)\n";
         return 1;
     }
     
@@ -1422,6 +1449,8 @@ int main(int argc, char** argv) {
     std::string fq_csv_path = "data/quinolone_resistance_mutation_table.csv";
     bool use_bloom = true;
     bool use_sw = true;
+    uint32_t min_allele_depth = 5;  // Default minimum depth for allele frequency analysis
+    uint32_t min_report_depth = 0;  // Default minimum depth for reporting polymorphisms (no filter)
     
     // Parse optional arguments
     int positional_arg_count = 4; // We've consumed 4 required args
@@ -1434,6 +1463,10 @@ int main(int argc, char** argv) {
             use_bloom = false;
         } else if (arg == "--no-sw") {
             use_sw = false;
+        } else if (arg == "--min-allele-depth" && i + 1 < argc) {
+            min_allele_depth = std::stoi(argv[++i]);
+        } else if (arg == "--min-report-depth" && i + 1 < argc) {
+            min_report_depth = std::stoi(argv[++i]);
         } else if (arg[0] != '-') {
             // It's a positional argument
             positional_arg_count++;
@@ -1454,7 +1487,9 @@ int main(int argc, char** argv) {
     std::cout << "FQ resistance CSV: " << fq_csv_path << "\n";
     std::cout << "Configuration:\n";
     std::cout << "  Bloom filter: " << (use_bloom ? "ENABLED" : "DISABLED") << "\n";
-    std::cout << "  Smith-Waterman: " << (use_sw ? "ENABLED" : "DISABLED") << "\n\n";
+    std::cout << "  Smith-Waterman: " << (use_sw ? "ENABLED" : "DISABLED") << "\n";
+    std::cout << "  Min allele depth: " << min_allele_depth << "\n";
+    std::cout << "  Min report depth: " << min_report_depth << "\n\n";
     
     // Check CUDA device
     int device_count;
@@ -1471,7 +1506,7 @@ int main(int argc, char** argv) {
     
     try {
         // Create and run pipeline with configuration
-        CleanResistancePipeline pipeline(use_bloom, use_sw);
+        CleanResistancePipeline pipeline(use_bloom, use_sw, min_allele_depth, min_report_depth);
         pipeline.loadDatabases(nucleotide_index, protein_db, fq_csv_path);
         pipeline.processReads(r1_path, r2_path, output_prefix);
         

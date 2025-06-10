@@ -244,7 +244,21 @@ The pipeline generates multiple output files:
    - `output_prefix_clinical_fq_report.txt` - Text summary
    - Includes confidence scoring and clinical interpretation
 
+5. **Allele Frequency Report** (NEW in v0.6.1)
+   - `output_prefix_allele_frequencies.csv` - Comprehensive allele frequency data
+   - Reports mutation frequencies at all detected positions
+   - Includes wildtype and mutant amino acid counts and percentages
+   - Tracks resistance mutations with position-specific depth information
+   - Essential for monitoring mutation prevalence in metagenomic samples
+
 ## 🎉 Key Changes in Version 0.6.1 (June 9, 2025)
+
+### Allele Frequency Calculation
+- Added comprehensive allele frequency reporting for all detected positions
+- Calculates mutation frequencies with depth-aware statistics
+- Tracks wildtype vs mutant amino acid distributions
+- Particularly useful for monitoring E. coli gyrA D87N/G and other key resistance mutations
+- Outputs detailed CSV with per-position coverage and mutation summaries
 
 ### Microbiome Profiler Development
 

@@ -1,6 +1,6 @@
 {
   "report_type": "clinical_fluoroquinolone_resistance",
-  "generated": "2025-06-09 19:37:52",
+  "generated": "2025-06-09 20:40:49",
   "summary": {
     "overall_interpretation": "HIGH CONFIDENCE: Fluoroquinolone resistance detected",
     "resistance_confidence": 0.950,
@@ -10,8 +10,8 @@
     "reads_with_protein_matches": 2876829,
     "reads_with_mutations": 18487,
     "reads_with_fq_resistance": 658,
-    "processing_time_seconds": 62.000,
-    "reads_per_second": 16129
+    "processing_time_seconds": 48.000,
+    "reads_per_second": 20833
   },
   "clinical_notes": [
     "Resistance detected in: Escherichia_coli"

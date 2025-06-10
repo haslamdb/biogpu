@@ -24,6 +24,7 @@
 #include "hdf5_alignment_writer.h"
 #include "global_fq_resistance_mapper.h"
 #include "fq_resistance_positions.h"
+#include "fq_mutations_hardcoded.h"
 #include "sample_csv_parser.h"
 
 // External global FQ resistance database
@@ -248,8 +249,10 @@ private:
                     uint32_t total_depth = depth_data[species_gene_key][position];
                     if (total_depth < min_depth) continue;
                     
-                    // FIXED: Skip positions with no variation (only one amino acid observed)
-                    if (aa_counts.size() <= 1) continue;
+                    // NEW: Only report known FQ resistance positions
+                    if (!isKnownFQResistancePosition(species_name, gene_name, position)) {
+                        continue;
+                    }
                     
                     AlleleFrequencyData freq_data;
                     freq_data.species_id = species_id;
@@ -263,13 +266,10 @@ private:
                     }
                     freq_data.total_depth = total_depth;
                     
-                    // FIXED: Get wildtype and known resistant amino acids
-                    // First try to get wildtype from our observed reference sequences
-                    if (reference_aas[species_gene_key].find(position) != reference_aas[species_gene_key].end()) {
+                    // Get wildtype from hardcoded FQ mutations or observed references
+                    freq_data.wildtype_aa = getWildtypeFromFQMutations(species_name, gene_name, position);
+                    if (freq_data.wildtype_aa == 'X' && reference_aas[species_gene_key].find(position) != reference_aas[species_gene_key].end()) {
                         freq_data.wildtype_aa = reference_aas[species_gene_key][position];
-                    } else {
-                        // Fall back to FQ resistance database
-                        freq_data.wildtype_aa = getWildtypeAA(species_name, gene_name, position);
                     }
                     freq_data.known_resistant_aas = getKnownResistantAAs(species_name, gene_name, position);
                     
@@ -421,6 +421,28 @@ private:
                 if (pair.second == gene_name) return pair.first;
             }
             return UINT32_MAX;
+        }
+        
+        // Check if this is a known FQ resistance position based on hardcoded mutations
+        bool isKnownFQResistancePosition(const std::string& species, const std::string& gene, uint16_t position) {
+            // Check if this species/gene/position combination exists in our hardcoded mutations
+            for (const auto& mutation : HARDCODED_FQ_MUTATIONS) {
+                if (mutation.species == species && mutation.gene == gene && mutation.position == position) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // Get wildtype AA from hardcoded FQ mutations
+        char getWildtypeFromFQMutations(const std::string& species, const std::string& gene, uint16_t position) {
+            // Find the wildtype for this species/gene/position
+            for (const auto& mutation : HARDCODED_FQ_MUTATIONS) {
+                if (mutation.species == species && mutation.gene == gene && mutation.position == position) {
+                    return mutation.wildtype_aa;
+                }
+            }
+            return 'X'; // Unknown
         }
     };
 

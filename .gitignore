@@ -49,7 +49,10 @@ sequences.bin
 *_debug_results.json
 synthetic_*.json
 
-# Large CSV files from allele frequency results
+# CSV files
+*.csv
+
+# Large CSV files from allele frequency results (already covered by *.csv above)
 runtime/kernels/resistance/results_allele_frequency_*/*_protein_matches.csv
 
 # HDF5 files (often large)

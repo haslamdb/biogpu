@@ -1,0 +1,20 @@
+{
+  "pipeline": "clean_resistance_detection",
+  "version": "1.0",
+  "configuration": {
+    "bloom_filter": true,
+    "smith_waterman": true
+  },
+  "results": [
+
+  ],
+  "summary": {
+    "total_reads": 1000000,
+    "bloom_passed": 0,
+    "nucleotide_matches": 0,
+    "protein_matches": 0,
+    "resistance_mutations": 0,
+    "fq_resistance_mutations": 0,
+    "processing_completed": true
+  }
+}

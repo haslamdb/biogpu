@@ -188,46 +188,18 @@ private:
             
             std::string species_gene_key = species_name + "_" + gene_name;
             
-            // Process each mutation in the alignment
-            for (int i = 0; i < match.num_mutations; i++) {
-                uint16_t global_pos = match.ref_start + match.mutation_positions[i] + 1; // Convert to 1-based
-                char observed_aa = match.query_aas[i];
+            // NEW APPROACH: Process ALL positions in the alignment using query_peptide
+            // This ensures we count both wildtype and mutant amino acids correctly
+            for (uint16_t i = 0; i < match.match_length && i < 50; i++) { // query_peptide max length is 50
+                char query_aa = match.query_peptide[i];
+                if (query_aa == '\0') break; // End of peptide
                 
-                // Add to pileup
-                pileup_data[species_gene_key][global_pos][observed_aa]++;
-                depth_data[species_gene_key][global_pos]++;
-            }
-            
-            // Also add reference positions (positions without mutations in this alignment)
-            // This requires knowing the reference sequence, so we'll approximate by assuming
-            // positions covered by the alignment but not mutated are wildtype
-            for (uint16_t rel_pos = 0; rel_pos < match.match_length; rel_pos++) {
-                bool is_mutated = false;
-                char ref_aa = 'X';  // Default unknown
+                uint16_t global_pos = match.ref_start + i + 1; // Convert to 1-based
                 
-                // Check if this position has a mutation
-                for (int j = 0; j < match.num_mutations; j++) {
-                    if (match.mutation_positions[j] == rel_pos) {
-                        is_mutated = true;
-                        ref_aa = match.ref_aas[j];
-                        break;
-                    }
-                }
-                
-                if (!is_mutated) {
-                    // This position matches reference - but we need to know what the reference AA is
-                    // For now, we'll only count the depth (mutations are counted above)
-                    uint16_t global_pos = match.ref_start + rel_pos + 1;
+                // Add the observed amino acid to pileup
+                if (query_aa != 'X' && query_aa != '*') { // Skip unknown/stop codons
+                    pileup_data[species_gene_key][global_pos][query_aa]++;
                     depth_data[species_gene_key][global_pos]++;
-                    
-                    // If we have reference info from other mutations at this position, use it
-                    if (pileup_data[species_gene_key][global_pos].empty()) {
-                        // Try to infer wildtype from known resistance positions
-                        char wt_aa = getWildtypeAA(species_name, gene_name, global_pos);
-                        if (wt_aa != 'X') {
-                            pileup_data[species_gene_key][global_pos][wt_aa]++;
-                        }
-                    }
                 }
             }
         }

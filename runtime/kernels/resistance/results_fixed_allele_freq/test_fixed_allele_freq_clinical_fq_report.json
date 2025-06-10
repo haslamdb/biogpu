@@ -1,0 +1,25 @@
+{
+  "report_type": "clinical_fluoroquinolone_resistance",
+  "generated": "2025-06-09 20:16:59",
+  "summary": {
+    "overall_interpretation": "No fluoroquinolone resistance markers detected",
+    "resistance_confidence": 0.050,
+    "has_fq_resistance": false,
+    "has_qrdr_mutations": false,
+    "total_reads_analyzed": 1000000,
+    "reads_with_protein_matches": 0,
+    "reads_with_mutations": 0,
+    "reads_with_fq_resistance": 0,
+    "processing_time_seconds": 1.000,
+    "reads_per_second": 1000000
+  },
+  "clinical_notes": [
+    "Sample appears susceptible to fluoroquinolones"
+  ],
+  "species_analysis": [
+
+  ],
+  "mutations_detected": [
+
+  ]
+}

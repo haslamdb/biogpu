@@ -1567,63 +1567,128 @@ int main(int argc, char** argv) {
         printUsage(argv[0]);
         return 1;
     }
-                fq_csv_path = arg;
-            }
-        }
-    }
-    
-    // Set output prefix if not specified by user
-    if (!output_prefix_specified) {
-        // Default: output_dir/sample_name/sample_name
-        output_prefix = output_dir + "/" + sample_name + "/" + sample_name;
-        
-        // Create the output directory structure
-        std::string mkdir_cmd = "mkdir -p " + output_dir + "/" + sample_name;
-        system(mkdir_cmd.c_str());
-    }
-    
-    std::cout << "=== Clean Fluoroquinolone Resistance Detection Pipeline ===\n";
-    std::cout << "Sample name: " << sample_name << "\n";
-    std::cout << "Nucleotide index: " << nucleotide_index << "\n";
-    std::cout << "Protein database: " << protein_db << "\n";
-    std::cout << "R1 reads: " << r1_path << "\n";
-    std::cout << "R2 reads: " << r2_path << "\n";
-    if (!output_prefix_specified) {
-        std::cout << "Output directory: " << output_dir << "/" << sample_name << "/ (auto-generated)\n";
-    }
-    std::cout << "Output prefix: " << output_prefix << "\n";
-    std::cout << "FQ resistance CSV: " << fq_csv_path << "\n";
-    std::cout << "Configuration:\n";
-    std::cout << "  Bloom filter: " << (use_bloom ? "ENABLED" : "DISABLED") << "\n";
-    std::cout << "  Smith-Waterman: " << (use_sw ? "ENABLED" : "DISABLED") << "\n";
-    std::cout << "  Min allele depth: " << min_allele_depth << "\n";
-    std::cout << "  Min report depth: " << min_report_depth << "\n\n";
     
     // Check CUDA device
     int device_count;
     CUDA_CHECK(cudaGetDeviceCount(&device_count));
     if (device_count == 0) {
-        std::cerr << "No CUDA devices found!\n";
+        std::cerr << "No CUDA devices found!" << std::endl;
         return 1;
     }
     
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
-    std::cout << "Using GPU: " << prop.name << "\n";
-    std::cout << "Memory: " << (prop.totalGlobalMem / (1024*1024*1024)) << " GB\n\n";
+    std::cout << "Using GPU: " << prop.name << std::endl;
+    std::cout << "Memory: " << (prop.totalGlobalMem / (1024*1024*1024)) << " GB" << std::endl;
     
-    try {
-        // Create and run pipeline with configuration
-        CleanResistancePipeline pipeline(use_bloom, use_sw, min_allele_depth, min_report_depth);
-        pipeline.loadDatabases(nucleotide_index, protein_db, fq_csv_path);
-        pipeline.processReads(r1_path, r2_path, output_prefix);
+    // Print configuration
+    std::cout << "\n=== Clean Fluoroquinolone Resistance Detection Pipeline ===" << std::endl;
+    std::cout << "Mode: " << (batch_mode ? "BATCH" : "SINGLE SAMPLE") << std::endl;
+    std::cout << "Nucleotide index: " << nucleotide_index << std::endl;
+    std::cout << "Protein database: " << protein_db << std::endl;
+    std::cout << "FQ resistance CSV: " << fq_csv_path << std::endl;
+    std::cout << "Output directory: " << output_dir << std::endl;
+    std::cout << "Configuration:" << std::endl;
+    std::cout << "  Bloom filter: " << (use_bloom ? "ENABLED" : "DISABLED") << std::endl;
+    std::cout << "  Smith-Waterman: " << (use_sw ? "ENABLED" : "DISABLED") << std::endl;
+    std::cout << "  Min allele depth: " << min_allele_depth << std::endl;
+    std::cout << "  Min report depth: " << min_report_depth << std::endl;
+    
+    if (batch_mode) {
+        // Batch processing mode
+        std::cout << "\nBatch input CSV: " << csv_input_path << std::endl;
+        if (stop_on_error) {
+            std::cout << "Stop on error: ENABLED" << std::endl;
+        }
+        if (dry_run) {
+            std::cout << "Mode: DRY RUN (validation only)" << std::endl;
+        }
         
-        std::cout << "\nPipeline completed successfully!\n";
+        // Create batch processor
+        BioGPU::BatchProcessor batch_processor(output_dir, true);
         
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << "\n";
-        return 1;
+        // Load samples from CSV
+        if (!batch_processor.loadSamples(csv_input_path)) {
+            std::cerr << "Failed to load samples from CSV" << std::endl;
+            return 1;
+        }
+        
+        // Print summary
+        batch_processor.getParser().printSummary();
+        
+        // Validate samples
+        auto errors = batch_processor.getParser().getValidationErrors();
+        if (!errors.empty()) {
+            std::cerr << "\nValidation errors found:" << std::endl;
+            for (const auto& error : errors) {
+                std::cerr << "  " << error << std::endl;
+            }
+            if (stop_on_error) {
+                return 1;
+            }
+        }
+        
+        if (dry_run) {
+            std::cout << "\nDry run mode - showing what would be processed:" << std::endl;
+            batch_processor.getParser().printDetailed();
+            return 0;
+        }
+        
+        // Process batch
+        auto process_func = [&](const BioGPU::SampleInfo& sample, const std::string& output_prefix) {
+            return processSingleSample(sample, output_prefix, nucleotide_index, protein_db,
+                                     fq_csv_path, use_bloom, use_sw, min_allele_depth, min_report_depth);
+        };
+        
+        int failed_count = batch_processor.processBatch(process_func, stop_on_error);
+        
+        return (failed_count > 0) ? 1 : 0;
+        
+    } else {
+        // Single sample mode
+        std::cout << "\nR1 reads: " << r1_path << std::endl;
+        std::cout << "R2 reads: " << r2_path << std::endl;
+        
+        // Create sample info
+        BioGPU::SampleInfo sample;
+        sample.read1_path = r1_path;
+        sample.read2_path = r2_path;
+        
+        // Extract sample name if not provided
+        if (single_output_prefix.empty()) {
+            size_t split_pos = r1_path.find("_R1.fastq.gz");
+            if (split_pos != std::string::npos) {
+                size_t dir_pos = r1_path.find_last_of("/\\");
+                size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
+                sample.sample_name = r1_path.substr(start_pos, split_pos - start_pos);
+            } else {
+                size_t dir_pos = r1_path.find_last_of("/\\");
+                size_t start_pos = (dir_pos != std::string::npos) ? dir_pos + 1 : 0;
+                size_t dot_pos = r1_path.find_last_of(".");
+                size_t end_pos = (dot_pos != std::string::npos) ? dot_pos : r1_path.length();
+                sample.sample_name = r1_path.substr(start_pos, end_pos - start_pos);
+            }
+            
+            single_output_prefix = output_dir + "/" + sample.sample_name + "/" + sample.sample_name;
+            
+            // Create output directory
+            std::string mkdir_cmd = "mkdir -p " + output_dir + "/" + sample.sample_name;
+            system(mkdir_cmd.c_str());
+        } else {
+            // Extract sample name from output prefix
+            size_t last_slash = single_output_prefix.find_last_of("/");
+            if (last_slash != std::string::npos) {
+                sample.sample_name = single_output_prefix.substr(last_slash + 1);
+            } else {
+                sample.sample_name = single_output_prefix;
+            }
+        }
+        
+        std::cout << "Sample name: " << sample.sample_name << std::endl;
+        std::cout << "Output prefix: " << single_output_prefix << std::endl;
+        
+        // Process single sample
+        return processSingleSample(sample, single_output_prefix, nucleotide_index, protein_db,
+                                 fq_csv_path, use_bloom, use_sw, min_allele_depth, min_report_depth);
     }
-    
-    return 0;
 }

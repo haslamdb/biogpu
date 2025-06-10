@@ -143,13 +143,13 @@ This creates:
 
 #### Running the Clean Resistance Pipeline
 
-**New in v0.6.3**: Automatic sample name extraction and configurable output directory
-- Sample name is automatically extracted from input filename (splits on `_R1.fastq.gz`)
-- Output directory is no longer a command line argument
+**New in v0.6.3**: Batch processing support and automatic output management
+- Process single samples or multiple samples from a CSV file
+- Sample names automatically extracted from filenames
 - Default output location: `results/<sample_name>/`
 - Use `--output-dir` to specify a custom output directory
 
-**Recommended Command (Optimized Performance)**:
+**Single Sample Mode (Recommended Command)**:
 ```bash
 # Default behavior - outputs to results/569_A_038/
 ./runtime/kernels/resistance/build/clean_resistance_pipeline \
@@ -170,6 +170,53 @@ This creates:
     --min-report-depth 20 \
     --output-dir /home/david/fq_analysis_results
 ```
+
+**Batch Mode (NEW in v0.6.3)**:
+```bash
+# Process multiple samples from CSV file
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --no-bloom
+
+# Validate CSV without processing (dry run)
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --dry-run
+
+# Process with custom options and stop on first error
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/nucleotide \
+    /home/david/Documents/Code/biogpu/data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --no-bloom \
+    --min-allele-depth 10 \
+    --output-dir /custom/output/path \
+    --stop-on-error
+```
+
+**CSV File Format**:
+The CSV file should have the following columns:
+- **SampleName**: Name for the sample (used for output directory)
+- **FilePath**: Directory containing the FASTQ files
+- **R1 file**: Filename of forward reads (R1)
+- **R2 file**: Filename of reverse reads (R2) - optional for single-end
+
+Example CSV (`samples.csv`):
+```csv
+SampleName,FilePath,R1 file,R2 file
+Sample_001,~/data/sequencing/,Sample_001_R1.fastq.gz,Sample_001_R2.fastq.gz
+Sample_002,/absolute/path/to/data/,Sample_002_R1.fastq.gz,Sample_002_R2.fastq.gz
+Sample_003,../relative/path/,Sample_003_R1.fastq.gz,Sample_003_R2.fastq.gz
+```
+
+Path specifications in CSV:
+- Absolute paths: `/full/path/to/data/`
+- Home-relative paths: `~/path/to/data/` (expands to user's home)
+- Working directory relative paths: `../relative/path/` (relative to where command is run)
 
 **Rationale**: Based on performance testing (June 8, 2025):
 - `--no-bloom` provides ~6% performance improvement (212,813 vs 200,295 reads/sec)
@@ -269,6 +316,14 @@ The pipeline generates multiple output files in the `results/<sample_name>/` dir
    - **v0.6.2 Enhancement**: Configurable depth filtering (see Configuration Options)
 
 ## 🎉 Key Changes in Version 0.6.3 (June 10, 2025)
+
+### Batch Processing Support via CSV Input
+- **NEW: Batch mode** for processing multiple samples with a single command
+- Added `--csv` option to specify a CSV file containing sample information
+- CSV format supports flexible path specifications (absolute, relative, or home-relative)
+- Added `--dry-run` option to validate CSV and preview what will be processed
+- Added `--stop-on-error` option for batch error handling
+- Maintains full backward compatibility with single-sample mode
 
 ### Automatic Sample Name Extraction and Output Directory Management
 - **Automatic sample name extraction** from input filename (splits on `_R1.fastq.gz`)
@@ -424,6 +479,9 @@ KNOWN FQ RESISTANCE MUTATIONS:
 - `--min-allele-depth N`: Minimum read depth for allele frequency analysis (default: 5) (v0.6.2+)
 - `--min-report-depth N`: Minimum read depth for reporting in CSV output (default: 0) (v0.6.2+)
 - `--output-dir PATH`: Custom output directory (default: results/<sample_name>) (v0.6.3+)
+- `--csv FILE`: Process multiple samples from CSV file (batch mode) (v0.6.3+)
+- `--dry-run`: Validate CSV and show what would be processed without running (v0.6.3+)
+- `--stop-on-error`: Stop batch processing on first error (batch mode only) (v0.6.3+)
 
 ### Performance Parameters
 - Batch size: 10,000 reads (configurable)
@@ -479,6 +537,39 @@ python src/python/generate_synthetic_reads.py \
     data/integrated_clean_db/protein \
     1M_synthetic_reads_R1.fastq.gz \
     1M_synthetic_reads_R2.fastq.gz
+```
+
+### Batch Processing Examples (v0.6.3+)
+```bash
+# Create a CSV file listing your samples
+cat > samples.csv << EOF
+SampleName,FilePath,R1 file,R2 file
+Patient_001,~/sequencing/batch1/,Patient_001_R1.fastq.gz,Patient_001_R2.fastq.gz
+Patient_002,~/sequencing/batch1/,Patient_002_R1.fastq.gz,Patient_002_R2.fastq.gz
+Patient_003,~/sequencing/batch2/,Patient_003_R1.fastq.gz,Patient_003_R2.fastq.gz
+EOF
+
+# Validate the CSV and check file paths
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --dry-run
+
+# Process all samples with optimized settings
+./runtime/kernels/resistance/build/clean_resistance_pipeline \
+    data/integrated_clean_db/nucleotide \
+    data/integrated_clean_db/protein \
+    --csv samples.csv \
+    --no-bloom \
+    --min-allele-depth 10 \
+    --output-dir /results/batch_analysis
+
+# Generate the CSV automatically from a directory
+python runtime/kernels/resistance/generate_sample_csv.py \
+    ~/sequencing/batch1/ \
+    -o batch1_samples.csv \
+    --recursive
 ```
 
 ### Depth Filtering Examples (v0.6.2+)
@@ -569,12 +660,17 @@ make build_integrated_resistance_db
 
 ## 🤝 Version History
 
-### v0.6.3 (June 10 2025) - AUTOMATIC SAMPLE NAMING
+### v0.6.3 (June 10 2025) - BATCH PROCESSING & AUTOMATIC SAMPLE NAMING
+- **NEW: Batch processing mode** - process multiple samples from CSV file
+- **Added `--csv` option** for specifying sample manifest
+- **Added `--dry-run` option** to validate CSV without processing
+- **Added `--stop-on-error` option** for batch error handling
 - **Automatic sample name extraction** from input filenames
 - **Simplified command line** - removed output prefix argument
 - **Default output structure**: `results/<sample_name>/`
 - **Added `--output-dir` option** for custom output locations
 - Improved user experience with sensible defaults
+- Includes `generate_sample_csv.py` utility to create CSV from directory
 
 ### v0.6.2 (June 10 2025) - CONFIGURABLE DEPTH FILTERING
 - **Added configurable minimum depth parameters** for allele frequency analysis

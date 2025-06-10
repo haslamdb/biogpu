@@ -120,6 +120,732 @@ private:
         // Add more as needed
     };
     
+    // Generate shared CSS styles for all HTML reports
+    std::string generateCommonCSS() {
+        return R"(
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background-color: white; 
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1); 
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 2.5em; 
+            font-weight: 300;
+        }
+        .header .subtitle { 
+            font-size: 1.2em; 
+            opacity: 0.9; 
+            margin-top: 10px;
+        }
+        .content { 
+            padding: 30px; 
+        }
+        h2, h3 { 
+            color: #2c3e50; 
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .alert { 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+            border-left: 5px solid;
+        }
+        .alert-danger { 
+            background-color: #fff5f5; 
+            color: #c53030; 
+            border-left-color: #e53e3e;
+        }
+        .alert-warning { 
+            background-color: #fffaf0; 
+            color: #d69e2e; 
+            border-left-color: #ed8936;
+        }
+        .alert-success { 
+            background-color: #f0fff4; 
+            color: #38a169; 
+            border-left-color: #48bb78;
+        }
+        .summary-box { 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            border: 1px solid #dee2e6;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin-top: 20px; 
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        th, td { 
+            padding: 12px 15px; 
+            text-align: left; 
+            border-bottom: 1px solid #ecf0f1;
+        }
+        th { 
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: white; 
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+        tr:hover { 
+            background-color: #f8f9fa; 
+        }
+        .resistance { 
+            background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%);
+            font-weight: bold; 
+        }
+        .qrdr { 
+            background: linear-gradient(135deg, #fff0e6 0%, #ffe6cc 100%);
+        }
+        .confidence-bar { 
+            width: 200px; 
+            height: 20px; 
+            background-color: #ecf0f1; 
+            border-radius: 10px; 
+            display: inline-block; 
+            overflow: hidden;
+        }
+        .confidence-fill { 
+            height: 100%; 
+            border-radius: 10px; 
+            transition: width 0.3s ease;
+        }
+        .high-conf { 
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        .med-conf { 
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        .low-conf { 
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+        .nav-links {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .nav-links a {
+            display: inline-block;
+            margin: 10px 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+        .nav-links a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .back-link:hover {
+            background: #5a6268;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+            border-top: 1px solid #dee2e6;
+        }
+        .freq-bar { 
+            width: 100px; 
+            height: 20px; 
+            background-color: #ecf0f1; 
+            border-radius: 10px; 
+            display: inline-block; 
+            overflow: hidden; 
+        }
+        .freq-fill { 
+            height: 100%; 
+            border-radius: 10px; 
+        }
+        .freq-high { 
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); 
+        }
+        .freq-med { 
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); 
+        }
+        .freq-low { 
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); 
+        }
+        )";
+    }
+
+    void generateCoverPageHTML() {
+        std::ofstream html_file(output_path + "_clinical_fq_report.html");
+        
+        // Extract sample name from output path
+        std::string sample_name = output_path;
+        size_t last_slash = sample_name.find_last_of("/\\");
+        if (last_slash != std::string::npos) {
+            sample_name = sample_name.substr(last_slash + 1);
+        }
+        
+        html_file << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+        html_file << "<meta charset=\"UTF-8\">\n";
+        html_file << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+        html_file << "<title>Clinical FQ Resistance Report - " << sample_name << "</title>\n";
+        html_file << "<style>\n" << generateCommonCSS() << "</style>\n";
+        html_file << "</head>\n<body>\n";
+        
+        html_file << "<div class='container'>\n";
+        
+        // Header
+        html_file << "<div class='header'>\n";
+        html_file << "<h1>Clinical Fluoroquinolone Resistance Report</h1>\n";
+        html_file << "<div class='subtitle'>Sample: " << sample_name << "</div>\n";
+        html_file << "<div class='subtitle'>Generated: " << getCurrentTimestamp() << "</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='content'>\n";
+        
+        // Main alert box
+        std::string alert_class = "alert-success";
+        if (report.has_high_confidence_resistance) {
+            alert_class = "alert-danger";
+        } else if (report.has_fq_resistance || report.has_qrdr_mutations) {
+            alert_class = "alert-warning";
+        }
+        
+        html_file << "<div class='alert " << alert_class << "'>\n";
+        html_file << "<h2 style='margin-top: 0; border: none; padding: 0;'>" << report.overall_interpretation << "</h2>\n";
+        html_file << "<p style='margin-bottom: 0;'>Confidence: ";
+        html_file << "<div class='confidence-bar' style='margin-left: 10px;'>";
+        html_file << "<div class='confidence-fill ";
+        if (report.resistance_confidence > 0.8) html_file << "high-conf";
+        else if (report.resistance_confidence > 0.5) html_file << "med-conf";
+        else html_file << "low-conf";
+        html_file << "' style='width: " << (report.resistance_confidence * 100) << "%'></div>";
+        html_file << "</div> " << std::fixed << std::setprecision(0) << (report.resistance_confidence * 100) << "%</p>\n";
+        html_file << "</div>\n";
+        
+        // Clinical notes
+        if (!report.clinical_notes.empty()) {
+            html_file << "<div class='summary-box'>\n";
+            html_file << "<h3>Clinical Recommendations</h3>\n";
+            html_file << "<ul>\n";
+            for (const auto& note : report.clinical_notes) {
+                html_file << "<li>" << note << "</li>\n";
+            }
+            html_file << "</ul>\n";
+            html_file << "</div>\n";
+        }
+        
+        // Statistics grid
+        html_file << "<h3>Analysis Summary</h3>\n";
+        html_file << "<div class='stats-grid'>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << report.total_reads_analyzed << "</div>\n";
+        html_file << "<div class='stat-label'>Total Reads Analyzed</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << report.reads_with_protein_matches << "</div>\n";
+        html_file << "<div class='stat-label'>Protein Matches (" 
+                  << std::fixed << std::setprecision(1) 
+                  << (100.0 * report.reads_with_protein_matches / std::max(1, report.total_reads_analyzed)) 
+                  << "%)</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << report.reads_with_any_mutations << "</div>\n";
+        html_file << "<div class='stat-label'>Reads with Mutations</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << report.reads_with_fq_resistance << "</div>\n";
+        html_file << "<div class='stat-label'>FQ Resistance Reads</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << std::fixed << std::setprecision(0) << report.reads_per_second << "</div>\n";
+        html_file << "<div class='stat-label'>Reads/Second";
+        if (report.processing_time_seconds > 0) {
+            html_file << " (" << std::fixed << std::setprecision(1) << report.processing_time_seconds << "s total)";
+        }
+        html_file << "</div>\n";
+        html_file << "</div>\n";
+        
+        // Count allele frequencies for summary
+        int total_positions = 0;
+        int resistant_positions = 0;
+        if (report.has_allele_frequency_data) {
+            for (const auto& freq : report.allele_frequencies) {
+                total_positions++;
+                if (freq.has_resistance_mutation && freq.total_resistant_frequency > 0.1) {
+                    resistant_positions++;
+                }
+            }
+        }
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << total_positions << "</div>\n";
+        html_file << "<div class='stat-label'>Resistance Positions Analyzed</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End stats-grid
+        
+        // Species breakdown summary
+        if (!report.species_summaries.empty()) {
+            html_file << "<div class='summary-box'>\n";
+            html_file << "<h3>Species Summary</h3>\n";
+            for (const auto& [species, summary] : report.species_summaries) {
+                html_file << "<div style='margin: 10px 0; padding: 10px; border-left: 4px solid " 
+                          << (summary.likely_resistant ? "#e74c3c" : "#27ae60") << ";'>\n";
+                html_file << "<strong>" << species << ":</strong> " 
+                          << (summary.likely_resistant ? "RESISTANT" : "Susceptible");
+                if (summary.fq_resistance_mutations > 0) {
+                    html_file << " (" << summary.fq_resistance_mutations << " FQ resistance mutations)";
+                }
+                html_file << "</div>\n";
+            }
+            html_file << "</div>\n";
+        }
+        
+        // Navigation links
+        html_file << "<div class='nav-links'>\n";
+        html_file << "<h3>Detailed Reports</h3>\n";
+        html_file << "<a href='" << sample_name << "_mutations_report.html'>📊 Mutations Analysis</a>\n";
+        if (report.has_allele_frequency_data && !report.allele_frequencies.empty()) {
+            html_file << "<a href='" << sample_name << "_allele_frequencies_report.html'>🧬 Allele Frequencies</a>\n";
+        }
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End content
+        
+        // Footer
+        html_file << "<div class='footer'>\n";
+        html_file << "Report generated by Clinical FQ Resistance Pipeline v1.0<br>\n";
+        html_file << "For research use only. Clinical decisions should be based on validated diagnostic methods.\n";
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End container
+        html_file << "</body>\n</html>\n";
+        html_file.close();
+    }
+    
+    void generateMutationsReportHTML() {
+        // Extract sample name from output path
+        std::string sample_name = output_path;
+        size_t last_slash = sample_name.find_last_of("/\\");
+        if (last_slash != std::string::npos) {
+            sample_name = sample_name.substr(last_slash + 1);
+        }
+        
+        std::ofstream html_file(output_path + "_mutations_report.html");
+        
+        html_file << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+        html_file << "<meta charset=\"UTF-8\">\n";
+        html_file << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+        html_file << "<title>Mutations Analysis - " << sample_name << "</title>\n";
+        html_file << "<style>\n" << generateCommonCSS() << "</style>\n";
+        html_file << "</head>\n<body>\n";
+        
+        html_file << "<div class='container'>\n";
+        
+        // Header
+        html_file << "<div class='header'>\n";
+        html_file << "<h1>Mutations Analysis</h1>\n";
+        html_file << "<div class='subtitle'>Sample: " << sample_name << "</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='content'>\n";
+        
+        // Back link
+        html_file << "<a href='" << sample_name << "_clinical_fq_report.html' class='back-link'>← Back to Summary</a>\n";
+        
+        // Species breakdown table
+        if (!report.species_summaries.empty()) {
+            html_file << "<h3>Species Analysis</h3>\n";
+            html_file << "<table>\n";
+            html_file << "<tr><th>Species</th><th>Status</th><th>FQ Resistance Mutations</th>"
+                      << "<th>QRDR Mutations</th><th>Genes Affected</th><th>Max Identity</th></tr>\n";
+            
+            for (const auto& [species, summary] : report.species_summaries) {
+                html_file << "<tr";
+                if (summary.likely_resistant) html_file << " class='resistance'";
+                html_file << ">\n";
+                html_file << "<td><strong>" << species << "</strong></td>\n";
+                html_file << "<td>" << (summary.likely_resistant ? "🔴 RESISTANT" : "🟢 Susceptible") << "</td>\n";
+                html_file << "<td>" << summary.fq_resistance_mutations << "</td>\n";
+                html_file << "<td>" << summary.qrdr_mutations << "</td>\n";
+                html_file << "<td>";
+                bool first = true;
+                for (const auto& [gene, muts] : summary.gene_mutations) {
+                    if (!first) html_file << ", ";
+                    html_file << "<em>" << gene << "</em>";
+                    first = false;
+                }
+                html_file << "</td>\n";
+                html_file << "<td>" << std::fixed << std::setprecision(1) << (summary.max_identity_score * 100) << "%</td>\n";
+                html_file << "</tr>\n";
+            }
+            html_file << "</table>\n";
+        }
+        
+        // Detailed mutations table
+        html_file << "<h3>Detailed Mutations</h3>\n";
+        
+        // Add filter legend
+        html_file << "<div class='summary-box'>\n";
+        html_file << "<h4>Legend</h4>\n";
+        html_file << "<div style='display: flex; gap: 20px; flex-wrap: wrap;'>\n";
+        html_file << "<div style='display: flex; align-items: center;'><div style='width: 20px; height: 20px; background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%); border-radius: 4px; margin-right: 8px;'></div>Known FQ Resistance</div>\n";
+        html_file << "<div style='display: flex; align-items: center;'><div style='width: 20px; height: 20px; background: linear-gradient(135deg, #fff0e6 0%, #ffe6cc 100%); border-radius: 4px; margin-right: 8px;'></div>QRDR Region</div>\n";
+        html_file << "<div style='display: flex; align-items: center;'><div style='width: 20px; height: 20px; background: white; border: 1px solid #ddd; border-radius: 4px; margin-right: 8px;'></div>Other Mutations</div>\n";
+        html_file << "</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<table>\n";
+        html_file << "<tr><th>Species</th><th>Gene</th><th>Mutation</th><th>Position</th>"
+                  << "<th>Change</th><th>Occurrences</th><th>Avg Identity</th><th>Clinical Significance</th></tr>\n";
+        
+        // Use the same sorted mutations logic
+        std::map<std::string, ClinicalFQReport::GeneMutation> aggregated_mutations;
+        for (const auto& mut : report.all_mutations) {
+            std::string key = mut.species + "_" + mut.gene + "_" + mut.mutation_code;
+            if (aggregated_mutations.find(key) == aggregated_mutations.end()) {
+                aggregated_mutations[key] = mut;
+            } else {
+                aggregated_mutations[key].occurrence_count++;
+                aggregated_mutations[key].avg_identity = 
+                    (aggregated_mutations[key].avg_identity + mut.avg_identity) / 2;
+                aggregated_mutations[key].avg_alignment_score = 
+                    (aggregated_mutations[key].avg_alignment_score + mut.avg_alignment_score) / 2;
+            }
+        }
+        
+        std::vector<std::pair<std::string, ClinicalFQReport::GeneMutation>> sorted_mutations(
+            aggregated_mutations.begin(), aggregated_mutations.end()
+        );
+        std::sort(sorted_mutations.begin(), sorted_mutations.end(),
+            [](const auto& a, const auto& b) {
+                if (a.second.is_known_fq_resistance != b.second.is_known_fq_resistance)
+                    return a.second.is_known_fq_resistance;
+                if (a.second.is_in_qrdr != b.second.is_in_qrdr)
+                    return a.second.is_in_qrdr;
+                return a.second.occurrence_count > b.second.occurrence_count;
+            }
+        );
+        
+        for (const auto& [key, mut] : sorted_mutations) {
+            html_file << "<tr";
+            if (mut.is_known_fq_resistance) html_file << " class='resistance'";
+            else if (mut.is_in_qrdr) html_file << " class='qrdr'";
+            html_file << ">\n";
+            html_file << "<td><strong>" << mut.species << "</strong></td>\n";
+            html_file << "<td><em>" << mut.gene << "</em></td>\n";
+            html_file << "<td><code>" << mut.mutation_code << "</code></td>\n";
+            html_file << "<td>" << mut.position << "</td>\n";
+            html_file << "<td>" << mut.wildtype_aa << " → " << mut.mutant_aa << "</td>\n";
+            html_file << "<td>" << mut.occurrence_count << "</td>\n";
+            html_file << "<td>" << std::fixed << std::setprecision(1) << (mut.avg_identity * 100) << "%</td>\n";
+            html_file << "<td>" << mut.clinical_significance << "</td>\n";
+            html_file << "</tr>\n";
+        }
+        
+        html_file << "</table>\n";
+        
+        // Summary statistics
+        html_file << "<div class='summary-box'>\n";
+        html_file << "<h4>Mutation Summary</h4>\n";
+        int fq_count = 0, qrdr_count = 0, other_count = 0;
+        for (const auto& [key, mut] : sorted_mutations) {
+            if (mut.is_known_fq_resistance) fq_count++;
+            else if (mut.is_in_qrdr) qrdr_count++;
+            else other_count++;
+        }
+        html_file << "<p><strong>Known FQ Resistance Mutations:</strong> " << fq_count << "</p>\n";
+        html_file << "<p><strong>QRDR Mutations:</strong> " << qrdr_count << "</p>\n";
+        html_file << "<p><strong>Other Mutations:</strong> " << other_count << "</p>\n";
+        html_file << "<p><strong>Total Unique Mutations:</strong> " << sorted_mutations.size() << "</p>\n";
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End content
+        
+        // Footer
+        html_file << "<div class='footer'>\n";
+        html_file << "Mutations Report | Generated: " << getCurrentTimestamp() << "\n";
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End container
+        html_file << "</body>\n</html>\n";
+        html_file.close();
+    }
+    
+    void generateAlleleFrequenciesReportHTML() {
+        if (!report.has_allele_frequency_data || report.allele_frequencies.empty()) {
+            return; // Don't generate if no data
+        }
+        
+        // Extract sample name from output path
+        std::string sample_name = output_path;
+        size_t last_slash = sample_name.find_last_of("/\\");
+        if (last_slash != std::string::npos) {
+            sample_name = sample_name.substr(last_slash + 1);
+        }
+        
+        std::ofstream html_file(output_path + "_allele_frequencies_report.html");
+        
+        html_file << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
+        html_file << "<meta charset=\"UTF-8\">\n";
+        html_file << "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+        html_file << "<title>Allele Frequencies - " << sample_name << "</title>\n";
+        html_file << "<style>\n" << generateCommonCSS() << "</style>\n";
+        html_file << "</head>\n<body>\n";
+        
+        html_file << "<div class='container'>\n";
+        
+        // Header
+        html_file << "<div class='header'>\n";
+        html_file << "<h1>Allele Frequency Analysis</h1>\n";
+        html_file << "<div class='subtitle'>Sample: " << sample_name << "</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='content'>\n";
+        
+        // Back link
+        html_file << "<a href='" << sample_name << "_clinical_fq_report.html' class='back-link'>← Back to Summary</a>\n";
+        
+        html_file << "<div class='summary-box'>\n";
+        html_file << "<h3>About Allele Frequency Analysis</h3>\n";
+        html_file << "<p>This analysis shows the frequency of amino acid variants at key fluoroquinolone resistance positions. "
+                  << "High frequencies of resistance alleles (>50%) indicate established resistance, while moderate frequencies "
+                  << "(10-50%) may indicate emerging resistance or mixed populations.</p>\n";
+        html_file << "</div>\n";
+        
+        // Sort allele frequencies by resistance frequency
+        std::vector<ClinicalFQReport::AlleleFrequencyEntry> sorted_freqs = report.allele_frequencies;
+        std::sort(sorted_freqs.begin(), sorted_freqs.end(),
+            [](const auto& a, const auto& b) {
+                if (a.has_resistance_mutation != b.has_resistance_mutation)
+                    return a.has_resistance_mutation;
+                return a.total_resistant_frequency > b.total_resistant_frequency;
+            }
+        );
+        
+        // Summary statistics
+        int high_freq_resistance = 0;
+        int moderate_freq_resistance = 0;
+        int total_positions = sorted_freqs.size();
+        float max_resistance_freq = 0.0f;
+        
+        for (const auto& freq : sorted_freqs) {
+            if (freq.has_resistance_mutation) {
+                if (freq.total_resistant_frequency > 0.5) {
+                    high_freq_resistance++;
+                } else if (freq.total_resistant_frequency > 0.1) {
+                    moderate_freq_resistance++;
+                }
+            }
+            max_resistance_freq = std::max(max_resistance_freq, freq.total_resistant_frequency);
+        }
+        
+        html_file << "<div class='stats-grid'>\n";
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << total_positions << "</div>\n";
+        html_file << "<div class='stat-label'>Total Positions</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << high_freq_resistance << "</div>\n";
+        html_file << "<div class='stat-label'>High-Freq Resistance (>50%)</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << moderate_freq_resistance << "</div>\n";
+        html_file << "<div class='stat-label'>Moderate-Freq Resistance (10-50%)</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<div class='stat-card'>\n";
+        html_file << "<div class='stat-number'>" << std::fixed << std::setprecision(1) << (max_resistance_freq * 100) << "%</div>\n";
+        html_file << "<div class='stat-label'>Maximum Resistance Frequency</div>\n";
+        html_file << "</div>\n";
+        html_file << "</div>\n";
+        
+        // Legend
+        html_file << "<div class='summary-box'>\n";
+        html_file << "<h4>Frequency Legend</h4>\n";
+        html_file << "<div style='display: flex; gap: 20px; flex-wrap: wrap;'>\n";
+        html_file << "<div style='display: flex; align-items: center;'><div style='width: 20px; height: 20px; background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%); border-radius: 4px; margin-right: 8px;'></div>Resistance Detected</div>\n";
+        html_file << "<div style='display: flex; align-items: center;'><div style='width: 20px; height: 20px; background: linear-gradient(135deg, #fff0e6 0%, #ffe6cc 100%); border-radius: 4px; margin-right: 8px;'></div>Low-Level Resistance</div>\n";
+        html_file << "<div style='display: flex; align-items: center;'><div style='width: 20px; height: 20px; background: white; border: 1px solid #ddd; border-radius: 4px; margin-right: 8px;'></div>No Resistance</div>\n";
+        html_file << "</div>\n";
+        html_file << "</div>\n";
+        
+        html_file << "<h3>Allele Frequencies by Position</h3>\n";
+        html_file << "<table>\n";
+        html_file << "<tr><th>Species</th><th>Gene</th><th>Position</th><th>Depth</th>"
+                  << "<th>Wildtype</th><th>WT Freq</th><th>Dominant Mutant</th><th>Mut Freq</th>"
+                  << "<th>Resistance Freq</th><th>Mutation Summary</th></tr>\n";
+        
+        for (const auto& freq : sorted_freqs) {
+            html_file << "<tr";
+            if (freq.has_resistance_mutation && freq.total_resistant_frequency > 0.5) {
+                html_file << " class='resistance'";
+            } else if (freq.has_resistance_mutation && freq.total_resistant_frequency > 0.1) {
+                html_file << " class='qrdr'";
+            }
+            html_file << ">\n";
+            
+            html_file << "<td><strong>" << freq.species << "</strong></td>\n";
+            html_file << "<td><em>" << freq.gene << "</em></td>\n";
+            html_file << "<td>" << freq.position << "</td>\n";
+            html_file << "<td>" << freq.total_depth << "</td>\n";
+            html_file << "<td><code>" << freq.wildtype_aa << "</code></td>\n";
+            
+            // Wildtype frequency with bar
+            html_file << "<td>";
+            html_file << "<div class='freq-bar'>";
+            html_file << "<div class='freq-fill freq-low' style='width: " << (freq.wildtype_frequency * 100) << "%'></div>";
+            html_file << "</div>";
+            html_file << " " << std::fixed << std::setprecision(1) << (freq.wildtype_frequency * 100) << "%</td>\n";
+            
+            html_file << "<td><code>" << freq.dominant_mutant_aa << "</code></td>\n";
+            
+            // Dominant mutant frequency with bar
+            html_file << "<td>";
+            html_file << "<div class='freq-bar'>";
+            html_file << "<div class='freq-fill freq-med' style='width: " << (freq.dominant_mutant_frequency * 100) << "%'></div>";
+            html_file << "</div>";
+            html_file << " " << std::fixed << std::setprecision(1) << (freq.dominant_mutant_frequency * 100) << "%</td>\n";
+            
+            // Resistance frequency with bar and color coding
+            html_file << "<td>";
+            if (freq.total_resistant_frequency > 0) {
+                html_file << "<div class='freq-bar'>";
+                std::string freq_class = "freq-low";
+                if (freq.total_resistant_frequency > 0.5) freq_class = "freq-high";
+                else if (freq.total_resistant_frequency > 0.1) freq_class = "freq-med";
+                html_file << "<div class='freq-fill " << freq_class << "' style='width: " << (freq.total_resistant_frequency * 100) << "%'></div>";
+                html_file << "</div> ";
+                if (freq.total_resistant_frequency > 0.5) {
+                    html_file << "<strong style='color: #dc3545;'>";
+                } else if (freq.total_resistant_frequency > 0.1) {
+                    html_file << "<strong style='color: #ffc107;'>";
+                }
+                html_file << std::fixed << std::setprecision(1) << (freq.total_resistant_frequency * 100) << "%";
+                if (freq.total_resistant_frequency > 0.1) {
+                    html_file << "</strong>";
+                }
+            } else {
+                html_file << "0%";
+            }
+            html_file << "</td>\n";
+            
+            html_file << "<td>" << freq.mutation_summary << "</td>\n";
+            html_file << "</tr>\n";
+        }
+        
+        html_file << "</table>\n";
+        
+        // Clinical interpretation
+        html_file << "<div class='summary-box'>\n";
+        html_file << "<h4>Clinical Interpretation</h4>\n";
+        html_file << "<ul>\n";
+        
+        if (high_freq_resistance > 0) {
+            html_file << "<li><strong style='color: #dc3545;'>High-frequency resistance detected:</strong> " 
+                      << high_freq_resistance << " position(s) with >50% resistant alleles. "
+                      << "This indicates established resistance in the population.</li>\n";
+        }
+        if (moderate_freq_resistance > 0) {
+            html_file << "<li><strong style='color: #ffc107;'>Moderate-frequency resistance detected:</strong> " 
+                      << moderate_freq_resistance << " position(s) with 10-50% resistant alleles. "
+                      << "This may indicate emerging resistance or mixed populations.</li>\n";
+        }
+        if (high_freq_resistance == 0 && moderate_freq_resistance == 0) {
+            html_file << "<li><strong style='color: #28a745;'>No significant resistance allele frequencies detected.</strong> "
+                      << "The sample appears susceptible to fluoroquinolones based on allele frequency analysis.</li>\n";
+        }
+        
+        html_file << "</ul>\n";
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End content
+        
+        // Footer
+        html_file << "<div class='footer'>\n";
+        html_file << "Allele Frequency Report | Generated: " << getCurrentTimestamp() << "\n";
+        html_file << "</div>\n";
+        
+        html_file << "</div>\n"; // End container
+        html_file << "</body>\n</html>\n";
+        html_file.close();
+    }
+
+    std::string getCurrentTimestamp() {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+        return ss.str();
+    }
+    
 public:
     ClinicalFQReportGenerator(const std::string& output) 
         : output_path(output), fq_mapper(GlobalFQResistanceMapper::getInstance()) {
@@ -339,8 +1065,15 @@ public:
         
         // Generate multiple output formats
         generateJSONReport();
-        generateHTMLReport();
+        generateHTMLReport(); // This now generates the cover page + linked reports
         generateTextReport();
+    }
+    
+    // Updated generateHTMLReport method
+    void generateHTMLReport() {
+        generateCoverPageHTML();
+        generateMutationsReportHTML();
+        generateAlleleFrequenciesReportHTML();
     }
     
 private:
@@ -451,257 +1184,6 @@ private:
         json_file.close();
     }
     
-    void generateHTMLReport() {
-        std::ofstream html_file(output_path + "_clinical_fq_report.html");
-        
-        html_file << "<!DOCTYPE html>\n<html>\n<head>\n";
-        html_file << "<title>Clinical Fluoroquinolone Resistance Report</title>\n";
-        html_file << "<style>\n";
-        html_file << "body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }\n";
-        html_file << ".container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }\n";
-        html_file << "h1, h2, h3 { color: #2c3e50; }\n";
-        html_file << ".alert { padding: 15px; margin: 20px 0; border-radius: 5px; }\n";
-        html_file << ".alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }\n";
-        html_file << ".alert-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }\n";
-        html_file << ".alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }\n";
-        html_file << ".summary-box { background-color: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; }\n";
-        html_file << "table { border-collapse: collapse; width: 100%; margin-top: 20px; }\n";
-        html_file << "th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }\n";
-        html_file << "th { background-color: #343a40; color: white; }\n";
-        html_file << "tr:nth-child(even) { background-color: #f2f2f2; }\n";
-        html_file << ".resistance { background-color: #ffcccc; font-weight: bold; }\n";
-        html_file << ".qrdr { background-color: #ffe6cc; }\n";
-        html_file << ".confidence-bar { width: 200px; height: 20px; background-color: #e0e0e0; border-radius: 10px; display: inline-block; }\n";
-        html_file << ".confidence-fill { height: 100%; border-radius: 10px; }\n";
-        html_file << ".high-conf { background-color: #dc3545; }\n";
-        html_file << ".med-conf { background-color: #ffc107; }\n";
-        html_file << ".low-conf { background-color: #28a745; }\n";
-        html_file << "</style>\n</head>\n<body>\n";
-        
-        html_file << "<div class='container'>\n";
-        html_file << "<h1>Clinical Fluoroquinolone Resistance Report</h1>\n";
-        html_file << "<p><strong>Generated:</strong> " << getCurrentTimestamp() << "</p>\n";
-        
-        // Alert box based on results
-        std::string alert_class = "alert-success";
-        if (report.has_high_confidence_resistance) {
-            alert_class = "alert-danger";
-        } else if (report.has_fq_resistance || report.has_qrdr_mutations) {
-            alert_class = "alert-warning";
-        }
-        
-        html_file << "<div class='alert " << alert_class << "'>\n";
-        html_file << "<h2>" << report.overall_interpretation << "</h2>\n";
-        html_file << "<p>Confidence: ";
-        html_file << "<div class='confidence-bar'>";
-        html_file << "<div class='confidence-fill ";
-        if (report.resistance_confidence > 0.8) html_file << "high-conf";
-        else if (report.resistance_confidence > 0.5) html_file << "med-conf";
-        else html_file << "low-conf";
-        html_file << "' style='width: " << (report.resistance_confidence * 100) << "%'></div>";
-        html_file << "</div> " << std::fixed << std::setprecision(0) << (report.resistance_confidence * 100) << "%</p>\n";
-        html_file << "</div>\n";
-        
-        // Clinical notes
-        if (!report.clinical_notes.empty()) {
-            html_file << "<div class='summary-box'>\n";
-            html_file << "<h3>Clinical Recommendations</h3>\n";
-            html_file << "<ul>\n";
-            for (const auto& note : report.clinical_notes) {
-                html_file << "<li>" << note << "</li>\n";
-            }
-            html_file << "</ul>\n";
-            html_file << "</div>\n";
-        }
-        
-        // Summary statistics
-        html_file << "<div class='summary-box'>\n";
-        html_file << "<h3>Analysis Summary</h3>\n";
-        html_file << "<p>Total reads analyzed: " << report.total_reads_analyzed << "</p>\n";
-        html_file << "<p>Reads with protein matches: " << report.reads_with_protein_matches 
-                  << " (" << std::fixed << std::setprecision(1) 
-                  << (100.0 * report.reads_with_protein_matches / std::max(1, report.total_reads_analyzed)) 
-                  << "%)</p>\n";
-        html_file << "<p>Reads with mutations: " << report.reads_with_any_mutations << "</p>\n";
-        html_file << "<p>Reads with FQ resistance mutations: " << report.reads_with_fq_resistance << "</p>\n";
-        html_file << "<p><strong>Performance:</strong> " << std::fixed << std::setprecision(0) 
-                  << report.reads_per_second << " reads/second";
-        if (report.processing_time_seconds > 0) {
-            html_file << " (" << report.total_reads_analyzed << " reads in " 
-                      << std::fixed << std::setprecision(1) << report.processing_time_seconds << " seconds)";
-        }
-        html_file << "</p>\n";
-        html_file << "</div>\n";
-        
-        // Species breakdown
-        if (!report.species_summaries.empty()) {
-            html_file << "<h3>Species Analysis</h3>\n";
-            html_file << "<table>\n";
-            html_file << "<tr><th>Species</th><th>Status</th><th>FQ Resistance Mutations</th>"
-                      << "<th>QRDR Mutations</th><th>Genes Affected</th></tr>\n";
-            
-            for (const auto& [species, summary] : report.species_summaries) {
-                html_file << "<tr";
-                if (summary.likely_resistant) html_file << " class='resistance'";
-                html_file << ">\n";
-                html_file << "<td>" << species << "</td>\n";
-                html_file << "<td>" << (summary.likely_resistant ? "RESISTANT" : "Susceptible") << "</td>\n";
-                html_file << "<td>" << summary.fq_resistance_mutations << "</td>\n";
-                html_file << "<td>" << summary.qrdr_mutations << "</td>\n";
-                html_file << "<td>";
-                bool first = true;
-                for (const auto& [gene, muts] : summary.gene_mutations) {
-                    if (!first) html_file << ", ";
-                    html_file << gene;
-                    first = false;
-                }
-                html_file << "</td>\n";
-                html_file << "</tr>\n";
-            }
-            html_file << "</table>\n";
-        }
-        
-        // Detailed mutations table
-        html_file << "<h3>Mutations Detected</h3>\n";
-        html_file << "<table>\n";
-        html_file << "<tr><th>Species</th><th>Gene</th><th>Mutation</th><th>Position</th>"
-                  << "<th>Occurrences</th><th>Avg Identity</th><th>Clinical Significance</th></tr>\n";
-        
-        // Use the same sorted mutations from JSON
-        std::map<std::string, ClinicalFQReport::GeneMutation> aggregated_mutations;
-        for (const auto& mut : report.all_mutations) {
-            std::string key = mut.species + "_" + mut.gene + "_" + mut.mutation_code;
-            if (aggregated_mutations.find(key) == aggregated_mutations.end()) {
-                aggregated_mutations[key] = mut;
-            } else {
-                aggregated_mutations[key].occurrence_count++;
-            }
-        }
-        
-        std::vector<std::pair<std::string, ClinicalFQReport::GeneMutation>> sorted_mutations(
-            aggregated_mutations.begin(), aggregated_mutations.end()
-        );
-        std::sort(sorted_mutations.begin(), sorted_mutations.end(),
-            [](const auto& a, const auto& b) {
-                if (a.second.is_known_fq_resistance != b.second.is_known_fq_resistance)
-                    return a.second.is_known_fq_resistance;
-                if (a.second.is_in_qrdr != b.second.is_in_qrdr)
-                    return a.second.is_in_qrdr;
-                return a.second.occurrence_count > b.second.occurrence_count;
-            }
-        );
-        
-        for (const auto& [key, mut] : sorted_mutations) {
-            html_file << "<tr";
-            if (mut.is_known_fq_resistance) html_file << " class='resistance'";
-            else if (mut.is_in_qrdr) html_file << " class='qrdr'";
-            html_file << ">\n";
-            html_file << "<td>" << mut.species << "</td>\n";
-            html_file << "<td>" << mut.gene << "</td>\n";
-            html_file << "<td>" << mut.mutation_code << "</td>\n";
-            html_file << "<td>" << mut.position << "</td>\n";
-            html_file << "<td>" << mut.occurrence_count << "</td>\n";
-            html_file << "<td>" << std::fixed << std::setprecision(1) << (mut.avg_identity * 100) << "%</td>\n";
-            html_file << "<td>" << mut.clinical_significance << "</td>\n";
-            html_file << "</tr>\n";
-        }
-        
-        html_file << "</table>\n";
-        
-        // Allele Frequency Analysis section
-        if (report.has_allele_frequency_data && !report.allele_frequencies.empty()) {
-            html_file << "<h3>Allele Frequency Analysis</h3>\n";
-            html_file << "<p>This section shows the frequency of amino acid variants at key resistance positions.</p>\n";
-            
-            // Sort allele frequencies by resistance frequency
-            std::vector<ClinicalFQReport::AlleleFrequencyEntry> sorted_freqs = report.allele_frequencies;
-            std::sort(sorted_freqs.begin(), sorted_freqs.end(),
-                [](const auto& a, const auto& b) {
-                    if (a.has_resistance_mutation != b.has_resistance_mutation)
-                        return a.has_resistance_mutation;
-                    return a.total_resistant_frequency > b.total_resistant_frequency;
-                }
-            );
-            
-            html_file << "<table>\n";
-            html_file << "<tr><th>Species</th><th>Gene</th><th>Position</th><th>Depth</th>"
-                      << "<th>Wildtype</th><th>WT Freq</th><th>Dominant Mutant</th><th>Mut Freq</th>"
-                      << "<th>Resistance Freq</th><th>Mutation Summary</th></tr>\n";
-            
-            for (const auto& freq : sorted_freqs) {
-                html_file << "<tr";
-                if (freq.has_resistance_mutation && freq.total_resistant_frequency > 0.1) {
-                    html_file << " class='resistance'";
-                } else if (freq.has_resistance_mutation) {
-                    html_file << " class='qrdr'";
-                }
-                html_file << ">\n";
-                
-                html_file << "<td>" << freq.species << "</td>\n";
-                html_file << "<td>" << freq.gene << "</td>\n";
-                html_file << "<td>" << freq.position << "</td>\n";
-                html_file << "<td>" << freq.total_depth << "</td>\n";
-                html_file << "<td>" << freq.wildtype_aa << "</td>\n";
-                html_file << "<td>" << std::fixed << std::setprecision(1) 
-                          << (freq.wildtype_frequency * 100) << "%</td>\n";
-                html_file << "<td>" << freq.dominant_mutant_aa << "</td>\n";
-                html_file << "<td>" << std::fixed << std::setprecision(1) 
-                          << (freq.dominant_mutant_frequency * 100) << "%</td>\n";
-                html_file << "<td";
-                if (freq.total_resistant_frequency > 0.5) {
-                    html_file << " style='color: #dc3545; font-weight: bold;'";
-                } else if (freq.total_resistant_frequency > 0.1) {
-                    html_file << " style='color: #ffc107; font-weight: bold;'";
-                }
-                html_file << ">" << std::fixed << std::setprecision(1) 
-                          << (freq.total_resistant_frequency * 100) << "%</td>\n";
-                html_file << "<td>" << freq.mutation_summary << "</td>\n";
-                html_file << "</tr>\n";
-            }
-            
-            html_file << "</table>\n";
-            
-            // Add interpretation for allele frequencies
-            html_file << "<div class='summary-box'>\n";
-            html_file << "<h4>Allele Frequency Interpretation</h4>\n";
-            html_file << "<ul>\n";
-            
-            // Count high-frequency resistance
-            int high_freq_resistance = 0;
-            int moderate_freq_resistance = 0;
-            for (const auto& freq : report.allele_frequencies) {
-                if (freq.has_resistance_mutation) {
-                    if (freq.total_resistant_frequency > 0.5) {
-                        high_freq_resistance++;
-                    } else if (freq.total_resistant_frequency > 0.1) {
-                        moderate_freq_resistance++;
-                    }
-                }
-            }
-            
-            if (high_freq_resistance > 0) {
-                html_file << "<li><strong>High-frequency resistance detected:</strong> " 
-                          << high_freq_resistance << " position(s) with >50% resistant alleles. "
-                          << "This indicates established resistance in the population.</li>\n";
-            }
-            if (moderate_freq_resistance > 0) {
-                html_file << "<li><strong>Moderate-frequency resistance detected:</strong> " 
-                          << moderate_freq_resistance << " position(s) with 10-50% resistant alleles. "
-                          << "This may indicate emerging resistance or mixed populations.</li>\n";
-            }
-            if (high_freq_resistance == 0 && moderate_freq_resistance == 0) {
-                html_file << "<li>No significant resistance allele frequencies detected.</li>\n";
-            }
-            
-            html_file << "</ul>\n";
-            html_file << "</div>\n";
-        }
-        
-        html_file << "</div>\n";
-        html_file << "</body>\n</html>\n";
-        html_file.close();
-    }
-    
     void generateTextReport() {
         std::ofstream text_file(output_path + "_clinical_fq_report.txt");
         
@@ -787,14 +1269,6 @@ private:
         }
         
         text_file.close();
-    }
-    
-    std::string getCurrentTimestamp() {
-        auto now = std::chrono::system_clock::now();
-        auto time_t = std::chrono::system_clock::to_time_t(now);
-        std::stringstream ss;
-        ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
-        return ss.str();
     }
 };
 

@@ -275,6 +275,7 @@ private:
                     freq_data.species_name = species_name;
                     freq_data.gene_name = gene_name;
                     freq_data.position = position;
+                    freq_data.has_resistance_mutation = false;  // Initialize to false
                     // Convert unordered_map to map
                     for (const auto& pair : aa_counts) {
                         freq_data.aa_counts[pair.first] = pair.second;
@@ -300,7 +301,7 @@ private:
                     
                     // Find dominant mutant
                     uint32_t max_mutant_count = 0;
-                    char dominant_mutant = 'X';
+                    char dominant_mutant = '-';  // Use '-' for no mutation instead of 'X'
                     uint32_t total_resistant_count = 0;
                     std::vector<std::string> mutation_details;
                     
@@ -353,10 +354,38 @@ private:
                 }
             }
             
-            // Sort by resistance frequency (descending)
+            // Sort to match clinical report ordering:
+            // 1. First show positions with actual resistance mutations (sorted by frequency)
+            // 2. Then show positions that are known resistance positions but currently wildtype
+            // 3. Finally other positions (if any)
             std::sort(results.begin(), results.end(),
                       [](const AlleleFrequencyData& a, const AlleleFrequencyData& b) {
-                          return a.total_resistant_frequency > b.total_resistant_frequency;
+                          // First priority: positions with actual resistance mutations
+                          bool a_has_mutations = a.total_resistant_frequency > 0;
+                          bool b_has_mutations = b.total_resistant_frequency > 0;
+                          
+                          if (a_has_mutations != b_has_mutations) {
+                              return a_has_mutations > b_has_mutations;
+                          }
+                          
+                          // If both have mutations, sort by resistance frequency
+                          if (a_has_mutations && b_has_mutations) {
+                              return a.total_resistant_frequency > b.total_resistant_frequency;
+                          }
+                          
+                          // Second priority: known resistance positions
+                          bool a_is_known = !a.known_resistant_aas.empty();
+                          bool b_is_known = !b.known_resistant_aas.empty();
+                          
+                          if (a_is_known != b_is_known) {
+                              return a_is_known > b_is_known;
+                          }
+                          
+                          // Finally, sort by position for consistency
+                          if (a.gene_name != b.gene_name) {
+                              return a.gene_name < b.gene_name;
+                          }
+                          return a.position < b.position;
                       });
             
             return results;

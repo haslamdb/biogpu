@@ -1,0 +1,6 @@
+{
+  "hdf5_output": "results_fixed_allele_freq/test_fixed_allele_freq.h5",
+  "total_alignments": 0,
+  "total_translated_alignments": 0,
+  "total_reads_processed": 0
+}

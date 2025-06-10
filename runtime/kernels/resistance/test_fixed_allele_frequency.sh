@@ -25,8 +25,8 @@ echo "Running resistance detection pipeline..."
     $PROTEIN_DB \
     $TEST_DATA \
     $TEST_DATA \
-    $OUTPUT_PREFIX \
-    $FQ_CSV
+    --output-prefix $OUTPUT_PREFIX \
+    --fq-csv $FQ_CSV
 
 # Check if the allele frequency CSV was created
 if [ -f "${OUTPUT_PREFIX}_allele_frequencies.csv" ]; then

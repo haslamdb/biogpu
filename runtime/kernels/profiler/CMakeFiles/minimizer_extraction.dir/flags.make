@@ -6,5 +6,5 @@ CUDA_DEFINES =
 
 CUDA_INCLUDES = --options-file CMakeFiles/minimizer_extraction.dir/includes_CUDA.rsp
 
-CUDA_FLAGS = -std=c++17 "--generate-code=arch=compute_61,code=[compute_61,sm_61]" "--generate-code=arch=compute_70,code=[compute_70,sm_70]" "--generate-code=arch=compute_75,code=[compute_75,sm_75]" "--generate-code=arch=compute_80,code=[compute_80,sm_80]" "--generate-code=arch=compute_86,code=[compute_86,sm_86]" -Xcompiler=-fPIC --use_fast_math --generate-line-info -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored --ptxas-options=-v --maxrregcount=64 -O3
+CUDA_FLAGS = -g -std=c++17 "--generate-code=arch=compute_61,code=[compute_61,sm_61]" "--generate-code=arch=compute_70,code=[compute_70,sm_70]" "--generate-code=arch=compute_75,code=[compute_75,sm_75]" "--generate-code=arch=compute_80,code=[compute_80,sm_80]" "--generate-code=arch=compute_86,code=[compute_86,sm_86]" -Xcompiler=-fPIC --use_fast_math --generate-line-info -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored --ptxas-options=-v --maxrregcount=64 -O3
 

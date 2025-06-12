@@ -1,3 +1,2 @@
 /bin/ar qc libhierarchical_gpu_database.a CMakeFiles/hierarchical_gpu_database.dir/hierarchical_gpu_database.cu.o
-/bin/ar q libhierarchical_gpu_database.a CMakeFiles/hierarchical_gpu_database.dir/cmake_device_link.o
 /bin/ranlib libhierarchical_gpu_database.a

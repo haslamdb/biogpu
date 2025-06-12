@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/david/Documents/Code/biogpu/include -I/usr/local/cuda-12.5/targets/x86_64-linux/include -I/usr/include/hdf5/serial -I/usr/include/jsoncpp -I/home/david/Documents/Code/biogpu/runtime/kernels/resistance
 
-CXX_FLAGS = -std=gnu++17
+CXX_FLAGS = -g -std=gnu++17
 

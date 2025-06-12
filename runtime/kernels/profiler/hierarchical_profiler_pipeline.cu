@@ -49,19 +49,40 @@ private:
     // Abundance tracking
     HierarchicalAbundanceProfile abundance;
     
-    // Taxon name mapping (would be loaded from taxonomy file)
-    std::map<uint32_t, std::string> taxon_names = {
-        {100, "Escherichia_coli"},
-        {101, "Klebsiella_pneumoniae"},
-        {102, "Enterococcus_faecalis"},
-        {103, "Staphylococcus_aureus"},
-        {104, "Streptococcus_pneumoniae"},
-        {105, "Haemophilus_influenzae"},
-        {106, "Proteus_mirabilis"},
-        {107, "Pseudomonas_aeruginosa"},
-        {108, "Clostridioides_difficile"},
-        // Add more as needed
-    };
+    // Taxon name mapping (loaded from taxonomy file)
+    std::map<uint32_t, std::string> taxon_names;
+    
+    void load_taxon_mapping(const std::string& db_directory) {
+        std::string mapping_file = db_directory + "/taxon_mapping.txt";
+        std::ifstream file(mapping_file);
+        
+        if (!file.is_open()) {
+            std::cerr << "Warning: Could not open taxon mapping file: " << mapping_file << std::endl;
+            std::cerr << "Species names will not be available in output." << std::endl;
+            // Try to load from parent directory's pathogen_profiler_db if hierarchical mapping not found
+            mapping_file = db_directory + "/../pathogen_profiler_db/taxon_mapping.txt";
+            file.open(mapping_file);
+            if (!file.is_open()) {
+                return;
+            }
+        }
+        
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip comments and empty lines
+            if (line.empty() || line[0] == '#') continue;
+            
+            std::istringstream iss(line);
+            uint32_t taxon_id;
+            std::string species_name;
+            
+            if (iss >> taxon_id >> species_name) {
+                taxon_names[taxon_id] = species_name;
+            }
+        }
+        
+        std::cout << "Loaded " << taxon_names.size() << " taxon mappings" << std::endl;
+    }
     
     void allocate_gpu_memory(size_t num_reads, size_t num_minimizers) {
         if (num_reads > allocated_reads) {
@@ -103,11 +124,21 @@ public:
         database = std::make_unique<HierarchicalGPUDatabase>(db_config);
         database->load_database(db_path);
         
+        // Load taxon mapping from the database directory
+        load_taxon_mapping(db_path);
+        
         extractor = std::make_unique<MinimizerExtractor>(k, m);
         
         // Allocate taxon counting array on GPU
-        cudaMalloc(&d_taxon_counts, max_taxon_id * sizeof(uint32_t));
-        cudaMemset(d_taxon_counts, 0, max_taxon_id * sizeof(uint32_t));
+        std::cout << "DEBUG: Allocating taxon counts for " << max_taxon_id << " taxa\n";
+        auto cuda_err = cudaMalloc(&d_taxon_counts, max_taxon_id * sizeof(uint32_t));
+        if (cuda_err != cudaSuccess) {
+            std::cerr << "cudaMalloc failed: " << cudaGetErrorString(cuda_err) << "\n";
+        }
+        cuda_err = cudaMemset(d_taxon_counts, 0, max_taxon_id * sizeof(uint32_t));
+        if (cuda_err != cudaSuccess) {
+            std::cerr << "cudaMemset failed: " << cudaGetErrorString(cuda_err) << "\n";
+        }
         
         std::cout << "Hierarchical profiler initialized:\n";
         std::cout << "  Database path: " << db_path << "\n";
@@ -131,6 +162,8 @@ public:
                                      bool update_abundance = true) {
         size_t num_reads = sequences.size();
         if (num_reads == 0) return;
+        
+        std::cout << "DEBUG: Processing batch with " << num_reads << " reads\n";
         
         auto batch_start = std::chrono::high_resolution_clock::now();
         
@@ -220,8 +253,12 @@ public:
         
         // Update batch timing statistics
         auto batch_duration = std::chrono::duration_cast<std::chrono::milliseconds>(batch_end - batch_start);
-        abundance.avg_batch_time_ms = (abundance.avg_batch_time_ms * abundance.batches_processed + 
-                                      batch_duration.count()) / (abundance.batches_processed + 1);
+        if (abundance.batches_processed == 0) {
+            abundance.avg_batch_time_ms = batch_duration.count();
+        } else {
+            abundance.avg_batch_time_ms = (abundance.avg_batch_time_ms * abundance.batches_processed + 
+                                          batch_duration.count()) / (abundance.batches_processed + 1);
+        }
         abundance.batches_processed++;
         
         // Update database statistics
@@ -480,10 +517,14 @@ int main(int argc, char** argv) {
                 if (++batch_num % 5 == 0) {  // More frequent updates for hierarchical profiling
                     auto profile = pipeline.get_abundance_profile();
                     std::cout << "\nProgress: Processed " << profile.total_reads << " read pairs, "
-                              << profile.classified_reads << " classified ("
-                              << std::fixed << std::setprecision(1)
-                              << (100.0 * profile.classified_reads / profile.total_reads) 
-                              << "%), cache hit rate: " 
+                              << profile.classified_reads << " classified (";
+                    if (profile.total_reads > 0) {
+                        std::cout << std::fixed << std::setprecision(1)
+                                  << (100.0 * profile.classified_reads / profile.total_reads) << "%";
+                    } else {
+                        std::cout << "0%";
+                    }
+                    std::cout << "), cache hit rate: " 
                               << (profile.db_stats.get_cache_hit_rate() * 100.0) << "%\n";
                 }
             }
@@ -506,10 +547,14 @@ int main(int argc, char** argv) {
                 if (++batch_num % 5 == 0) {  // More frequent updates
                     auto profile = pipeline.get_abundance_profile();
                     std::cout << "\nProgress: Processed " << profile.total_reads << " reads, "
-                              << profile.classified_reads << " classified ("
-                              << std::fixed << std::setprecision(1)
-                              << (100.0 * profile.classified_reads / profile.total_reads) 
-                              << "%), cache hit rate: " 
+                              << profile.classified_reads << " classified (";
+                    if (profile.total_reads > 0) {
+                        std::cout << std::fixed << std::setprecision(1)
+                                  << (100.0 * profile.classified_reads / profile.total_reads) << "%";
+                    } else {
+                        std::cout << "0%";
+                    }
+                    std::cout << "), cache hit rate: " 
                               << (profile.db_stats.get_cache_hit_rate() * 100.0) << "%\n";
                 }
             }

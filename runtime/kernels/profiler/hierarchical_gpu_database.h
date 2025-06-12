@@ -91,6 +91,7 @@ private:
     size_t current_gpu_usage = 0;           // Current GPU memory usage
     uint64_t access_counter = 0;            // Global access counter for LRU
     HierarchicalDBStats stats;
+    bool sorted_by_frequency = true;        // How the database was built
     
     // GPU streams for async operations
     cudaStream_t load_stream;
@@ -325,7 +326,8 @@ void HierarchicalGPUDatabase::load_tier(size_t tier_idx) {
     auto& tier = tiers[tier_idx];
     
     std::cout << "Loading tier " << tier_idx << " (" 
-              << tier->size_bytes / 1024 / 1024 << " MB)\n";
+              << tier->size_bytes / 1024 / 1024 << " MB, "
+              << tier->num_entries << " entries)\n";
     
     // Allocate GPU memory
     size_t gpu_size = tier->num_entries * sizeof(KmerEntry);
@@ -367,6 +369,16 @@ void HierarchicalGPUDatabase::load_tier(size_t tier_idx) {
         
         cudaMemcpyAsync(tier->d_entries, file_entries.data(),
                        gpu_size, cudaMemcpyHostToDevice, load_stream);
+        
+        // Debug: show first few entries
+        static int debug_tier_count = 0;
+        if (debug_tier_count++ < 3) {
+            std::cout << "  First few entries in tier " << tier_idx << ":\n";
+            for (size_t i = 0; i < std::min(size_t(5), tier->num_entries); i++) {
+                std::cout << "    Entry[" << i << "]: hash=" << file_entries[i].hash
+                         << ", taxon=" << file_entries[i].taxon_id << "\n";
+            }
+        }
     }
     
     // Wait for transfer to complete
@@ -430,31 +442,43 @@ __global__ void hierarchical_lookup_kernel(
     const KmerEntry* tier_entries,
     const size_t tier_size,
     uint32_t* results,
-    const size_t num_queries
+    const size_t num_queries,
+    const bool sorted_by_hash
 ) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid >= num_queries) return;
     
+    // Skip if already found in previous tier
+    if (results[tid] != 0) return;
+    
     uint64_t target_hash = query_hashes[tid];
     
-    // Binary search in sorted tier
-    int left = 0, right = tier_size - 1;
-    
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
-        uint64_t mid_hash = tier_entries[mid].hash;
+    if (sorted_by_hash) {
+        // Binary search in sorted tier
+        int left = 0, right = tier_size - 1;
         
-        if (mid_hash == target_hash) {
-            results[tid] = tier_entries[mid].taxon_id;
-            return;
-        } else if (mid_hash < target_hash) {
-            left = mid + 1;
-        } else {
-            right = mid - 1;
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            uint64_t mid_hash = tier_entries[mid].hash;
+            
+            if (mid_hash == target_hash) {
+                results[tid] = tier_entries[mid].taxon_id;
+                return;
+            } else if (mid_hash < target_hash) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+    } else {
+        // Linear search - tiers are sorted by frequency
+        for (size_t i = 0; i < tier_size; i++) {
+            if (tier_entries[i].hash == target_hash) {
+                results[tid] = tier_entries[i].taxon_id;
+                return;
+            }
         }
     }
-    
-    results[tid] = 0;  // Not found
 }
 #endif // __CUDACC__
 
@@ -465,81 +489,50 @@ void HierarchicalGPUDatabase::lookup_batch_gpu(const uint64_t* d_hashes,
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // Group queries by tier
-    std::vector<std::vector<size_t>> tier_query_indices(tiers.size());
+    // Initialize all results to 0 (not found)
+    cudaMemset(d_taxon_ids, 0, count * sizeof(uint32_t));
     
-    // Copy hashes to host for partitioning (could optimize this)
-    std::vector<uint64_t> h_hashes(count);
-    cudaMemcpy(h_hashes.data(), d_hashes, count * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+    // Simple approach: check all tiers for all queries
+    // Since tiers are sorted by frequency, we check most frequent first
+    size_t found_count = 0;
     
-    // Partition queries by tier
-    for (size_t i = 0; i < count; i++) {
-        int tier_idx = find_tier_for_hash(h_hashes[i]);
-        if (tier_idx >= 0) {
-            tier_query_indices[tier_idx].push_back(i);
-        }
-    }
-    
-    // Process each tier that has queries
     for (size_t tier_idx = 0; tier_idx < tiers.size(); tier_idx++) {
-        if (tier_query_indices[tier_idx].empty()) continue;
-        
         // Ensure tier is loaded
         ensure_tier_loaded(tier_idx);
-        
-        const auto& query_indices = tier_query_indices[tier_idx];
         auto& tier = tiers[tier_idx];
         
-        // Create arrays for this tier's queries
-        std::vector<uint64_t> tier_hashes;
-        std::vector<uint32_t> tier_results(query_indices.size());
-        
-        for (size_t idx : query_indices) {
-            tier_hashes.push_back(h_hashes[idx]);
-        }
-        
-        // Allocate temporary GPU memory
-        uint64_t* d_tier_hashes;
-        uint32_t* d_tier_results;
-        cudaMalloc(&d_tier_hashes, tier_hashes.size() * sizeof(uint64_t));
-        cudaMalloc(&d_tier_results, tier_results.size() * sizeof(uint32_t));
-        
-        // Copy to GPU
-        cudaMemcpyAsync(d_tier_hashes, tier_hashes.data(),
-                       tier_hashes.size() * sizeof(uint64_t), 
-                       cudaMemcpyHostToDevice, stream);
-        
-        // Launch lookup kernel
+        // Launch lookup kernel for all queries against this tier
         int block_size = 256;
-        int num_blocks = (query_indices.size() + block_size - 1) / block_size;
+        int num_blocks = (count + block_size - 1) / block_size;
         
 #ifdef __CUDACC__
         hierarchical_lookup_kernel<<<num_blocks, block_size, 0, stream>>>(
-            d_tier_hashes, tier->d_entries, tier->num_entries,
-            d_tier_results, query_indices.size()
+            d_hashes, tier->d_entries, tier->num_entries,
+            d_taxon_ids, count, !sorted_by_frequency  // pass sorted_by_hash flag
         );
-#else
-        // When compiled with regular C++, just clear results
-        cudaMemset(d_tier_results, 0, query_indices.size() * sizeof(uint32_t));
 #endif
-        
-        // Copy results back
-        cudaMemcpyAsync(tier_results.data(), d_tier_results,
-                       tier_results.size() * sizeof(uint32_t),
-                       cudaMemcpyDeviceToHost, stream);
-        
         cudaStreamSynchronize(stream);
-        
-        // Scatter results back to original positions
-        for (size_t i = 0; i < query_indices.size(); i++) {
-            size_t original_idx = query_indices[i];
-            cudaMemcpy(&d_taxon_ids[original_idx], &tier_results[i], 
-                      sizeof(uint32_t), cudaMemcpyHostToDevice);
+    }
+    
+    // Debug: count how many were found
+    std::vector<uint32_t> h_results(count);
+    cudaMemcpy(h_results.data(), d_taxon_ids, count * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    for (auto taxon : h_results) {
+        if (taxon > 0) found_count++;
+    }
+    
+    if (found_count == 0 && count > 0) {
+        static int debug_count = 0;
+        if (debug_count++ < 5) {
+            std::cout << "DEBUG: No hits found in batch of " << count << " queries\n";
+            std::cout << "  Tiers checked: " << tiers.size() << "\n";
+            // Sample first few hashes
+            std::vector<uint64_t> h_hashes(std::min(count, size_t(5)));
+            cudaMemcpy(h_hashes.data(), d_hashes, h_hashes.size() * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+            for (size_t i = 0; i < h_hashes.size(); i++) {
+                std::cout << "  Query hash[" << i << "]: " << h_hashes[i] << "\n";
+            }
         }
-        
-        // Clean up temporary memory
-        cudaFree(d_tier_hashes);
-        cudaFree(d_tier_results);
     }
     
     // Update statistics
@@ -547,8 +540,12 @@ void HierarchicalGPUDatabase::lookup_batch_gpu(const uint64_t* d_hashes,
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     
     stats.total_lookups += count;
-    stats.avg_lookup_time_us = (stats.avg_lookup_time_us * (stats.total_lookups - count) + 
-                               duration.count()) / stats.total_lookups;
+    if (stats.total_lookups > 0) {
+        stats.avg_lookup_time_us = (stats.avg_lookup_time_us * (stats.total_lookups - count) + 
+                                   duration.count()) / stats.total_lookups;
+    } else {
+        stats.avg_lookup_time_us = duration.count();
+    }
 }
 
 void HierarchicalGPUDatabase::preload_frequent_tiers(size_t top_n) {
@@ -620,6 +617,8 @@ void HierarchicalGPUDatabase::load_database(const std::string& db_prefix) {
             sscanf(line.c_str(), "  \"total_kmers\": %zu,", &total_kmers);
         } else if (line.find("\"num_tiers\":") != std::string::npos) {
             sscanf(line.c_str(), "  \"num_tiers\": %zu,", &num_tiers);
+        } else if (line.find("\"sorted_by_frequency\":") != std::string::npos) {
+            sorted_by_frequency = (line.find("true") != std::string::npos);
         }
     }
     manifest_file.close();
@@ -687,6 +686,7 @@ void HierarchicalGPUDatabase::load_database(const std::string& db_prefix) {
     std::cout << "  Total k-mers: " << stats.total_kmers << "\n";
     std::cout << "  Number of tiers: " << tiers.size() << "\n";
     std::cout << "  Total size: " << (stats.memory_bytes / 1024.0 / 1024.0 / 1024.0) << " GB\n";
+    std::cout << "  Sorted by: " << (sorted_by_frequency ? "frequency" : "hash") << "\n";
     
     // Preload frequent tiers if configured
     if (config.preload_frequent_tiers && config.cache_tiers > 0) {

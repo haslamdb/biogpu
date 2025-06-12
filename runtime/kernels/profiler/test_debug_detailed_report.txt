@@ -1,0 +1,29 @@
+
+=== Hierarchical Database Profiling Results ===
+Total reads: 100
+Classified: 2 (2.00%)
+Unclassified: 98 (98.00%)
+
+=== Database Performance ===
+Cache hit rate: 0.2%
+Total lookups: 1410
+Tier loads: 3
+Tier evictions: 0
+Average lookup time: 12294.6 μs
+Average batch time: 17336.0 ms
+Batches processed: 1
+
+=== Top Taxa by Read Count ===
+Species                              Reads   Percent
+----------------------------------------------------
+Staphylococcus_aureus                    1    50.00%
+Enterococcus_faecalis                    1    50.00%
+
+
+=== Performance Analysis ===
+Hardware: 10 GB GPU memory limit
+Database tiers: 3
+Processing mode: Single-end
+Batches processed: 1
+Tier loads during processing: 3
+Tier evictions during processing: 0

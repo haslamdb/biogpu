@@ -116,22 +116,10 @@ pipeline FluoroquinoloneResistance {
 
 ## TODO List
 
-<<<<<<< HEAD
-### 1. Build Resistance Gene and Mutation Database
-- [ ] Design GPU-friendly mutation index structure from files in data/fq_resistance_db
-- [ ] We need to design a simplified data structure so we can build a simplified index
-- [ ] We do have a somewhat working draft which can be invoked with: ./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5 data/test_fastq/synthetic_reads_R1.fastq.gz  data/test_fastq/synthetic_reads_R2.fastq.gz  synthetic_fq_results.json
-- [ ] we've fixed the first part of the process (pulling out matching kmers, but the second part fails during mapping)
-- [ ] Implement mutation confidence scoring system
-
-### 2. Build Microbial Genome Database
-=======
 ### 1. Production Optimization and Clinical Integration
 
 #### Immediate Workflow Optimizations
-- [ ] **Expand FQDR sites in enhanced_kmer_builder.py**: Currenly only lists sites for E coli and E faecium
 - [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
-
 
 #### Enhanced Clinical Interpretation
 - [ ] **Confidence scoring system**: Implement tiered confidence levels for resistance calls
@@ -153,7 +141,6 @@ pipeline FluoroquinoloneResistance {
 - [ ] **Macrolide resistance**: erm, mef genes for respiratory pathogens
 
 #### Possible future goals
-- [ ] **Hospital LIS integration**: Develop interfaces for laboratory information systems
 - [ ] **Real-time monitoring dashboard**: Clinical decision support interface
 - [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
 - [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
@@ -380,7 +367,6 @@ pipeline FluoroquinoloneResistance {
 - [ ] Implement mutation confidence scoring system
 
 ### 8. Build Microbial Genome Database
->>>>>>> 3a7585370c7aabdf2fbd0a34cff6012a8692e3ed
 - [ ] Create GPU-optimized k-mer index structure from downloaded genomes in data/genomes
 - [ ] Implement genome database serialization format
 - [ ] Add support for custom clinical isolate genomes

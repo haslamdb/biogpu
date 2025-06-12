@@ -45,7 +45,7 @@ python src/python/download_microbial_genomes.py data/pathogen_db --email dbhasla
 
 # next convert the db to binary
 cd runtime/kernels/profiler/build
-./build_db_from_kmers /data/pathogen_db/database_kmers.txt /data/pathogen_db/pathogen.db
+./runtime/kernels/profiler/build/build_db_from_kmers data/pathogen_db/database_kmers.txt data/pathogen_db/pathogen.db
 
 # for now test as below (hybrid_profiler_pipeline is for kraken style db):
 # need to build 

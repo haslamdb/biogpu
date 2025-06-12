@@ -1,0 +1,56 @@
+# alright we're starting with a new profiler workflow at runtime/kernels/profiler
+# We now split out CMakeLists.txt into the individual directories so the build locations will be within the kernel subdirectories
+
+# You're in /runtime/kernels/profiler
+
+# 1. Create a build directory
+mkdir build
+cd build
+
+# 2. Run CMake to configure the project
+cmake ..
+
+# 3. Build everything
+make -j4  # The -j4 uses 4 CPU cores for faster compilation
+
+# Or build specific targets:
+make test_minimizer         # Just the minimizer test
+make test_fastq_pipeline    # Just the FASTQ pipeline
+make hybrid_profiler_pipeline  # Just the hybrid profiler
+
+# Test with synthetic data (1000 sequences)
+./test_minimizer
+
+# Test with your own FASTQ file
+./test_minimizer /path/to/your/reads.fastq
+
+# Run benchmark mode (10,000 sequences)
+./test_minimizer --benchmark
+
+# Process a FASTQ file (can be gzipped)
+./test_fastq_pipeline ../../../../1M_synthetic_reads_R1.fastq.gz
+
+# Or uncompressed (though compressed reads run fine - except got stalled)
+zcat ../../../../1M_synthetic_reads_R1.fastq.gz > test_reads.fastq
+./test_fastq_pipeline test_reads.fastq
+
+# This needs a Kraken2 database
+./hybrid_profiler_pipeline /path/to/kraken2_db /path/to/reads.fastq
+
+./hybrid_profiler_pipeline /home/david/Databases/Kraken2DB data/569_A_038_R1.fastq.gz 
+
+
+# get genomes from NCBI and process kmers (default 31 with stride 5)
+python download_microbial_genomes.py microbial_db --email dbhaslam@gmail.com --genomes-per-species 10 --k 31 --stride 5
+
+# not yet implemented:
+./gpu_profiler_enhanced microbiome.db sample_R1.fastq.gz sample_R2.fastq.gz \
+    --output-prefix sample_001
+
+# we built a microbial db using python download_microbial_genomes.py microbial_db but note this version has stride of 1 (by mistake)
+# we can rebuild and set --stride 5
+
+# for now test as below (hybrid_profiler_pipeline is for kraken style db):
+# need to build 
+./runtime/kernels/profiler/build/gpu_profiler_pipeline data/microbial_db/ data/569_A_038_R1.fastq.gz \
+    data/569_A_038_R2.fastq.gz --output-prefix data/569_A_038_profile

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include "../runtime/kernels/profiler/gpu_kmer_database.h"
+#include "gpu_kmer_database.h"
 
 using namespace biogpu;
 

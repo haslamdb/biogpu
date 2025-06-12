@@ -1,0 +1,2 @@
+/bin/ar qc libsample_csv_parser.a CMakeFiles/sample_csv_parser.dir/sample_csv_parser.cpp.o
+/bin/ranlib libsample_csv_parser.a

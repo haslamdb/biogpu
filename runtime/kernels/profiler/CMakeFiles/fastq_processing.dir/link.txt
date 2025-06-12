@@ -1,0 +1,2 @@
+/bin/ar qc libfastq_processing.a CMakeFiles/fastq_processing.dir/fastq_processing.cpp.o
+/bin/ranlib libfastq_processing.a

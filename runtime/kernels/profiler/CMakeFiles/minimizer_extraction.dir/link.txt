@@ -1,0 +1,3 @@
+/bin/ar qc libminimizer_extraction.a CMakeFiles/minimizer_extraction.dir/minimizer_extraction.cu.o
+/bin/ar q libminimizer_extraction.a CMakeFiles/minimizer_extraction.dir/cmake_device_link.o
+/bin/ranlib libminimizer_extraction.a

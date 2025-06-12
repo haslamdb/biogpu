@@ -1,0 +1,501 @@
+# CMakeLists.txt - Updated for Hierarchical Database Support
+cmake_minimum_required(VERSION 3.20)
+project(BioGPU_Hierarchical_Profiling VERSION 0.2.0 LANGUAGES CXX CUDA)
+
+# C++ Standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# CUDA Standard  
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+# Project include directories
+include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+# CUDA include directories
+if(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES)
+    include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+endif()
+
+# CUDA library directories
+link_directories(/usr/local/cuda/lib64)
+link_directories(/usr/local/cuda/targets/x86_64-linux/lib)
+
+# Find required packages
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "Found OpenMP: ${OpenMP_CXX_VERSION}")
+else()
+    message(WARNING "OpenMP not found - some features may be slower")
+endif()
+
+find_package(ZLIB REQUIRED)
+if(ZLIB_FOUND)
+    message(STATUS "Found zlib: ${ZLIB_VERSION_STRING}")
+else()
+    message(FATAL_ERROR "zlib not found. Please install zlib development libraries.")
+endif()
+
+# Find filesystem library for C++17
+find_package(Threads REQUIRED)
+
+# ===========================
+# Core Libraries
+# ===========================
+
+# Minimizer extraction library (existing)
+add_library(minimizer_extraction STATIC
+    minimizer_extraction.cu
+    minimizer_extractor.h
+    minimizer_common.h
+)
+
+set_target_properties(minimizer_extraction PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(minimizer_extraction PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
+        --ptxas-options=-v
+        --maxrregcount=64
+        -O3
+    >
+)
+
+# FASTQ processing library (existing)
+add_library(fastq_processing STATIC
+    fastq_processing.cpp
+    fastq_processing.h
+)
+
+target_link_libraries(fastq_processing
+    minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    cuda
+    cudart
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(fastq_processing OpenMP::OpenMP_CXX)
+endif()
+
+# Original GPU k-mer database library (kept for compatibility)
+add_library(gpu_kmer_database STATIC
+    gpu_kmer_database.cu
+    gpu_kmer_database.h
+)
+
+set_target_properties(gpu_kmer_database PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# NEW: Hierarchical GPU database library
+add_library(hierarchical_gpu_database STATIC
+    hierarchical_gpu_database.cu
+    hierarchical_gpu_database.h
+)
+
+set_target_properties(hierarchical_gpu_database PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(hierarchical_gpu_database PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
+        --ptxas-options=-v
+        --maxrregcount=64
+        -O3
+    >
+)
+
+target_link_libraries(hierarchical_gpu_database
+    gpu_kmer_database  # For shared structures
+    cuda
+    cudart
+    stdc++fs  # For C++17 filesystem
+)
+
+# ===========================
+# Main Executables
+# ===========================
+
+# Original GPU profiler pipeline (maintained for compatibility)
+add_executable(gpu_profiler_pipeline gpu_profiler_pipeline.cu)
+target_link_libraries(gpu_profiler_pipeline 
+    minimizer_extraction 
+    fastq_processing
+    gpu_kmer_database
+    ${CUDA_LIBRARIES} 
+    ${ZLIB_LIBRARIES}
+)
+
+set_target_properties(gpu_profiler_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+# NEW: Hierarchical profiler pipeline
+add_executable(hierarchical_profiler_pipeline
+    hierarchical_profiler_pipeline.cu
+)
+
+set_target_properties(hierarchical_profiler_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(hierarchical_profiler_pipeline
+    fastq_processing
+    minimizer_extraction
+    hierarchical_gpu_database
+    gpu_kmer_database
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+    stdc++fs
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(hierarchical_profiler_pipeline OpenMP::OpenMP_CXX)
+endif()
+
+# Hybrid profiler pipeline (existing)
+add_executable(hybrid_profiler_pipeline
+    hybrid_profiler_pipeline.cu
+)
+
+set_target_properties(hybrid_profiler_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(hybrid_profiler_pipeline
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(hybrid_profiler_pipeline OpenMP::OpenMP_CXX)
+endif()
+
+# ===========================
+# Database Building Tools
+# ===========================
+
+# Original database builder (kept for compatibility)
+add_executable(build_db_from_kmers
+    build_db_from_kmers.cpp
+)
+
+target_link_libraries(build_db_from_kmers
+    gpu_kmer_database
+    cudart
+    cuda
+)
+
+# NEW: Hierarchical database builder
+add_executable(build_hierarchical_db
+    build_hierarchical_db.cpp
+)
+
+target_link_libraries(build_hierarchical_db
+    hierarchical_gpu_database
+    gpu_kmer_database
+    cudart
+    cuda
+    stdc++fs
+)
+
+# Build test database tool (existing)
+add_executable(build_test_database
+    build_test_database.cpp
+)
+
+target_link_libraries(build_test_database
+    gpu_kmer_database
+    cudart
+    cuda
+)
+
+# NEW: Create stratified subset tool for memory-constrained testing
+add_executable(create_stratified_subset
+    create_stratified_subset.cpp
+)
+
+target_link_libraries(create_stratified_subset
+    stdc++fs
+)
+
+# ===========================
+# Test Executables
+# ===========================
+
+# Test minimizer extraction (existing)
+add_executable(test_minimizer
+    test_minimizer.cpp
+)
+
+target_link_libraries(test_minimizer
+    minimizer_extraction
+    cudart
+    cuda
+)
+
+# Test FASTQ pipeline (existing)
+add_executable(test_fastq_pipeline
+    fastq_pipeline_main.cpp
+)
+
+set_target_properties(test_fastq_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(test_fastq_pipeline
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# NEW: Test hierarchical database
+add_executable(test_hierarchical_db
+    test_hierarchical_db.cpp
+)
+
+target_link_libraries(test_hierarchical_db
+    hierarchical_gpu_database
+    gpu_kmer_database
+    minimizer_extraction
+    cudart
+    cuda
+    stdc++fs
+)
+
+# Debug programs (existing)
+add_executable(debug_minimizer
+    debug_minimizer.cpp
+)
+
+set_target_properties(debug_minimizer PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(debug_minimizer
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+add_executable(test_stats
+    test_stats.cpp
+)
+
+target_link_libraries(test_stats
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+add_executable(fastq_pipeline_debug
+    fastq_pipeline_debug.cpp
+)
+
+target_link_libraries(fastq_pipeline_debug
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# ===========================
+# Custom Targets for Testing
+# ===========================
+
+# Test with synthetic data (existing)
+add_custom_target(test_synthetic
+    COMMAND ./test_minimizer
+    DEPENDS test_minimizer
+    COMMENT "Testing minimizer extraction with synthetic sequences"
+)
+
+# Test hierarchical database building and usage
+add_custom_target(test_hierarchical_complete
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/generate_test_data.py both test_hierarchical
+    COMMAND ./build_hierarchical_db test_hierarchical_kmers.txt test_hierarchical_db --tier-size 64
+    COMMAND ./hierarchical_profiler_pipeline test_hierarchical_db test_hierarchical.fastq --memory 1
+    DEPENDS build_hierarchical_db hierarchical_profiler_pipeline
+    COMMENT "Complete test of hierarchical database system"
+)
+
+# Create stratified subset for testing
+add_custom_target(create_test_subset
+    COMMAND ./create_stratified_subset $ENV{KMER_FILE} test_subset.txt --target-size 1000000
+    DEPENDS create_stratified_subset
+    COMMENT "Create stratified subset - set KMER_FILE environment variable"
+)
+
+# Test memory scaling
+add_custom_target(test_memory_scaling
+    COMMAND echo "Testing with 1GB memory limit..."
+    COMMAND ./hierarchical_profiler_pipeline test_db test.fastq --memory 1
+    COMMAND echo "Testing with 4GB memory limit..."
+    COMMAND ./hierarchical_profiler_pipeline test_db test.fastq --memory 4
+    COMMAND echo "Testing with 8GB memory limit..."
+    COMMAND ./hierarchical_profiler_pipeline test_db test.fastq --memory 8
+    DEPENDS hierarchical_profiler_pipeline
+    COMMENT "Test performance scaling with different memory limits"
+)
+
+# ===========================
+# Installation Rules
+# ===========================
+
+# Install executables
+install(TARGETS 
+    # Original tools
+    test_minimizer
+    test_fastq_pipeline
+    hybrid_profiler_pipeline
+    gpu_profiler_pipeline
+    build_test_database
+    build_db_from_kmers
+    
+    # New hierarchical tools
+    hierarchical_profiler_pipeline
+    build_hierarchical_db
+    test_hierarchical_db
+    create_stratified_subset
+    
+    RUNTIME DESTINATION bin
+)
+
+# Install libraries
+install(TARGETS 
+    minimizer_extraction
+    fastq_processing
+    gpu_kmer_database
+    hierarchical_gpu_database
+    ARCHIVE DESTINATION lib
+)
+
+# Install headers
+install(FILES 
+    minimizer_common.h
+    minimizer_extractor.h
+    fastq_processing.h
+    gpu_kmer_database.h
+    hierarchical_gpu_database.h
+    kraken_database_loader.h
+    DESTINATION include/biogpu/profiler
+)
+
+# Install Python utilities
+install(FILES
+    generate_test_data.py
+    create_taxon_mapping.py
+    DESTINATION share/biogpu/scripts
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
+# ===========================
+# Configuration Summary
+# ===========================
+
+message(STATUS "")
+message(STATUS "BioGPU Hierarchical Microbiome Profiling Configuration:")
+message(STATUS "  Version: ${PROJECT_VERSION}")
+message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "  CUDA Standard: ${CMAKE_CUDA_STANDARD}")
+message(STATUS "  CUDA Architectures: 61;70;75;80;86")
+message(STATUS "  OpenMP Support: ${OpenMP_CXX_FOUND}")
+message(STATUS "  zlib Version: ${ZLIB_VERSION_STRING}")
+message(STATUS "")
+message(STATUS "New Hierarchical Database Features:")
+message(STATUS "  ✓ Memory-efficient hierarchical k-mer database")
+message(STATUS "  ✓ Streaming database with LRU cache management")
+message(STATUS "  ✓ Scalable from 1GB to 200GB+ databases")
+message(STATUS "  ✓ Performance monitoring and optimization")
+message(STATUS "  ✓ Backward compatibility with existing databases")
+message(STATUS "")
+message(STATUS "Available Components:")
+message(STATUS "  ✓ GPU minimizer extraction")
+message(STATUS "  ✓ Original GPU k-mer database")
+message(STATUS "  ✓ NEW: Hierarchical GPU database with streaming")
+message(STATUS "  ✓ GPU profiler pipeline")
+message(STATUS "  ✓ NEW: Hierarchical profiler pipeline")
+message(STATUS "  ✓ Database building tools")
+message(STATUS "  ✓ Test programs for all components")
+message(STATUS "  ✓ FASTQ GPU pipeline with zlib support")
+message(STATUS "  ✓ Hybrid profiler pipeline (needs Kraken2 database)")
+message(STATUS "")
+message(STATUS "Build targets:")
+message(STATUS "  hierarchical_profiler_pipeline - Memory-efficient hierarchical profiler")
+message(STATUS "  build_hierarchical_db           - Build hierarchical database from k-mers")
+message(STATUS "  create_stratified_subset        - Create memory-appropriate database subsets")
+message(STATUS "  gpu_profiler_pipeline           - Original GPU-accelerated profiler")
+message(STATUS "  build_db_from_kmers             - Build traditional database from k-mers")
+message(STATUS "  test_hierarchical_db            - Test hierarchical database functionality")
+message(STATUS "")
+message(STATUS "Testing targets:")
+message(STATUS "  make test_hierarchical_complete - Full test of hierarchical system")
+message(STATUS "  make create_test_subset        - Create memory-appropriate subset")
+message(STATUS "  make test_memory_scaling       - Test performance at different memory limits")
+message(STATUS "  make test_synthetic            - Test with synthetic data")
+message(STATUS "")
+message(STATUS "Migration Path:")
+message(STATUS "  1. Current users: Keep using gpu_profiler_pipeline (no changes needed)")
+message(STATUS "  2. Memory-constrained: Switch to hierarchical_profiler_pipeline")
+message(STATUS "  3. Large databases: Use build_hierarchical_db for optimal performance")
+message(STATUS "")
+message(STATUS "Usage examples:")
+message(STATUS "  1. Build hierarchical database:")
+message(STATUS "     ./build_hierarchical_db database_kmers.txt pathogen_db --tier-size 512")
+message(STATUS "")
+message(STATUS "  2. Run hierarchical profiler (8GB GPU):")
+message(STATUS "     ./hierarchical_profiler_pipeline pathogen_db reads.fastq --memory 8")
+message(STATUS "")
+message(STATUS "  3. Create memory-appropriate subset:")
+message(STATUS "     ./create_stratified_subset large_kmers.txt subset_kmers.txt --target-size 5000000")
+message(STATUS "")
+message(STATUS "  4. Test hierarchical system:")
+message(STATUS "     make test_hierarchical_complete")
+message(STATUS "")
+message(STATUS "  5. Performance scaling test:")
+message(STATUS "     make test_memory_scaling")
+message(STATUS "")
+message(STATUS "Memory Requirements Guide:")
+message(STATUS "  - 4GB GPU:   Use --tier-size 256, expect 60-80% cache hit rate")
+message(STATUS "  - 8GB GPU:   Use --tier-size 512, expect 80-90% cache hit rate") 
+message(STATUS "  - 12GB GPU:  Use --tier-size 1024, expect 90-95% cache hit rate")
+message(STATUS "  - 24GB GPU+: Use original gpu_profiler_pipeline for maximum speed")
+message(STATUS "")

@@ -1,0 +1,2 @@
+/bin/ar qc libkmer_screening.a CMakeFiles/kmer_screening.dir/kmer_screening.cu.o
+/bin/ranlib libkmer_screening.a

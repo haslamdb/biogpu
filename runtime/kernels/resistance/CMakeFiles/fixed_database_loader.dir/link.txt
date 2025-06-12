@@ -1,0 +1,2 @@
+/bin/ar qc libfixed_database_loader.a CMakeFiles/fixed_database_loader.dir/fixed_database_loader.cpp.o
+/bin/ranlib libfixed_database_loader.a

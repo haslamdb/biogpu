@@ -127,3 +127,42 @@ You can now use this database with:
 
   The key difference from your original command is that I'm using the subset database (pathogen_subset.db) instead of the
   full database, since the full 33GB database doesn't fit in your 12GB GPU memory.
+
+./runtime/kernels/profiler/build/hierarchical_profiler_pipeline \
+  data/pathogen_hierarchical.db \
+  data/569_A_038_R1.fastq.gz \
+  data/569_A_038_R2.fastq.gz \
+  --memory 10 \
+  --output-prefix results/569_A_038_hierarchical
+
+
+cd runtime/kernels/profiler && ./build_hierarchical_db \
+../../../data/pathogen_profiler_db/database_kmers.txt \
+ ../../../data/pathogen_hierarchical.db \
+ --tier-size 512   
+
+K-mer reading complete:
+  Total k-mers: 143516534
+  Unique k-mers: 81680910
+  Maximum taxon ID: 28901
+
+Creating database tiers...
+Sorting k-mers by frequency...
+Creating 3 tiers...
+Tier creation complete:
+  Tier 0: 33554432 k-mers, 512 MB
+  Tier 1: 33554432 k-mers, 512 MB
+  Tier 2: 14572046 k-mers, 222.352 MB
+
+Writing tier files...
+  Wrote ../../../data/pathogen_hierarchical.db/tier_0.bin (512 MB)
+  Wrote ../../../data/pathogen_hierarchical.db/tier_1.bin (512 MB)
+  Wrote ../../../data/pathogen_hierarchical.db/tier_2.bin (222.352 MB)
+
+
+./runtime/kernels/profiler/hierarchical_profiler_pipeline \ 
+  data/pathogen_hierarchical.db \  
+  data/569_A_038_R1.fastq.gz \ 
+  data/569_A_038_R2.fastq.gz \ 
+  --memory 10 \ 
+  --output-prefix results/569_A_038_hierarchical  

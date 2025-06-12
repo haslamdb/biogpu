@@ -1,0 +1,2 @@
+/bin/ar qc libclean_resistance_loader.a CMakeFiles/clean_resistance_loader.dir/fix_pipeline_resistance_loader.cpp.o
+/bin/ranlib libclean_resistance_loader.a

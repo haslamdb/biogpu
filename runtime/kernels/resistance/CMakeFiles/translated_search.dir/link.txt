@@ -1,0 +1,2 @@
+/bin/ar qc libtranslated_search.a CMakeFiles/translated_search.dir/translated_search_revised.cu.o
+/bin/ranlib libtranslated_search.a

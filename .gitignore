@@ -20,6 +20,7 @@ build_integrated/
 cmake-build-*/
 out/
 build_comparison/
+runtime/kernels/profiler/CMakeFiles/
 
 # Results directories
 # Ignore everything in results/

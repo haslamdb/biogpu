@@ -1,0 +1,2 @@
+/bin/ar qc libdiagnostic_reporter.a CMakeFiles/diagnostic_reporter.dir/diagnostic_report.cpp.o
+/bin/ranlib libdiagnostic_reporter.a

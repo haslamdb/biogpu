@@ -1,0 +1,27 @@
+
+=== Hierarchical Database Profiling Results ===
+Total reads: 6810014
+Classified: 0 (0.00%)
+Unclassified: 6810014 (100.00%)
+
+=== Database Performance ===
+Cache hit rate: 0.0%
+Total lookups: 96581571
+Tier loads: 0
+Tier evictions: 0
+Average lookup time: 0.0 μs
+Average batch time: 19.1 ms
+Batches processed: 341
+
+=== Top Taxa by Read Count ===
+Species                              Reads   Percent
+----------------------------------------------------
+
+
+=== Performance Analysis ===
+Hardware: 10 GB GPU memory limit
+Database tiers: 0
+Processing mode: Paired-end
+Batches processed: 341
+Tier loads during processing: 0
+Tier evictions during processing: 0

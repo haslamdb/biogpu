@@ -1,0 +1,1 @@
+ libgpu_kmer_database.a -lcuda -lcudart -lstdc++fs -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

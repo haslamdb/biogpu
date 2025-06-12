@@ -721,13 +721,16 @@ make build_integrated_resistance_db
 
 ## 🤝 Version History
 
-### v0.8.0 (December 6 2025) - HIERARCHICAL GPU DATABASE FOR LARGE-SCALE PROFILING
+### v0.8.0 (December 12 2025) - HIERARCHICAL GPU DATABASE FOR LARGE-SCALE PROFILING
 - **NEW: Hierarchical GPU database** for databases exceeding GPU memory
 - **Dynamic tier loading** with LRU cache management
 - **Memory-configurable profiling** with --memory parameter
-- **Tested with 143M k-mers** (33GB database on 12GB GPU)
+- **Tested with 143M k-mers** (1.2GB database, 81M unique k-mers)
 - Supports databases 10x larger than available GPU memory
-- Performance impact: ~10-20% slower with >90% cache hit rate
+- **Critical fixes**: 
+  - Implemented missing `load_database()` function for proper tier metadata loading
+  - Fixed tier file loading to skip 64-byte headers
+  - Added canonical k-mer support to match minimizer extraction
 - New executables: hierarchical_profiler_pipeline, build_hierarchical_db
 - Transparent API - same usage as standard profiler
 
@@ -1217,14 +1220,43 @@ make
 
 ```bash
 # Build hierarchical database from k-mer list
-./build_hierarchical_db kmers.txt pathogen_hierarchical.db
+./build_hierarchical_db database_kmers.txt pathogen_hierarchical_db [options]
+
+# Options:
+#   --tier-size <MB>      Target size per tier in MB (default: 512)
+#   --sort-hash           Sort by hash instead of frequency
+#   --no-manifest         Don't create manifest file
+#   --progress <N>        Progress update interval (default: 1000000)
+
+# Example:
+./build_hierarchical_db data/pathogen_db/database_kmers.txt \
+    data/pathogen_hierarchical.db \
+    --tier-size 512 \
+    --progress 10000000
 
 # The builder will:
-# 1. Sort k-mers by hash value
-# 2. Partition into memory-efficient tiers (default: 512MB each)
-# 3. Create tier metadata for fast lookup
-# 4. Save as .meta file and multiple .tier files
+# 1. Read k-mers and compute canonical forms (min of forward/reverse complement)
+# 2. Apply MurmurHash3 finalizer for k-mer hashing
+# 3. Sort k-mers by frequency (most frequent in tier 0)
+# 4. Partition into memory-efficient tiers (default: 512MB each)
+# 5. Create manifest.json with tier metadata
+# 6. Output structure:
+#    pathogen_hierarchical.db/
+#    ├── manifest.json     # Database metadata
+#    ├── tier_0.bin       # Most frequent k-mers
+#    ├── tier_1.bin       # Next tier
+#    └── tier_N.bin       # Least frequent k-mers
 ```
+
+### Important: Canonical K-mer Requirement
+
+The hierarchical database MUST use canonical k-mers (minimum of forward and reverse complement) to match the minimizer extraction pipeline. The database builder automatically:
+
+1. Computes both forward and reverse complement for each k-mer
+2. Selects the lexicographically smaller one (canonical)
+3. Applies MurmurHash3 to the canonical k-mer
+
+This ensures that k-mers extracted from reads will match those in the database regardless of strand orientation.
 
 ### Using the Hierarchical Profiler
 
@@ -1348,6 +1380,41 @@ Active tiers: 16/64
 - Processing focused on specific species
 - Maximum performance is critical
 - Consistent species distribution across samples
+
+### Troubleshooting Hierarchical Database Issues
+
+**Problem: 0 classified reads despite database loading**
+
+Common causes and solutions:
+
+1. **Missing canonical k-mer support** (fixed in v0.8.0):
+   - Ensure database was built with `build_hierarchical_db` that uses canonical k-mers
+   - Rebuild database if it was created before the canonical k-mer fix
+
+2. **Database loading issues**:
+   - Check that `manifest.json` exists and is readable
+   - Verify tier files are present and have correct permissions
+   - Ensure tier file headers are being skipped (64-byte header)
+
+3. **Hash mismatch**:
+   - Verify both database builder and query pipeline use MurmurHash3 finalizer
+   - Check that k-mer encoding matches (2-bit encoding, same base mapping)
+
+4. **Memory limits**:
+   - Increase `--memory` parameter if tiers are being evicted too frequently
+   - Monitor cache hit rate in output statistics
+
+**Debugging commands**:
+```bash
+# Test with small database first
+./test_hierarchical_db data/test_hierarchical.db
+
+# Check database integrity
+cat data/pathogen_hierarchical.db/manifest.json | jq .
+
+# Monitor tier loading
+./hierarchical_profiler_pipeline db_path reads.fq 2>&1 | grep "Loading tier"
+```
 
 ### Future Improvements
 

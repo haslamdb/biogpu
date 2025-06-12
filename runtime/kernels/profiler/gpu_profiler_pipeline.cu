@@ -5,6 +5,7 @@
 #include <map>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <cuda_runtime.h>
 #include "fastq_processing.h"
 #include "minimizer_extractor.h"
@@ -44,19 +45,35 @@ private:
     // Abundance tracking
     AbundanceProfile abundance;
     
-    // Taxon name mapping (would be loaded from taxonomy file)
-    std::map<uint32_t, std::string> taxon_names = {
-        {100, "Escherichia_coli"},
-        {101, "Klebsiella_pneumoniae"},
-        {102, "Enterococcus_faecalis"},
-        {103, "Staphylococcus_aureus"},
-        {104, "Streptococcus_pneumoniae"},
-        {105, "Haemophilus_influenzae"},
-        {106, "Proteus_mirabilis"},
-        {107, "Pseudomonas_aeruginosa"},
-        {108, "Clostridioides_difficile"},
-        // Add more as needed
-    };
+    // Taxon name mapping (loaded from taxonomy file)
+    std::map<uint32_t, std::string> taxon_names;
+    
+    void load_taxon_mapping(const std::string& db_directory) {
+        std::string mapping_file = db_directory + "/taxon_mapping.txt";
+        std::ifstream file(mapping_file);
+        
+        if (!file.is_open()) {
+            std::cerr << "Warning: Could not open taxon mapping file: " << mapping_file << std::endl;
+            std::cerr << "Species names will not be available in output." << std::endl;
+            return;
+        }
+        
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip comments and empty lines
+            if (line.empty() || line[0] == '#') continue;
+            
+            std::istringstream iss(line);
+            uint32_t taxon_id;
+            std::string species_name;
+            
+            if (iss >> taxon_id >> species_name) {
+                taxon_names[taxon_id] = species_name;
+            }
+        }
+        
+        std::cout << "Loaded " << taxon_names.size() << " taxon mappings" << std::endl;
+    }
     
     void allocate_gpu_memory(size_t num_reads, size_t num_minimizers) {
         if (num_reads > allocated_reads) {
@@ -85,9 +102,31 @@ private:
     }
     
 public:
-    GPUProfilerPipeline(const std::string& db_file, int k = 31, int m = 15) {
+    GPUProfilerPipeline(const std::string& db_path, int k = 31, int m = 15) {
         database = std::make_unique<GPUKmerDatabase>();
+        
+        // Check if db_path is a file or directory
+        std::string db_file = db_path;
+        std::string db_directory;
+        
+        if (db_path.find(".db") != std::string::npos || db_path.find(".bin") != std::string::npos) {
+            // It's a file, extract directory
+            size_t pos = db_path.find_last_of("/");
+            if (pos != std::string::npos) {
+                db_directory = db_path.substr(0, pos);
+            } else {
+                db_directory = ".";
+            }
+        } else {
+            // It's a directory, append default database filename
+            db_directory = db_path;
+            db_file = db_path + "/pathogen.db";
+        }
+        
         database->load_binary(db_file);
+        
+        // Load taxon mapping from the database directory
+        load_taxon_mapping(db_directory);
         
         extractor = std::make_unique<MinimizerExtractor>(k, m);
         

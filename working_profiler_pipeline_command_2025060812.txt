@@ -62,9 +62,8 @@ Database creation complete!
 You can now use this database with:
   ./gpu_profiler_pipeline data/pathogen_db/pathogen.db <reads.fastq>
 
-# for now test as below (hybrid_profiler_pipeline is for kraken style db):
-# need to build 
-./runtime/kernels/profiler/build/gpu_profiler_pipeline data/pathogen_db/ data/569_A_038_R1.fastq.gz \
+# Run profiler:
+./runtime/kernels/profiler/build/gpu_profiler_pipeline data/pathogen_profiler_db/ data/569_A_038_R1.fastq.gz \
     data/569_A_038_R2.fastq.gz --output-prefix data/569_A_038_profile
 
 
@@ -104,3 +103,27 @@ You can now use this database with:
 
 ● The issue is that the database (16GB) is larger than the GPU memory (12GB per card). Let me check if there's a smaller test
   database or if we need to create one:
+
+  #  Here are the exact commands I used:
+
+  1. Created the taxon mapping file:
+  python src/python/create_taxon_mapping.py data/pathogen_profiler_db/
+
+  2. Created a subset database for testing:
+  # First created a subset of k-mers (1M instead of 143M)
+  head -n 1000000 data/pathogen_profiler_db/database_kmers.txt > data/pathogen_profiler_db/database_kmers_subset.txt
+
+  # Then built the binary database from the subset
+  ./runtime/kernels/profiler/build/build_db_from_kmers \
+      data/pathogen_profiler_db/database_kmers_subset.txt \
+      data/pathogen_profiler_db/pathogen_subset.db
+
+  3. Ran the profiler with the subset database:
+  ./runtime/kernels/profiler/build/gpu_profiler_pipeline \
+      data/pathogen_profiler_db/pathogen_subset.db \
+      data/569_A_038_R1.fastq.gz \
+      data/569_A_038_R2.fastq.gz \
+      --output-prefix data/569_A_038_profile_subset
+
+  The key difference from your original command is that I'm using the subset database (pathogen_subset.db) instead of the
+  full database, since the full 33GB database doesn't fit in your 12GB GPU memory.

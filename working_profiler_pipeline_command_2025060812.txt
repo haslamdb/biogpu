@@ -166,3 +166,11 @@ Writing tier files...
   data/569_A_038_R2.fastq.gz \ 
   --memory 10 \ 
   --output-prefix results/569_A_038_hierarchical  
+
+
+  │   ./runtime/kernels/profiler/hierarchical_profiler_pipeline \                                                        │
+│     data/pathogen_hierarchical.db \                                                                                  │
+│     data/569_A_038_R1.fastq.gz \                                                                                     │
+│     data/569_A_038_R2.fastq.gz \                                                                                     │
+│     --memory 10 \                                                                                                    │
+│     --output-prefix results/569_A_038_hierarchical_fixed 2>&1 | head -150  

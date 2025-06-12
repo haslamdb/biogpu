@@ -344,15 +344,29 @@ void HierarchicalGPUDatabase::load_tier(size_t tier_idx) {
         cudaMemcpyAsync(tier->d_entries, gpu_entries.data(),
                        gpu_size, cudaMemcpyHostToDevice, load_stream);
     } else {
-        // Load from file (implement file I/O)
+        // Load from file
         std::ifstream file(tier->filename, std::ios::binary);
-        if (file.is_open()) {
-            std::vector<KmerEntry> file_entries(tier->num_entries);
-            file.read(reinterpret_cast<char*>(file_entries.data()), gpu_size);
-            
-            cudaMemcpyAsync(tier->d_entries, file_entries.data(),
-                           gpu_size, cudaMemcpyHostToDevice, load_stream);
+        if (!file.is_open()) {
+            throw std::runtime_error("Cannot open tier file: " + tier->filename);
         }
+        
+        // Skip the tier header (64 bytes)
+        struct TierHeader {
+            uint64_t num_entries;
+            uint64_t min_hash;
+            uint64_t max_hash;
+            uint64_t reserved[5];
+        } header;
+        
+        file.read(reinterpret_cast<char*>(&header), sizeof(header));
+        
+        // Read k-mer entries
+        std::vector<KmerEntry> file_entries(tier->num_entries);
+        file.read(reinterpret_cast<char*>(file_entries.data()), gpu_size);
+        file.close();
+        
+        cudaMemcpyAsync(tier->d_entries, file_entries.data(),
+                       gpu_size, cudaMemcpyHostToDevice, load_stream);
     }
     
     // Wait for transfer to complete
@@ -587,11 +601,97 @@ void HierarchicalGPUDatabase::load_database(const std::string& db_prefix) {
     clear_cache();
     tiers.clear();
     
-    // For now, just print a message - full implementation would load from files
     std::cout << "Loading hierarchical database from: " << db_prefix << "\n";
     
-    // Initialize empty stats
+    // Read manifest file
+    std::string manifest_path = db_prefix + "/manifest.json";
+    std::ifstream manifest_file(manifest_path);
+    if (!manifest_file.is_open()) {
+        throw std::runtime_error("Cannot open manifest file: " + manifest_path);
+    }
+    
+    // Parse manifest JSON (simple parsing for our structured format)
+    std::string line;
+    size_t total_kmers = 0;
+    size_t num_tiers = 0;
+    
+    while (std::getline(manifest_file, line)) {
+        if (line.find("\"total_kmers\":") != std::string::npos) {
+            sscanf(line.c_str(), "  \"total_kmers\": %zu,", &total_kmers);
+        } else if (line.find("\"num_tiers\":") != std::string::npos) {
+            sscanf(line.c_str(), "  \"num_tiers\": %zu,", &num_tiers);
+        }
+    }
+    manifest_file.close();
+    
+    // Re-read manifest to get tier information
+    manifest_file.open(manifest_path);
+    bool in_tiers_section = false;
+    size_t current_tier_idx = 0;
+    
+    while (std::getline(manifest_file, line)) {
+        if (line.find("\"tiers\":") != std::string::npos) {
+            in_tiers_section = true;
+            continue;
+        }
+        
+        if (in_tiers_section && line.find("\"tier_id\":") != std::string::npos) {
+            auto tier = std::make_unique<DatabaseTier>();
+            
+            // Read tier metadata
+            size_t tier_id;
+            sscanf(line.c_str(), "      \"tier_id\": %zu,", &tier_id);
+            
+            // Read subsequent lines for this tier
+            std::getline(manifest_file, line); // filename
+            char filename[256];
+            sscanf(line.c_str(), "      \"filename\": \"%255[^\"]\",", filename);
+            tier->filename = db_prefix + "/" + std::string(filename);
+            
+            std::getline(manifest_file, line); // num_entries
+            sscanf(line.c_str(), "      \"num_entries\": %zu,", &tier->num_entries);
+            
+            std::getline(manifest_file, line); // size_bytes
+            sscanf(line.c_str(), "      \"size_bytes\": %zu,", &tier->size_bytes);
+            
+            std::getline(manifest_file, line); // min_hash
+            sscanf(line.c_str(), "      \"min_hash\": %lu,", &tier->start_hash);
+            
+            std::getline(manifest_file, line); // max_hash
+            sscanf(line.c_str(), "      \"max_hash\": %lu", &tier->end_hash);
+            
+            tiers.push_back(std::move(tier));
+            current_tier_idx++;
+            
+            if (current_tier_idx >= num_tiers) break;
+        }
+    }
+    manifest_file.close();
+    
+    // Initialize stats
     stats = HierarchicalDBStats();
+    stats.total_kmers = total_kmers;
+    stats.num_levels = 1;
+    stats.l1_buckets = tiers.size();
+    stats.l1_kmers = total_kmers;
+    stats.l2_shards = 0;
+    stats.l2_kmers = 0;
+    
+    // Calculate total memory requirement
+    stats.memory_bytes = 0;
+    for (const auto& tier : tiers) {
+        stats.memory_bytes += tier->size_bytes;
+    }
+    
+    std::cout << "Loaded database metadata:\n";
+    std::cout << "  Total k-mers: " << stats.total_kmers << "\n";
+    std::cout << "  Number of tiers: " << tiers.size() << "\n";
+    std::cout << "  Total size: " << (stats.memory_bytes / 1024.0 / 1024.0 / 1024.0) << " GB\n";
+    
+    // Preload frequent tiers if configured
+    if (config.preload_frequent_tiers && config.cache_tiers > 0) {
+        preload_frequent_tiers(config.cache_tiers);
+    }
 }
 
 } // namespace biogpu

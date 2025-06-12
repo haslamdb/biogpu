@@ -39,6 +39,26 @@ uint64_t encode_kmer(const std::string& kmer) {
     return encoded;
 }
 
+// Compute reverse complement of encoded k-mer
+uint64_t reverse_complement(uint64_t kmer, int k) {
+    uint64_t rc = 0;
+    for (int i = 0; i < k; i++) {
+        uint64_t base = kmer & 3;
+        rc = (rc << 2) | (3 - base);  // Complement: A<->T (0<->3), C<->G (1<->2)
+        kmer >>= 2;
+    }
+    return rc;
+}
+
+// Get canonical k-mer (minimum of forward and reverse complement)
+uint64_t get_canonical_kmer(const std::string& kmer_str) {
+    uint64_t forward = encode_kmer(kmer_str);
+    if (forward == 0) return 0;  // Invalid k-mer
+    
+    uint64_t reverse = reverse_complement(forward, kmer_str.length());
+    return std::min(forward, reverse);
+}
+
 // Configuration options
 struct BuildConfig {
     size_t tier_size_mb = 512;           // Target size per tier
@@ -112,14 +132,14 @@ public:
                 continue;
             }
             
-            // Encode k-mer and compute hash
-            uint64_t encoded = encode_kmer(kmer);
-            if (encoded == 0) {
+            // Get canonical k-mer and compute hash
+            uint64_t canonical = get_canonical_kmer(kmer);
+            if (canonical == 0) {
                 std::cerr << "Warning: Invalid k-mer at line " << line_num << ": " << kmer << "\n";
                 continue;
             }
             
-            uint64_t hash = murmur_hash3_finalizer(encoded);
+            uint64_t hash = murmur_hash3_finalizer(canonical);
             
             // Track frequency and taxon
             if (kmer_data.count(hash)) {

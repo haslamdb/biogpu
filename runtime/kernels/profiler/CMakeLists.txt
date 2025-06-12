@@ -96,19 +96,9 @@ set_target_properties(gpu_kmer_database PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-# NEW: Hierarchical GPU database library (header-only)
-add_library(hierarchical_gpu_database INTERFACE)
-
-target_include_directories(hierarchical_gpu_database INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-target_link_libraries(hierarchical_gpu_database INTERFACE
-    gpu_kmer_database  # For shared structures
-    cuda
-    cudart
-    stdc++fs  # For C++17 filesystem
-)
+# Hierarchical GPU database library - ARCHIVED
+# See archived_hierarchical_db/ directory for implementation
+# Removed from build as we're moving to CPU RAM streaming approach
 
 # ===========================
 # Main Executables
@@ -129,31 +119,8 @@ set_target_properties(gpu_profiler_pipeline PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
-# NEW: Hierarchical profiler pipeline
-add_executable(hierarchical_profiler_pipeline
-    hierarchical_profiler_pipeline.cu
-)
-
-set_target_properties(hierarchical_profiler_pipeline PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-)
-
-target_link_libraries(hierarchical_profiler_pipeline
-    fastq_processing
-    minimizer_extraction
-    hierarchical_gpu_database
-    gpu_kmer_database
-    cudart
-    cuda
-    ${ZLIB_LIBRARIES}
-    stdc++fs
-)
-
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(hierarchical_profiler_pipeline OpenMP::OpenMP_CXX)
-endif()
+# Hierarchical profiler pipeline - ARCHIVED
+# See archived_hierarchical_db/ directory
 
 # Hybrid profiler pipeline
 add_executable(hybrid_profiler_pipeline
@@ -204,18 +171,8 @@ target_link_libraries(build_db_from_kmers
     cuda
 )
 
-# NEW: Hierarchical database builder
-add_executable(build_hierarchical_db
-    build_hierarchical_db.cpp
-)
-
-target_link_libraries(build_hierarchical_db
-    hierarchical_gpu_database
-    gpu_kmer_database
-    cudart
-    cuda
-    stdc++fs
-)
+# Hierarchical database builder - ARCHIVED
+# See archived_hierarchical_db/ directory
 
 # ===========================
 # Test Executables

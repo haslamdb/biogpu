@@ -49,8 +49,51 @@ python download_microbial_genomes.py microbial_db --email dbhaslam@gmail.com --g
 
 # we built a microbial db using python download_microbial_genomes.py microbial_db but note this version has stride of 1 (by mistake)
 # we can rebuild and set --stride 5
+# I moved the database from the download locatoin (/src/python/micorial_db when run from that dir) to data/pathogen_db
+
+# next convert the db to binary
+cd runtime/kernels/profiler/build
+./build_db_from_kmers /data/pathogen_db/database_kmers.txt /data/pathogen_db/pathogen.db
 
 # for now test as below (hybrid_profiler_pipeline is for kraken style db):
 # need to build 
-./runtime/kernels/profiler/build/gpu_profiler_pipeline data/microbial_db/ data/569_A_038_R1.fastq.gz \
+./runtime/kernels/profiler/build/gpu_profiler_pipeline data/pathogen_db/ data/569_A_038_R1.fastq.gz \
     data/569_A_038_R2.fastq.gz --output-prefix data/569_A_038_profile
+
+
+
+● Bash(cd ~/Documents/Code/biogpu/runtime/kernels/profiler/build && ./build_db_from_kmers
+      ~/Documents/Code/biogpu/data/pathogen_db/database_kmers.txt ~/Documents/Code/…)
+  ⎿  Building GPU k-mer database from /home/david/Documents/Code/biogpu/data/pathogen_db/database_kmers.txt...
+       Processed 100000 k-mers...
+       Processed 200000 k-mers...
+       Processed 300000 k-mers...
+     … +741 lines (ctrl+r to expand)
+
+● Success! The database has been built. It processed 72,631,855 k-mers from 28,901 different taxa and created a GPU hash table with
+   134,217,728 buckets. The database is now saved at /home/david/Documents/Code/biogpu/data/pathogen_db/pathogen.db and uses 16GB
+  of memory.
+
+  You can now use this database with the gpu_profiler_pipeline command as shown in the output.
+
+  ● The GPU profiler encountered a CUDA error. This could be due to several reasons. Let me check a few things:
+
+● Bash(nvidia-smi)
+  ⎿  Thu Jun 12 08:45:15 2025
+     +-----------------------------------------------------------------------------------------+
+     | NVIDIA-SMI 570.133.07             Driver Version: 570.133.07     CUDA Version: 12.8     |
+     |-----------------------------------------+------------------------+----------------------+
+     … +24 lines (ctrl+r to expand)
+
+● I see there's already a test_fastq_pipeline process using both GPUs. The database requires 16GB but each TITAN Xp only has 12GB.
+  Let me check if we need to specify a GPU or if there's a smaller database option:
+
+● Bash(cd ~/Documents/Code/biogpu && ./runtime/kernels/profiler/build/gpu_profiler_pipeline --help 2>&1 | head -50)
+  ⎿ Usage: ./runtime/kernels/profiler/build/gpu_profiler_pipeline <database.bin> <reads.fastq> [reads2.fastq] [--output-prefix
+    PREFIX]
+      Single-end mode: provide one FASTQ file
+      Paired-end mode: provide two FASTQ files (R1 and R2)
+      --output-prefix: Prefix for output files (default: microbiome_profile)
+
+● The issue is that the database (16GB) is larger than the GPU memory (12GB per card). Let me check if there's a smaller test
+  database or if we need to create one:

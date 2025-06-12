@@ -41,15 +41,7 @@ zcat ../../../../1M_synthetic_reads_R1.fastq.gz > test_reads.fastq
 
 
 # get genomes from NCBI and process kmers (default 31 with stride 5)
-python download_microbial_genomes.py microbial_db --email dbhaslam@gmail.com --genomes-per-species 10 --k 31 --stride 5
-
-# not yet implemented:
-./gpu_profiler_enhanced microbiome.db sample_R1.fastq.gz sample_R2.fastq.gz \
-    --output-prefix sample_001
-
-# we built a microbial db using python download_microbial_genomes.py microbial_db but note this version has stride of 1 (by mistake)
-# we can rebuild and set --stride 5
-# I moved the database from the download locatoin (/src/python/micorial_db when run from that dir) to data/pathogen_db
+python src/python/download_microbial_genomes.py data/pathogen_db --email dbhaslam@gmail.com --genomes-per-species 10 --k 31 --stride 5
 
 # next convert the db to binary
 cd runtime/kernels/profiler/build

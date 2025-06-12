@@ -15,10 +15,20 @@ private:
     Minimizer* d_minimizers;
     uint32_t* d_minimizer_counts;
     
+    // Pinned host memory for faster transfers
+    char* h_sequences;
+    uint32_t* h_offsets;
+    uint32_t* h_lengths;
+    Minimizer* h_minimizers;
+    uint32_t* h_counts;
+    
     // Parameters
     int k;
     int m;
     size_t allocated_reads;
+    size_t allocated_seq_length;
+    size_t allocated_pinned_reads;
+    size_t allocated_pinned_seq_length;
     
     void allocate_device_memory(size_t num_reads, size_t total_sequence_length);
     

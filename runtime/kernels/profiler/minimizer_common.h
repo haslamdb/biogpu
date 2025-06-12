@@ -8,7 +8,8 @@
 
 // Structure to hold minimizer information
 struct Minimizer {
-    uint64_t hash;
+    uint64_t hash;         // MurmurHash3 of the canonical k-mer (for minimizer selection)
+    uint64_t canonical;    // The actual canonical k-mer (for database lookup)
     uint32_t position;
     bool is_reverse;
 };

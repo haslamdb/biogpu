@@ -88,6 +88,33 @@ endif()
 # Test Executables
 # ===========================
 
+# GPU k-mer database library
+add_library(gpu_kmer_database STATIC
+    gpu_kmer_database.cu
+    gpu_kmer_database.h
+)
+
+set_target_properties(gpu_kmer_database PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# GPU profiler pipeline
+add_executable(gpu_profiler_pipeline gpu_profiler_pipeline.cu)
+target_link_libraries(gpu_profiler_pipeline 
+    minimizer_extraction 
+    fastq_processing
+    gpu_kmer_database
+    ${CUDA_LIBRARIES} 
+    ${ZLIB_LIBRARIES}
+)
+
+set_target_properties(gpu_profiler_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
 # Test minimizer extraction
 add_executable(test_minimizer
     test_minimizer.cpp

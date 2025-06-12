@@ -84,10 +84,6 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(fastq_processing OpenMP::OpenMP_CXX)
 endif()
 
-# ===========================
-# Test Executables
-# ===========================
-
 # GPU k-mer database library
 add_library(gpu_kmer_database STATIC
     gpu_kmer_database.cu
@@ -99,6 +95,10 @@ set_target_properties(gpu_kmer_database PROPERTIES
     CUDA_ARCHITECTURES "61;70;75;80;86"
     POSITION_INDEPENDENT_CODE ON
 )
+
+# ===========================
+# Main Executables
+# ===========================
 
 # GPU profiler pipeline
 add_executable(gpu_profiler_pipeline gpu_profiler_pipeline.cu)
@@ -113,81 +113,6 @@ target_link_libraries(gpu_profiler_pipeline
 set_target_properties(gpu_profiler_pipeline PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-# Test minimizer extraction
-add_executable(test_minimizer
-    test_minimizer.cpp
-)
-
-target_link_libraries(test_minimizer
-    minimizer_extraction
-    cudart
-    cuda
-)
-
-# Test FASTQ pipeline
-add_executable(test_fastq_pipeline
-    fastq_pipeline_main.cpp
-)
-
-# Debug minimizer program
-add_executable(debug_minimizer
-    debug_minimizer.cpp
-)
-
-# Test stats program
-add_executable(test_stats
-    test_stats.cpp
-)
-
-# Debug pipeline program
-add_executable(fastq_pipeline_debug
-    fastq_pipeline_debug.cpp
-)
-
-set_target_properties(test_fastq_pipeline PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-)
-
-target_link_libraries(test_fastq_pipeline
-    fastq_processing
-    minimizer_extraction
-    cudart
-    cuda
-    ${ZLIB_LIBRARIES}
-)
-
-set_target_properties(debug_minimizer PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-)
-
-target_link_libraries(debug_minimizer
-    fastq_processing
-    minimizer_extraction
-    cudart
-    cuda
-    ${ZLIB_LIBRARIES}
-)
-
-target_link_libraries(test_stats
-    fastq_processing
-    minimizer_extraction
-    cudart
-    cuda
-    ${ZLIB_LIBRARIES}
-)
-
-target_link_libraries(fastq_pipeline_debug
-    fastq_processing
-    minimizer_extraction
-    cudart
-    cuda
-    ${ZLIB_LIBRARIES}
 )
 
 # Hybrid profiler pipeline
@@ -214,6 +139,111 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # ===========================
+# Database Building Tools
+# ===========================
+
+# Build test database tool
+add_executable(build_test_database
+    build_test_database.cpp
+)
+
+target_link_libraries(build_test_database
+    gpu_kmer_database
+    cudart
+    cuda
+)
+
+# Build database from k-mer list
+add_executable(build_db_from_kmers
+    build_db_from_kmers.cpp
+)
+
+target_link_libraries(build_db_from_kmers
+    gpu_kmer_database
+    cudart
+    cuda
+)
+
+# ===========================
+# Test Executables
+# ===========================
+
+# Test minimizer extraction
+add_executable(test_minimizer
+    test_minimizer.cpp
+)
+
+target_link_libraries(test_minimizer
+    minimizer_extraction
+    cudart
+    cuda
+)
+
+# Test FASTQ pipeline
+add_executable(test_fastq_pipeline
+    fastq_pipeline_main.cpp
+)
+
+set_target_properties(test_fastq_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(test_fastq_pipeline
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# Debug minimizer program
+add_executable(debug_minimizer
+    debug_minimizer.cpp
+)
+
+set_target_properties(debug_minimizer PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(debug_minimizer
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# Test stats program
+add_executable(test_stats
+    test_stats.cpp
+)
+
+target_link_libraries(test_stats
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# Debug pipeline program
+add_executable(fastq_pipeline_debug
+    fastq_pipeline_debug.cpp
+)
+
+target_link_libraries(fastq_pipeline_debug
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+# ===========================
 # Custom Targets for Testing
 # ===========================
 
@@ -238,6 +268,14 @@ add_custom_target(test_fastq_pipeline_run
     COMMENT "Testing FASTQ pipeline - set FASTQ_FILE environment variable"
 )
 
+# Test database building and profiling
+add_custom_target(test_database
+    COMMAND ./build_test_database test_microbiome.db
+    COMMAND ./gpu_profiler_pipeline test_microbiome.db test_microbiome.db.test.fastq
+    DEPENDS build_test_database gpu_profiler_pipeline
+    COMMENT "Building test database and running profiler"
+)
+
 # ===========================
 # Installation Rules
 # ===========================
@@ -247,6 +285,9 @@ install(TARGETS
     test_minimizer
     test_fastq_pipeline
     hybrid_profiler_pipeline
+    gpu_profiler_pipeline
+    build_test_database
+    build_db_from_kmers
     RUNTIME DESTINATION bin
 )
 
@@ -254,6 +295,7 @@ install(TARGETS
 install(TARGETS 
     minimizer_extraction
     fastq_processing
+    gpu_kmer_database
     ARCHIVE DESTINATION lib
 )
 
@@ -262,6 +304,7 @@ install(FILES
     minimizer_common.h
     minimizer_extractor.h
     fastq_processing.h
+    gpu_kmer_database.h
     kraken_database_loader.h
     DESTINATION include/biogpu/profiler
 )
@@ -281,11 +324,17 @@ message(STATUS "  zlib Version: ${ZLIB_VERSION_STRING}")
 message(STATUS "")
 message(STATUS "Currently Available Components:")
 message(STATUS "  ✓ GPU minimizer extraction")
-message(STATUS "  ✓ Test program for minimizers")
+message(STATUS "  ✓ GPU k-mer database")
+message(STATUS "  ✓ GPU profiler pipeline")
+message(STATUS "  ✓ Database building tools")
+message(STATUS "  ✓ Test programs for all components")
 message(STATUS "  ✓ FASTQ GPU pipeline with zlib support")
 message(STATUS "  ✓ Hybrid profiler pipeline (needs Kraken2 database)")
 message(STATUS "")
 message(STATUS "Build targets:")
+message(STATUS "  gpu_profiler_pipeline    - Main GPU-accelerated profiler")
+message(STATUS "  build_test_database      - Build test microbial database")
+message(STATUS "  build_db_from_kmers      - Build database from k-mer list")
 message(STATUS "  test_minimizer           - Test GPU minimizer extraction")
 message(STATUS "  test_fastq_pipeline      - Full FASTQ processing pipeline")
 message(STATUS "  hybrid_profiler_pipeline - Hybrid CPU-GPU profiler (needs Kraken2 DB)")
@@ -294,6 +343,7 @@ message(STATUS "Testing targets:")
 message(STATUS "  make test_synthetic      - Test with synthetic data")
 message(STATUS "  make test_real_fastq     - Test minimizer with real FASTQ")
 message(STATUS "  make test_fastq_pipeline_run - Test full pipeline with FASTQ")
+message(STATUS "  make test_database       - Build test DB and run profiler")
 message(STATUS "")
 message(STATUS "Usage examples:")
 message(STATUS "  1. Build:")
@@ -301,17 +351,20 @@ message(STATUS "     mkdir build && cd build")
 message(STATUS "     cmake ..")
 message(STATUS "     make")
 message(STATUS "")
-message(STATUS "  2. Test with synthetic data:")
-message(STATUS "     ./test_minimizer")
+message(STATUS "  2. Quick test with synthetic database:")
+message(STATUS "     make test_database")
 message(STATUS "")
-message(STATUS "  3. Test with your FASTQ file:")
+message(STATUS "  3. Build database from k-mer list:")
+message(STATUS "     ./build_db_from_kmers kmers.txt microbiome.db")
+message(STATUS "")
+message(STATUS "  4. Run profiler on FASTQ:")
+message(STATUS "     ./gpu_profiler_pipeline microbiome.db reads.fastq")
+message(STATUS "")
+message(STATUS "  5. Test with your FASTQ file:")
 message(STATUS "     ./test_minimizer /path/to/reads.fastq")
 message(STATUS "     # or")
 message(STATUS "     FASTQ_FILE=/path/to/reads.fastq make test_real_fastq")
 message(STATUS "")
-message(STATUS "  4. Test full FASTQ pipeline:")
-message(STATUS "     ./test_fastq_pipeline /path/to/reads.fastq.gz")
-message(STATUS "")
-message(STATUS "  5. Test hybrid profiler (requires Kraken2 database):")
+message(STATUS "  6. Test hybrid profiler (requires Kraken2 database):")
 message(STATUS "     ./hybrid_profiler_pipeline /path/to/kraken_db /path/to/reads.fastq")
 message(STATUS "")

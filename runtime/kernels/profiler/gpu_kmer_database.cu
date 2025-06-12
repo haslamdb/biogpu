@@ -149,6 +149,34 @@ void GPUKmerDatabase::add_kmer(uint64_t hash, uint32_t taxon_id) {
     max_taxon_id = std::max(max_taxon_id, (size_t)taxon_id);
 }
 
+void GPUKmerDatabase::upload_to_gpu() {
+    // Allocate GPU memory
+    size_t total_slots = params.table_size * params.bucket_size;
+    size_t table_bytes = total_slots * sizeof(KmerEntry);
+    if (table_bytes > allocated_entries) {
+        if (d_hash_table) cudaFree(d_hash_table);
+        cudaMalloc(&d_hash_table, table_bytes);
+        allocated_entries = table_bytes;
+    }
+    
+    // Upload to GPU
+    cudaMemcpy(d_hash_table, h_entries.data(), table_bytes, cudaMemcpyHostToDevice);
+    
+    if (!d_params) {
+        cudaMalloc(&d_params, sizeof(HashTableParams));
+    }
+    cudaMemcpy(d_params, &params, sizeof(HashTableParams), cudaMemcpyHostToDevice);
+    
+    // Allocate taxon counts
+    if (!d_taxon_counts) {
+        cudaMalloc(&d_taxon_counts, (max_taxon_id + 1) * sizeof(uint32_t));
+        cudaMemset(d_taxon_counts, 0, (max_taxon_id + 1) * sizeof(uint32_t));
+    }
+    
+    std::cout << "Database uploaded to GPU (" 
+              << table_bytes / (1024.0 * 1024.0) << " MB)\n";
+}
+
 void GPUKmerDatabase::finalize_and_upload() {
     // Determine optimal table size (2x entries for 50% load factor)
     size_t num_entries = h_hash_to_taxon.size();
@@ -193,30 +221,7 @@ void GPUKmerDatabase::finalize_and_upload() {
     std::cout << "Hash table built with " << collisions 
               << " collisions (" << (100.0 * collisions / num_entries) << "%)\n";
     
-    // Allocate GPU memory
-    size_t table_bytes = total_slots * sizeof(KmerEntry);
-    if (table_bytes > allocated_entries) {
-        if (d_hash_table) cudaFree(d_hash_table);
-        cudaMalloc(&d_hash_table, table_bytes);
-        allocated_entries = table_bytes;
-    }
-    
-    // Upload to GPU
-    cudaMemcpy(d_hash_table, h_entries.data(), table_bytes, cudaMemcpyHostToDevice);
-    
-    if (!d_params) {
-        cudaMalloc(&d_params, sizeof(HashTableParams));
-    }
-    cudaMemcpy(d_params, &params, sizeof(HashTableParams), cudaMemcpyHostToDevice);
-    
-    // Allocate taxon counts
-    if (!d_taxon_counts) {
-        cudaMalloc(&d_taxon_counts, (max_taxon_id + 1) * sizeof(uint32_t));
-        cudaMemset(d_taxon_counts, 0, (max_taxon_id + 1) * sizeof(uint32_t));
-    }
-    
-    std::cout << "Database uploaded to GPU (" 
-              << table_bytes / (1024.0 * 1024.0) << " MB)\n";
+    upload_to_gpu();
 }
 
 void GPUKmerDatabase::lookup_batch_gpu(const uint64_t* d_hashes, 
@@ -273,8 +278,8 @@ void GPUKmerDatabase::load_binary(const std::string& filename) {
     std::cout << "  Table size: " << params.table_size << " buckets\n";
     std::cout << "  Total k-mers: " << params.total_entries << "\n";
     
-    // Upload to GPU
-    finalize_and_upload();
+    // Upload to GPU (without rebuilding)
+    upload_to_gpu();
 }
 
 } // namespace biogpu

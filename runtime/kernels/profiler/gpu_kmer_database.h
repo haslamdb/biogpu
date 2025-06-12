@@ -57,6 +57,9 @@ public:
     // Finalize and transfer to GPU
     void finalize_and_upload();
     
+    // Upload existing hash table to GPU (used when loading from binary)
+    void upload_to_gpu();
+    
     // GPU batch lookup - returns taxon IDs for each hash
     void lookup_batch_gpu(const uint64_t* d_hashes, 
                          uint32_t* d_taxon_ids, 

@@ -47,6 +47,21 @@ python src/python/download_microbial_genomes.py data/pathogen_db --email dbhasla
 cd runtime/kernels/profiler/build
 ./runtime/kernels/profiler/build/build_db_from_kmers data/pathogen_db/database_kmers.txt data/pathogen_db/pathogen.db
 
+Database statistics:
+  Total k-mers: 143516534
+  Maximum taxon ID: 28901
+
+Building GPU hash table...
+Building GPU hash table with 268435456 buckets for 81680910 k-mers
+Hash table built with 11262301 collisions (13.7882%)
+Database uploaded to GPU (32768 MB)
+Saving database to data/pathogen_db/pathogen.db...
+Saved database to data/pathogen_db/pathogen.db
+
+Database creation complete!
+You can now use this database with:
+  ./gpu_profiler_pipeline data/pathogen_db/pathogen.db <reads.fastq>
+
 # for now test as below (hybrid_profiler_pipeline is for kraken style db):
 # need to build 
 ./runtime/kernels/profiler/build/gpu_profiler_pipeline data/pathogen_db/ data/569_A_038_R1.fastq.gz \

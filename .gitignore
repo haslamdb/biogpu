@@ -20,6 +20,7 @@ build_integrated/
 cmake-build-*/
 out/
 build_comparison/
+runtime/kernels/profiler/CMakeFiles/
 
 # CMake generated files
 CMakeCache.txt
@@ -28,8 +29,13 @@ cmake_install.cmake
 Makefile
 *.cmake
 !CMakeLists.txt
+!CMakeLists_*.txt
 CTestTestfile.cmake
 _deps/
+**/CMakeFiles/
+**/cmake_install.cmake
+**/Makefile
+**/*.cmake
 
 # Results directories
 # Ignore everything in results/

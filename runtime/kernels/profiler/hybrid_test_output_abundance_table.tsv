@@ -1,0 +1,20 @@
+organism_id	organism_name	taxonomy_path	relative_abundance	coverage_breadth	coverage_depth	unique_kmers	confidence_score
+562	Escherichia coli strain SEV4 chromosome	Bacteria;Proteobacteria;Gammaproteobacteria;Enterobacterales;Enterobacteriaceae;Escherichia	2.069013e-01	0.4789	8.7189	46537	0.9579
+1311	Streptococcus agalactiae strain AR977 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Streptococcus	1.5981e-01	0.1028	31.3766	4320	0.2056
+1280	Staphylococcus aureus strain WA121-2021_16354 chromosome	Bacteria;Firmicutes;Bacilli;Bacillales;Staphylococcaceae;Staphylococcus	1.3323e-01	1.1052	2.4330	62848	1.0000
+1313	Streptococcus pneumoniae strain PZ900700204 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Streptococcus	9.3019e-02	0.1597	11.7577	6629	0.3193
+1496	Clostridioides difficile strain Z1322PCD0028 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Clostridioides	7.6351e-02	0.0690	22.3468	5879	0.1379
+1639	Listeria monocytogenes CFSAN002349 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Listeria	5.2140e-02	0.0170	61.9891	999	0.0340
+1351	Enterococcus faecalis strain M817 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Enterococcus	5.1102e-02	0.0556	18.5611	3261	0.1111
+623	Shigella flexneri strain A chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Shigella	4.0653e-02	0.4514	1.8176	40780	0.9028
+727	Haemophilus influenzae strain 93P1H1 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Haemophilus	2.7946e-02	0.0233	24.1641	862	0.0457
+487	Neisseria meningitidis strain M26263 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Neisseria	2.0866e-02	0.0112	37.4692	509	0.0203
+550	Enterobacter cloacae strain GX1Z-1L chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Enterobacter	1.8815e-02	0.0863	4.4016	8280	0.1725
+573	Klebsiella pneumoniae strain FK1979 chromosome	Bacteria;Proteobacteria;Gammaproteobacteria;Enterobacterales;Enterobacteriaceae;Klebsiella	1.8134e-02	0.0958	3.8221	10194	0.1915
+480	Moraxella catarrhalis strain A_01_mct chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Moraxella	1.7669e-02	0.0105	34.0993	398	0.0181
+470	Acinetobacter baumannii strain DETAB-E108 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Acinetobacter	1.7028e-02	0.0099	34.5471	792	0.0192
+546	Citrobacter freundii strain RHBSTW-00923 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Citrobacter	1.6880e-02	0.0537	6.3436	5175	0.1074
+584	Proteus mirabilis strain PM7752 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Proteus	1.6208e-02	0.0203	16.1464	1640	0.0405
+28901	Salmonella enterica subsp. enterica serovar Dublin strain PSUSE00060 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Salmonella	1.4081e-02	0.0431	6.5888	4178	0.0863
+615	Serratia marcescens strain L18 chromosome	Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Serratia	1.2943e-02	0.0228	11.4779	2314	0.0455
+287	Pseudomonas aeruginosa strain E80 chromosome	Bacteria;Proteobacteria;Gammaproteobacteria;Pseudomonadales;Pseudomonadaceae;Pseudomonas	6.2144e-03	0.0047	26.8109	638	0.0087

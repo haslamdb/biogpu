@@ -79,10 +79,10 @@ private:
     struct Config {
         int kmer_size = 31;
         int kmer_step = 50;        // Sample every N bp (increased for faster testing)
-        float min_abundance = 1e-6; // Minimum abundance to report
+        float min_abundance = 1e-9; // Minimum abundance to report (very low for testing)
         int max_gpu_organisms = 500; // Max organisms loaded to GPU at once
         bool use_unique_kmers_only = false;
-        float coverage_threshold = 0.01; // Min coverage for reporting
+        float coverage_threshold = 0.0001; // Min coverage for reporting (very low for testing)
     } config;
     
 public:
@@ -424,11 +424,12 @@ public:
                 std::cout << "\rProcessed " << total_reads << " reads..." << std::flush;
             }
             
-            // Limit reads for testing
-            if (total_reads >= 100000) {
-                std::cout << "\nStopping at " << total_reads << " reads for testing" << std::endl;
-                break;
-            }
+            // Remove testing limit - process all reads
+            // Uncomment below to limit reads for testing:
+            // if (total_reads >= 100000) {
+            //     std::cout << "\nStopping at " << total_reads << " reads for testing" << std::endl;
+            //     break;
+            // }
             }  // End of line processing
         }  // End of file reading
         
@@ -502,6 +503,18 @@ public:
         );
         
         std::cout << "Detected " << results.size() << " organisms above thresholds" << std::endl;
+        
+        // Debug: show all organisms with any matches
+        std::cout << "\nAll organisms with matches (before filtering):" << std::endl;
+        int debug_count = 0;
+        for (const auto& [org_id, score] : organism_scores) {
+            if (score > 0 && debug_count++ < 10) {
+                const OrganismInfo& org = organisms[org_id];
+                float raw_abundance = score / org.genome_size;
+                std::cout << "  " << org.name << ": score=" << score 
+                          << ", abundance=" << std::scientific << raw_abundance << std::endl;
+            }
+        }
         
         // Print top detections
         std::cout << "\nTop detections:" << std::endl;

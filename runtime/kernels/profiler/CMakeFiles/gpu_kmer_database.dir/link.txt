@@ -1,2 +1,0 @@
-/bin/ar qc libgpu_kmer_database.a CMakeFiles/gpu_kmer_database.dir/gpu_kmer_database.cu.o
-/bin/ranlib libgpu_kmer_database.a

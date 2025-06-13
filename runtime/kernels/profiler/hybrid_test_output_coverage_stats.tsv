@@ -1,0 +1,20 @@
+organism_id	organism_name	coverage_breadth	coverage_depth	unique_kmers	genome_size
+562	Escherichia coli strain SEV4 chromosome	0.478928	8.71893	46537	4858459
+1311	Streptococcus agalactiae strain AR977 chromosome	0.102797	31.3766	4320	2101232
+1280	Staphylococcus aureus strain WA121-2021_16354 chromosome	1.10517	2.43304	62848	2843362
+1313	Streptococcus pneumoniae strain PZ900700204 chromosome	0.159669	11.7577	6629	2075857
+1496	Clostridioides difficile strain Z1322PCD0028 chromosome	0.068956	22.3468	5879	4262866
+1639	Listeria monocytogenes CFSAN002349 chromosome	0.0169756	61.9891	999	2942451
+1351	Enterococcus faecalis strain M817 chromosome	0.0555657	18.5611	3261	2934362
+623	Shigella flexneri strain A chromosome	0.451408	1.81759	40780	4516980
+727	Haemophilus influenzae strain 93P1H1 chromosome	0.0233412	24.1641	862	1846520
+487	Neisseria meningitidis strain M26263 chromosome	0.0112393	37.4692	509	2264367
+550	Enterobacter cloacae strain GX1Z-1L chromosome	0.0862705	4.40162	8280	4798859
+573	Klebsiella pneumoniae strain FK1979 chromosome	0.0957546	3.82214	10194	5322984
+480	Moraxella catarrhalis strain A_01_mct chromosome	0.0104579	34.0993	398	1902860
+470	Acinetobacter baumannii strain DETAB-E108 chromosome	0.00994787	34.5471	792	3980750
+546	Citrobacter freundii strain RHBSTW-00923 chromosome	0.0537046	6.34356	5175	4818023
+584	Proteus mirabilis strain PM7752 chromosome	0.0202593	16.1464	1640	4047523
+28901	Salmonella enterica subsp. enterica serovar Dublin strain PSUSE00060 chromosome	0.0431327	6.58879	4178	4843189
+615	Serratia marcescens strain L18 chromosome	0.0227588	11.4779	2314	5083758
+287	Pseudomonas aeruginosa strain E80 chromosome	0.00467801	26.8109	638	6819140

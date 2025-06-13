@@ -1,1 +1,0 @@
--I/home/david/Documents/Code/biogpu/include -I"/usr/local/cuda-12.5/targets/x86_64-linux/include" -I/home/david/Documents/Code/biogpu -I/home/david/Documents/Code/biogpu/runtime/kernels/profiler

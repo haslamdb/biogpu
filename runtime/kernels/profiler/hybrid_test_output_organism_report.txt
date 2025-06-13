@@ -1,0 +1,124 @@
+COMPREHENSIVE METAGENOMIC ANALYSIS REPORT
+==========================================
+
+Analysis Summary:
+-----------------
+Total organisms detected: 19
+Total explained abundance: 100.00%
+
+Top Organisms (>0.1% abundance):
+---------------------------------
+Escherichia coli strain SEV4 chromosome
+  Abundance: 20.6901%
+  Coverage: 47.8928%
+  Confidence: 0.9579
+  Taxonomy: Bacteria;Proteobacteria;Gammaproteobacteria;Enterobacterales;Enterobacteriaceae;Escherichia
+
+Streptococcus agalactiae strain AR977 chromosome
+  Abundance: 15.9814%
+  Coverage: 10.2797%
+  Confidence: 0.2056
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Streptococcus
+
+Staphylococcus aureus strain WA121-2021_16354 chromosome
+  Abundance: 13.3232%
+  Coverage: 110.5171%
+  Confidence: 1.0000
+  Taxonomy: Bacteria;Firmicutes;Bacilli;Bacillales;Staphylococcaceae;Staphylococcus
+
+Streptococcus pneumoniae strain PZ900700204 chromosome
+  Abundance: 9.3019%
+  Coverage: 15.9669%
+  Confidence: 0.3193
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Streptococcus
+
+Clostridioides difficile strain Z1322PCD0028 chromosome
+  Abundance: 7.6351%
+  Coverage: 6.8956%
+  Confidence: 0.1379
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Clostridioides
+
+Listeria monocytogenes CFSAN002349 chromosome
+  Abundance: 5.2140%
+  Coverage: 1.6976%
+  Confidence: 0.0340
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Listeria
+
+Enterococcus faecalis strain M817 chromosome
+  Abundance: 5.1102%
+  Coverage: 5.5566%
+  Confidence: 0.1111
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Enterococcus
+
+Shigella flexneri strain A chromosome
+  Abundance: 4.0653%
+  Coverage: 45.1408%
+  Confidence: 0.9028
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Shigella
+
+Haemophilus influenzae strain 93P1H1 chromosome
+  Abundance: 2.7946%
+  Coverage: 2.3341%
+  Confidence: 0.0457
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Haemophilus
+
+Neisseria meningitidis strain M26263 chromosome
+  Abundance: 2.0866%
+  Coverage: 1.1239%
+  Confidence: 0.0203
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Neisseria
+
+Enterobacter cloacae strain GX1Z-1L chromosome
+  Abundance: 1.8815%
+  Coverage: 8.6271%
+  Confidence: 0.1725
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Enterobacter
+
+Klebsiella pneumoniae strain FK1979 chromosome
+  Abundance: 1.8134%
+  Coverage: 9.5755%
+  Confidence: 0.1915
+  Taxonomy: Bacteria;Proteobacteria;Gammaproteobacteria;Enterobacterales;Enterobacteriaceae;Klebsiella
+
+Moraxella catarrhalis strain A_01_mct chromosome
+  Abundance: 1.7669%
+  Coverage: 1.0458%
+  Confidence: 0.0181
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Moraxella
+
+Acinetobacter baumannii strain DETAB-E108 chromosome
+  Abundance: 1.7028%
+  Coverage: 0.9948%
+  Confidence: 0.0192
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Acinetobacter
+
+Citrobacter freundii strain RHBSTW-00923 chromosome
+  Abundance: 1.6880%
+  Coverage: 5.3705%
+  Confidence: 0.1074
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Citrobacter
+
+Proteus mirabilis strain PM7752 chromosome
+  Abundance: 1.6208%
+  Coverage: 2.0259%
+  Confidence: 0.0405
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Proteus
+
+Salmonella enterica subsp. enterica serovar Dublin strain PSUSE00060 chromosome
+  Abundance: 1.4081%
+  Coverage: 4.3133%
+  Confidence: 0.0863
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Salmonella
+
+Serratia marcescens strain L18 chromosome
+  Abundance: 1.2943%
+  Coverage: 2.2759%
+  Confidence: 0.0455
+  Taxonomy: Bacteria;Unknown_phylum;Unknown_class;Unknown_order;Unknown_family;Serratia
+
+Pseudomonas aeruginosa strain E80 chromosome
+  Abundance: 0.6214%
+  Coverage: 0.4678%
+  Confidence: 0.0087
+  Taxonomy: Bacteria;Proteobacteria;Gammaproteobacteria;Pseudomonadales;Pseudomonadaceae;Pseudomonas
+

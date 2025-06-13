@@ -61,7 +61,13 @@ biogpu/
 │           ├── generate_test_data.py          # ✅ NEW: Generate synthetic test data
 │           ├── test_minimizer.cpp             # Minimizer testing utility
 │           ├── debug_minimizer.cpp            # Debug tool for minimizer extraction
-│           └── hybrid_profiler_pipeline.cu    # Hybrid CPU-GPU profiler (Kraken2 integration)
+│           ├── hybrid_profiler_pipeline.cu    # Hybrid CPU-GPU profiler (Kraken2 integration)
+│           ├── hybrid_gpu_cpu_profiler.cu     # ✅ NEW: Hybrid GPU/CPU profiler main implementation
+│           ├── hybrid_gpu_cpu_profiler.py     # ✅ NEW: Python analysis toolkit for hybrid profiler
+│           ├── create_hybrid_gpu_cpu_db.cpp   # ✅ NEW: Hybrid database builder
+│           ├── hybrid_gpu_cpu_build_script.sh # ✅ NEW: Build script for hybrid components
+│           ├── hierarchical_profiler_pipeline.cu   # ✅ NEW: Hierarchical GPU database profiler
+│           └── build_hierarchical_db.cpp      # ✅ NEW: Build hierarchical database
 ├── src/                                 
 │   └── python/                         
 │       ├── build_integrated_resistance_db.py  # ✅ Builds integrated database
@@ -721,7 +727,21 @@ make build_integrated_resistance_db
 
 ## 🤝 Version History
 
-### v0.8.0 (December 12 2025) - HIERARCHICAL GPU DATABASE FOR LARGE-SCALE PROFILING
+### v0.9.0 (June 13 2025) - HYBRID GPU/CPU PROFILER WITH COMPREHENSIVE ANALYSIS
+- **NEW: Hybrid GPU/CPU profiler** for memory-efficient large database processing
+- **Two-stage processing**: CPU screening followed by GPU precision matching
+- **Memory-mapped database** for instant loading and efficient access
+- **Comprehensive output formats**: 
+  - Human-readable organism reports with confidence scores
+  - Detailed abundance tables with coverage metrics
+  - Taxonomic summaries at all hierarchical levels
+  - Kraken-compatible output format
+- **Python analysis toolkit** with diversity metrics and visualizations
+- **Support for strain-level resolution** (e.g., 190 strains → 19 species)
+- Performance: ~300k reads/second with minimal GPU memory usage
+- Executable: `hybrid_gpu_cpu_profiler`
+
+### v0.8.0 (June 12 2025) - HIERARCHICAL GPU DATABASE FOR LARGE-SCALE PROFILING
 - **NEW: Hierarchical GPU database** for databases exceeding GPU memory
 - **Dynamic tier loading** with LRU cache management
 - **Memory-configurable profiling** with --memory parameter
@@ -1451,6 +1471,8 @@ BioGPU now supports two database architectures for metagenomic profiling:
    - Handles databases larger than GPU memory (tested up to 700MB)
    - CPU memory mapped file for efficient access
    - GPU processes batches of queries
+   - Two-stage processing: CPU screening followed by GPU precision matching
+   - Comprehensive taxonomic tracking from Kingdom to Strain level
 
 ### Complete Workflow Commands
 
@@ -1539,12 +1561,28 @@ cd runtime/kernels/profiler
 # Use monolithic pipeline for paired-end analysis
 
 # Output files:
-# - hybrid_results_organism_report.txt
-# - hybrid_results_abundance_table.tsv  
-# - hybrid_results_taxonomy_summary.tsv
-# - hybrid_results_coverage_stats.tsv
-# - hybrid_results_kraken_style.txt
+# - hybrid_results_organism_report.txt     # Human-readable comprehensive report
+# - hybrid_results_abundance_table.tsv     # Detailed abundance with confidence scores
+# - hybrid_results_taxonomy_summary.tsv    # Taxonomic composition at all levels
+# - hybrid_results_coverage_stats.tsv      # Coverage breadth and depth metrics
+# - hybrid_results_kraken_style.txt        # Kraken-compatible output format
 ```
+
+### Hybrid Profiler Configuration
+
+The hybrid profiler uses these default parameters:
+
+```cpp
+struct HybridConfig {
+    int kmer_size = 31;              // K-mer length for matching
+    int kmer_step = 50;              // Sample every N bp from reads
+    float min_abundance = 1e-9;      // Minimum abundance threshold for reporting
+    int max_gpu_organisms = 500;     // Maximum organisms loaded to GPU at once
+    float coverage_threshold = 0.0001; // Minimum coverage for organism reporting
+};
+```
+
+These can be adjusted by modifying the source code and recompiling.
 
 ### Performance Comparison
 
@@ -1639,6 +1677,133 @@ python src/python/download_microbial_genomes.py \
 diff mono_clinical_abundance.tsv hybrid_clinical_abundance_table.tsv
 ```
 
+### Output Interpretation for Hybrid Profiler
+
+The hybrid profiler generates comprehensive output files with detailed metrics:
+
+1. **Organism Report** (`*_organism_report.txt`):
+   ```
+   Rank: 1
+   Organism: Escherichia coli
+   Taxonomy: Bacteria > Proteobacteria > Gammaproteobacteria > Enterobacterales > Enterobacteriaceae > Escherichia > Escherichia coli
+   Relative Abundance: 20.69%
+   Coverage Breadth: 88.47%
+   Coverage Depth: 5.63x
+   Confidence Score: 95.79%
+   ```
+
+2. **Abundance Table** (`*_abundance_table.tsv`):
+   - Tab-separated format for easy parsing
+   - Includes organism ID, name, full taxonomy path
+   - Metrics: relative abundance, coverage breadth/depth, unique k-mers, confidence score
+   - Confidence based on coverage breadth and unique k-mer count
+
+3. **Taxonomy Summary** (`*_taxonomy_summary.tsv`):
+   - Aggregated abundances at each taxonomic level
+   - Useful for understanding community structure
+   - Format: level, taxon, abundance, sample_count
+
+4. **Coverage Statistics** (`*_coverage_stats.tsv`):
+   - Detailed per-organism coverage metrics
+   - Includes genome size estimates
+   - Useful for assessing detection reliability
+
+### Python Analysis Toolkit
+
+The hybrid profiler includes a comprehensive Python analysis script (`hybrid_gpu_cpu_profiler.py`) that provides:
+
+```bash
+# Basic usage
+python hybrid_gpu_cpu_profiler.py \
+    --database hybrid_pathogen.db \
+    --fastq sample.fastq.gz \
+    --output analysis_results
+
+# With all options
+python hybrid_gpu_cpu_profiler.py \
+    --database hybrid_pathogen.db \
+    --fastq sample_R1.fastq.gz \
+    --output analysis_results \
+    --min-abundance 0.001 \
+    --top-n 50 \
+    --export-formats phyloseq,qiime2,biom \
+    --visualize \
+    --html-report
+```
+
+**Features**:
+- **Diversity Metrics**: Shannon, Simpson, Chao1, and more
+- **Interactive Visualizations**: 
+  - Abundance bar plots
+  - Rarefaction curves
+  - PCoA plots (for multiple samples)
+- **Export Formats**: 
+  - phyloseq R objects
+  - QIIME2 artifacts
+  - BIOM format
+- **HTML Dashboard**: Interactive report with all results
+
+### Two-Stage Processing Algorithm
+
+The hybrid profiler uses an innovative two-stage approach:
+
+**Stage 1: CPU K-mer Screening**
+- Rapid k-mer matching using memory-mapped database
+- Identifies candidate organisms based on k-mer hits
+- Filters out organisms with insufficient evidence
+
+**Stage 2: GPU Precision Matching**
+- Top candidates loaded to GPU for detailed analysis
+- Precise abundance calculation
+- Coverage breadth and depth computation
+- Confidence scoring based on multiple metrics
+
+This approach balances speed and memory efficiency while maintaining accuracy.
+
+### Building the Hybrid Profiler
+
+```bash
+# Quick build using provided script
+cd runtime/kernels/profiler
+./hybrid_gpu_cpu_build_script.sh
+
+# Manual build with custom options
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make hybrid_gpu_cpu_profiler
+
+# Build all profiler tools
+make all
+# Creates:
+# - hybrid_gpu_cpu_profiler
+# - create_hybrid_gpu_cpu_db
+# - test_hybrid_functionality
+```
+
+### Database Creation Details
+
+The hybrid database builder supports various input formats:
+
+```bash
+# From directory of FASTA files
+./create_hybrid_gpu_cpu_db \
+    /path/to/fasta/directory \
+    output_database.db
+
+# The builder:
+# - Automatically detects taxonomy from headers
+# - Supports multiple strains per species
+# - Creates canonical k-mer index
+# - Calculates uniqueness scores
+# - Generates memory-mapped binary format
+```
+
+**Database Structure**:
+- Header with magic number and version
+- Organism metadata (taxonomy, genome stats)
+- K-mer index with hash values
+- Sequential storage for optimal memory access
+
 ### Troubleshooting
 
 **Common Issues**:
@@ -1652,10 +1817,17 @@ diff mono_clinical_abundance.tsv hybrid_clinical_abundance_table.tsv
    - Increase batch size in code
    - Ensure database file is on fast storage (SSD)
    - Check CPU-GPU transfer bottlenecks
+   - Adjust `kmer_step` parameter for sparser sampling
 
 3. **Different results between approaches**:
    - Verify same k-mer parameters (k=31)
    - Check taxonomy ID mappings
    - Ensure canonical k-mer handling matches
+   - Compare confidence scores, not just abundances
+
+4. **Low confidence scores**:
+   - May indicate insufficient sequencing depth
+   - Check coverage breadth metrics
+   - Consider adjusting min_abundance threshold
 
 *This is a living document. Update with each significant change.*

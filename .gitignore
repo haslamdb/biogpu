@@ -59,6 +59,9 @@ results_synthetic_debug/
 *.bin
 kmer_index.bin
 sequences.bin
+# Large database files
+*.db
+test_hybrid*.db
 
 # Large result files (>100MB)
 *_results.json

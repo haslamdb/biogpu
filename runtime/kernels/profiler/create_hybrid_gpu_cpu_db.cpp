@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
+#include <cctype>
 
 // Database preparation tool for hybrid profiler
 // Converts FASTA genome collections to memory-mapped binary format
@@ -16,57 +17,49 @@ struct OrganismRecord {
     std::string taxonomy_path;  // Full taxonomic lineage
     uint32_t taxon_level;       // 0=strain, 1=species, 2=genus, etc.
     float gc_content;
-    bool has_amr_targets;
 };
 
 class DatabaseBuilder {
 private:
     std::vector<OrganismRecord> organisms;
-    std::unordered_map<std::string, uint8_t> clinical_priorities;
+    std::unordered_map<std::string, uint32_t> species_to_taxid;
     
 public:
     DatabaseBuilder() {
-        initialize_clinical_priorities();
+    }
+    
+    // Load taxonomy mapping from file if it exists
+    void load_taxonomy_mapping(const std::string& mapping_file) {
+        std::ifstream file(mapping_file);
+        if (!file.is_open()) {
+            std::cout << "No taxonomy mapping file found at: " << mapping_file << std::endl;
+            std::cout << "Will use auto-generated taxonomy IDs" << std::endl;
+            return;
+        }
+        
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            
+            size_t tab_pos = line.find('\t');
+            if (tab_pos != std::string::npos) {
+                std::string taxid_str = line.substr(0, tab_pos);
+                std::string species_name = line.substr(tab_pos + 1);
+                
+                try {
+                    uint32_t taxid = std::stoul(taxid_str);
+                    species_to_taxid[species_name] = taxid;
+                } catch (...) {
+                    std::cerr << "Invalid taxonomy ID in line: " << line << std::endl;
+                }
+            }
+        }
+        
+        std::cout << "Loaded " << species_to_taxid.size() << " taxonomy mappings" << std::endl;
+        file.close();
     }
     
 private:
-    void initialize_clinical_priorities() {
-        // Clinical priorities for pediatric infectious diseases
-        clinical_priorities = {
-            // Critical pathogens
-            {"Escherichia coli", 1},
-            {"Klebsiella pneumoniae", 1},
-            {"Staphylococcus aureus", 1},
-            {"Streptococcus pneumoniae", 1},
-            {"Group B Streptococcus", 1},
-            {"Haemophilus influenzae", 1},
-            
-            // High priority
-            {"Pseudomonas aeruginosa", 2},
-            {"Enterococcus faecalis", 2},
-            {"Enterococcus faecium", 2},
-            {"Clostridioides difficile", 2},
-            {"Salmonella", 2},
-            {"Shigella", 2},
-            
-            // Moderate priority  
-            {"Acinetobacter baumannii", 3},
-            {"Enterobacter cloacae", 3},
-            {"Citrobacter", 3},
-            {"Proteus", 3},
-            
-            // Low priority (everything else)
-        };
-    }
-    
-    uint8_t get_clinical_priority(const std::string& organism_name) {
-        for (const auto& [pathogen, priority] : clinical_priorities) {
-            if (organism_name.find(pathogen) != std::string::npos) {
-                return priority;
-            }
-        }
-        return 4;  // Low priority by default
-    }
     
 public:
     void load_fasta_directory(const std::string& fasta_dir) {
@@ -106,8 +99,8 @@ public:
                     organisms.push_back(current_organism);
                 }
                 
-                // Parse header
-                parse_fasta_header(line, current_organism);
+                // Parse header with filename context
+                parse_fasta_header(line, current_organism, fasta_path);
                 current_organism.sequence.clear();
                 in_sequence = true;
                 
@@ -130,7 +123,7 @@ public:
         file.close();
     }
     
-    void parse_fasta_header(const std::string& header, OrganismRecord& organism) {
+    void parse_fasta_header(const std::string& header, OrganismRecord& organism, const std::string& fasta_path) {
         // Parse FASTA header to extract organism info
         // Format examples:
         // >NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome
@@ -138,22 +131,45 @@ public:
         
         std::string clean_header = header.substr(1);  // Remove '>'
         
-        // Extract taxonomy ID if present
-        size_t taxid_pos = clean_header.find("taxid:");
-        if (taxid_pos != std::string::npos) {
-            std::string taxid_str = clean_header.substr(taxid_pos + 6);
-            size_t space_pos = taxid_str.find(' ');
-            if (space_pos != std::string::npos) {
-                taxid_str = taxid_str.substr(0, space_pos);
+        // First try to extract species name from filename
+        std::filesystem::path filepath(fasta_path);
+        std::string filename = filepath.stem().string();  // filename without extension
+        
+        // Extract species name from filename pattern: Species_name_ID.fasta
+        std::string species_from_filename;
+        size_t last_underscore = filename.find_last_of('_');
+        if (last_underscore != std::string::npos) {
+            // Check if the part after last underscore is numeric (ID)
+            std::string potential_id = filename.substr(last_underscore + 1);
+            bool is_numeric = !potential_id.empty() && 
+                             std::all_of(potential_id.begin(), potential_id.end(), ::isdigit);
+            
+            if (is_numeric) {
+                species_from_filename = filename.substr(0, last_underscore);
             }
-            try {
-                organism.taxonomy_id = std::stoul(taxid_str);
-            } catch (...) {
-                organism.taxonomy_id = 0;
-            }
+        }
+        
+        // Try to get taxonomy ID from our mapping
+        if (!species_from_filename.empty() && species_to_taxid.count(species_from_filename) > 0) {
+            organism.taxonomy_id = species_to_taxid[species_from_filename];
         } else {
-            // Generate a hash-based ID if no taxonomy ID found
-            organism.taxonomy_id = std::hash<std::string>{}(clean_header) % 1000000;
+            // Extract taxonomy ID if present in header
+            size_t taxid_pos = clean_header.find("taxid:");
+            if (taxid_pos != std::string::npos) {
+                std::string taxid_str = clean_header.substr(taxid_pos + 6);
+                size_t space_pos = taxid_str.find(' ');
+                if (space_pos != std::string::npos) {
+                    taxid_str = taxid_str.substr(0, space_pos);
+                }
+                try {
+                    organism.taxonomy_id = std::stoul(taxid_str);
+                } catch (...) {
+                    organism.taxonomy_id = 0;
+                }
+            } else {
+                // Generate a hash-based ID if no taxonomy ID found
+                organism.taxonomy_id = std::hash<std::string>{}(clean_header) % 1000000;
+            }
         }
         
         // Extract organism name and build taxonomy path
@@ -198,8 +214,6 @@ public:
         // Determine taxonomic level (basic heuristic)
         organism.taxon_level = determine_taxonomic_level(organism.name);
         
-        // Check if organism has known AMR targets
-        organism.has_amr_targets = has_fluoroquinolone_targets(organism.name);
         
         // Quality control
         if (organism.sequence.length() < 1000) {
@@ -262,20 +276,6 @@ public:
         return taxonomy;
     }
     
-    bool has_fluoroquinolone_targets(const std::string& organism_name) {
-        // Check if organism is known to have fluoroquinolone resistance genes
-        std::vector<std::string> target_organisms = {
-            "Escherichia", "Klebsiella", "Pseudomonas", "Staphylococcus",
-            "Enterococcus", "Acinetobacter", "Salmonella", "Shigella"
-        };
-        
-        for (const std::string& target : target_organisms) {
-            if (organism_name.find(target) != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
-    }
     
     void write_binary_database(const std::string& output_path) {
         std::cout << "Writing comprehensive binary database to: " << output_path << std::endl;
@@ -285,17 +285,18 @@ public:
             throw std::runtime_error("Cannot create output file: " + output_path);
         }
         
-        // Write header
-        uint32_t magic = 0x42494F47;  // "BIOG" magic number
+        // Write header with explicit byte order
+        const char magic_bytes[] = {'B', 'I', 'O', 'G'};  // Write as chars to ensure order
+        out.write(magic_bytes, 4);
+        
         uint32_t version = 2;         // Updated version for comprehensive format
         uint32_t num_organisms = organisms.size();
         
-        out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
         out.write(reinterpret_cast<const char*>(&num_organisms), sizeof(num_organisms));
         
         // Calculate offsets for metadata and sequences
-        uint64_t current_offset = sizeof(magic) + sizeof(version) + sizeof(num_organisms);
+        uint64_t current_offset = 4 + sizeof(version) + sizeof(num_organisms);
         
         // First, write all organism metadata
         std::vector<uint64_t> sequence_offsets;
@@ -312,7 +313,6 @@ public:
             sequence_start_offset += organism.name.length();
             sequence_start_offset += sizeof(uint16_t);  // taxonomy_path_length
             sequence_start_offset += organism.taxonomy_path.length();
-            sequence_start_offset += sizeof(uint8_t);   // has_amr_targets
         }
         
         current_offset = sequence_start_offset;
@@ -337,8 +337,6 @@ public:
             uint16_t taxonomy_length = organism.taxonomy_path.length();
             out.write(reinterpret_cast<const char*>(&taxonomy_length), sizeof(taxonomy_length));
             out.write(organism.taxonomy_path.c_str(), taxonomy_length);
-            
-            out.write(reinterpret_cast<const char*>(&organism.has_amr_targets), sizeof(organism.has_amr_targets));
             
             current_offset += sequence_length;
         }
@@ -373,7 +371,6 @@ public:
         
         uint64_t total_bases = 0;
         float total_gc = 0.0f;
-        int amr_targets = 0;
         
         std::unordered_map<std::string, int> phylum_counts;
         
@@ -381,7 +378,6 @@ public:
             level_counts[org.taxon_level]++;
             total_bases += org.sequence.length();
             total_gc += org.gc_content;
-            if (org.has_amr_targets) amr_targets++;
             
             // Extract phylum from taxonomy path
             std::vector<std::string> taxa;
@@ -411,7 +407,6 @@ public:
         summary << "- Total sequence data: " << total_bases / 1000000 << " Mbp\n";
         summary << "- Average GC content: " << std::fixed << std::setprecision(1) 
                 << (total_gc / organisms.size()) << "%\n";
-        summary << "- AMR target organisms: " << amr_targets << "\n";
         
         summary << "\nLargest genomes:\n";
         auto sorted_organisms = organisms;
@@ -447,6 +442,24 @@ int main(int argc, char* argv[]) {
         std::cout << "================================\n";
         
         DatabaseBuilder builder;
+        
+        // Check for taxonomy mapping file in the parent directory of the FASTA directory
+        std::filesystem::path input_path(input_dir);
+        std::filesystem::path parent_dir = input_path.parent_path();
+        std::filesystem::path taxon_mapping_file = parent_dir / "taxon_mapping.txt";
+        
+        if (std::filesystem::exists(taxon_mapping_file)) {
+            std::cout << "Found taxonomy mapping file: " << taxon_mapping_file << std::endl;
+            builder.load_taxonomy_mapping(taxon_mapping_file.string());
+        } else {
+            // Also check in the input directory itself
+            taxon_mapping_file = input_path / "taxon_mapping.txt";
+            if (std::filesystem::exists(taxon_mapping_file)) {
+                std::cout << "Found taxonomy mapping file: " << taxon_mapping_file << std::endl;
+                builder.load_taxonomy_mapping(taxon_mapping_file.string());
+            }
+        }
+        
         builder.load_fasta_directory(input_dir);
         builder.write_binary_database(output_db);
         

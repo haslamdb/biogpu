@@ -145,6 +145,43 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(hybrid_profiler_pipeline OpenMP::OpenMP_CXX)
 endif()
 
+# Hybrid GPU/CPU profiler
+add_executable(hybrid_gpu_cpu_profiler
+    hybrid_gpu_cpu_profiler.cu
+)
+
+set_target_properties(hybrid_gpu_cpu_profiler PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(hybrid_gpu_cpu_profiler
+    fastq_processing
+    minimizer_extraction
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(hybrid_gpu_cpu_profiler OpenMP::OpenMP_CXX)
+endif()
+
+# Optimization for hybrid profiler
+target_compile_options(hybrid_gpu_cpu_profiler PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        -O3
+        -DNDEBUG
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)
+
 # ===========================
 # Database Building Tools
 # ===========================
@@ -173,6 +210,17 @@ target_link_libraries(build_db_from_kmers
 
 # Hierarchical database builder - ARCHIVED
 # See archived_hierarchical_db/ directory
+
+# Create hybrid GPU/CPU database
+add_executable(create_hybrid_gpu_cpu_db
+    create_hybrid_gpu_cpu_db.cpp
+)
+
+target_link_libraries(create_hybrid_gpu_cpu_db
+    gpu_kmer_database
+    cudart
+    cuda
+)
 
 # ===========================
 # Test Executables
@@ -253,17 +301,43 @@ target_link_libraries(fastq_pipeline_debug
     ${ZLIB_LIBRARIES}
 )
 
-# NEW: Test hierarchical database
-add_executable(test_hierarchical_db
-    test_hierarchical_db.cpp
+
+# Debug version of hybrid GPU/CPU profiler
+add_executable(hybrid_gpu_cpu_profiler_debug
+    hybrid_gpu_cpu_profiler.cu
 )
 
-target_link_libraries(test_hierarchical_db
-    hierarchical_gpu_database
-    gpu_kmer_database
+set_target_properties(hybrid_gpu_cpu_profiler_debug PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(hybrid_gpu_cpu_profiler_debug
+    fastq_processing
+    minimizer_extraction
     cudart
     cuda
-    stdc++fs
+    ${ZLIB_LIBRARIES}
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(hybrid_gpu_cpu_profiler_debug OpenMP::OpenMP_CXX)
+endif()
+
+# Debug compile options
+target_compile_options(hybrid_gpu_cpu_profiler_debug PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        -g
+        -G
+        -O0
+        -DDEBUG
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -g
+        -O0
+        -DDEBUG
+    >
 )
 
 # ===========================
@@ -299,20 +373,7 @@ add_custom_target(test_database
     COMMENT "Building test database and running profiler"
 )
 
-# NEW: Test hierarchical database
-add_custom_target(test_hierarchical
-    COMMAND ./test_hierarchical_db
-    DEPENDS test_hierarchical_db
-    COMMENT "Testing hierarchical database functionality"
-)
 
-# NEW: Build and test hierarchical database with real data
-add_custom_target(test_hierarchical_real
-    COMMAND ./build_hierarchical_db $ENV{KMER_FILE} hierarchical_test.db
-    COMMAND ./hierarchical_profiler_pipeline hierarchical_test.db $ENV{FASTQ_FILE}
-    DEPENDS build_hierarchical_db hierarchical_profiler_pipeline
-    COMMENT "Building hierarchical database and testing - set KMER_FILE and FASTQ_FILE"
-)
 
 # ===========================
 # Installation Rules
@@ -324,11 +385,11 @@ install(TARGETS
     test_fastq_pipeline
     hybrid_profiler_pipeline
     gpu_profiler_pipeline
-    hierarchical_profiler_pipeline
     build_test_database
     build_db_from_kmers
-    build_hierarchical_db
-    test_hierarchical_db
+    create_hybrid_gpu_cpu_db
+    hybrid_gpu_cpu_profiler
+    hybrid_gpu_cpu_profiler_debug
     RUNTIME DESTINATION bin
 )
 
@@ -346,7 +407,6 @@ install(FILES
     minimizer_extractor.h
     fastq_processing.h
     gpu_kmer_database.h
-    hierarchical_gpu_database.h
     kraken_database_loader.h
     DESTINATION include/biogpu/profiler
 )
@@ -368,31 +428,29 @@ message(STATUS "Currently Available Components:")
 message(STATUS "  ✓ GPU minimizer extraction")
 message(STATUS "  ✓ GPU k-mer database")
 message(STATUS "  ✓ GPU profiler pipeline")
-message(STATUS "  ✓ Hierarchical GPU database (NEW)")
-message(STATUS "  ✓ Hierarchical profiler pipeline (NEW)")
 message(STATUS "  ✓ Database building tools")
 message(STATUS "  ✓ Test programs for all components")
 message(STATUS "  ✓ FASTQ GPU pipeline with zlib support")
 message(STATUS "  ✓ Hybrid profiler pipeline (needs Kraken2 database)")
+message(STATUS "  ✓ Hybrid GPU/CPU profiler with optimizations")
+message(STATUS "  ✓ Hybrid database creation tools")
 message(STATUS "")
 message(STATUS "Build targets:")
 message(STATUS "  gpu_profiler_pipeline       - Main GPU-accelerated profiler")
-message(STATUS "  hierarchical_profiler_pipeline - Hierarchical GPU profiler (NEW)")
 message(STATUS "  build_test_database         - Build test microbial database")
 message(STATUS "  build_db_from_kmers         - Build database from k-mer list")
-message(STATUS "  build_hierarchical_db       - Build hierarchical database (NEW)")
 message(STATUS "  test_minimizer              - Test GPU minimizer extraction")
 message(STATUS "  test_fastq_pipeline         - Full FASTQ processing pipeline")
-message(STATUS "  test_hierarchical_db        - Test hierarchical database (NEW)")
 message(STATUS "  hybrid_profiler_pipeline    - Hybrid CPU-GPU profiler (needs Kraken2 DB)")
+message(STATUS "  hybrid_gpu_cpu_profiler     - Optimized hybrid GPU/CPU profiler")
+message(STATUS "  hybrid_gpu_cpu_profiler_debug - Debug version of hybrid profiler")
+message(STATUS "  create_hybrid_gpu_cpu_db    - Create hybrid GPU/CPU database")
 message(STATUS "")
 message(STATUS "Testing targets:")
 message(STATUS "  make test_synthetic         - Test with synthetic data")
 message(STATUS "  make test_real_fastq        - Test minimizer with real FASTQ")
 message(STATUS "  make test_fastq_pipeline_run - Test full pipeline with FASTQ")
 message(STATUS "  make test_database          - Build test DB and run profiler")
-message(STATUS "  make test_hierarchical      - Test hierarchical database (NEW)")
-message(STATUS "  make test_hierarchical_real - Test hierarchical with real data (NEW)")
 message(STATUS "")
 message(STATUS "Usage examples:")
 message(STATUS "  1. Build:")
@@ -417,10 +475,7 @@ message(STATUS "")
 message(STATUS "  6. Test hybrid profiler (requires Kraken2 database):")
 message(STATUS "     ./hybrid_profiler_pipeline /path/to/kraken_db /path/to/reads.fastq")
 message(STATUS "")
-message(STATUS "  7. Build and use hierarchical database (NEW):")
-message(STATUS "     ./build_hierarchical_db kmers.txt hierarchical.db")
-message(STATUS "     ./hierarchical_profiler_pipeline hierarchical.db reads.fastq")
-message(STATUS "")
-message(STATUS "  8. Test hierarchical database with real data:")
-message(STATUS "     KMER_FILE=kmers.txt FASTQ_FILE=reads.fastq make test_hierarchical_real")
+message(STATUS "  7. Use optimized hybrid GPU/CPU profiler:")
+message(STATUS "     ./create_hybrid_gpu_cpu_db kmers.txt hybrid_gpu_cpu.db")
+message(STATUS "     ./hybrid_gpu_cpu_profiler hybrid_gpu_cpu.db reads.fastq")
 message(STATUS "")

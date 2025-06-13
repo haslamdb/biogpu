@@ -167,7 +167,7 @@ Writing tier files...
   --memory 10 \ 
   --output-prefix results/569_A_038_hierarchical  
 
-
+# ok we're going to put the hierarchical_profiler_pipeline in archive and move to hybrid hybrid_gpu_cpu_profiler
 ./runtime/kernels/profiler/hierarchical_profiler_pipeline \
   data/pathogen_hierarchical_canonical \
   data/569_A_038_R1.fastq.gz \
@@ -176,9 +176,8 @@ Writing tier files...
   --output-prefix results/569_A_038_hierarchical_fixed 
 
 
-Progress: Processed 1000000 read pairs, 0 classified (0.0%), cache hit rate: 0.0%
-Batch 51 timing (μs): extract=13320 transfer=456 lookup=1370931 classify=39 return=305 total=1385000 minimizers=284081 cache_hit=0.0%
-Batch 52 timing (μs): extract=13330 transfer=453 lookup=1366078 classify=39 return=347 total=1380000 minimizers=283301 cache_hit=0.0%
-Batch 53 timing (μs): extract=13483 transfer=464 lookup=1369026 classify=39 return=329 total=1383000 minimizers=283988 cache_hit=0.0%
-Batch 54 timing (μs): extract=13362 transfer=463 lookup=1367648 classify=38 return=303 total=1381000 minimizers=283562 cache_hit=0.0%
-Batch 55 timing (μs): extract=13426 transfer=456 lookup=1368497 classify=37 return=304 total=1382000 minimizers=283944 cache_hit=0.0%
+
+# hybrid_gpu_cpu_profiler 
+./runtime/kernels/profiler/hybrid_gpu_cpu_profiler runtime/kernels/profiler/test_hybrid.db data/569_A_038_R1.fastq.gz hybrid_test_output
+
+  ./hybrid_gpu_cpu_profiler test_hybrid_fixed.db ../../../data/569_A_038_R1.fastq.gz hybrid_test_output

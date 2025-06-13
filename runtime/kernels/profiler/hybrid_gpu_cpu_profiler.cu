@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <cmath>
+#include <set>
 
 // Comprehensive metagenomic profiling structures
 struct OrganismInfo {
@@ -57,9 +58,11 @@ private:
     int db_fd;
     void* mmap_ptr;
     size_t mmap_size;
+    bool needs_byte_swap;  // Track if we need to swap bytes for endianness
     
     // All organism metadata
-    std::unordered_map<uint32_t, OrganismInfo> organisms;
+    std::unordered_map<uint32_t, OrganismInfo> organisms;  // Species level (19 entries)
+    std::vector<OrganismInfo> all_strains;  // All strains (190 entries)
     std::vector<uint32_t> all_organism_ids;
     
     // Hierarchical kmer index for scalable matching
@@ -75,7 +78,7 @@ private:
     // Configuration parameters
     struct Config {
         int kmer_size = 31;
-        int kmer_step = 10;        // Sample every N bp
+        int kmer_step = 50;        // Sample every N bp (increased for faster testing)
         float min_abundance = 1e-6; // Minimum abundance to report
         int max_gpu_organisms = 500; // Max organisms loaded to GPU at once
         bool use_unique_kmers_only = false;
@@ -124,6 +127,28 @@ private:
         parse_comprehensive_database();
     }
     
+    // Byte swapping helpers
+    template<typename T>
+    T swap_bytes(T value) {
+        union {
+            T value;
+            uint8_t bytes[sizeof(T)];
+        } src, dst;
+        
+        src.value = value;
+        for (size_t i = 0; i < sizeof(T); i++) {
+            dst.bytes[i] = src.bytes[sizeof(T) - 1 - i];
+        }
+        return dst.value;
+    }
+    
+    template<typename T>
+    T read_value(const char*& ptr) {
+        T value = *reinterpret_cast<const T*>(ptr);
+        ptr += sizeof(T);
+        return needs_byte_swap ? swap_bytes(value) : value;
+    }
+    
     void parse_comprehensive_database() {
         const char* ptr = static_cast<const char*>(mmap_ptr);
         
@@ -131,59 +156,58 @@ private:
         uint32_t magic = *reinterpret_cast<const uint32_t*>(ptr);
         ptr += sizeof(uint32_t);
         
-        if (magic != 0x42494F47) {  // "BIOG" magic
+        std::cout << "Magic number read: 0x" << std::hex << magic << std::dec << std::endl;
+        
+        // Check for both byte orders (endianness)
+        if (magic == 0x474F4942) {  // "GOIB" on little-endian when written as "BIOG" chars
+            needs_byte_swap = false;
+        } else if (magic == 0x42494F47) {  // "BIOG" - needs swap on little-endian  
+            needs_byte_swap = true;
+        } else {
             throw std::runtime_error("Invalid database format");
         }
         
-        uint32_t version = *reinterpret_cast<const uint32_t*>(ptr);
-        ptr += sizeof(uint32_t);
-        
-        uint32_t num_organisms = *reinterpret_cast<const uint32_t*>(ptr);
-        ptr += sizeof(uint32_t);
+        uint32_t version = read_value<uint32_t>(ptr);
+        uint32_t num_organisms = read_value<uint32_t>(ptr);
         
         std::cout << "Database version " << version << " with " 
                   << num_organisms << " organisms" << std::endl;
+        std::cout << "Byte swap needed: " << (needs_byte_swap ? "yes" : "no") << std::endl;
         
         // Parse organism metadata
         for (uint32_t i = 0; i < num_organisms; i++) {
             OrganismInfo org;
             
             // Read basic info
-            org.taxonomy_id = *reinterpret_cast<const uint32_t*>(ptr);
-            ptr += sizeof(uint32_t);
-            
-            org.genome_offset = *reinterpret_cast<const uint64_t*>(ptr);
-            ptr += sizeof(uint64_t);
-            
-            org.genome_size = *reinterpret_cast<const uint64_t*>(ptr);
-            ptr += sizeof(uint64_t);
-            
-            org.taxon_level = *reinterpret_cast<const uint32_t*>(ptr);
-            ptr += sizeof(uint32_t);
-            
-            org.gc_content = *reinterpret_cast<const float*>(ptr);
-            ptr += sizeof(float);
+            org.taxonomy_id = read_value<uint32_t>(ptr);
+            org.genome_offset = read_value<uint64_t>(ptr);
+            org.genome_size = read_value<uint64_t>(ptr);
+            org.taxon_level = read_value<uint32_t>(ptr);
+            org.gc_content = read_value<float>(ptr);
             
             // Read organism name (variable length)
-            uint16_t name_length = *reinterpret_cast<const uint16_t*>(ptr);
-            ptr += sizeof(uint16_t);
+            uint16_t name_length = read_value<uint16_t>(ptr);
             
             org.name = std::string(ptr, name_length);
             ptr += name_length;
             
             // Read taxonomy path (variable length)
-            uint16_t taxonomy_length = *reinterpret_cast<const uint16_t*>(ptr);
-            ptr += sizeof(uint16_t);
+            uint16_t taxonomy_length = read_value<uint16_t>(ptr);
             
             org.taxonomy_path = std::string(ptr, taxonomy_length);
             ptr += taxonomy_length;
             
-            // Store organism
-            organisms[org.taxonomy_id] = org;
-            all_organism_ids.push_back(org.taxonomy_id);
+            // Store all strains
+            all_strains.push_back(org);
+            
+            // Store unique organisms at species level
+            if (organisms.count(org.taxonomy_id) == 0) {
+                organisms[org.taxonomy_id] = org;
+                all_organism_ids.push_back(org.taxonomy_id);
+            }
         }
         
-        std::cout << "Loaded metadata for " << organisms.size() << " organisms" << std::endl;
+        std::cout << "Loaded " << all_strains.size() << " strains mapped to " << organisms.size() << " species" << std::endl;
         
         // Print database statistics
         print_database_statistics();
@@ -221,11 +245,12 @@ private:
         const int k = config.kmer_size;
         const int step = config.kmer_step;
         
+        std::cout << "K-mer parameters: k=" << k << ", step=" << step << std::endl;
+        
         // Count kmer occurrences across all genomes first
         std::unordered_map<uint64_t, int> kmer_counts;
         
-        for (uint32_t org_id : all_organism_ids) {
-            const OrganismInfo& org = organisms[org_id];
+        for (const OrganismInfo& org : all_strains) {
             const char* genome = static_cast<const char*>(mmap_ptr) + org.genome_offset;
             
             // Extract kmers from this genome
@@ -239,6 +264,17 @@ private:
         
         std::cout << "Found " << kmer_counts.size() << " unique kmers" << std::endl;
         
+        // Debug: show some example kmers
+        if (!kmer_counts.empty()) {
+            std::cout << "Example kmers (first 5):" << std::endl;
+            int count = 0;
+            for (const auto& [kmer_hash, occ_count] : kmer_counts) {
+                std::cout << "  Kmer hash: " << std::hex << kmer_hash << std::dec 
+                          << " occurs in " << occ_count << " genomes" << std::endl;
+                if (++count >= 5) break;
+            }
+        }
+        
         // Calculate kmer uniqueness scores
         for (const auto& [kmer_hash, count] : kmer_counts) {
             // More unique kmers get higher weights
@@ -247,8 +283,7 @@ private:
         }
         
         // Build the actual index with uniqueness scores
-        for (uint32_t org_id : all_organism_ids) {
-            const OrganismInfo& org = organisms[org_id];
+        for (const OrganismInfo& org : all_strains) {
             const char* genome = static_cast<const char*>(mmap_ptr) + org.genome_offset;
             
             for (size_t i = 0; i <= org.genome_size - k; i += step) {
@@ -259,7 +294,7 @@ private:
                     // Only index kmers above a certain uniqueness threshold
                     if (!config.use_unique_kmers_only || uniqueness > 0.1f) {
                         KmerMatch match{
-                            org_id, 
+                            org.taxonomy_id,  // Use species-level taxonomy ID
                             static_cast<uint32_t>(i), 
                             255,  // Max quality
                             uniqueness
@@ -271,8 +306,7 @@ private:
         }
         
         std::cout << "Kmer index built with " << kmer_index.size() 
-                  << " entries (average " << (float)kmer_counts.size() / kmer_index.size() 
-                  << " organisms per kmer)" << std::endl;
+                  << " unique k-mers from " << all_strains.size() << " strains" << std::endl;
     }
     
     uint64_t hash_kmer(const char* seq, int k) {
@@ -321,12 +355,37 @@ public:
         int matched_kmers = 0;
         
         // Process FASTQ file
-        std::ifstream file(fastq_file);
+        std::cout << "Opening FASTQ file: " << fastq_file << std::endl;
+        
+        // Check if file is gzipped
+        std::string cmd;
+        if (fastq_file.substr(fastq_file.length() - 3) == ".gz") {
+            cmd = "zcat " + fastq_file;
+            std::cout << "Detected gzipped file, using zcat" << std::endl;
+        } else {
+            cmd = "cat " + fastq_file;
+        }
+        
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) {
+            std::cerr << "Error: Cannot open file: " << fastq_file << std::endl;
+            return std::vector<ProfileResult>();
+        }
+        
+        char buffer[4096];
         std::string line;
+        std::string partial;
         int line_count = 0;
         
-        while (std::getline(file, line)) {
-            line_count++;
+        while (fgets(buffer, sizeof(buffer), pipe)) {
+            partial += buffer;
+            
+            // Check if we have a complete line
+            size_t pos;
+            while ((pos = partial.find('\n')) != std::string::npos) {
+                line = partial.substr(0, pos);
+                partial = partial.substr(pos + 1);
+                line_count++;
             if (line_count % 4 == 2) {  // Sequence line
                 total_reads++;
                 
@@ -335,6 +394,12 @@ public:
                     for (size_t i = 0; i <= line.length() - k; i++) {
                         uint64_t kmer_hash = hash_kmer(line.c_str() + i, k);
                         total_kmers++;
+                        
+                        // Debug: show first kmer from first read
+                        if (total_reads == 1 && i == 0) {
+                            std::cout << "First kmer from first read: " << line.substr(i, k) 
+                                      << " hash: " << std::hex << kmer_hash << std::dec << std::endl;
+                        }
                         
                         if (kmer_hash != UINT64_MAX) {
                             auto it = kmer_index.find(kmer_hash);
@@ -358,13 +423,25 @@ public:
             if (total_reads % 10000 == 0) {
                 std::cout << "\rProcessed " << total_reads << " reads..." << std::flush;
             }
-        }
+            
+            // Limit reads for testing
+            if (total_reads >= 100000) {
+                std::cout << "\nStopping at " << total_reads << " reads for testing" << std::endl;
+                break;
+            }
+            }  // End of line processing
+        }  // End of file reading
+        
+        pclose(pipe);
         
         std::cout << std::endl;
         std::cout << "Screening complete: " << total_reads << " reads, " 
                   << matched_kmers << "/" << total_kmers << " kmers matched ("
                   << std::fixed << std::setprecision(1) 
                   << 100.0f * matched_kmers / total_kmers << "%)" << std::endl;
+        
+        // Debug: show kmer index size
+        std::cout << "Kmer index contains " << kmer_index.size() << " unique kmers" << std::endl;
         
         // Calculate comprehensive profiles
         std::vector<ProfileResult> results;
@@ -382,7 +459,7 @@ public:
             
             // Calculate confidence based on coverage and uniqueness
             float confidence = std::min(1.0f, coverage_breadth * 2.0f) * 
-                              std::min(1.0f, std::log10(unique_kmers + 1) / 3.0f);
+                              std::min(1.0f, (float)(std::log10(unique_kmers + 1) / 3.0f));
             
             ProfileResult result{
                 org_id,
@@ -435,7 +512,7 @@ public:
                       << "  " << org.name << ": " 
                       << (result.abundance * 100) << "% "
                       << "(coverage: " << (result.coverage_breadth * 100) << "%, "
-                      << "confidence: " << result.confidence << ")" << std::endl;
+                      << "confidence: " << result.confidence_score << ")" << std::endl;
         }
         
         return results;

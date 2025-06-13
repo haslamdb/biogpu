@@ -181,3 +181,5 @@ Writing tier files...
 ./runtime/kernels/profiler/hybrid_gpu_cpu_profiler runtime/kernels/profiler/test_hybrid.db data/569_A_038_R1.fastq.gz hybrid_test_output
 
   ./hybrid_gpu_cpu_profiler test_hybrid_fixed.db ../../../data/569_A_038_R1.fastq.gz hybrid_test_output
+
+   ./runtime/kernels/profiler/hybrid_gpu_cpu_profiler test_hybrid_fixed.db data/569_A_038_R1.fastq.gz hybrid_test_output

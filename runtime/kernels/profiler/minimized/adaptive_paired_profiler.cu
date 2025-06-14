@@ -6,10 +6,17 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <algorithm>
 #include <chrono>
 #include <memory>
 #include <iomanip>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <libgen.h>
+#include <unistd.h>
+#include <limits.h>
 
 // Include common structures
 #include "paired_read_common.h"
@@ -37,6 +44,8 @@ private:
     // Analysis results
     DatabaseStats db_stats;
     bool use_streaming_mode = false;
+    std::string database_path_;  // Store database path for profiler execution
+    std::string executable_dir_;  // Directory containing this executable
     
     // Actual GPU profiler implementations
     // std::unique_ptr<GPUMicrobialCommunityProfiler> gpu_profiler;
@@ -45,13 +54,31 @@ private:
     int k = 35, m = 31;
     
 public:
-    AdaptivePairedEndProfiler() {
+    AdaptivePairedEndProfiler(const std::string& argv0) {
         std::cout << "Adaptive Paired-End GPU Profiler" << std::endl;
         std::cout << "Automatically selects optimal processing strategy" << std::endl;
+        
+        // Get the directory of this executable
+        char exe_path[PATH_MAX];
+        ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+        if (len != -1) {
+            exe_path[len] = '\0';
+            executable_dir_ = std::string(dirname(exe_path));
+        } else {
+            // Fallback: use argv[0]
+            char* path_copy = strdup(argv0.c_str());
+            executable_dir_ = std::string(dirname(path_copy));
+            free(path_copy);
+        }
+        
+        std::cout << "Executable directory: " << executable_dir_ << std::endl;
     }
     
     void load_and_analyze_database(const std::string& db_path) {
         std::cout << "Analyzing database: " << db_path << std::endl;
+        
+        // Store database path for later use
+        database_path_ = db_path;
         
         // First, analyze database size and characteristics
         db_stats = analyze_database_requirements(db_path);
@@ -403,20 +430,33 @@ private:
     std::vector<OrganismProfile> profile_with_direct_gpu(const std::vector<PairedRead>& paired_reads) {
         std::cout << "Using direct GPU profiling..." << std::endl;
         
-        // Placeholder implementation - would use direct GPU profiler
-        // Similar to the gpu_community_profiler but with paired-end awareness
+        // Save paired reads to temporary file
+        std::string temp_r1 = "/tmp/adaptive_temp_r1.fastq";
+        std::string temp_r2 = "/tmp/adaptive_temp_r2.fastq";
         
-        std::vector<OrganismProfile> profiles;
+        save_paired_reads_to_files(paired_reads, temp_r1, temp_r2);
         
-        // For now, return a simple placeholder result
-        if (!paired_reads.empty()) {
-            OrganismProfile example;
-            example.taxonomy_id = 1;
-            example.name = "Example organism (direct GPU)";
-            example.abundance = 0.5f;
-            example.confidence_score = 0.8f;
-            profiles.push_back(example);
+        // Execute gpu_paired_profiler
+        std::string profiler_path = executable_dir_ + "/gpu_paired_profiler";
+        std::string temp_output = "/tmp/adaptive_gpu_output";
+        
+        std::string cmd = profiler_path + " " + database_path_ + " " + 
+                         temp_r1 + " " + temp_r2 + " " + temp_output;
+        
+        std::cout << "Executing: " << cmd << std::endl;
+        int result = system(cmd.c_str());
+        
+        if (result != 0) {
+            throw std::runtime_error("GPU paired profiler execution failed");
         }
+        
+        // Read results from output file
+        std::vector<OrganismProfile> profiles = read_profiler_results(temp_output + "_abundance.tsv");
+        
+        // Clean up temporary files
+        std::remove(temp_r1.c_str());
+        std::remove(temp_r2.c_str());
+        std::remove((temp_output + "_abundance.tsv").c_str());
         
         std::cout << "Direct GPU profiling completed" << std::endl;
         return profiles;
@@ -425,27 +465,33 @@ private:
     std::vector<OrganismProfile> profile_with_streaming(const std::vector<PairedRead>& paired_reads) {
         std::cout << "Using streaming profiling..." << std::endl;
         
-        // Extract all minimizers from paired reads
-        std::vector<uint64_t> all_minimizers;
-        extract_paired_minimizers(paired_reads, all_minimizers);
+        // Save paired reads to temporary file
+        std::string temp_r1 = "/tmp/adaptive_temp_r1.fastq";
+        std::string temp_r2 = "/tmp/adaptive_temp_r2.fastq";
         
-        std::cout << "Extracted " << all_minimizers.size() << " minimizers from paired reads" << std::endl;
+        save_paired_reads_to_files(paired_reads, temp_r1, temp_r2);
         
-        // Use streaming approach similar to streaming_gpu_profiler
-        // but with paired-end awareness
+        // Execute streaming_paired_profiler
+        std::string profiler_path = executable_dir_ + "/streaming_paired_profiler";
+        std::string temp_output = "/tmp/adaptive_streaming_output";
         
-        std::vector<OrganismProfile> profiles;
+        std::string cmd = profiler_path + " " + database_path_ + " " + 
+                         temp_r1 + " " + temp_r2 + " " + temp_output;
         
-        // Placeholder implementation
-        if (!paired_reads.empty()) {
-            OrganismProfile example;
-            example.taxonomy_id = 1;
-            example.name = "Example organism (streaming)";
-            example.abundance = 0.5f;
-            example.confidence_score = 0.8f;
-            example.paired_hits = paired_reads.size() / 10;  // Some paired hits
-            profiles.push_back(example);
+        std::cout << "Executing: " << cmd << std::endl;
+        int result = system(cmd.c_str());
+        
+        if (result != 0) {
+            throw std::runtime_error("Streaming paired profiler execution failed");
         }
+        
+        // Read results from output file
+        std::vector<OrganismProfile> profiles = read_profiler_results(temp_output + "_abundance.tsv");
+        
+        // Clean up temporary files
+        std::remove(temp_r1.c_str());
+        std::remove(temp_r2.c_str());
+        std::remove((temp_output + "_abundance.tsv").c_str());
         
         std::cout << "Streaming profiling completed" << std::endl;
         return profiles;
@@ -531,6 +577,90 @@ private:
         }
     }
     
+    void save_paired_reads_to_files(const std::vector<PairedRead>& paired_reads,
+                                   const std::string& r1_file, const std::string& r2_file) {
+        std::ofstream out1(r1_file);
+        std::ofstream out2(r2_file);
+        
+        if (!out1.is_open() || !out2.is_open()) {
+            throw std::runtime_error("Cannot create temporary FASTQ files");
+        }
+        
+        for (size_t i = 0; i < paired_reads.size(); i++) {
+            const auto& pair = paired_reads[i];
+            std::string header = "@" + pair.read_id;
+            
+            // Write R1
+            out1 << header << "/1\n";
+            out1 << pair.read1 << "\n";
+            out1 << "+\n";
+            out1 << std::string(pair.read1.length(), 'I') << "\n";  // Dummy quality
+            
+            // Write R2
+            out2 << header << "/2\n";
+            out2 << pair.read2 << "\n";
+            out2 << "+\n";
+            out2 << std::string(pair.read2.length(), 'I') << "\n";  // Dummy quality
+        }
+        
+        out1.close();
+        out2.close();
+    }
+    
+    std::vector<OrganismProfile> read_profiler_results(const std::string& results_file) {
+        std::vector<OrganismProfile> profiles;
+        std::ifstream in(results_file);
+        
+        if (!in.is_open()) {
+            throw std::runtime_error("Cannot read profiler results file: " + results_file);
+        }
+        
+        std::string line;
+        // Skip header line
+        std::getline(in, line);
+        
+        while (std::getline(in, line)) {
+            std::istringstream iss(line);
+            OrganismProfile profile;
+            
+            // Parse TSV format
+            iss >> profile.taxonomy_id;
+            
+            // Read name (may contain spaces)
+            std::string name;
+            iss >> std::ws;
+            std::getline(iss, name, '\t');
+            profile.name = name;
+            
+            // Read taxonomy path
+            std::string taxonomy;
+            std::getline(iss, taxonomy, '\t');
+            profile.taxonomy_path = taxonomy;
+            
+            // Read numeric fields
+            iss >> profile.abundance;
+            iss >> profile.coverage_breadth;
+            iss >> profile.unique_minimizers;
+            iss >> profile.total_hits;
+            iss >> profile.paired_hits;
+            iss >> profile.confidence_score;
+            
+            if (profile.abundance > 0) {
+                profiles.push_back(profile);
+            }
+        }
+        
+        in.close();
+        
+        // Sort by abundance
+        std::sort(profiles.begin(), profiles.end(), 
+                  [](const OrganismProfile& a, const OrganismProfile& b) {
+                      return a.abundance > b.abundance;
+                  });
+        
+        return profiles;
+    }
+    
 public:
     void print_results(const std::vector<OrganismProfile>& profiles) {
         std::cout << "\n=== ADAPTIVE PAIRED-END PROFILING RESULTS ===" << std::endl;
@@ -613,7 +743,7 @@ int main(int argc, char* argv[]) {
     }
     
     try {
-        AdaptivePairedEndProfiler profiler;
+        AdaptivePairedEndProfiler profiler(argv[0]);
         
         // Load and analyze database - automatically determines processing strategy
         profiler.load_and_analyze_database(database_path);

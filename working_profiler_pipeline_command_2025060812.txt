@@ -241,7 +241,8 @@ runtime/kernels/profiler/adaptive_paired_end_profiler \
   minimized_results
 
 
-runtime/kernels/profiler/adaptive_paired_end_profiler_debug \
+# updated for paired-end
+runtime/kernels/profiler/adaptive_paired_profiler \
   data/minimized_pathogen.db \
   data/569_A_038_R1.fastq.gz \
   data/569_A_038_R2.fastq.gz \

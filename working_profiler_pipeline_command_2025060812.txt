@@ -257,6 +257,8 @@ runtime/kernels/profiler/adaptive_paired_profiler \
   data/569_A_038_R1.fastq.gz \
   data/569_A_038_R2.fastq.gz \
   minimized_results
+
+  
 Adaptive Paired-End GPU Profiler
 Automatically selects optimal processing strategy
 Executable directory: /home/david/Documents/Code/biogpu/runtime/kernels/profiler

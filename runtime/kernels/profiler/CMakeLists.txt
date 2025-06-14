@@ -388,26 +388,26 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(build_minimizer_db OpenMP::OpenMP_CXX)
 endif()
 
-# GPU community profiler
-add_executable(gpu_community_profiler
-    minimized/gpu_community_profiler.cu
+# GPU paired profiler (enhanced with paired-end support)
+add_executable(gpu_paired_profiler
+    minimized/gpu_paired_profiler.cu
 )
 
-set_target_properties(gpu_community_profiler PROPERTIES
+set_target_properties(gpu_paired_profiler PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
-target_link_libraries(gpu_community_profiler
+target_link_libraries(gpu_paired_profiler
     fastq_processing
     cudart
     cuda
     ${ZLIB_LIBRARIES}
 )
 
-# Optimize compile options for GPU community profiler
-target_compile_options(gpu_community_profiler PRIVATE
+# Optimize compile options for GPU paired profiler
+target_compile_options(gpu_paired_profiler PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         --use_fast_math
         -O3
@@ -421,26 +421,26 @@ target_compile_options(gpu_community_profiler PRIVATE
     >
 )
 
-# Streaming GPU profiler
-add_executable(streaming_gpu_profiler
-    minimized/streaming_gpu_profiler.cu
+# Streaming paired profiler (enhanced with paired-end support)
+add_executable(streaming_paired_profiler
+    minimized/streaming_paired_profiler.cu
 )
 
-set_target_properties(streaming_gpu_profiler PROPERTIES
+set_target_properties(streaming_paired_profiler PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
-target_link_libraries(streaming_gpu_profiler
+target_link_libraries(streaming_paired_profiler
     fastq_processing
     cudart
     cuda
     ${ZLIB_LIBRARIES}
 )
 
-# Optimize compile options for streaming profiler
-target_compile_options(streaming_gpu_profiler PRIVATE
+# Optimize compile options for streaming paired profiler
+target_compile_options(streaming_paired_profiler PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         --use_fast_math
         -O3
@@ -454,18 +454,18 @@ target_compile_options(streaming_gpu_profiler PRIVATE
     >
 )
 
-# Adaptive paired-end profiler with auto-streaming
-add_executable(adaptive_paired_end_profiler
-    minimized/adaptive_paired_end_profiler.cu
+# Adaptive paired profiler with auto-streaming
+add_executable(adaptive_paired_profiler
+    minimized/adaptive_paired_profiler.cu
 )
 
-set_target_properties(adaptive_paired_end_profiler PROPERTIES
+set_target_properties(adaptive_paired_profiler PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
-target_link_libraries(adaptive_paired_end_profiler
+target_link_libraries(adaptive_paired_profiler
     fastq_processing
     cudart
     cuda
@@ -473,11 +473,11 @@ target_link_libraries(adaptive_paired_end_profiler
 )
 
 if(Thrust_FOUND)
-    target_link_libraries(adaptive_paired_end_profiler Thrust::Thrust)
+    target_link_libraries(adaptive_paired_profiler Thrust::Thrust)
 endif()
 
 # Optimized compile options for adaptive profiler
-target_compile_options(adaptive_paired_end_profiler PRIVATE
+target_compile_options(adaptive_paired_profiler PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         --use_fast_math
         -O3
@@ -491,18 +491,18 @@ target_compile_options(adaptive_paired_end_profiler PRIVATE
     >
 )
 
-# Debug version of GPU community profiler
-add_executable(gpu_community_profiler_debug
-    minimized/gpu_community_profiler.cu
+# Debug version of GPU paired profiler
+add_executable(gpu_paired_profiler_debug
+    minimized/gpu_paired_profiler.cu
 )
 
-set_target_properties(gpu_community_profiler_debug PROPERTIES
+set_target_properties(gpu_paired_profiler_debug PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
-target_link_libraries(gpu_community_profiler_debug
+target_link_libraries(gpu_paired_profiler_debug
     fastq_processing
     cudart
     cuda
@@ -510,7 +510,7 @@ target_link_libraries(gpu_community_profiler_debug
 )
 
 # Debug compile options
-target_compile_options(gpu_community_profiler_debug PRIVATE
+target_compile_options(gpu_paired_profiler_debug PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         -g
         -G
@@ -524,18 +524,18 @@ target_compile_options(gpu_community_profiler_debug PRIVATE
     >
 )
 
-# Debug version of adaptive paired-end profiler
-add_executable(adaptive_paired_end_profiler_debug
-    minimized/adaptive_paired_end_profiler.cu
+# Debug version of adaptive paired profiler
+add_executable(adaptive_paired_profiler_debug
+    minimized/adaptive_paired_profiler.cu
 )
 
-set_target_properties(adaptive_paired_end_profiler_debug PROPERTIES
+set_target_properties(adaptive_paired_profiler_debug PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
-target_link_libraries(adaptive_paired_end_profiler_debug
+target_link_libraries(adaptive_paired_profiler_debug
     fastq_processing
     cudart
     cuda
@@ -543,11 +543,11 @@ target_link_libraries(adaptive_paired_end_profiler_debug
 )
 
 if(Thrust_FOUND)
-    target_link_libraries(adaptive_paired_end_profiler_debug Thrust::Thrust)
+    target_link_libraries(adaptive_paired_profiler_debug Thrust::Thrust)
 endif()
 
 # Debug compile options
-target_compile_options(adaptive_paired_end_profiler_debug PRIVATE
+target_compile_options(adaptive_paired_profiler_debug PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         -g
         -G
@@ -599,25 +599,25 @@ add_custom_target(test_database
 # Test minimizer database building and GPU profiling
 add_custom_target(test_minimizer_pipeline
     COMMAND ./build_minimizer_db test_genomes test_microbes_minimizer.db
-    COMMAND ./gpu_community_profiler test_microbes_minimizer.db test_sample.fastq test_results
-    DEPENDS build_minimizer_db gpu_community_profiler
-    COMMENT "Building minimizer database and running GPU profiler"
+    COMMAND ./gpu_paired_profiler test_microbes_minimizer.db test_sample_R1.fastq test_sample_R2.fastq test_results
+    DEPENDS build_minimizer_db gpu_paired_profiler
+    COMMENT "Building minimizer database and running GPU paired-end profiler"
 )
 
 # Performance benchmark
 add_custom_target(benchmark_gpu_profiler
-    COMMAND ./gpu_community_profiler test_microbes_minimizer.db large_sample.fastq benchmark_results
-    DEPENDS gpu_community_profiler
-    COMMENT "Benchmarking GPU community profiler performance"
+    COMMAND ./gpu_paired_profiler test_microbes_minimizer.db large_sample_R1.fastq large_sample_R2.fastq benchmark_results
+    DEPENDS gpu_paired_profiler
+    COMMENT "Benchmarking GPU paired-end profiler performance"
 )
 
 # Compare CPU vs GPU profiler performance (if CPU profiler exists)
 add_custom_target(compare_profilers
     COMMAND echo "Note: CPU profiler not yet implemented in minimized/"
-    COMMAND echo "Running GPU profiler..."
-    COMMAND time ./gpu_community_profiler test_microbes_minimizer.db test_sample.fastq gpu_results
-    DEPENDS gpu_community_profiler
-    COMMENT "Running GPU profiler (CPU profiler not yet available)"
+    COMMAND echo "Running GPU paired-end profiler..."
+    COMMAND time ./gpu_paired_profiler test_microbes_minimizer.db test_sample_R1.fastq test_sample_R2.fastq gpu_results
+    DEPENDS gpu_paired_profiler
+    COMMENT "Running GPU paired-end profiler (CPU profiler not yet available)"
 )
 
 # ===========================
@@ -638,11 +638,11 @@ install(TARGETS
     # Minimized executables
     analyze_database
     build_minimizer_db
-    gpu_community_profiler
-    streaming_gpu_profiler
-    adaptive_paired_end_profiler
-    gpu_community_profiler_debug
-    adaptive_paired_end_profiler_debug
+    gpu_paired_profiler
+    streaming_paired_profiler
+    adaptive_paired_profiler
+    gpu_paired_profiler_debug
+    adaptive_paired_profiler_debug
     RUNTIME DESTINATION bin
 )
 
@@ -661,6 +661,7 @@ install(FILES
     fastq_processing.h
     gpu_kmer_database.h
     kraken_database_loader.h
+    minimized/paired_read_common.h
     DESTINATION include/biogpu/profiler
 )
 
@@ -687,9 +688,9 @@ message(STATUS "  ✓ FASTQ GPU pipeline with zlib support")
 message(STATUS "  ✓ Hybrid profiler pipeline (needs Kraken2 database)")
 message(STATUS "  ✓ Hybrid GPU/CPU profiler with optimizations")
 message(STATUS "  ✓ Hybrid database creation tools")
-message(STATUS "  ✓ NEW: Minimizer-based GPU community profiler")
-message(STATUS "  ✓ NEW: Streaming GPU profiler for large databases")
-message(STATUS "  ✓ NEW: Adaptive paired-end profiler with auto-streaming")
+message(STATUS "  ✓ NEW: GPU paired-end profiler with concordance scoring")
+message(STATUS "  ✓ NEW: Streaming paired-end profiler for large databases")
+message(STATUS "  ✓ NEW: Adaptive paired profiler with auto-streaming")
 message(STATUS "  ✓ NEW: Database analyzer tool")
 message(STATUS "")
 message(STATUS "Build targets:")
@@ -702,15 +703,15 @@ message(STATUS "  === Hybrid GPU/CPU Implementation ===")
 message(STATUS "  hybrid_gpu_cpu_profiler     - Optimized hybrid GPU/CPU profiler")
 message(STATUS "  create_hybrid_gpu_cpu_db    - Create hybrid GPU/CPU database")
 message(STATUS "  === Minimizer-based Implementation ===")
-message(STATUS "  adaptive_paired_end_profiler - Smart auto-selecting profiler (RECOMMENDED)")
-message(STATUS "  gpu_community_profiler      - GPU-accelerated community profiler")
-message(STATUS "  streaming_gpu_profiler      - Streaming profiler for large databases")
+message(STATUS "  adaptive_paired_profiler    - Smart auto-selecting paired-end profiler (RECOMMENDED)")
+message(STATUS "  gpu_paired_profiler         - GPU-accelerated paired-end profiler")
+message(STATUS "  streaming_paired_profiler   - Streaming paired-end profiler for large databases")
 message(STATUS "  build_minimizer_db          - Build minimizer database")
 message(STATUS "  analyze_database            - Analyze database statistics")
 message(STATUS "  === Test and Debug Tools ===")
 message(STATUS "  test_minimizer              - Test GPU minimizer extraction")
 message(STATUS "  test_fastq_pipeline         - Full FASTQ processing pipeline")
-message(STATUS "  gpu_community_profiler_debug - Debug version of community profiler")
+message(STATUS "  gpu_paired_profiler_debug   - Debug version of paired-end profiler")
 message(STATUS "  hybrid_gpu_cpu_profiler_debug - Debug version of hybrid profiler")
 message(STATUS "")
 message(STATUS "Testing targets:")
@@ -749,15 +750,15 @@ message(STATUS "  7. Use optimized hybrid GPU/CPU profiler:")
 message(STATUS "     ./create_hybrid_gpu_cpu_db kmers.txt hybrid_gpu_cpu.db")
 message(STATUS "     ./hybrid_gpu_cpu_profiler hybrid_gpu_cpu.db reads.fastq")
 message(STATUS "")
-message(STATUS "  8. Use minimizer-based GPU community profiler:")
+message(STATUS "  8. Use minimizer-based GPU paired-end profiler:")
 message(STATUS "     ./build_minimizer_db /path/to/genomes microbes_minimizer.db")
-message(STATUS "     ./gpu_community_profiler microbes_minimizer.db sample.fastq results")
+message(STATUS "     ./gpu_paired_profiler microbes_minimizer.db sample_R1.fastq sample_R2.fastq results")
 message(STATUS "     ./analyze_database microbes_minimizer.db")
 message(STATUS "")
 message(STATUS "  9. Stream large databases with GPU acceleration:")
-message(STATUS "     ./streaming_gpu_profiler large_microbes.db sample.fastq results")
+message(STATUS "     ./streaming_paired_profiler large_microbes.db sample_R1.fastq sample_R2.fastq results")
 message(STATUS "")
 message(STATUS "  10. Use adaptive profiler (auto-selects streaming vs direct):")
-message(STATUS "      ./adaptive_paired_end_profiler microbes.db sample_R1.fastq sample_R2.fastq results")
-message(STATUS "      ./adaptive_paired_end_profiler microbes.db sample.fastq results  # single-end")
+message(STATUS "      ./adaptive_paired_profiler microbes.db sample_R1.fastq sample_R2.fastq results")
+message(STATUS "      ./adaptive_paired_profiler microbes.db sample.fastq results  # single-end")
 message(STATUS "")

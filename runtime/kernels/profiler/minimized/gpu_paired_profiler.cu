@@ -290,6 +290,8 @@ private:
     // Paired-end scoring arrays
     thrust::device_vector<float> d_pair_scores_r1;
     thrust::device_vector<float> d_pair_scores_r2;
+    thrust::device_vector<uint32_t> d_pair_organism_votes_r1;
+    thrust::device_vector<uint32_t> d_pair_organism_votes_r2;
     thrust::device_vector<bool> d_is_paired_flags;
     
     // GPU sequence storage
@@ -542,6 +544,8 @@ private:
         size_t pair_scoring_size = paired_reads.size() * max_organisms;
         d_pair_scores_r1.resize(pair_scoring_size, 0.0f);
         d_pair_scores_r2.resize(pair_scoring_size, 0.0f);
+        d_pair_organism_votes_r1.resize(paired_reads.size(), 0);
+        d_pair_organism_votes_r2.resize(paired_reads.size(), 0);
         
         std::cout << "Transferred " << all_sequences.size() << " bases from " 
                   << paired_reads.size() << " pairs to GPU" << std::endl;
@@ -601,6 +605,8 @@ private:
         thrust::fill(d_organism_concordance_scores.begin(), d_organism_concordance_scores.end(), 0.0f);
         thrust::fill(d_pair_scores_r1.begin(), d_pair_scores_r1.end(), 0.0f);
         thrust::fill(d_pair_scores_r2.begin(), d_pair_scores_r2.end(), 0.0f);
+        thrust::fill(d_pair_organism_votes_r1.begin(), d_pair_organism_votes_r1.end(), 0);
+        thrust::fill(d_pair_organism_votes_r2.begin(), d_pair_organism_votes_r2.end(), 0);
         
         // Launch matching kernel
         int block_size = 256;
@@ -616,8 +622,8 @@ private:
             thrust::raw_pointer_cast(d_organism_hits.data()),
             thrust::raw_pointer_cast(d_organism_scores.data()),
             thrust::raw_pointer_cast(d_organism_paired_hits.data()),
-            thrust::raw_pointer_cast(d_pair_scores_r1.data()),
-            thrust::raw_pointer_cast(d_pair_scores_r2.data()),
+            thrust::raw_pointer_cast(d_pair_organism_votes_r1.data()),
+            thrust::raw_pointer_cast(d_pair_organism_votes_r2.data()),
             thrust::raw_pointer_cast(d_pair_scores_r1.data()),
             thrust::raw_pointer_cast(d_pair_scores_r2.data()),
             max_organisms,

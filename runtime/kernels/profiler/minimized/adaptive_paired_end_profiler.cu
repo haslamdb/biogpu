@@ -384,6 +384,9 @@ private:
     }
     
     std::string extract_read_id(const std::string& header) {
+        if (header.empty()) {
+            return "";
+        }
         size_t space_pos = header.find(' ');
         if (space_pos != std::string::npos) {
             return header.substr(1, space_pos - 1);

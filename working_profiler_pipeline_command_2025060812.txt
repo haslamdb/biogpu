@@ -208,21 +208,23 @@ cp new_isolate.fasta /data/clinical_isolates/
 # Now we updated to choose whether to stream database from CPU to GPU or new_isolate
 
 # 1. Build your minimizer database
-  ./build_minimizer_db /home/david/Documents/Code/biogpu/data/pathogen_profiler_db/genomes                 │
-│   minimized_pathogens.db 
+cd ~/Documents/Code/biogpu
+runtime/kernels/profiler/build_minimizer_db /home/david/Documents/Code/biogpu/data/pathogen_profiler_db/genomes \
+  data/minimized_pathogen.db 
 
 # 2. Analyze database size and get recommendation
-./analyze_database minimized_pathogens.db
+cd ~/Documents/Code/biogpu
+runtime/kernels/profiler/analyze_database data/minimized_pathogen.db
 
 # 3a. If streaming NOT needed (database < 32GB):
-./gpu_community_profiler minimized_pathogens.db \
+./gpu_community_profiler minimized_data/pathogen.db \
   data/569_A_038_R1.fastq.gz \
   data/569_A_038_R2.fastq.gz \ 
   minimized_results
 
 # 3b. If streaming needed (database > 32GB):
 ./streaming_gpu_profiler \
-  minimized_pathogens.db \
+  minimized_pathogen.db \
   data/569_A_038_R1.fastq.gz \
   data/569_A_038_R2.fastq.gz \ 
   minimized_results
@@ -231,8 +233,9 @@ cp new_isolate.fasta /data/clinical_isolates/
 make auto_profile  # Automatically chooses best profiler
 
 ## we now have a profiler that will accept paired end reads and automatically adapt to streaming if required
-./adaptive_paired_end_profiler \
-  minimized_pathogens.db \
+cd ~/Documents/Code/biogpu
+runtime/kernels/profiler/minimized/adaptive_paired_end_profiler \
+  minimized_pathogen.db \
   data/569_A_038_R1.fastq.gz \
   data/569_A_038_R2.fastq.gz \ 
   minimized_results

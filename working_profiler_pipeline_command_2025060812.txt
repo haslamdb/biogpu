@@ -258,7 +258,7 @@ runtime/kernels/profiler/adaptive_paired_profiler \
   data/569_A_038_R2.fastq.gz \
   minimized_results
 
-runtime/kernels/profiler/adaptive_paired_profiler \
+runtime/kernels/profiler/adaptive_paired_profiler_batched \
   data/minimized_pathogen.db \
   batch \
   example_csv.csv \

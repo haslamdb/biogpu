@@ -493,6 +493,45 @@ target_compile_options(adaptive_paired_profiler PRIVATE
     >
 )
 
+# Adaptive paired profiler with batch processing
+add_executable(adaptive_paired_profiler_batched
+    minimized/adaptive_paired_profiler_batched.cu
+    minimized/sample_csv_parser.cpp
+)
+
+set_target_properties(adaptive_paired_profiler_batched PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(adaptive_paired_profiler_batched
+    fastq_processing
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+    stdc++fs
+)
+
+if(Thrust_FOUND)
+    target_link_libraries(adaptive_paired_profiler_batched Thrust::Thrust)
+endif()
+
+# Optimized compile options for batched adaptive profiler
+target_compile_options(adaptive_paired_profiler_batched PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        -O3
+        -DNDEBUG
+        --maxrregcount=64
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)
+
 # Debug version of GPU paired profiler
 add_executable(gpu_paired_profiler_debug
     minimized/gpu_paired_profiler.cu
@@ -643,6 +682,7 @@ install(TARGETS
     gpu_paired_profiler
     streaming_paired_profiler
     adaptive_paired_profiler
+    adaptive_paired_profiler_batched
     gpu_paired_profiler_debug
     adaptive_paired_profiler_debug
     RUNTIME DESTINATION bin
@@ -705,7 +745,8 @@ message(STATUS "  === Hybrid GPU/CPU Implementation ===")
 message(STATUS "  hybrid_gpu_cpu_profiler     - Optimized hybrid GPU/CPU profiler")
 message(STATUS "  create_hybrid_gpu_cpu_db    - Create hybrid GPU/CPU database")
 message(STATUS "  === Minimizer-based Implementation ===")
-message(STATUS "  adaptive_paired_profiler    - Smart auto-selecting paired-end profiler (RECOMMENDED)")
+message(STATUS "  adaptive_paired_profiler    - Smart auto-selecting paired-end profiler (DEPRECATED - may OOM)")
+message(STATUS "  adaptive_paired_profiler_batched - Batched version with memory-efficient processing (RECOMMENDED)")
 message(STATUS "  gpu_paired_profiler         - GPU-accelerated paired-end profiler")
 message(STATUS "  streaming_paired_profiler   - Streaming paired-end profiler for large databases")
 message(STATUS "  build_minimizer_db          - Build minimizer database")
@@ -763,4 +804,8 @@ message(STATUS "")
 message(STATUS "  10. Use adaptive profiler (auto-selects streaming vs direct):")
 message(STATUS "      ./adaptive_paired_profiler microbes.db sample_R1.fastq sample_R2.fastq results")
 message(STATUS "      ./adaptive_paired_profiler microbes.db sample.fastq results  # single-end")
+message(STATUS "")
+message(STATUS "  11. Use batched adaptive profiler for large FASTQ files (RECOMMENDED):")
+message(STATUS "      ./adaptive_paired_profiler_batched microbes.db single sample_R1.fastq.gz sample_R2.fastq.gz results")
+message(STATUS "      ./adaptive_paired_profiler_batched microbes.db batch samples.csv output_dir")
 message(STATUS "")

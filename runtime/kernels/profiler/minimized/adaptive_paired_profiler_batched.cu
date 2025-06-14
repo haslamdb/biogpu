@@ -20,6 +20,7 @@
 #include <zlib.h>
 #include <filesystem>
 #include <tuple>
+#include <algorithm>
 
 // Include common structures
 #include "paired_read_common.h"
@@ -116,50 +117,100 @@ public:
             in.read(reinterpret_cast<char*>(&minimizer_count), sizeof(minimizer_count));
             
             // Read strings
-            uint16_t name_length, taxonomy_length;
+            uint16_t name_length;
             in.read(reinterpret_cast<char*>(&name_length), sizeof(name_length));
             std::string name(name_length, '\0');
             in.read(&name[0], name_length);
+            organism_names[taxonomy_id] = name;
             
+            uint16_t taxonomy_length;
             in.read(reinterpret_cast<char*>(&taxonomy_length), sizeof(taxonomy_length));
             std::string taxonomy_path(taxonomy_length, '\0');
             in.read(&taxonomy_path[0], taxonomy_length);
+            organism_taxonomy[taxonomy_id] = taxonomy_path;
             
             // Store metadata
-            organism_names[taxonomy_id] = name;
-            organism_taxonomy[taxonomy_id] = taxonomy_path;
             organism_genome_sizes[taxonomy_id] = genome_size;
             organism_expected_minimizers[taxonomy_id] = minimizer_count;
             organism_id_list.push_back(taxonomy_id);
         }
         
-        std::cout << "Loading " << num_minimizer_hashes << " minimizer hashes..." << std::endl;
+        // Read minimizer index and prepare for GPU - CORRECT APPROACH
+        std::vector<std::tuple<uint64_t, uint32_t, float>> all_entries;
         
-        // Load minimizer data
-        thrust::host_vector<uint64_t> h_hashes(num_minimizer_hashes);
-        thrust::host_vector<uint32_t> h_org_ids(num_minimizer_hashes);
-        thrust::host_vector<float> h_weights(num_minimizer_hashes);
+        std::cout << "Loading " << num_minimizer_hashes << " minimizer hash entries..." << std::endl;
         
-        in.read(reinterpret_cast<char*>(h_hashes.data()), 
-                num_minimizer_hashes * sizeof(uint64_t));
-        in.read(reinterpret_cast<char*>(h_org_ids.data()), 
-                num_minimizer_hashes * sizeof(uint32_t));
-        in.read(reinterpret_cast<char*>(h_weights.data()), 
-                num_minimizer_hashes * sizeof(float));
+        for (uint64_t i = 0; i < num_minimizer_hashes; i++) {
+            uint64_t hash;
+            uint32_t num_entries;
+            
+            in.read(reinterpret_cast<char*>(&hash), sizeof(hash));
+            in.read(reinterpret_cast<char*>(&num_entries), sizeof(num_entries));
+            
+            for (uint32_t j = 0; j < num_entries; j++) {
+                uint64_t minimizer_hash;
+                uint32_t taxonomy_id;
+                uint8_t uniqueness_score;
+                
+                in.read(reinterpret_cast<char*>(&minimizer_hash), sizeof(minimizer_hash));
+                in.read(reinterpret_cast<char*>(&taxonomy_id), sizeof(taxonomy_id));
+                in.read(reinterpret_cast<char*>(&uniqueness_score), sizeof(uniqueness_score));
+                
+                // Calculate weight
+                float weight = uniqueness_score / 255.0f;
+                
+                // Map taxonomy_id to array index
+                auto it = std::find(organism_id_list.begin(), organism_id_list.end(), taxonomy_id);
+                if (it != organism_id_list.end()) {
+                    uint32_t array_index = std::distance(organism_id_list.begin(), it);
+                    all_entries.emplace_back(minimizer_hash, array_index, weight);
+                }
+            }
+            
+            // Progress indicator for large databases
+            if (i % 100000 == 0) {
+                std::cout << "\rProcessed " << i << "/" << num_minimizer_hashes 
+                         << " hash entries (" << all_entries.size() << " total minimizers)..." << std::flush;
+            }
+        }
         
         in.close();
+        std::cout << "\rCompleted loading " << all_entries.size() << " minimizer entries" << std::endl;
+        
+        // Sort by hash for binary search
+        std::cout << "Sorting minimizers for efficient lookup..." << std::endl;
+        std::sort(all_entries.begin(), all_entries.end());
         
         // Transfer to GPU
-        d_database_hashes = h_hashes;
-        d_database_organism_ids = h_org_ids;
-        d_database_weights = h_weights;
+        std::vector<uint64_t> hashes;
+        std::vector<uint32_t> org_ids;
+        std::vector<float> weights;
+        
+        hashes.reserve(all_entries.size());
+        org_ids.reserve(all_entries.size());
+        weights.reserve(all_entries.size());
+        
+        for (const auto& entry : all_entries) {
+            hashes.push_back(std::get<0>(entry));
+            org_ids.push_back(std::get<1>(entry));
+            weights.push_back(std::get<2>(entry));
+        }
+        
+        d_database_hashes = hashes;
+        d_database_organism_ids = org_ids;
+        d_database_weights = weights;
         
         auto load_end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(load_end - load_start);
         
-        size_t gpu_memory_mb = (num_minimizer_hashes * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(float))) / (1024 * 1024);
+        size_t gpu_memory_mb = (all_entries.size() * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(float))) / (1024 * 1024);
         std::cout << "Database loaded in " << duration.count() << " seconds" << std::endl;
         std::cout << "GPU memory used: ~" << gpu_memory_mb << " MB" << std::endl;
+        std::cout << "Total minimizer entries: " << all_entries.size() << std::endl;
+        
+        size_t free_mem, total_mem;
+        cudaMemGetInfo(&free_mem, &total_mem);
+        std::cout << "GPU memory: " << (total_mem - free_mem) / (1024*1024) << " MB used" << std::endl;
     }
     
     // Process a batch of paired reads and accumulate results

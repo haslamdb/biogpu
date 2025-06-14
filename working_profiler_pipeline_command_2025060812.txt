@@ -242,6 +242,7 @@ runtime/kernels/profiler/adaptive_paired_end_profiler \
 
 
 # updated for paired-end
+cd ~/Documents/Code/biogpu
 runtime/kernels/profiler/adaptive_paired_profiler \
   data/minimized_pathogen.db \
   data/569_A_038_R1.fastq.gz \

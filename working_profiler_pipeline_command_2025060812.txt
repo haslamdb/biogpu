@@ -248,3 +248,64 @@ runtime/kernels/profiler/adaptive_paired_profiler \
   data/569_A_038_R1.fastq.gz \
   data/569_A_038_R2.fastq.gz \
   minimized_results
+
+
+# go this output:
+cd ~/Documents/Code/biogpu
+runtime/kernels/profiler/adaptive_paired_profiler \
+  data/minimized_pathogen.db \
+  data/569_A_038_R1.fastq.gz \
+  data/569_A_038_R2.fastq.gz \
+  minimized_results
+Adaptive Paired-End GPU Profiler
+Automatically selects optimal processing strategy
+Executable directory: /home/david/Documents/Code/biogpu/runtime/kernels/profiler
+Analyzing database: data/minimized_pathogen.db
+
+=== DATABASE ANALYSIS RESULTS ===
+Estimated GPU memory needed: 5962 MB
+Number of organisms: 190
+Total minimizer entries: 325252348
+⚡ DIRECT GPU MODE SELECTED
+Database fits in GPU memory - maximum performance
+Initializing direct GPU mode...
+GPU memory available: 11 GB
+Direct GPU mode ready
+Loaded metadata for 190 organisms
+Loading paired-end reads...
+Loading paired-end reads from separate files
+Loaded 200000 paired reads...
+Loaded 201125 paired-end reads
+
+=== STARTING PAIRED-END COMMUNITY PROFILING ===
+Processing 201125 read pairs
+Mode: DIRECT GPU
+Using direct GPU profiling...
+Executing: /home/david/Documents/Code/biogpu/runtime/kernels/profiler/gpu_paired_profiler data/minimized_pathogen.db /tmp/adaptive_temp_r1.fastq /tmp/adaptive_temp_r2.fastq /tmp/adaptive_gpu_output
+Using GPU: NVIDIA TITAN Xp with 11 GB memory
+Loading minimizer database: data/minimized_pathogen.db
+Database parameters: k=35, m=31, organisms=190, minimizer hashes=60817567
+Loaded 711858907 minimizer entries to GPU from 190 organisms
+GPU memory usage: 11327 MB used, 856 MB free
+Loading paired-end reads from /tmp/adaptive_temp_r1.fastq and /tmp/adaptive_temp_r2.fastq
+
+Loaded 0 read pairs for GPU profiling
+GPU profiling community from 0 read pairs...
+Preparing 0 paired reads for GPU...
+Transferred 0 bases from 0 pairs to GPU
+Extracting minimizers from paired reads on GPU...
+Extracted 0 minimizers from paired reads
+Matching paired minimizers against database on GPU...
+Paired minimizer matching completed
+Calculating paired-end concordance on GPU...
+Paired concordance calculation completed
+Calculating paired-end organism profiles...
+Generated 0 organism profiles with paired-end scoring
+Paired-end GPU profiling completed in 0 ms
+
+=== PAIRED-END GPU MICROBIAL COMMUNITY PROFILE ===
+No organisms detected above significance thresholds
+Paired-end abundance table written to: /tmp/adaptive_gpu_output_paired_abundance.tsv
+
+=== PAIRED-END GPU PROFILING COMPLETE ===
+Error: Cannot read profiler results file: /tmp/adaptive_gpu_output_abundance.tsv

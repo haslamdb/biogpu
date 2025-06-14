@@ -3,6 +3,8 @@
 #include <thrust/host_vector.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
+#include <thrust/copy.h>
+#include <thrust/execution_policy.h>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -13,6 +15,20 @@
 #include <memory>
 #include <queue>
 #include <thread>
+#include <iomanip>
+#include <cmath>
+
+// Forward declaration of GPU kernel
+__global__ void match_chunk_kernel(
+    const uint64_t* query_minimizers,
+    uint32_t num_queries,
+    const uint64_t* chunk_hashes,
+    const uint32_t* chunk_organism_ids,
+    const float* chunk_weights,
+    uint32_t chunk_size,
+    uint32_t* organism_hits,
+    float* organism_scores
+);
 
 // Include the missing OrganismProfile struct definition
 struct OrganismProfile {
@@ -366,13 +382,14 @@ public:
         d_chunk_organism_ids.resize(chunk->organism_ids.size());
         d_chunk_weights.resize(chunk->weights.size());
         
-        // Copy to GPU asynchronously
-        thrust::copy_async(chunk->minimizer_hashes.begin(), chunk->minimizer_hashes.end(),
-                          d_chunk_hashes.begin(), memory_stream);
-        thrust::copy_async(chunk->organism_ids.begin(), chunk->organism_ids.end(),
-                          d_chunk_organism_ids.begin(), memory_stream);
-        thrust::copy_async(chunk->weights.begin(), chunk->weights.end(),
-                          d_chunk_weights.begin(), memory_stream);
+        // Copy to GPU asynchronously using execution policy
+        auto policy = thrust::cuda::par.on(memory_stream);
+        thrust::copy(policy, chunk->minimizer_hashes.begin(), chunk->minimizer_hashes.end(),
+                     d_chunk_hashes.begin());
+        thrust::copy(policy, chunk->organism_ids.begin(), chunk->organism_ids.end(),
+                     d_chunk_organism_ids.begin());
+        thrust::copy(policy, chunk->weights.begin(), chunk->weights.end(),
+                     d_chunk_weights.begin());
         
         // Synchronize memory stream
         cudaStreamSynchronize(memory_stream);
@@ -549,7 +566,7 @@ public:
             profile.coverage_breadth = (expected_minimizers > 0) ? 
                                      std::min(1.0f, (float)hits / expected_minimizers) : 0.0f;
             
-            profile.confidence_score = std::min(1.0f, std::log10(hits + 1) / 3.0f);
+            profile.confidence_score = std::min(1.0f, (float)(std::log10(hits + 1) / 3.0));
             
             if (profile.abundance > 1e-6 && profile.confidence_score > 0.1) {
                 profiles.push_back(profile);

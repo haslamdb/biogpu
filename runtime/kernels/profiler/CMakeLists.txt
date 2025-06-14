@@ -38,6 +38,21 @@ else()
     message(FATAL_ERROR "zlib not found. Please install zlib development libraries.")
 endif()
 
+# Find Thrust (usually comes with CUDA)
+find_package(Thrust CONFIG)
+if(Thrust_FOUND)
+    message(STATUS "Found Thrust: ${Thrust_VERSION}")
+    # Check if we have modern Thrust with async support
+    if(Thrust_VERSION VERSION_GREATER_EQUAL "1.15.0")
+        message(STATUS "Modern Thrust detected - async operations available")
+        add_compile_definitions(THRUST_ASYNC_AVAILABLE)
+    else()
+        message(STATUS "Older Thrust detected - using synchronous operations")
+    endif()
+else()
+    message(WARNING "Thrust not found - GPU profiler may have reduced functionality")
+endif()
+
 # ===========================
 # Core Libraries
 # ===========================
@@ -147,7 +162,7 @@ endif()
 
 # Hybrid GPU/CPU profiler
 add_executable(hybrid_gpu_cpu_profiler
-    hybrid_gpu_cpu_profiler.cu
+    gpu_cpu_hybrid/hybrid_gpu_cpu_profiler.cu
 )
 
 set_target_properties(hybrid_gpu_cpu_profiler PROPERTIES
@@ -239,7 +254,7 @@ target_link_libraries(test_minimizer
 
 # Test FASTQ pipeline
 add_executable(test_fastq_pipeline
-    fastq_pipeline_main.cpp
+    k2_like/fastq_pipeline_main.cpp
 )
 
 set_target_properties(test_fastq_pipeline PROPERTIES
@@ -258,7 +273,7 @@ target_link_libraries(test_fastq_pipeline
 
 # Debug minimizer program
 add_executable(debug_minimizer
-    debug_minimizer.cpp
+    k2_like/debug_minimizer.cpp
 )
 
 set_target_properties(debug_minimizer PROPERTIES
@@ -290,7 +305,7 @@ target_link_libraries(test_stats
 
 # Debug pipeline program
 add_executable(fastq_pipeline_debug
-    fastq_pipeline_debug.cpp
+    k2_like/fastq_pipeline_debug.cpp
 )
 
 target_link_libraries(fastq_pipeline_debug
@@ -304,7 +319,7 @@ target_link_libraries(fastq_pipeline_debug
 
 # Debug version of hybrid GPU/CPU profiler
 add_executable(hybrid_gpu_cpu_profiler_debug
-    hybrid_gpu_cpu_profiler.cu
+    gpu_cpu_hybrid/hybrid_gpu_cpu_profiler.cu
 )
 
 set_target_properties(hybrid_gpu_cpu_profiler_debug PROPERTIES
@@ -439,6 +454,43 @@ target_compile_options(streaming_gpu_profiler PRIVATE
     >
 )
 
+# Adaptive paired-end profiler with auto-streaming
+add_executable(adaptive_paired_end_profiler
+    minimized/adaptive_paired_end_profiler.cu
+)
+
+set_target_properties(adaptive_paired_end_profiler PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(adaptive_paired_end_profiler
+    fastq_processing
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+if(Thrust_FOUND)
+    target_link_libraries(adaptive_paired_end_profiler Thrust::Thrust)
+endif()
+
+# Optimized compile options for adaptive profiler
+target_compile_options(adaptive_paired_end_profiler PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        -O3
+        -DNDEBUG
+        --maxrregcount=64
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)
+
 # Debug version of GPU community profiler
 add_executable(gpu_community_profiler_debug
     minimized/gpu_community_profiler.cu
@@ -459,6 +511,43 @@ target_link_libraries(gpu_community_profiler_debug
 
 # Debug compile options
 target_compile_options(gpu_community_profiler_debug PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        -g
+        -G
+        -O0
+        -DDEBUG
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -g
+        -O0
+        -DDEBUG
+    >
+)
+
+# Debug version of adaptive paired-end profiler
+add_executable(adaptive_paired_end_profiler_debug
+    minimized/adaptive_paired_end_profiler.cu
+)
+
+set_target_properties(adaptive_paired_end_profiler_debug PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_link_libraries(adaptive_paired_end_profiler_debug
+    fastq_processing
+    cudart
+    cuda
+    ${ZLIB_LIBRARIES}
+)
+
+if(Thrust_FOUND)
+    target_link_libraries(adaptive_paired_end_profiler_debug Thrust::Thrust)
+endif()
+
+# Debug compile options
+target_compile_options(adaptive_paired_end_profiler_debug PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         -g
         -G
@@ -551,7 +640,9 @@ install(TARGETS
     build_minimizer_db
     gpu_community_profiler
     streaming_gpu_profiler
+    adaptive_paired_end_profiler
     gpu_community_profiler_debug
+    adaptive_paired_end_profiler_debug
     RUNTIME DESTINATION bin
 )
 
@@ -598,6 +689,7 @@ message(STATUS "  ✓ Hybrid GPU/CPU profiler with optimizations")
 message(STATUS "  ✓ Hybrid database creation tools")
 message(STATUS "  ✓ NEW: Minimizer-based GPU community profiler")
 message(STATUS "  ✓ NEW: Streaming GPU profiler for large databases")
+message(STATUS "  ✓ NEW: Adaptive paired-end profiler with auto-streaming")
 message(STATUS "  ✓ NEW: Database analyzer tool")
 message(STATUS "")
 message(STATUS "Build targets:")
@@ -610,6 +702,7 @@ message(STATUS "  === Hybrid GPU/CPU Implementation ===")
 message(STATUS "  hybrid_gpu_cpu_profiler     - Optimized hybrid GPU/CPU profiler")
 message(STATUS "  create_hybrid_gpu_cpu_db    - Create hybrid GPU/CPU database")
 message(STATUS "  === Minimizer-based Implementation ===")
+message(STATUS "  adaptive_paired_end_profiler - Smart auto-selecting profiler (RECOMMENDED)")
 message(STATUS "  gpu_community_profiler      - GPU-accelerated community profiler")
 message(STATUS "  streaming_gpu_profiler      - Streaming profiler for large databases")
 message(STATUS "  build_minimizer_db          - Build minimizer database")
@@ -663,4 +756,8 @@ message(STATUS "     ./analyze_database microbes_minimizer.db")
 message(STATUS "")
 message(STATUS "  9. Stream large databases with GPU acceleration:")
 message(STATUS "     ./streaming_gpu_profiler large_microbes.db sample.fastq results")
+message(STATUS "")
+message(STATUS "  10. Use adaptive profiler (auto-selects streaming vs direct):")
+message(STATUS "      ./adaptive_paired_end_profiler microbes.db sample_R1.fastq sample_R2.fastq results")
+message(STATUS "      ./adaptive_paired_end_profiler microbes.db sample.fastq results  # single-end")
 message(STATUS "")

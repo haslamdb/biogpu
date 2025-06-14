@@ -124,3 +124,29 @@ __pycache__/
 env/
 venv/
 synthetic_reads.fq_report/synthetic_reads_qrdr_alignments.csv
+
+# Profiler executables and generated files
+runtime/kernels/profiler/adaptive_paired_end_profiler
+runtime/kernels/profiler/adaptive_paired_end_profiler_debug
+runtime/kernels/profiler/analyze_database
+runtime/kernels/profiler/build_db_from_kmers
+runtime/kernels/profiler/build_minimizer_db
+runtime/kernels/profiler/build_test_database
+runtime/kernels/profiler/create_hybrid_gpu_cpu_db
+runtime/kernels/profiler/debug_minimizer
+runtime/kernels/profiler/fastq_pipeline_debug
+runtime/kernels/profiler/gpu_community_profiler
+runtime/kernels/profiler/gpu_community_profiler_debug
+runtime/kernels/profiler/gpu_profiler_pipeline
+runtime/kernels/profiler/hybrid_gpu_cpu_profiler
+runtime/kernels/profiler/hybrid_gpu_cpu_profiler_debug
+runtime/kernels/profiler/hybrid_profiler_pipeline
+runtime/kernels/profiler/streaming_gpu_profiler
+runtime/kernels/profiler/test_fastq_pipeline
+runtime/kernels/profiler/test_minimizer
+runtime/kernels/profiler/test_stats
+
+# Profiler database files
+runtime/kernels/profiler/minimized_pathogens_db
+runtime/kernels/profiler/minimized_pathogens_db.summary
+runtime/kernels/profiler/minimizer_pathogen_db.db.summary

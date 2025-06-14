@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <cstdint>
 
 // Database analyzer to determine if streaming is needed
 // Analyzes minimizer database size and provides recommendations

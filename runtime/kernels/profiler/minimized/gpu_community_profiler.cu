@@ -15,6 +15,7 @@
 #include <chrono>
 #include <iomanip>
 #include <memory>
+#include <cmath>
 
 // GPU-accelerated microbial community profiler
 // Uses CUDA kernels for high-throughput minimizer matching and scoring
@@ -577,7 +578,7 @@ private:
                                      (float)unique_minimizers / expected_minimizers : 0.0f;
             
             // Calculate confidence score
-            float minimizer_confidence = std::min(1.0f, std::log10(unique_minimizers + 1) / 3.0f);
+            float minimizer_confidence = std::min(1.0f, (float)(std::log10(unique_minimizers + 1) / 3.0));
             float coverage_confidence = std::min(1.0f, profile.coverage_breadth * 10.0f);
             profile.confidence_score = (minimizer_confidence + coverage_confidence) / 2.0f;
             

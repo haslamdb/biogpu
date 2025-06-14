@@ -20,6 +20,13 @@ private:
         uint64_t minimizer_hash;
         uint32_t taxonomy_id;
         uint8_t uniqueness_score;  // 0-255, higher = more unique
+        
+        // Comparison operator for sorting
+        bool operator<(const MinimizerEntry& other) const {
+            if (minimizer_hash != other.minimizer_hash)
+                return minimizer_hash < other.minimizer_hash;
+            return taxonomy_id < other.taxonomy_id;
+        }
     } __attribute__((packed));
     
     struct OrganismInfo {

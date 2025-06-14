@@ -11,6 +11,10 @@
 #include <memory>
 #include <iomanip>
 
+// Include the actual GPU profiler implementations
+#include "gpu_community_profiler.cu"
+#include "streaming_gpu_profiler.cu"
+
 // Adaptive paired-end profiler that automatically chooses between
 // direct GPU loading and streaming based on database size analysis
 
@@ -54,8 +58,9 @@ private:
     DatabaseStats db_stats;
     bool use_streaming_mode = false;
     
-    // Note: Current implementation uses direct methods instead of separate implementation classes
-    // This could be refactored to use pImpl pattern if needed for better separation
+    // Actual GPU profiler implementations
+    std::unique_ptr<GPUMicrobialCommunityProfiler> gpu_profiler;
+    std::unique_ptr<StreamingGPUProfiler> streaming_profiler;
     
     int k = 35, m = 31;
     
@@ -118,7 +123,8 @@ private:
         file.read(reinterpret_cast<char*>(&stats.num_organisms), sizeof(stats.num_organisms));
         file.read(reinterpret_cast<char*>(&num_minimizer_hashes), sizeof(num_minimizer_hashes));
         
-        if (magic != 0x4D494E49) {
+        // Accept both little-endian (MINI) and big-endian (INIM) formats
+        if (magic != 0x4D494E49 && magic != 0x494E494D) {
             throw std::runtime_error("Invalid database format");
         }
         

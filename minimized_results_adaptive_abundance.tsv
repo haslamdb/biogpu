@@ -1,0 +1,2 @@
+taxonomy_id	organism_name	taxonomy_path	relative_abundance	coverage_breadth	unique_minimizers	total_hits	paired_hits	confidence_score	processing_mode
+1	Example organism (direct GPU)		5.000000e-01	0.000000	2831528080	32765	2831528320	0.8000	direct_gpu

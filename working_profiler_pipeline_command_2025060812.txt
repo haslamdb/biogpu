@@ -234,8 +234,15 @@ make auto_profile  # Automatically chooses best profiler
 
 ## we now have a profiler that will accept paired end reads and automatically adapt to streaming if required
 cd ~/Documents/Code/biogpu
-runtime/kernels/profiler/minimized/adaptive_paired_end_profiler \
-  minimized_pathogen.db \
+runtime/kernels/profiler/adaptive_paired_end_profiler \
+  data/minimized_pathogen.db \
   data/569_A_038_R1.fastq.gz \
-  data/569_A_038_R2.fastq.gz \ 
+  data/569_A_038_R2.fastq.gz \
+  minimized_results
+
+
+runtime/kernels/profiler/adaptive_paired_end_profiler_debug \
+  data/minimized_pathogen.db \
+  data/569_A_038_R1.fastq.gz \
+  data/569_A_038_R2.fastq.gz \
   minimized_results

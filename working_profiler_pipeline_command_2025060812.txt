@@ -39,13 +39,13 @@ zcat ../../../../1M_synthetic_reads_R1.fastq.gz > test_reads.fastq
 
 ./hybrid_profiler_pipeline /home/david/Databases/Kraken2DB data/569_A_038_R1.fastq.gz 
 
-
+# add ability to create db from downloaded data
 # get genomes from NCBI and process kmers (default 31 with stride 5)
 python src/python/download_microbial_genomes.py data/pathogen_profiler_db --email dbhaslam@gmail.com --genomes-per-species 10 --k 31 --stride 5
 
 # next convert the db to binary
 cd runtime/kernels/profiler/build
-./runtime/kernels/profiler/build/build_db_from_kmers data/pathogen_db/database_kmers.txt data/pathogen_db/pathogen.db
+./runtime/kernels/profiler/build/build_db_from_kmers data/pathogen_profiler_db/database_kmers.txt data/pathogen_profiler_db/pathogen.db
 
 Database statistics:
   Total k-mers: 143516534
@@ -167,7 +167,7 @@ Writing tier files...
   --memory 10 \ 
   --output-prefix results/569_A_038_hierarchical  
 
-# ok we're going to put the hierarchical_profiler_pipeline in archive and move to hybrid hybrid_gpu_cpu_profiler
+
 ./runtime/kernels/profiler/hierarchical_profiler_pipeline \
   data/pathogen_hierarchical_canonical \
   data/569_A_038_R1.fastq.gz \
@@ -175,11 +175,32 @@ Writing tier files...
   --memory 10 \
   --output-prefix results/569_A_038_hierarchical_fixed 
 
+## alright I'm going to scrap the hierarchical method. We'll try a hybrid gpu_cpu method
 
+│   ./create_hybrid_gpu_cpu_db /home/david/Documents/Code/biogpu/data/pathogen_profiler_db/genomes test_hybrid
 
-# hybrid_gpu_cpu_profiler 
-./runtime/kernels/profiler/hybrid_gpu_cpu_profiler runtime/kernels/profiler/test_hybrid.db data/569_A_038_R1.fastq.gz hybrid_test_output
+ ./hybrid_gpu_cpu_profiler hybrid_pathogen.db sample.fastq.gz hybrid_results
 
-  ./hybrid_gpu_cpu_profiler test_hybrid_fixed.db ../../../data/569_A_038_R1.fastq.gz hybrid_test_output
+# And this is for new minimizer version of db creation
 
-   ./runtime/kernels/profiler/hybrid_gpu_cpu_profiler test_hybrid_fixed.db data/569_A_038_R1.fastq.gz hybrid_test_output
+# Build initial database
+./build_minimizer_db /data/initial_genomes /data/microbes.db
+
+# Add new species later
+./build_minimizer_db /data/new_genomes /data/microbes.db --incremental
+
+# The database automatically tracks processed files and only adds new ones
+
+# Here's a full workflow, enabling addition of new reference genomes
+# 1. Build microbial community database (once)
+./build_minimizer_db /data/clinical_isolates /data/clinical_microbes.db
+
+# 2. Profile patient sample
+./community_profiler /data/clinical_microbes.db patient_sample.fastq results
+
+# 3. Separately run resistance detection on detected organisms
+./resistance_analyzer results_abundance_table.tsv patient_sample.fastq
+
+# 4. Add new isolate to database
+cp new_isolate.fasta /data/clinical_isolates/
+./build_minimizer_db /data/clinical_isolates /data/clinical_microbes.db --incremental

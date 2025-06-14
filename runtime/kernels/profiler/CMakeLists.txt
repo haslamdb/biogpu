@@ -105,7 +105,7 @@ set_target_properties(gpu_kmer_database PROPERTIES
 # ===========================
 
 # GPU profiler pipeline
-add_executable(gpu_profiler_pipeline gpu_profiler_pipeline.cu)
+add_executable(gpu_profiler_pipeline k2_like/gpu_profiler_pipeline.cu)
 target_link_libraries(gpu_profiler_pipeline 
     minimizer_extraction 
     fastq_processing
@@ -124,7 +124,7 @@ set_target_properties(gpu_profiler_pipeline PROPERTIES
 
 # Hybrid profiler pipeline
 add_executable(hybrid_profiler_pipeline
-    hybrid_profiler_pipeline.cu
+    k2_like/hybrid_profiler_pipeline.cu
 )
 
 set_target_properties(hybrid_profiler_pipeline PROPERTIES
@@ -188,7 +188,7 @@ target_compile_options(hybrid_gpu_cpu_profiler PRIVATE
 
 # Build test database tool
 add_executable(build_test_database
-    build_test_database.cpp
+    k2_like/build_test_database.cpp
 )
 
 target_link_libraries(build_test_database
@@ -199,7 +199,7 @@ target_link_libraries(build_test_database
 
 # Build database from k-mer list
 add_executable(build_db_from_kmers
-    build_db_from_kmers.cpp
+    k2_like/build_db_from_kmers.cpp
 )
 
 target_link_libraries(build_db_from_kmers
@@ -213,7 +213,7 @@ target_link_libraries(build_db_from_kmers
 
 # Create hybrid GPU/CPU database
 add_executable(create_hybrid_gpu_cpu_db
-    create_hybrid_gpu_cpu_db.cpp
+    gpu_cpu_hybrid/create_hybrid_gpu_cpu_db.cpp
 )
 
 target_link_libraries(create_hybrid_gpu_cpu_db

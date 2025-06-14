@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <zlib.h>
+#include <filesystem>
+#include <tuple>
 
 // Include common structures
 #include "paired_read_common.h"
@@ -845,50 +847,326 @@ public:
     }
 };
 
+// Enhanced BatchAdaptivePairedEndProfiler with batch processing capability
+// Keeps database in GPU memory for processing multiple samples
+class BatchAdaptivePairedEndProfiler : public AdaptivePairedEndProfiler {
+private:
+    std::unique_ptr<DirectGPUProfiler> batch_gpu_profiler;
+    bool database_loaded = false;
+    std::string current_database_path;
+    
+public:
+    BatchAdaptivePairedEndProfiler() {
+        std::cout << "Batch Adaptive Paired-End GPU Profiler" << std::endl;
+        std::cout << "Optimized for processing multiple samples with shared database" << std::endl;
+    }
+    
+    // Load database once - keep in GPU memory for all subsequent samples
+    void load_database_once(const std::string& db_path) {
+        if (database_loaded && current_database_path == db_path) {
+            std::cout << "Database already loaded: " << db_path << std::endl;
+            return;
+        }
+        
+        std::cout << "\n=== LOADING DATABASE FOR BATCH PROCESSING ===" << std::endl;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        // Load and analyze database using parent class method
+        load_and_analyze_database(db_path);
+        
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+        
+        database_loaded = true;
+        current_database_path = db_path;
+        
+        std::cout << "Database loaded and resident in GPU memory (" << duration.count() << "s)" << std::endl;
+        std::cout << "Ready for rapid batch processing!" << std::endl;
+    }
+    
+    // Process a single sample (database already loaded)
+    std::vector<OrganismProfile> process_single_sample(
+        const std::string& sample_name,
+        const std::string& r1_path, 
+        const std::string& r2_path = ""
+    ) {
+        if (!database_loaded) {
+            throw std::runtime_error("Database not loaded. Call load_database_once() first.");
+        }
+        
+        std::cout << "\n=== PROCESSING SAMPLE: " << sample_name << " ===" << std::endl;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        // Load paired-end reads (only step that changes per sample)
+        auto paired_reads = load_paired_fastq(r1_path, r2_path);
+        std::cout << "Loaded " << paired_reads.size() << " paired reads" << std::endl;
+        
+        // Profile using pre-loaded database (this should be very fast)
+        auto profiles = profile_paired_end_community(paired_reads);
+        
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        
+        std::cout << "Sample processed in " << duration.count() << " ms (database already loaded)" << std::endl;
+        
+        return profiles;
+    }
+    
+    // Process multiple samples in batch mode
+    void process_sample_batch(
+        const std::string& database_path,
+        const std::vector<std::tuple<std::string, std::string, std::string>>& samples, // name, r1, r2
+        const std::string& output_dir = "batch_results"
+    ) {
+        std::cout << "\n=== BATCH PROCESSING " << samples.size() << " SAMPLES ===" << std::endl;
+        
+        // Load database once
+        load_database_once(database_path);
+        
+        // Create output directory
+        std::filesystem::create_directories(output_dir);
+        
+        auto batch_start = std::chrono::high_resolution_clock::now();
+        
+        // Process each sample
+        for (size_t i = 0; i < samples.size(); i++) {
+            const auto& [sample_name, r1_path, r2_path] = samples[i];
+            
+            std::cout << "\n--- Sample " << (i + 1) << "/" << samples.size() << " ---" << std::endl;
+            
+            try {
+                // Process this sample (fast - database already loaded)
+                auto profiles = process_single_sample(sample_name, r1_path, r2_path);
+                
+                // Write results for this sample
+                std::string output_prefix = output_dir + "/" + sample_name;
+                write_sample_results(profiles, output_prefix, sample_name);
+                
+                // Print brief summary
+                print_sample_summary(profiles, sample_name);
+                
+            } catch (const std::exception& e) {
+                std::cerr << "Error processing sample " << sample_name << ": " << e.what() << std::endl;
+                continue;
+            }
+        }
+        
+        auto batch_end = std::chrono::high_resolution_clock::now();
+        auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(batch_end - batch_start);
+        
+        std::cout << "\n=== BATCH PROCESSING COMPLETE ===" << std::endl;
+        std::cout << "Processed " << samples.size() << " samples in " << total_duration.count() << " seconds" << std::endl;
+        std::cout << "Average time per sample: " << (total_duration.count() / (float)samples.size()) << " seconds" << std::endl;
+        std::cout << "Results written to: " << output_dir << "/" << std::endl;
+        
+        // Generate batch summary report
+        generate_batch_summary(samples, output_dir);
+    }
+    
+    // Load samples from a file list
+    static std::vector<std::tuple<std::string, std::string, std::string>> 
+    load_sample_list(const std::string& sample_list_file) {
+        std::vector<std::tuple<std::string, std::string, std::string>> samples;
+        
+        std::ifstream file(sample_list_file);
+        if (!file.is_open()) {
+            throw std::runtime_error("Cannot open sample list file: " + sample_list_file);
+        }
+        
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#') continue;  // Skip empty lines and comments
+            
+            std::istringstream iss(line);
+            std::string sample_name, r1_path, r2_path;
+            
+            if (iss >> sample_name >> r1_path >> r2_path) {
+                samples.emplace_back(sample_name, r1_path, r2_path);
+            } else if (iss.clear(), iss.str(line), iss >> sample_name >> r1_path) {
+                // Single-end sample
+                samples.emplace_back(sample_name, r1_path, "");
+            }
+        }
+        
+        std::cout << "Loaded " << samples.size() << " samples from " << sample_list_file << std::endl;
+        return samples;
+    }
+    
+private:
+    void write_sample_results(const std::vector<OrganismProfile>& profiles, 
+                             const std::string& output_prefix,
+                             const std::string& sample_name) {
+        
+        // Write abundance table
+        std::string abundance_file = output_prefix + "_abundance.tsv";
+        std::ofstream out(abundance_file);
+        
+        out << "sample_name\ttaxonomy_id\torganism_name\ttaxonomy_path\t"
+            << "relative_abundance\tcoverage_breadth\ttotal_hits\tpaired_hits\t"
+            << "single_hits\tpaired_concordance\tconfidence_score\n";
+        
+        for (const auto& profile : profiles) {
+            out << sample_name << "\t"
+                << profile.taxonomy_id << "\t"
+                << profile.name << "\t"
+                << profile.taxonomy_path << "\t"
+                << std::scientific << profile.abundance << "\t"
+                << std::fixed << std::setprecision(6) << profile.coverage_breadth << "\t"
+                << profile.total_hits << "\t"
+                << profile.paired_hits << "\t"
+                << profile.single_hits << "\t"
+                << std::fixed << std::setprecision(4) << profile.paired_concordance << "\t"
+                << std::fixed << std::setprecision(4) << profile.confidence_score << "\n";
+        }
+        
+        out.close();
+    }
+    
+    void print_sample_summary(const std::vector<OrganismProfile>& profiles,
+                             const std::string& sample_name) {
+        if (profiles.empty()) {
+            std::cout << "No organisms detected in " << sample_name << std::endl;
+            return;
+        }
+        
+        std::cout << "Top organisms in " << sample_name << ":" << std::endl;
+        for (size_t i = 0; i < std::min(size_t(5), profiles.size()); i++) {
+            const auto& profile = profiles[i];
+            std::cout << "  " << (i+1) << ". " << profile.name 
+                      << " (" << std::fixed << std::setprecision(1) << (profile.abundance * 100) << "%)" << std::endl;
+        }
+    }
+    
+    void generate_batch_summary(
+        const std::vector<std::tuple<std::string, std::string, std::string>>& samples,
+        const std::string& output_dir
+    ) {
+        std::cout << "Generating batch summary report..." << std::endl;
+        
+        std::string summary_file = output_dir + "/batch_summary.tsv";
+        std::ofstream summary(summary_file);
+        
+        summary << "sample_name\ttotal_organisms_detected\ttop_organism\ttop_abundance\n";
+        
+        // Read each sample's results and extract summary info
+        for (const auto& [sample_name, r1_path, r2_path] : samples) {
+            std::string abundance_file = output_dir + "/" + sample_name + "_abundance.tsv";
+            
+            std::ifstream results(abundance_file);
+            if (!results.is_open()) continue;
+            
+            std::string line;
+            std::getline(results, line);  // Skip header
+            
+            int organism_count = 0;
+            std::string top_organism = "None";
+            float top_abundance = 0.0f;
+            
+            while (std::getline(results, line)) {
+                if (organism_count == 0) {
+                    // First line is the most abundant
+                    std::istringstream iss(line);
+                    std::string field;
+                    for (int i = 0; i < 4; i++) std::getline(iss, field, '\t');  // Skip to abundance
+                    
+                    if (std::getline(iss, field, '\t')) {
+                        top_abundance = std::stof(field);
+                        
+                        // Get organism name (3rd field)
+                        std::istringstream iss2(line);
+                        for (int i = 0; i < 2; i++) std::getline(iss2, field, '\t');
+                        std::getline(iss2, top_organism, '\t');
+                    }
+                }
+                organism_count++;
+            }
+            
+            summary << sample_name << "\t" << organism_count << "\t" 
+                    << top_organism << "\t" << std::scientific << top_abundance << "\n";
+        }
+        
+        summary.close();
+        std::cout << "Batch summary written to: " << summary_file << std::endl;
+    }
+};
+
+// Enhanced main function for batch processing
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <database> <R1.fastq> [R2.fastq] [output_prefix]" << std::endl;
-        std::cerr << "\nFixed adaptive paired-end profiler with direct processing" << std::endl;
-        std::cerr << "No temporary file creation - processes reads directly" << std::endl;
-        std::cerr << "Supports gzipped FASTQ files" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <database> <mode> [options]" << std::endl;
+        std::cerr << "\nModes:" << std::endl;
+        std::cerr << "  single <R1.fastq> [R2.fastq] [output_prefix]  - Process single sample" << std::endl;
+        std::cerr << "  batch <sample_list.txt> [output_dir]          - Process batch of samples" << std::endl;
+        std::cerr << "\nBatch file format (tab-separated):" << std::endl;
+        std::cerr << "  sample_name    R1_file    R2_file" << std::endl;
+        std::cerr << "  sample_name    R1_file           # Single-end" << std::endl;
         std::cerr << "\nExamples:" << std::endl;
-        std::cerr << "  " << argv[0] << " microbes.db sample_R1.fastq.gz sample_R2.fastq.gz results" << std::endl;
+        std::cerr << "  # Single sample" << std::endl;
+        std::cerr << "  " << argv[0] << " microbes.db single reads_R1.fq.gz reads_R2.fq.gz" << std::endl;
+        std::cerr << "  # Batch processing" << std::endl;
+        std::cerr << "  " << argv[0] << " microbes.db batch samples.txt batch_results/" << std::endl;
         return 1;
     }
     
     std::string database_path = argv[1];
-    std::string r1_path = argv[2];
-    std::string r2_path = "";
-    std::string output_prefix = "fixed_profile";
-    
-    // Parse arguments
-    if (argc > 3) {
-        std::string arg3 = argv[3];
-        if (arg3.find(".fastq") != std::string::npos || arg3.find(".fq") != std::string::npos) {
-            r2_path = arg3;
-            if (argc > 4) output_prefix = argv[4];
-        } else {
-            output_prefix = arg3;
-        }
-    }
+    std::string mode = argv[2];
     
     try {
-        AdaptivePairedEndProfiler profiler;
+        BatchAdaptivePairedEndProfiler profiler;
         
-        // Load and analyze database
-        profiler.load_and_analyze_database(database_path);
-        
-        // Load paired-end reads directly
-        auto paired_reads = profiler.load_paired_fastq(r1_path, r2_path);
-        
-        // Profile community directly
-        auto profiles = profiler.profile_paired_end_community(paired_reads);
-        
-        // Print and save results
-        profiler.print_results(profiles);
-        profiler.write_results(profiles, output_prefix);
-        
-        std::cout << "\n=== FIXED ADAPTIVE PROFILING COMPLETE ===" << std::endl;
+        if (mode == "single") {
+            // Single sample mode (backwards compatible)
+            if (argc < 4) {
+                std::cerr << "Single mode requires: <database> single <R1.fastq> [R2.fastq] [output_prefix]" << std::endl;
+                return 1;
+            }
+            
+            std::string r1_path = argv[3];
+            std::string r2_path = "";
+            std::string output_prefix = "single_profile";
+            
+            // Parse optional arguments
+            if (argc > 4) {
+                std::string arg4 = argv[4];
+                if (arg4.find(".fastq") != std::string::npos || arg4.find(".fq") != std::string::npos) {
+                    r2_path = arg4;
+                    if (argc > 5) output_prefix = argv[5];
+                } else {
+                    output_prefix = arg4;
+                }
+            }
+            
+            // Load database once
+            profiler.load_database_once(database_path);
+            
+            // Process single sample
+            auto profiles = profiler.process_single_sample("single_sample", r1_path, r2_path);
+            
+            // Write results (reuse existing methods)
+            profiler.print_results(profiles);
+            profiler.write_results(profiles, output_prefix);
+            
+        } else if (mode == "batch") {
+            // Batch processing mode
+            if (argc < 4) {
+                std::cerr << "Batch mode requires: <database> batch <sample_list.txt> [output_dir]" << std::endl;
+                return 1;
+            }
+            
+            std::string sample_list_file = argv[3];
+            std::string output_dir = (argc > 4) ? argv[4] : "batch_results";
+            
+            // Load sample list
+            auto samples = BatchAdaptivePairedEndProfiler::load_sample_list(sample_list_file);
+            
+            // Process batch
+            profiler.process_sample_batch(database_path, samples, output_dir);
+            
+        } else {
+            std::cerr << "Unknown mode: " << mode << std::endl;
+            std::cerr << "Supported modes: single, batch" << std::endl;
+            return 1;
+        }
         
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

@@ -204,3 +204,20 @@ Writing tier files...
 # 4. Add new isolate to database
 cp new_isolate.fasta /data/clinical_isolates/
 ./build_minimizer_db /data/clinical_isolates /data/clinical_microbes.db --incremental
+
+# Now we updated to choose whether to stream database from CPU to GPU or new_isolate
+
+# 1. Build your minimizer database
+./build_minimizer_database /data/clinical_isolates clinical_microbes.db
+
+# 2. Analyze database size and get recommendation
+./analyze_database clinical_microbes.db
+
+# 3a. If streaming NOT needed (database < 32GB):
+./gpu_community_profiler clinical_microbes.db sample.fastq results
+
+# 3b. If streaming needed (database > 32GB):
+./streaming_gpu_profiler clinical_microbes.db sample.fastq results
+
+# 4. Automatic selection (recommended):
+make auto_profile  # Automatically chooses best profiler

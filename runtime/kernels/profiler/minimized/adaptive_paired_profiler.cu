@@ -68,6 +68,7 @@ public:
     
     void load_minimizer_database(const std::string& db_path) {
         std::cout << "Loading minimizer database directly: " << db_path << std::endl;
+        auto load_start = std::chrono::high_resolution_clock::now();
         
         std::ifstream in(db_path, std::ios::binary);
         if (!in.is_open()) {
@@ -182,6 +183,10 @@ public:
         size_t free_mem, total_mem;
         cudaMemGetInfo(&free_mem, &total_mem);
         std::cout << "GPU memory: " << (total_mem - free_mem) / (1024*1024) << " MB used" << std::endl;
+        
+        auto load_end = std::chrono::high_resolution_clock::now();
+        auto load_duration = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
+        std::cout << "Database loading completed in " << load_duration.count() << " ms" << std::endl;
     }
     
     std::vector<OrganismProfile> profile_paired_reads_directly(const std::vector<PairedRead>& paired_reads) {
@@ -216,6 +221,7 @@ private:
                                   std::vector<uint32_t>& pair_ids,
                                   std::vector<uint8_t>& read_numbers) {
         std::cout << "Extracting minimizers from paired reads..." << std::endl;
+        auto extract_start = std::chrono::high_resolution_clock::now();
         
         int window_size = k - m + 1;
         
@@ -231,7 +237,9 @@ private:
             }
         }
         
-        std::cout << "Extracted " << minimizers.size() << " minimizers" << std::endl;
+        auto extract_end = std::chrono::high_resolution_clock::now();
+        auto extract_duration = std::chrono::duration_cast<std::chrono::milliseconds>(extract_end - extract_start);
+        std::cout << "Extracted " << minimizers.size() << " minimizers in " << extract_duration.count() << " ms" << std::endl;
     }
     
     void extract_read_minimizers(const std::string& read,
@@ -301,6 +309,7 @@ private:
                              const std::vector<uint8_t>& read_numbers,
                              size_t num_pairs) {
         std::cout << "Matching " << minimizers.size() << " minimizers against database..." << std::endl;
+        auto match_start = std::chrono::high_resolution_clock::now();
         
         // Reset counters
         thrust::fill(d_organism_hits.begin(), d_organism_hits.end(), 0);
@@ -385,7 +394,9 @@ private:
         d_organism_paired_hits = h_paired_hits;
         d_organism_concordance_scores = h_concordance_scores;
         
-        std::cout << "Matching completed" << std::endl;
+        auto match_end = std::chrono::high_resolution_clock::now();
+        auto match_duration = std::chrono::duration_cast<std::chrono::milliseconds>(match_end - match_start);
+        std::cout << "Matching completed in " << match_duration.count() << " ms" << std::endl;
     }
     
     std::vector<OrganismProfile> calculate_organism_profiles() {
@@ -673,11 +684,6 @@ private:
                 std::cout << "\rLoaded " << paired_reads.size() << " paired reads..." << std::flush;
             }
             
-            // Limit for testing
-            if (paired_reads.size() >= 500000) {
-                std::cout << "\nLimited to " << paired_reads.size() << " pairs for testing" << std::endl;
-                break;
-            }
         }
         
         std::cout << "\nLoaded " << paired_reads.size() << " paired-end reads" << std::endl;
@@ -735,11 +741,6 @@ private:
                 std::cout << "\rLoaded " << paired_reads.size() << " paired reads..." << std::flush;
             }
             
-            // Limit for testing
-            if (paired_reads.size() >= 500000) {
-                std::cout << "\nLimited to " << paired_reads.size() << " pairs for testing" << std::endl;
-                break;
-            }
         }
         
         gzclose(r1_file);
@@ -897,10 +898,14 @@ public:
         
         std::cout << "\n=== PROCESSING SAMPLE: " << sample_name << " ===" << std::endl;
         auto start_time = std::chrono::high_resolution_clock::now();
+        auto sample_start = start_time;
         
         // Load paired-end reads (only step that changes per sample)
+        auto load_reads_start = std::chrono::high_resolution_clock::now();
         auto paired_reads = load_paired_fastq(r1_path, r2_path);
-        std::cout << "Loaded " << paired_reads.size() << " paired reads" << std::endl;
+        auto load_reads_end = std::chrono::high_resolution_clock::now();
+        auto load_reads_duration = std::chrono::duration_cast<std::chrono::milliseconds>(load_reads_end - load_reads_start);
+        std::cout << "Loaded " << paired_reads.size() << " paired reads in " << load_reads_duration.count() << " ms" << std::endl;
         
         // Profile using pre-loaded database (this should be very fast)
         auto profiles = profile_paired_end_community(paired_reads);
@@ -956,7 +961,7 @@ public:
         auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(batch_end - batch_start);
         
         std::cout << "\n=== BATCH PROCESSING COMPLETE ===" << std::endl;
-        std::cout << "Processed " << samples.size() << " samples in " << total_duration.count() << " seconds" << std::endl;
+        std::cout << samples.size() << " files processed in " << total_duration.count() << " seconds" << std::endl;
         std::cout << "Average time per sample: " << (total_duration.count() / (float)samples.size()) << " seconds" << std::endl;
         std::cout << "Results written to: " << output_dir << "/" << std::endl;
         

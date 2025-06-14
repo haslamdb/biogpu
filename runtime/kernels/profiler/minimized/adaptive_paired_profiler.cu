@@ -23,6 +23,7 @@
 
 // Include common structures
 #include "paired_read_common.h"
+#include "sample_csv_parser.h"
 
 struct DatabaseStats {
     uint64_t estimated_gpu_memory_mb;
@@ -912,7 +913,7 @@ public:
         return profiles;
     }
     
-    // Process multiple samples in batch mode
+    // Process multiple samples in batch mode (text format - for backward compatibility)
     void process_sample_batch(
         const std::string& database_path,
         const std::vector<std::tuple<std::string, std::string, std::string>>& samples, // name, r1, r2
@@ -961,6 +962,62 @@ public:
         
         // Generate batch summary report
         generate_batch_summary(samples, output_dir);
+    }
+    
+    // Process multiple samples using CSV format (consistent with resistance pipeline)
+    void process_sample_batch_csv(
+        const std::string& database_path,
+        const std::string& csv_path,
+        const std::string& output_dir = "batch_results",
+        bool stop_on_error = false
+    ) {
+        std::cout << "\n=== BATCH PROCESSING FROM CSV ===" << std::endl;
+        
+        // Create batch processor
+        BioGPU::BatchProcessor batch_processor(output_dir, true);
+        
+        // Load samples from CSV
+        if (!batch_processor.loadSamples(csv_path)) {
+            throw std::runtime_error("Failed to load samples from CSV: " + csv_path);
+        }
+        
+        std::cout << "Loaded " << batch_processor.getParser().getSampleCount() << " samples from CSV" << std::endl;
+        batch_processor.getParser().printSummary();
+        
+        // Load database once
+        load_database_once(database_path);
+        
+        // Process batch with lambda function
+        auto process_func = [&](const BioGPU::SampleInfo& sample, const std::string& output_prefix) -> int {
+            try {
+                // Process this sample
+                auto profiles = process_single_sample(sample.sample_name, 
+                                                    sample.read1_path, 
+                                                    sample.read2_path);
+                
+                // Write results for this sample
+                write_sample_results(profiles, output_prefix, sample.sample_name);
+                
+                // Print brief summary
+                print_sample_summary(profiles, sample.sample_name);
+                
+                return 0; // Success
+            } catch (const std::exception& e) {
+                std::cerr << "Error processing sample " << sample.sample_name 
+                         << ": " << e.what() << std::endl;
+                return 1; // Failure
+            }
+        };
+        
+        // Run batch processing
+        int failed_count = batch_processor.processBatch(process_func, stop_on_error);
+        
+        if (failed_count > 0) {
+            std::cout << "\nWARNING: " << failed_count << " samples failed processing" << std::endl;
+        }
+        
+        // Generate overall batch summary
+        generate_batch_summary_csv(batch_processor.getParser(), output_dir);
     }
     
     // Load samples from a file list
@@ -1088,6 +1145,62 @@ private:
         summary.close();
         std::cout << "Batch summary written to: " << summary_file << std::endl;
     }
+    
+    void generate_batch_summary_csv(
+        const BioGPU::SampleCSVParser& parser,
+        const std::string& output_dir
+    ) {
+        std::cout << "Generating batch summary report..." << std::endl;
+        
+        std::string summary_file = output_dir + "/batch_summary.tsv";
+        std::ofstream summary(summary_file);
+        
+        summary << "sample_name\ttotal_organisms_detected\ttop_organism\ttop_abundance\n";
+        
+        // Read each sample's results and extract summary info
+        for (size_t i = 0; i < parser.getSampleCount(); i++) {
+            const auto* sample = parser.getSample(i);
+            if (!sample) continue;
+            
+            std::string abundance_file = output_dir + "/" + sample->sample_name + "/" + 
+                                       sample->sample_name + "_abundance.tsv";
+            
+            std::ifstream results(abundance_file);
+            if (!results.is_open()) continue;
+            
+            std::string line;
+            std::getline(results, line);  // Skip header
+            
+            int organism_count = 0;
+            std::string top_organism = "None";
+            float top_abundance = 0.0f;
+            
+            while (std::getline(results, line)) {
+                if (organism_count == 0) {
+                    // First line is the most abundant
+                    std::istringstream iss(line);
+                    std::string field;
+                    for (int i = 0; i < 4; i++) std::getline(iss, field, '\t');  // Skip to abundance
+                    
+                    if (std::getline(iss, field, '\t')) {
+                        top_abundance = std::stof(field);
+                        
+                        // Get organism name (3rd field)
+                        std::istringstream iss2(line);
+                        for (int i = 0; i < 2; i++) std::getline(iss2, field, '\t');
+                        std::getline(iss2, top_organism, '\t');
+                    }
+                }
+                organism_count++;
+            }
+            
+            summary << sample->sample_name << "\t" << organism_count << "\t" 
+                    << top_organism << "\t" << std::scientific << top_abundance << "\n";
+        }
+        
+        summary.close();
+        std::cout << "Batch summary written to: " << summary_file << std::endl;
+    }
 };
 
 // Enhanced main function for batch processing
@@ -1096,14 +1209,19 @@ int main(int argc, char* argv[]) {
         std::cerr << "Usage: " << argv[0] << " <database> <mode> [options]" << std::endl;
         std::cerr << "\nModes:" << std::endl;
         std::cerr << "  single <R1.fastq> [R2.fastq] [output_prefix]  - Process single sample" << std::endl;
-        std::cerr << "  batch <sample_list.txt> [output_dir]          - Process batch of samples" << std::endl;
-        std::cerr << "\nBatch file format (tab-separated):" << std::endl;
-        std::cerr << "  sample_name    R1_file    R2_file" << std::endl;
-        std::cerr << "  sample_name    R1_file           # Single-end" << std::endl;
+        std::cerr << "  batch <sample_list> [output_dir]              - Process batch of samples" << std::endl;
+        std::cerr << "\nBatch file formats:" << std::endl;
+        std::cerr << "  CSV format (recommended - consistent with resistance pipeline):" << std::endl;
+        std::cerr << "    SampleName,FilePath,R1 file,R2 file" << std::endl;
+        std::cerr << "    Sample1,~/data/,sample1_R1.fq.gz,sample1_R2.fq.gz" << std::endl;
+        std::cerr << "  Text format (tab-separated):" << std::endl;
+        std::cerr << "    sample_name    R1_file    R2_file" << std::endl;
         std::cerr << "\nExamples:" << std::endl;
         std::cerr << "  # Single sample" << std::endl;
         std::cerr << "  " << argv[0] << " microbes.db single reads_R1.fq.gz reads_R2.fq.gz" << std::endl;
-        std::cerr << "  # Batch processing" << std::endl;
+        std::cerr << "  # Batch processing (CSV)" << std::endl;
+        std::cerr << "  " << argv[0] << " microbes.db batch samples.csv batch_results/" << std::endl;
+        std::cerr << "  # Batch processing (text)" << std::endl;
         std::cerr << "  " << argv[0] << " microbes.db batch samples.txt batch_results/" << std::endl;
         return 1;
     }
@@ -1149,18 +1267,30 @@ int main(int argc, char* argv[]) {
         } else if (mode == "batch") {
             // Batch processing mode
             if (argc < 4) {
-                std::cerr << "Batch mode requires: <database> batch <sample_list.txt> [output_dir]" << std::endl;
+                std::cerr << "Batch mode requires: <database> batch <sample_list> [output_dir]" << std::endl;
+                std::cerr << "Sample list can be a .csv or .txt file" << std::endl;
                 return 1;
             }
             
             std::string sample_list_file = argv[3];
             std::string output_dir = (argc > 4) ? argv[4] : "batch_results";
             
-            // Load sample list
-            auto samples = BatchAdaptivePairedEndProfiler::load_sample_list(sample_list_file);
+            // Check file extension to determine format
+            bool is_csv = false;
+            if (sample_list_file.size() >= 4) {
+                std::string ext = sample_list_file.substr(sample_list_file.size() - 4);
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                is_csv = (ext == ".csv");
+            }
             
-            // Process batch
-            profiler.process_sample_batch(database_path, samples, output_dir);
+            if (is_csv) {
+                // Use CSV parser (consistent with resistance pipeline)
+                profiler.process_sample_batch_csv(database_path, sample_list_file, output_dir);
+            } else {
+                // Use legacy text format parser
+                auto samples = BatchAdaptivePairedEndProfiler::load_sample_list(sample_list_file);
+                profiler.process_sample_batch(database_path, samples, output_dir);
+            }
             
         } else {
             std::cerr << "Unknown mode: " << mode << std::endl;

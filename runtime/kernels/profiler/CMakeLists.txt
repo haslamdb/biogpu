@@ -457,6 +457,7 @@ target_compile_options(streaming_paired_profiler PRIVATE
 # Adaptive paired profiler with auto-streaming
 add_executable(adaptive_paired_profiler
     minimized/adaptive_paired_profiler.cu
+    minimized/sample_csv_parser.cpp
 )
 
 set_target_properties(adaptive_paired_profiler PROPERTIES
@@ -470,6 +471,7 @@ target_link_libraries(adaptive_paired_profiler
     cudart
     cuda
     ${ZLIB_LIBRARIES}
+    stdc++fs
 )
 
 if(Thrust_FOUND)

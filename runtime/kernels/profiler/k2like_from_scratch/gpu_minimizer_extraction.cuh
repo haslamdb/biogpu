@@ -191,4 +191,18 @@ __device__ inline MinimizerWindow extract_kmer_minimizer(
     return result;
 }
 
+// Compatibility wrapper for old code
+__device__ inline uint64_t extract_minimizer_sliding_window(
+    const char* sequence, 
+    int kmer_pos, 
+    int k, 
+    int ell, 
+    int spaces,
+    uint64_t xor_mask
+) {
+    // Use the new implementation
+    MinimizerWindow window = extract_kmer_minimizer(sequence, kmer_pos, k, ell, xor_mask);
+    return window.valid ? window.minimizer_hash : UINT64_MAX;
+}
+
 #endif // GPU_MINIMIZER_EXTRACTION_CUH

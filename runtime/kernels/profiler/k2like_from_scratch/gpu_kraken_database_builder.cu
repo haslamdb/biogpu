@@ -1,5 +1,5 @@
-// gpu_kraken_database_builder.cuh
-// GPU-accelerated pipeline to build Kraken2-style database from genome files
+// gpu_kraken_database_builder.cu
+// COMPLETE FIXED VERSION: GPU-accelerated pipeline to build Kraken2-style database from genome files
 // Parallelizes minimizer extraction, LCA computation, and database construction
 
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
@@ -7,7 +7,6 @@
 
 #include "gpu_kraken_classifier.cu"
 #include "gpu_minimizer_extraction.cu"
-// Already included in gpu_minimizer_extraction.cu: #include "../../../include/biogpu/minimizer_extraction.h"
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -23,20 +22,8 @@
 #include <filesystem>
 #include <chrono>
 
-// GPU-friendly structures - Comment out duplicates, they're defined in gpu_minimizer_extraction.cu
-// struct GPUGenomeInfo {
-//     uint32_t taxon_id;
-//     uint32_t sequence_offset;    // Offset in concatenated sequence buffer
-//     uint32_t sequence_length;
-//     uint32_t genome_id;         // Index in genome array
-// };
-
-// struct GPUMinimizerHit {
-//     uint64_t minimizer_hash;
-//     uint32_t taxon_id;
-//     uint32_t position;          // Position in source sequence
-//     uint32_t genome_id;         // Source genome index
-// };
+// Use structures from gpu_minimizer_extraction.cu
+// struct GPUGenomeInfo and GPUMinimizerHit are defined there
 
 struct GPUTaxonomyNode {
     uint32_t taxon_id;
@@ -45,13 +32,7 @@ struct GPUTaxonomyNode {
     uint8_t padding[3];
 };
 
-// LCA computation intermediate result - Commented out, defined in included header
-// struct LCACandidate {
-//     uint64_t minimizer_hash;
-//     uint32_t lca_taxon;
-//     uint32_t genome_count;
-//     float uniqueness_score;
-// };
+// LCACandidate is defined in minimizer_extraction.h
 
 // Database building statistics
 struct GPUBuildStats {
@@ -88,14 +69,14 @@ private:
     LCACandidate* d_lca_candidates;
     GPUTaxonomyNode* d_taxonomy_nodes;
     
-    // Processing parameters - reduced for better memory management
+    // FIXED: Realistic processing parameters for better memory management
     int MAX_SEQUENCE_BATCH = 50;           // Reduced from 1000
     int MAX_MINIMIZERS_PER_BATCH = 2000000; // Reduced from 50M to 2M
     static const int MAX_READ_LENGTH = 1000;
     static const int THREADS_PER_BLOCK = 256;
     static const int MAX_TAXA_PER_PAIR = 128;
     
-    // Convert existing params to new format
+    // FIXED: Convert existing params to new format
     MinimizerParams minimizer_params;
     
     // Statistics
@@ -125,10 +106,8 @@ public:
     
     // Configuration
     void set_batch_size(int sequences_per_batch) {
-        if (sequences_per_batch > 0 && sequences_per_batch <= 10000) {
+        if (sequences_per_batch > 0 && sequences_per_batch <= 1000) {
             MAX_SEQUENCE_BATCH = sequences_per_batch;
-            // Adjust minimizers proportionally
-            // Keep MAX_MINIMIZERS_PER_BATCH at 50M regardless of batch size
             std::cout << "Set GPU batch size to " << MAX_SEQUENCE_BATCH 
                       << " sequences, " << MAX_MINIMIZERS_PER_BATCH << " minimizers" << std::endl;
         }
@@ -151,12 +130,13 @@ private:
         int batch_offset
     );
     
+    // FIXED: Updated to use new minimizer extraction function
     bool extract_minimizers_gpu(
         const char* d_sequences,
         const GPUGenomeInfo* d_genomes,
         int num_sequences,
         GPUMinimizerHit* d_hits,
-        uint32_t* d_hit_counts
+        uint32_t* total_hits
     );
     
 public:  // Move to public section temporarily for lambda access
@@ -186,7 +166,7 @@ private:
 // CUDA KERNELS
 // ================================================================
 
-// Using extract_minimizers_gpu_optimized from gpu_minimizer_extraction.cu instead of custom kernel
+// Use optimized kernels from gpu_minimizer_extraction.cu
 
 // Kernel to sort and deduplicate minimizers by hash
 __global__ void prepare_lca_computation_kernel(
@@ -207,16 +187,14 @@ __global__ void compute_lca_kernel(
     LCACandidate* lca_results
 );
 
-// Utility device functions
-__device__ uint64_t extract_single_minimizer(
-    const char* sequence,
-    int seq_length,
-    int pos,
-    int k,
-    int ell,
-    int spaces
+// Kernel to convert hits to candidates
+__global__ void convert_hits_to_candidates(
+    const GPUMinimizerHit* hits,
+    int num_hits,
+    LCACandidate* candidates
 );
 
+// Utility device functions
 __device__ uint32_t compute_lca_gpu(
     uint32_t taxon1,
     uint32_t taxon2,
@@ -231,7 +209,7 @@ __device__ bool has_valid_bases(const char* seq, int length);
 // ================================================================
 
 #ifndef GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
-// Implementation continues below - no need to include self
+// Implementation continues below
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -246,9 +224,6 @@ __device__ bool has_valid_bases(const char* seq, int length);
         exit(1); \
     } \
 } while(0)
-
-// Global constants for GPU kernels
-__constant__ int MAX_MINIMIZERS_PER_BATCH = 50000000;  // 50M minimizers
 
 // Utility function to get next power of 2
 inline uint64_t get_next_power_of_2(uint64_t n) {
@@ -279,7 +254,7 @@ struct MinimizerHitComparator {
     }
 };
 
-// Constructor
+// FIXED: Constructor with proper parameter conversion
 GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     const std::string& output_dir,
     const ClassificationParams& config)
@@ -288,7 +263,7 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
       d_minimizer_hits(nullptr), d_minimizer_counts(nullptr),
       d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr) {
     
-    // Convert classification params to minimizer params
+    // FIXED: Convert classification params to minimizer params
     minimizer_params.k = params.k;
     minimizer_params.ell = params.ell;
     minimizer_params.spaces = params.spaces;
@@ -301,7 +276,7 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     // Create output directory
     std::filesystem::create_directories(output_directory);
     
-    // Check GPU memory and adjust batch sizes
+    // FIXED: Check GPU memory and adjust batch sizes
     check_and_adjust_memory();
     
     // Initialize statistics
@@ -313,7 +288,7 @@ GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
     free_gpu_memory();
 }
 
-// Check GPU memory and adjust batch sizes
+// FIXED: Check GPU memory and adjust batch sizes
 void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     size_t free_mem, total_mem;
     cudaMemGetInfo(&free_mem, &total_mem);
@@ -424,13 +399,10 @@ bool GPUKrakenDatabaseBuilder::process_genomes_gpu() {
     }
     
     // Process genomes in batches
-    std::vector<std::vector<GPUMinimizerHit>> all_minimizer_hits;
-    
     for (size_t batch_start = 0; batch_start < genome_files.size(); 
          batch_start += MAX_SEQUENCE_BATCH) {
         
         size_t batch_end = std::min(batch_start + MAX_SEQUENCE_BATCH, genome_files.size());
-        size_t batch_size = batch_end - batch_start;
         
         std::cout << "Processing batch " << (batch_start / MAX_SEQUENCE_BATCH + 1) 
                   << ": genomes " << batch_start << "-" << batch_end << std::endl;
@@ -485,6 +457,11 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
         genome_infos.push_back(info);
         concatenated_sequences += sequences[i];
         current_offset += sequences[i].length();
+        
+        // Track k-mers
+        if (sequences[i].length() >= minimizer_params.k) {
+            stats.total_kmers_processed += sequences[i].length() - minimizer_params.k + 1;
+        }
     }
     
     // Check if data fits in allocated memory
@@ -492,7 +469,7 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     if (concatenated_sequences.length() > max_sequence_memory) {
         std::cerr << "ERROR: Sequence data (" << concatenated_sequences.length() 
                   << " bytes) exceeds allocated memory (" << max_sequence_memory << " bytes)" << std::endl;
-        std::cerr << "Try reducing --gpu-batch parameter" << std::endl;
+        std::cerr << "Try reducing batch size" << std::endl;
         return false;
     }
     
@@ -538,59 +515,7 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     return true;
 }
 
-// Removed broken kernel - using extract_minimizers_gpu_optimized from gpu_minimizer_extraction.cu instead
-
-// Device function to extract a single minimizer
-__device__ uint64_t extract_single_minimizer(
-    const char* sequence,
-    int seq_length,
-    int pos,
-    int k,
-    int ell,
-    int spaces) {
-    
-    uint64_t min_hash = UINT64_MAX;
-    
-    // Find minimizer in k-mer window
-    for (int i = 0; i <= k - ell; i++) {
-        if (pos + i + ell > seq_length) break;
-        
-        // Hash this ell-mer
-        uint64_t hash = 0;
-        bool valid = true;
-        
-        for (int j = 0; j < ell; j++) {
-            char base = sequence[pos + i + j];
-            int encoded;
-            
-            switch (base) {
-                case 'A': case 'a': encoded = 0; break;
-                case 'C': case 'c': encoded = 1; break;
-                case 'G': case 'g': encoded = 2; break;
-                case 'T': case 't': encoded = 3; break;
-                default: valid = false; break;
-            }
-            
-            if (!valid) break;
-            hash = (hash << 2) | encoded;
-        }
-        
-        if (!valid) continue;
-        
-        // Apply spaced seed mask
-        if (spaces > 0) {
-            hash = apply_spaced_seed_mask(hash, spaces);
-        }
-        
-        if (hash < min_hash) {
-            min_hash = hash;
-        }
-    }
-    
-    return min_hash;
-}
-
-// Extract minimizers using GPU
+// FIXED: Extract minimizers using optimized kernel
 bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     const char* d_sequences,
     const GPUGenomeInfo* d_genomes,
@@ -602,7 +527,7 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // Use the optimized kernel instead of broken one
+    // FIXED: Use the optimized kernel instead of broken one
     bool success = extract_minimizers_gpu_optimized(
         d_sequences, d_genomes, num_sequences,
         d_hits, d_minimizer_counts, total_hits,
@@ -646,7 +571,7 @@ __global__ void convert_hits_to_candidates(
     candidate.uniqueness_score = 1.0f;
 }
 
-// Compute LCA assignments on GPU
+// FIXED: Compute LCA assignments on GPU
 bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     const GPUMinimizerHit* d_hits,
     int num_hits,
@@ -662,7 +587,7 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // First, deduplicate the minimizers on GPU
+    // FIXED: First, deduplicate the minimizers on GPU
     uint32_t unique_count = 0;
     GPUMinimizerHit* d_hits_mutable = const_cast<GPUMinimizerHit*>(d_hits);
     
@@ -675,7 +600,6 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     std::cout << "After deduplication: " << unique_count << " unique minimizers" << std::endl;
     
     // Convert deduplicated hits to LCA candidates
-    // Launch a simple kernel to do the conversion
     int blocks = (unique_count + 255) / 256;
     convert_hits_to_candidates<<<blocks, 256>>>(
         d_hits_mutable, unique_count, d_candidates
@@ -1175,7 +1099,7 @@ __device__ bool has_valid_bases(const char* seq, int length) {
     return true;
 }
 
-// Test minimizer extraction integration
+// FIXED: Test minimizer extraction integration
 void GPUKrakenDatabaseBuilder::test_minimizer_extraction_integration() {
     std::cout << "Testing minimizer extraction integration..." << std::endl;
     

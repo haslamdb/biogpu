@@ -162,6 +162,29 @@ if(Thrust_FOUND)
     target_link_libraries(gpu_kraken_classifier Thrust::Thrust)
 endif()
 
+# GPU minimizer extraction library for Kraken
+add_library(gpu_kraken_minimizer_extraction STATIC
+    k2like_from_scratch/gpu_minimizer_extraction.cu
+)
+
+set_target_properties(gpu_kraken_minimizer_extraction PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(gpu_kraken_minimizer_extraction PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -O3
+        --maxrregcount=64
+        -DTHRUST_IGNORE_CUB_VERSION_CHECK
+        --extended-lambda
+    >
+)
+
 # GPU Kraken database builder library
 add_library(gpu_kraken_database_builder STATIC
     k2like_from_scratch/gpu_kraken_database_builder.cu
@@ -187,6 +210,7 @@ target_compile_options(gpu_kraken_database_builder PRIVATE
 
 target_link_libraries(gpu_kraken_database_builder
     gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
     minimizer_extraction
     fastq_processing
     ${ZLIB_LIBRARIES}
@@ -301,6 +325,7 @@ set_target_properties(gpu_kraken_pipeline PROPERTIES
 target_link_libraries(gpu_kraken_pipeline
     gpu_kraken_database_builder
     gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
     fastq_processing
     minimizer_extraction
     ${ZLIB_LIBRARIES}
@@ -399,6 +424,7 @@ set_target_properties(gpu_kraken_pipeline_debug PROPERTIES
 target_link_libraries(gpu_kraken_pipeline_debug
     gpu_kraken_database_builder
     gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
     fastq_processing
     minimizer_extraction
     ${ZLIB_LIBRARIES}
@@ -414,6 +440,7 @@ target_compile_options(gpu_kraken_pipeline_debug PRIVATE
         -G
         -O0
         -DDEBUG
+        --extended-lambda
     >
     $<$<COMPILE_LANGUAGE:CXX>:
         -g

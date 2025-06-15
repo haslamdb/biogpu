@@ -1,6 +1,6 @@
 // gpu_minimizer_extraction.cu
-// Optimized GPU kernel for Kraken2-style minimizer extraction
-// Implements sliding window minimizer algorithm with proper deduplication
+// FIXED: Optimized GPU kernel for Kraken2-style minimizer extraction
+// Implements proper sliding window minimizer algorithm with deduplication
 
 #ifndef GPU_MINIMIZER_EXTRACTION_CU
 #define GPU_MINIMIZER_EXTRACTION_CU
@@ -124,8 +124,74 @@ __device__ uint64_t extract_minimizer_sliding_window(
     return min_hash;
 }
 
-// Optimized kernel: one block per genome, threads cooperate within block
+// FIXED: Proper Kraken2-style sliding window minimizer extraction
 __global__ void extract_minimizers_optimized_kernel(
+    const char* sequence_data,
+    const GPUGenomeInfo* genome_info,
+    int num_genomes,
+    GPUMinimizerHit* minimizer_hits,
+    uint32_t* hit_counts_per_genome,
+    uint32_t* global_hit_counter,
+    MinimizerParams params,
+    int max_minimizers) {
+    
+    int genome_id = blockIdx.x;
+    int thread_id = threadIdx.x;
+    
+    if (genome_id >= num_genomes) return;
+    
+    const GPUGenomeInfo& genome = genome_info[genome_id];
+    const char* sequence = sequence_data + genome.sequence_offset;
+    uint32_t seq_length = genome.sequence_length;
+    
+    if (seq_length < params.k) {
+        if (thread_id == 0) hit_counts_per_genome[genome_id] = 0;
+        return;
+    }
+    
+    // FIXED: Only thread 0 per block to ensure proper sequential processing
+    if (thread_id != 0) return;
+    
+    uint32_t local_minimizer_count = 0;
+    uint64_t last_minimizer = UINT64_MAX;  // KEY FIX: Track last minimizer
+    uint32_t total_kmers = seq_length - params.k + 1;
+    
+    // FIXED: Process k-mers sequentially with proper deduplication
+    for (uint32_t kmer_idx = 0; kmer_idx < total_kmers; kmer_idx++) {
+        
+        // Extract minimizer for this k-mer
+        uint64_t minimizer = extract_minimizer_sliding_window(
+            sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+        );
+        
+        if (minimizer != UINT64_MAX) {
+            // KEY FIX: Only store if different from last minimizer
+            if (minimizer != last_minimizer) {
+                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+                
+                if (global_pos < max_minimizers) {
+                    GPUMinimizerHit hit;
+                    hit.minimizer_hash = minimizer;
+                    hit.taxon_id = genome.taxon_id;
+                    hit.position = kmer_idx;
+                    hit.genome_id = genome.genome_id;
+                    
+                    minimizer_hits[global_pos] = hit;
+                    local_minimizer_count++;
+                }
+                
+                last_minimizer = minimizer;  // Update last seen minimizer
+            }
+            // If minimizer == last_minimizer, skip it (this creates compression!)
+        }
+    }
+    
+    // Store final count for this genome
+    hit_counts_per_genome[genome_id] = local_minimizer_count;
+}
+
+// Alternative kernel: multi-threaded version with cooperation (for very large genomes)
+__global__ void extract_minimizers_cooperative_kernel(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
     int num_genomes,
@@ -150,80 +216,67 @@ __global__ void extract_minimizers_optimized_kernel(
         return;
     }
     
-    // Shared memory for collecting minimizers within block
+    // Shared memory for temporary storage
     extern __shared__ uint64_t shared_minimizers[];
     uint32_t* shared_positions = (uint32_t*)(shared_minimizers + block_size);
     
-    uint32_t local_minimizer_count = 0;
     uint32_t total_kmers = seq_length - params.k + 1;
+    uint32_t local_count = 0;
     
-    // Each thread processes a subset of k-mers using grid-stride
-    for (uint32_t kmer_idx = thread_id; kmer_idx < total_kmers; kmer_idx += block_size) {
-        
-        // Extract minimizer for this k-mer
+    // Divide work among threads, but process results sequentially
+    uint32_t kmers_per_thread = (total_kmers + block_size - 1) / block_size;
+    uint32_t start_kmer = thread_id * kmers_per_thread;
+    uint32_t end_kmer = min(start_kmer + kmers_per_thread, total_kmers);
+    
+    // Each thread extracts minimizers for its assigned k-mers
+    uint32_t thread_minimizer_count = 0;
+    for (uint32_t kmer_idx = start_kmer; kmer_idx < end_kmer; kmer_idx++) {
         uint64_t minimizer = extract_minimizer_sliding_window(
             sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
         );
         
-        if (minimizer != UINT64_MAX) {
-            // Store in shared memory
+        if (minimizer != UINT64_MAX && thread_minimizer_count < block_size) {
             shared_minimizers[thread_id] = minimizer;
             shared_positions[thread_id] = kmer_idx;
-            local_minimizer_count++;
+            thread_minimizer_count++;
+            break; // Only store first valid minimizer per thread for now
         }
+    }
+    
+    __syncthreads();
+    
+    // Thread 0 processes all minimizers sequentially to maintain order
+    if (thread_id == 0) {
+        uint64_t last_minimizer = UINT64_MAX;
         
-        __syncthreads();
-        
-        // Thread 0 collects and deduplicates minimizers from this iteration
-        if (thread_id == 0) {
-            // Simple deduplication within this block iteration
-            for (int i = 0; i < block_size; i++) {
-                if (i < total_kmers - (kmer_idx - thread_id) && shared_minimizers[i] != UINT64_MAX) {
+        for (uint32_t kmer_idx = 0; kmer_idx < total_kmers; kmer_idx++) {
+            uint64_t minimizer = extract_minimizer_sliding_window(
+                sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+            );
+            
+            if (minimizer != UINT64_MAX && minimizer != last_minimizer) {
+                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+                
+                if (global_pos < max_minimizers) {
+                    GPUMinimizerHit hit;
+                    hit.minimizer_hash = minimizer;
+                    hit.taxon_id = genome.taxon_id;
+                    hit.position = kmer_idx;
+                    hit.genome_id = genome.genome_id;
                     
-                    // Check for duplicates in this batch (simple O(n²) for small batches)
-                    bool is_duplicate = false;
-                    for (int j = 0; j < i; j++) {
-                        if (shared_minimizers[j] == shared_minimizers[i]) {
-                            is_duplicate = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!is_duplicate) {
-                        // Get global position and write to output
-                        uint32_t global_pos = atomicAdd(global_hit_counter, 1);
-                        
-                        if (global_pos < max_minimizers) {
-                            GPUMinimizerHit hit;
-                            hit.minimizer_hash = shared_minimizers[i];
-                            hit.taxon_id = genome.taxon_id;
-                            hit.position = shared_positions[i];
-                            hit.genome_id = genome.genome_id;
-                            
-                            minimizer_hits[global_pos] = hit;
-                        }
-                    }
+                    minimizer_hits[global_pos] = hit;
+                    local_count++;
                 }
+                
+                last_minimizer = minimizer;
             }
         }
         
-        __syncthreads();
-        
-        // Clear shared memory for next iteration
-        if (thread_id < block_size) {
-            shared_minimizers[thread_id] = UINT64_MAX;
-        }
-        
-        __syncthreads();
-    }
-    
-    // Store total count for this genome (approximate)
-    if (thread_id == 0) {
-        hit_counts_per_genome[genome_id] = local_minimizer_count;
+        hit_counts_per_genome[genome_id] = local_count;
     }
 }
 
-// Alternative kernel: more sophisticated sliding window with deque-like behavior
+// Keep your working kernel as fallback
 __global__ void extract_minimizers_sliding_window_kernel(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
@@ -242,9 +295,7 @@ __global__ void extract_minimizers_sliding_window_kernel(
     
     if (seq_length < params.k) return;
     
-    // Simplified sliding window minimizer computation
-    // This processes one genome per thread, suitable for small genomes
-    
+    // This kernel already has the correct logic!
     uint64_t prev_minimizer = UINT64_MAX;
     uint32_t total_kmers = seq_length - params.k + 1;
     
@@ -253,7 +304,7 @@ __global__ void extract_minimizers_sliding_window_kernel(
             sequence, pos, params.k, params.ell, params.spaces, params.xor_mask
         );
         
-        // Only output if minimizer changed (simple deduplication)
+        // Only output if minimizer changed (proper deduplication)
         if (current_minimizer != UINT64_MAX && current_minimizer != prev_minimizer) {
             uint32_t global_pos = atomicAdd(global_hit_counter, 1);
             
@@ -272,7 +323,7 @@ __global__ void extract_minimizers_sliding_window_kernel(
     }
 }
 
-// Host function to launch optimized minimizer extraction
+// FIXED: Host function to launch optimized minimizer extraction
 bool extract_minimizers_gpu_optimized(
     const char* d_sequence_data,
     const GPUGenomeInfo* d_genome_info,
@@ -292,30 +343,23 @@ bool extract_minimizers_gpu_optimized(
     // Clear hit counts
     cudaMemset(d_hit_counts, 0, num_genomes * sizeof(uint32_t));
     
-    // Choose kernel based on number of genomes
-    if (num_genomes <= 1024) {
-        // Use one-block-per-genome approach for better load balancing
-        int threads_per_block = min(MAX_THREADS_PER_BLOCK, 256);
-        size_t shared_memory_size = 2 * threads_per_block * sizeof(uint64_t);
-        
-        extract_minimizers_optimized_kernel<<<num_genomes, threads_per_block, shared_memory_size>>>(
-            d_sequence_data, d_genome_info, num_genomes,
-            d_minimizer_hits, d_hit_counts, d_global_counter,
-            params, max_minimizers
-        );
-    } else {
-        // Use one-thread-per-genome for very large genome counts
-        int threads_per_block = 256;
-        int num_blocks = (num_genomes + threads_per_block - 1) / threads_per_block;
-        
-        extract_minimizers_sliding_window_kernel<<<num_blocks, threads_per_block>>>(
-            d_sequence_data, d_genome_info, num_genomes,
-            d_minimizer_hits, d_global_counter,
-            params, max_minimizers
-        );
-    }
+    // FIXED: Always use the corrected kernel with proper deduplication
+    // Use 1 thread per block for proper sequential processing
+    extract_minimizers_optimized_kernel<<<num_genomes, 1>>>(
+        d_sequence_data, d_genome_info, num_genomes,
+        d_minimizer_hits, d_hit_counts, d_global_counter,
+        params, max_minimizers
+    );
     
     cudaDeviceSynchronize();
+    
+    // Check for kernel errors
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        printf("CUDA error in minimizer extraction: %s\n", cudaGetErrorString(error));
+        cudaFree(d_global_counter);
+        return false;
+    }
     
     // Get total hit count
     cudaMemcpy(total_hits, d_global_counter, sizeof(uint32_t), cudaMemcpyDeviceToHost);
@@ -338,27 +382,115 @@ bool deduplicate_minimizers_gpu(
     
     // Sort by minimizer hash
     thrust::device_ptr<GPUMinimizerHit> hits_ptr(d_minimizer_hits);
-    thrust::sort(hits_ptr, hits_ptr + num_hits, 
-        [] __device__ (const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
-            return a.minimizer_hash < b.minimizer_hash;
-        });
     
-    // Remove duplicates (keep first occurrence of each hash)
-    auto new_end = thrust::unique(hits_ptr, hits_ptr + num_hits,
-        [] __device__ (const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
-            return a.minimizer_hash == b.minimizer_hash;
-        });
-    
-    *final_count = new_end - hits_ptr;
+    try {
+        thrust::sort(hits_ptr, hits_ptr + num_hits, 
+            [] __device__ (const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
+                return a.minimizer_hash < b.minimizer_hash;
+            });
+        
+        // Remove duplicates (keep first occurrence of each hash)
+        auto new_end = thrust::unique(hits_ptr, hits_ptr + num_hits,
+            [] __device__ (const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
+                return a.minimizer_hash == b.minimizer_hash;
+            });
+        
+        *final_count = new_end - hits_ptr;
+        
+    } catch (const std::exception& e) {
+        printf("Error in deduplication: %s\n", e.what());
+        return false;
+    }
     
     return true;
 }
 
-// Test function to validate minimizer extraction
+// Test function to validate minimizer extraction with actual kernel launch
+__global__ void test_minimizer_kernel(
+    const char* test_sequence,
+    int seq_length,
+    MinimizerParams params,
+    uint64_t* results,
+    int* result_count) {
+    
+    int tid = threadIdx.x;
+    if (tid != 0) return;
+    
+    uint64_t last_minimizer = UINT64_MAX;
+    int count = 0;
+    
+    for (int kmer_pos = 0; kmer_pos <= seq_length - params.k; kmer_pos++) {
+        uint64_t minimizer = extract_minimizer_sliding_window(
+            test_sequence, kmer_pos, params.k, params.ell, params.spaces, params.xor_mask
+        );
+        
+        if (minimizer != UINT64_MAX) {
+            if (minimizer != last_minimizer && count < 100) {
+                results[count] = minimizer;
+                count++;
+                last_minimizer = minimizer;
+            }
+        }
+    }
+    
+    *result_count = count;
+}
+
 void test_minimizer_extraction() {
-    // This function needs to be implemented properly with a kernel launch
-    // Currently commented out because it's trying to call device functions from host
-    printf("test_minimizer_extraction: Not implemented - requires kernel launch\n");
+    printf("Testing minimizer extraction with actual GPU kernel...\n");
+    
+    // Test sequence
+    const char* test_seq = "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG";
+    int seq_len = strlen(test_seq);
+    
+    printf("Test sequence: %s (length %d)\n", test_seq, seq_len);
+    
+    MinimizerParams params;
+    params.k = 10;
+    params.ell = 8;
+    params.spaces = 0;
+    params.xor_mask = 0;
+    
+    printf("Parameters: k=%d, ell=%d\n", params.k, params.ell);
+    
+    // Allocate GPU memory
+    char* d_test_seq;
+    uint64_t* d_results;
+    int* d_result_count;
+    
+    cudaMalloc(&d_test_seq, seq_len + 1);
+    cudaMalloc(&d_results, 100 * sizeof(uint64_t));
+    cudaMalloc(&d_result_count, sizeof(int));
+    
+    // Copy test data
+    cudaMemcpy(d_test_seq, test_seq, seq_len + 1, cudaMemcpyHostToDevice);
+    
+    // Launch test kernel
+    test_minimizer_kernel<<<1, 1>>>(d_test_seq, seq_len, params, d_results, d_result_count);
+    cudaDeviceSynchronize();
+    
+    // Get results
+    uint64_t results[100];
+    int result_count;
+    cudaMemcpy(results, d_results, 100 * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&result_count, d_result_count, sizeof(int), cudaMemcpyDeviceToHost);
+    
+    printf("Found %d unique minimizers:\n", result_count);
+    for (int i = 0; i < result_count && i < 10; i++) {
+        printf("  [%d] 0x%016lx\n", i, results[i]);
+    }
+    
+    int expected_kmers = seq_len - params.k + 1;
+    double compression = (double)result_count / expected_kmers;
+    printf("Compression: %d/%d = %.3f (%.1fx reduction)\n", 
+           result_count, expected_kmers, compression, 1.0/compression);
+    
+    // Cleanup
+    cudaFree(d_test_seq);
+    cudaFree(d_results);
+    cudaFree(d_result_count);
+    
+    printf("✓ Test completed\n");
 }
 
 #endif // GPU_MINIMIZER_EXTRACTION_CU

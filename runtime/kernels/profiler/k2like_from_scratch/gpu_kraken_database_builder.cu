@@ -149,12 +149,14 @@ private:
         uint32_t* d_hit_counts
     );
     
+public:  // Move to public section temporarily for lambda access
     bool compute_lca_assignments_gpu(
         const GPUMinimizerHit* d_hits,
         int num_hits,
         LCACandidate* d_candidates,
         int* num_candidates
     );
+private:
     
     bool build_compact_hash_table_gpu(
         const LCACandidate* d_candidates,
@@ -259,6 +261,15 @@ inline uint64_t get_next_power_of_2(uint64_t n) {
     n++;
     return n;
 }
+
+// Forward declarations
+__global__ void create_simple_lca_candidates(
+    const uint64_t* unique_hashes,
+    const uint32_t* hit_counts,
+    const GPUMinimizerHit* all_hits,
+    int num_hits,
+    int num_unique,
+    LCACandidate* candidates);
 
 // Functor for sorting minimizer hits
 struct MinimizerHitComparator {
@@ -677,63 +688,34 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     thrust::device_vector<uint32_t> hit_counts(num_hits);
     thrust::device_vector<uint32_t> first_indices(num_hits);
     
-    // Get unique minimizer hashes and their counts
+    // Extract hash values to a separate vector for reduce_by_key
+    thrust::device_vector<uint64_t> hash_values(num_hits);
+    thrust::transform(hits_ptr, hits_ptr + num_hits, hash_values.begin(),
+        [] __host__ __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; });
+    
+    // Count unique minimizers
+    thrust::device_vector<uint32_t> ones(num_hits, 1);
     auto end_pair = thrust::reduce_by_key(
-        thrust::make_transform_iterator(hits_ptr, 
-            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
-        thrust::make_transform_iterator(hits_ptr + num_hits,
-            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
-        thrust::counting_iterator<uint32_t>(0),
-        unique_hashes.begin(),
-        first_indices.begin(),
-        thrust::equal_to<uint64_t>(),
-        thrust::minimum<uint32_t>()
-    );
-    
-    int num_unique = end_pair.first - unique_hashes.begin();
-    
-    // Count hits per unique minimizer
-    thrust::fill(hit_counts.begin(), hit_counts.begin() + num_unique, 0);
-    thrust::device_vector<uint32_t> hit_indices(num_hits);
-    thrust::sequence(hit_indices.begin(), hit_indices.end());
-    
-    auto count_end = thrust::reduce_by_key(
-        thrust::make_transform_iterator(hits_ptr, 
-            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
-        thrust::make_transform_iterator(hits_ptr + num_hits,
-            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
-        thrust::constant_iterator<uint32_t>(1),
+        hash_values.begin(), hash_values.end(),
+        ones.begin(),
         unique_hashes.begin(),
         hit_counts.begin()
     );
     
-    // Create LCA candidates - for now, just use the first taxon for each minimizer
-    // In a complete implementation, we would compute proper LCA from all taxons
+    int num_unique = end_pair.first - unique_hashes.begin();
+    
+    // Create LCA candidates using a simple kernel
     thrust::device_vector<LCACandidate> candidates(num_unique);
     
-    // Simple transform to create candidates
-    thrust::transform(
-        thrust::make_zip_iterator(thrust::make_tuple(
-            unique_hashes.begin(),
-            first_indices.begin(),
-            hit_counts.begin()
-        )),
-        thrust::make_zip_iterator(thrust::make_tuple(
-            unique_hashes.begin() + num_unique,
-            first_indices.begin() + num_unique,
-            hit_counts.begin() + num_unique
-        )),
-        candidates.begin(),
-        [d_hits] __device__ (thrust::tuple<uint64_t, uint32_t, uint32_t> t) {
-            LCACandidate candidate;
-            candidate.minimizer_hash = thrust::get<0>(t);
-            candidate.genome_count = thrust::get<2>(t);
-            uint32_t first_idx = thrust::get<1>(t);
-            candidate.lca_taxon = d_hits[first_idx].taxon_id;  // Simple: use first taxon
-            candidate.uniqueness_score = 1.0f / thrust::get<2>(t);  // Higher score for unique minimizers
-            return candidate;
-        }
+    // Launch kernel to create candidates
+    int blocks = (num_unique + 255) / 256;
+    create_simple_lca_candidates<<<blocks, 256>>>(
+        thrust::raw_pointer_cast(unique_hashes.data()),
+        thrust::raw_pointer_cast(hit_counts.data()),
+        d_hits, num_hits, num_unique,
+        thrust::raw_pointer_cast(candidates.data())
     );
+    CUDA_CHECK(cudaDeviceSynchronize());
     
     // Copy candidates to output
     CUDA_CHECK(cudaMemcpy(d_candidates, thrust::raw_pointer_cast(candidates.data()),
@@ -1192,6 +1174,37 @@ bool GPUKrakenDatabaseBuilder::load_taxonomy_data(const std::string& taxonomy_pa
     }
     
     return nodes_loaded > 0;
+}
+
+// Simple kernel to create LCA candidates
+__global__ void create_simple_lca_candidates(
+    const uint64_t* unique_hashes,
+    const uint32_t* hit_counts,
+    const GPUMinimizerHit* all_hits,
+    int num_hits,
+    int num_unique,
+    LCACandidate* candidates) {
+    
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_unique) return;
+    
+    uint64_t target_hash = unique_hashes[idx];
+    
+    // Find first hit with this hash (since hits are sorted)
+    // Simple linear search for now - could be optimized with binary search
+    uint32_t first_taxon = 0;
+    for (int i = 0; i < num_hits; i++) {
+        if (all_hits[i].minimizer_hash == target_hash) {
+            first_taxon = all_hits[i].taxon_id;
+            break;
+        }
+    }
+    
+    // Create candidate
+    candidates[idx].minimizer_hash = target_hash;
+    candidates[idx].lca_taxon = first_taxon;  // Simple: use first taxon
+    candidates[idx].genome_count = hit_counts[idx];
+    candidates[idx].uniqueness_score = 1.0f / hit_counts[idx];
 }
 
 // Device function to check for valid bases

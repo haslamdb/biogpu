@@ -448,11 +448,11 @@ bool classify_reads_command(const PipelineConfig& config) {
                         }
                     }
                     
-                    // Limit for testing
-                    if (reads.size() >= 1000000) {
-                        std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
-                        break;
-                    }
+                    // Remove limit - process all reads
+                    // if (reads.size() >= 1000000) {
+                    //     std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
+                    //     break;
+                    // }
                 }
                 gzclose(gz_file);
             } else {

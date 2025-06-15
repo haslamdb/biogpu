@@ -449,6 +449,81 @@ public:
     size_t getTotalReadsProcessed() const { return current_read_count; }
 };
 
+bool classify_reads_with_streaming_and_classifier(const PipelineConfig& config, PairedEndGPUKrakenClassifier& classifier) {
+    try {
+        // Setup streaming reader
+        StreamingFASTQReader reader(config.reads_file, config.reads_file2);
+        
+        // Open output file
+        std::ofstream output(config.output_path);
+        if (!output.is_open()) {
+            std::cerr << "Cannot create output file: " << config.output_path << std::endl;
+            return false;
+        }
+        
+        output << "# GPU Kraken Classification Results (Streaming)\n";
+        
+        // Streaming classification loop
+        std::vector<PairedRead> batch;
+        size_t total_reads_processed = 0;
+        size_t batch_number = 0;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        while (reader.readBatch(batch, config.streaming_config.read_batch_size)) {
+            batch_number++;
+            
+            if (config.streaming_config.show_batch_progress && batch_number % 10 == 0) {
+                std::cout << "    Batch " << batch_number 
+                          << " (" << batch.size() << " reads)" << std::endl;
+            }
+            
+            // Classify this batch
+            auto batch_results = classifier.classify_paired_reads(batch);
+            
+            // Write results immediately
+            for (size_t i = 0; i < batch_results.size(); i++) {
+                const auto& result = batch_results[i];
+                const auto& read_pair = batch[i];
+                
+                char status = (result.taxon_id > 0) ? 'C' : 'U';
+                
+                if (read_pair.is_paired) {
+                    output << status << "\t"
+                           << read_pair.read_id << "\t"
+                           << result.taxon_id << "\t"
+                           << read_pair.read1.length() << "|" << read_pair.read2.length() << "\t"
+                           << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
+                           << result.read1_votes << "|" << result.read2_votes << "\t" 
+                           << result.read1_kmers << "|" << result.read2_kmers << "\n";
+                } else {
+                    output << status << "\t"
+                           << read_pair.read_id << "\t"
+                           << result.taxon_id << "\t"
+                           << read_pair.read1.length() << "\t"
+                           << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
+                           << result.read1_votes << "\t" << result.read1_kmers << "\n";
+                }
+            }
+            
+            total_reads_processed += batch.size();
+        }
+        
+        output.close();
+        
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+        
+        std::cout << "    Completed: " << total_reads_processed 
+                  << " reads in " << total_duration.count() << "s" << std::endl;
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error during streaming classification: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 bool classify_reads_with_streaming(const PipelineConfig& config) {
     std::cout << "\n=== STREAMING CLASSIFICATION ===" << std::endl;
     
@@ -1035,8 +1110,8 @@ bool batch_classify_command(const PipelineConfig& config) {
                 }
                 std::cout << "    Output: " << sample_config.output_path << std::endl;
                 
-                // Use streaming classification for each sample
-                bool success = classify_reads_with_streaming(sample_config);
+                // Use streaming classification with pre-loaded classifier
+                bool success = classify_reads_with_streaming_and_classifier(sample_config, classifier);
                 
                 return success ? 0 : 1;
                 

@@ -179,15 +179,8 @@ private:
 // CUDA KERNELS - Keep existing interfaces but fix implementation
 // ================================================================
 
-// NEW: Kraken2-inspired MurmurHash3 for subsampling
-__device__ uint64_t murmur_hash3_gpu(uint64_t key) {
-    key ^= key >> 33;
-    key *= 0xff51afd7ed558ccdULL;
-    key ^= key >> 33;
-    key *= 0xc4ceb9fe1a85ec53ULL;
-    key ^= key >> 33;
-    return key;
-}
+// MurmurHash3 implementation - now in header file
+// Using the implementation from gpu_minimizer_extraction.cuh
 
 // IMPROVED: Minimizer extraction with Kraken2-style features
 __global__ void extract_minimizers_kraken2_improved_kernel(
@@ -220,54 +213,55 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
     if (thread_id != 0) return;
     
     uint32_t local_minimizer_count = 0;
+    int last_minimizer_pos = -1;
     uint64_t last_minimizer = UINT64_MAX;
     uint32_t total_kmers = seq_length - params.k + 1;
     
     // FIXED: Less aggressive compression - process like Kraken2
     for (uint32_t kmer_idx = 0; kmer_idx < total_kmers; kmer_idx++) {
         
-        // Extract minimizer for this k-mer
-        uint64_t minimizer = extract_minimizer_sliding_window(
-            sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+        // Extract minimizer for this k-mer using Kraken2's approach
+        MinimizerWindow window = extract_kmer_minimizer(
+            sequence, kmer_idx, params.k, params.ell, params.xor_mask
         );
         
-        if (minimizer != UINT64_MAX) {
-            // Apply toggle mask (like Kraken2)
-            minimizer ^= toggle_mask;
-            
-            // CRITICAL: Apply hash-based subsampling (like Kraken2's min_clear_hash_value)
-            if (min_clear_hash_value > 0) {
-                uint64_t hash_val = murmur_hash3_gpu(minimizer);
-                if (hash_val < min_clear_hash_value) {
-                    continue;  // Skip this minimizer due to subsampling
-                }
+        if (!window.valid) continue;
+        
+        // Apply toggle mask
+        window.minimizer_hash ^= toggle_mask;
+        
+        // Apply hash-based subsampling if enabled
+        if (min_clear_hash_value > 0) {
+            if (window.minimizer_hash < min_clear_hash_value) {
+                continue;  // Skip due to subsampling
+            }
+        }
+        
+        // Key insight: Only output when minimizer position changes
+        // This is what achieves compression in Kraken2
+        if (window.minimizer_pos != last_minimizer_pos) {
+            // Check if we have space
+            uint32_t current_count = atomicAdd(global_hit_counter, 0);
+            if (current_count >= max_minimizers) {
+                break;  // Buffer full
             }
             
-            // FIXED: Only skip consecutive identical minimizers, not all duplicates
-            // This is much closer to Kraken2's actual behavior
-            if (minimizer != last_minimizer) {
-                // Check if we still have space
-                uint32_t current_count = atomicAdd(global_hit_counter, 0); // Read without modifying
-                if (current_count >= max_minimizers) {
-                    break;  // Buffer is full
-                }
+            uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+            
+            if (global_pos < max_minimizers) {
+                GPUMinimizerHit hit;
+                hit.minimizer_hash = window.minimizer_hash;
+                hit.taxon_id = genome.taxon_id;
+                hit.position = window.minimizer_pos;  // Store actual minimizer position
+                hit.genome_id = genome.genome_id;
                 
-                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+                minimizer_hits[global_pos] = hit;
+                local_minimizer_count++;
                 
-                if (global_pos < max_minimizers) {
-                    GPUMinimizerHit hit;
-                    hit.minimizer_hash = minimizer;
-                    hit.taxon_id = genome.taxon_id;
-                    hit.position = kmer_idx;
-                    hit.genome_id = genome.genome_id;
-                    
-                    minimizer_hits[global_pos] = hit;
-                    local_minimizer_count++;
-                } else {
-                    break;
-                }
-                
-                last_minimizer = minimizer;
+                last_minimizer_pos = window.minimizer_pos;
+                last_minimizer = window.minimizer_hash;
+            } else {
+                break;
             }
         }
     }

@@ -177,3 +177,4 @@ test_kraken_db/taxonomy.tsv
 full_kraken_db/taxonomy.tsv
 full_kraken_db/config.txt
 full_kraken_db/hash_table.k2d
+test_classify

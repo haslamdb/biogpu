@@ -5,6 +5,7 @@
 // Include the actual implementations
 #include "gpu_kraken_classifier.cu"
 #include "gpu_kraken_database_builder.cu"
+#include "sample_csv_parser.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -19,10 +20,12 @@ void print_usage(const char* program_name) {
     std::cout << "  " << program_name << " build --genome-dir <dir> --output <db_dir> [options]" << std::endl;
     std::cout << "  " << program_name << " classify --database <db_dir> --reads <fastq> [options]" << std::endl;
     std::cout << "  " << program_name << " pipeline --genome-dir <dir> --reads <fastq> --output <dir> [options]" << std::endl;
+    std::cout << "  " << program_name << " batch --csv <samples.csv> --database <db_dir> --batch-output <dir> [options]" << std::endl;
     std::cout << "\nCommands:" << std::endl;
     std::cout << "  build      Build database from genome files" << std::endl;
     std::cout << "  classify   Classify reads using existing database" << std::endl;
     std::cout << "  pipeline   Complete pipeline: build database + classify reads" << std::endl;
+    std::cout << "  batch      Process multiple samples from CSV file" << std::endl;
     std::cout << "\nRequired Arguments:" << std::endl;
     std::cout << "  --genome-dir <dir>    Directory containing genome FASTA files" << std::endl;
     std::cout << "  --database <db_dir>   Database directory (for classify mode)" << std::endl;
@@ -58,6 +61,29 @@ void print_usage(const char* program_name) {
     std::cout << "\nStreaming Examples:" << std::endl;
     std::cout << "  # Large paired-end dataset with custom batch size" << std::endl;
     std::cout << "  " << program_name << " classify --database ./db --reads large_R1.fastq.gz --reads2 large_R2.fastq.gz --output results.txt --streaming-batch 25000" << std::endl;
+    
+    std::cout << "\nBatch Processing Options:" << std::endl;
+    std::cout << "  --csv <file>              CSV file with sample information" << std::endl;
+    std::cout << "  --batch-output <dir>      Output directory for batch results (default: batch_results)" << std::endl;
+    std::cout << "  --no-sample-dirs          Don't create individual sample directories" << std::endl;
+    std::cout << "  --stop-on-error           Stop batch processing on first error" << std::endl;
+    std::cout << "  --no-validate-paths       Skip file existence validation on CSV load" << std::endl;
+    
+    std::cout << "\nCSV File Format:" << std::endl;
+    std::cout << "Required columns (case-insensitive, flexible names):" << std::endl;
+    std::cout << "  - Sample Name/ID: sample_name, Sample, ID, etc." << std::endl;
+    std::cout << "  - File Path: file_path, path, directory, etc." << std::endl;
+    std::cout << "  - R1 File: R1, read1, fastq1, etc." << std::endl;
+    std::cout << "  - R2 File: R2, read2, fastq2, etc. (optional for single-end)" << std::endl;
+    
+    std::cout << "\nBatch Processing Examples:" << std::endl;
+    std::cout << "  # Process multiple samples from CSV" << std::endl;
+    std::cout << "  " << program_name << " batch --csv samples.csv --database ./db --batch-output ./results" << std::endl;
+    std::cout << "\n  # Example CSV content:" << std::endl;
+    std::cout << "  Sample Name,File Path,R1 file,R2 file" << std::endl;
+    std::cout << "  Sample001,/data/fastq/,sample001_R1.fastq.gz,sample001_R2.fastq.gz" << std::endl;
+    std::cout << "  Sample002,/data/fastq/,sample002_R1.fastq.gz,sample002_R2.fastq.gz" << std::endl;
+    
     std::cout << "\nMemory Usage Examples:" << std::endl;
     std::cout << "  # Use 10M minimizers per batch (high memory, comprehensive)" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --minimizer-capacity 10000000" << std::endl;
@@ -104,6 +130,13 @@ struct PipelineConfig {
     StreamingConfig streaming_config;
     bool force_streaming = false;
     size_t batch_size_override = 0;
+    
+    // CSV batch processing fields
+    std::string csv_file;
+    std::string batch_output_dir = "batch_results";
+    bool create_sample_dirs = true;
+    bool stop_on_error = false;
+    bool validate_paths_on_load = true;
 };
 
 bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
@@ -113,7 +146,8 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
     
     config.command = argv[1];
     
-    if (config.command != "build" && config.command != "classify" && config.command != "pipeline") {
+    if (config.command != "build" && config.command != "classify" && 
+        config.command != "pipeline" && config.command != "batch") {
         std::cerr << "Error: Unknown command '" << config.command << "'" << std::endl;
         return false;
     }
@@ -171,6 +205,17 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.streaming_config.max_gpu_memory_for_reads_mb = std::stoi(argv[++i]);
         } else if (arg == "--disable-streaming") {
             config.streaming_config.enable_streaming = false;
+        // CSV batch processing arguments
+        } else if (arg == "--csv" && i + 1 < argc) {
+            config.csv_file = argv[++i];
+        } else if (arg == "--batch-output" && i + 1 < argc) {
+            config.batch_output_dir = argv[++i];
+        } else if (arg == "--no-sample-dirs") {
+            config.create_sample_dirs = false;
+        } else if (arg == "--stop-on-error") {
+            config.stop_on_error = true;
+        } else if (arg == "--no-validate-paths") {
+            config.validate_paths_on_load = false;
         } else {
             std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
         }
@@ -194,6 +239,25 @@ bool validate_config(const PipelineConfig& config) {
     if (config.command == "classify") {
         if (config.database_dir.empty()) {
             std::cerr << "Error: --database is required for classify mode" << std::endl;
+            return false;
+        }
+        if (!std::filesystem::exists(config.database_dir)) {
+            std::cerr << "Error: Database directory does not exist: " << config.database_dir << std::endl;
+            return false;
+        }
+    }
+    
+    if (config.command == "batch") {
+        if (config.csv_file.empty()) {
+            std::cerr << "Error: --csv is required for batch mode" << std::endl;
+            return false;
+        }
+        if (!std::filesystem::exists(config.csv_file)) {
+            std::cerr << "Error: CSV file does not exist: " << config.csv_file << std::endl;
+            return false;
+        }
+        if (config.database_dir.empty()) {
+            std::cerr << "Error: --database is required for batch mode" << std::endl;
             return false;
         }
         if (!std::filesystem::exists(config.database_dir)) {
@@ -902,6 +966,117 @@ bool pipeline_command(const PipelineConfig& config) {
     return true;
 }
 
+bool batch_classify_command(const PipelineConfig& config) {
+    std::cout << "\n=== BATCH CLASSIFICATION FROM CSV ===" << std::endl;
+    std::cout << "CSV file: " << config.csv_file << std::endl;
+    std::cout << "Database: " << config.database_dir << std::endl;
+    std::cout << "Batch output: " << config.batch_output_dir << std::endl;
+    
+    try {
+        // Initialize CSV parser and batch processor
+        BioGPU::BatchProcessor processor(config.batch_output_dir, config.create_sample_dirs);
+        
+        // Load samples from CSV
+        if (!processor.loadSamples(config.csv_file)) {
+            std::cerr << "Failed to load samples from CSV file" << std::endl;
+            return false;
+        }
+        
+        // Validate that database exists
+        if (!std::filesystem::exists(config.database_dir)) {
+            std::cerr << "Database directory not found: " << config.database_dir << std::endl;
+            return false;
+        }
+        
+        // Print sample summary
+        processor.getParser().printSummary();
+        
+        // Check for validation errors if enabled
+        if (config.validate_paths_on_load) {
+            auto errors = processor.getParser().getValidationErrors();
+            if (!errors.empty()) {
+                std::cerr << "\nValidation errors found:" << std::endl;
+                for (const auto& error : errors) {
+                    std::cerr << "  - " << error << std::endl;
+                }
+                if (config.stop_on_error) {
+                    return false;
+                }
+            }
+        }
+        
+        // Define the processing function for each sample
+        auto process_sample = [&](const BioGPU::SampleInfo& sample, const std::string& output_path) -> int {
+            try {
+                // Create a temporary config for this sample
+                PipelineConfig sample_config = config;
+                sample_config.reads_file = sample.read1_path;
+                sample_config.reads_file2 = sample.read2_path;
+                sample_config.output_path = output_path + "_classification.txt";
+                
+                // Add report if not disabled
+                if (!config.report_file.empty() || config.create_sample_dirs) {
+                    sample_config.report_file = output_path + "_report.txt";
+                }
+                
+                std::cout << "  Processing: " << sample.sample_name << std::endl;
+                std::cout << "    R1: " << sample.read1_path << std::endl;
+                if (!sample.read2_path.empty()) {
+                    std::cout << "    R2: " << sample.read2_path << std::endl;
+                }
+                std::cout << "    Output: " << sample_config.output_path << std::endl;
+                
+                // Use streaming classification for each sample
+                bool success = classify_reads_with_streaming(sample_config);
+                
+                return success ? 0 : 1;
+                
+            } catch (const std::exception& e) {
+                std::cerr << "    Error processing sample " << sample.sample_name 
+                          << ": " << e.what() << std::endl;
+                return 1;
+            }
+        };
+        
+        // Run batch processing
+        int failed_count = processor.processBatch(process_sample, config.stop_on_error);
+        
+        if (failed_count == 0) {
+            std::cout << "\n✓ All samples processed successfully!" << std::endl;
+        } else {
+            std::cout << "\n⚠ Batch completed with " << failed_count << " failures" << std::endl;
+        }
+        
+        // Generate batch summary report
+        std::string summary_file = config.batch_output_dir + "/batch_summary.txt";
+        std::ofstream summary(summary_file);
+        if (summary.is_open()) {
+            summary << "Batch Classification Summary\n";
+            summary << "============================\n";
+            summary << "CSV file: " << config.csv_file << "\n";
+            summary << "Database: " << config.database_dir << "\n";
+            summary << "Total samples: " << processor.getParser().getSampleCount() << "\n";
+            summary << "Failed samples: " << failed_count << "\n";
+            summary << "Success rate: " << std::fixed << std::setprecision(1) 
+                    << (100.0 * (processor.getParser().getSampleCount() - failed_count) / processor.getParser().getSampleCount()) << "%\n";
+            
+            summary << "\nProcessing Parameters:\n";
+            summary << "k-mer length: " << config.classifier_params.k << "\n";
+            summary << "Confidence threshold: " << config.classifier_params.confidence_threshold << "\n";
+            summary << "Streaming batch size: " << config.streaming_config.read_batch_size << "\n";
+            
+            summary.close();
+            std::cout << "Batch summary written to: " << summary_file << std::endl;
+        }
+        
+        return failed_count == 0;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error during batch processing: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 // Quick memory check function for user guidance
 void print_memory_recommendations() {
     int device_count;
@@ -976,6 +1151,8 @@ int main(int argc, char* argv[]) {
             success = classify_reads_command(config);
         } else if (config.command == "pipeline") {
             success = pipeline_command(config);
+        } else if (config.command == "batch") {
+            success = batch_classify_command(config);
         }
         
     } catch (const std::exception& e) {

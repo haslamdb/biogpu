@@ -356,9 +356,9 @@ public:
                     }
                 }
             } else {
-                has_line1 = std::getline(file1, line1);
+                has_line1 = static_cast<bool>(std::getline(file1, line1));
                 if (is_paired && has_line1) {
-                    has_line2 = std::getline(file2, line2);
+                    has_line2 = static_cast<bool>(std::getline(file2, line2));
                 }
             }
             

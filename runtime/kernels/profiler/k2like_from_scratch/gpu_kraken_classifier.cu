@@ -169,6 +169,7 @@ private:
     
     bool load_hash_table(const std::string& hash_table_file);
     bool load_taxonomy_tree(const std::string& taxonomy_file);
+    bool load_taxonomy_tree_from_db(const std::string& db_file);
     bool read_database_header(const std::string& db_file, ClassificationParams& db_params);
     
     void transfer_paired_reads_to_gpu(const std::vector<PairedRead>& paired_reads);
@@ -883,6 +884,96 @@ bool PairedEndGPUKrakenClassifier::load_hash_table(const std::string& hash_table
     
     hash_in.close();
     std::cout << "Hash table loaded: " << num_entries << " entries" << std::endl;
+    return true;
+}
+
+bool PairedEndGPUKrakenClassifier::load_taxonomy_tree_from_db(const std::string& db_file) {
+    std::ifstream in(db_file, std::ios::binary);
+    if (!in.is_open()) {
+        std::cerr << "Cannot open database file for taxonomy: " << db_file << std::endl;
+        return false;
+    }
+    
+    // Read header to get organism count
+    uint32_t magic, version, k_size, m_size, num_organisms;
+    uint64_t num_minimizer_hashes;
+    
+    in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
+    in.read(reinterpret_cast<char*>(&version), sizeof(version));
+    in.read(reinterpret_cast<char*>(&k_size), sizeof(k_size));
+    in.read(reinterpret_cast<char*>(&m_size), sizeof(m_size));
+    in.read(reinterpret_cast<char*>(&num_organisms), sizeof(num_organisms));
+    in.read(reinterpret_cast<char*>(&num_minimizer_hashes), sizeof(num_minimizer_hashes));
+    
+    std::cout << "Loading taxonomy for " << num_organisms << " organisms..." << std::endl;
+    
+    // Read organism metadata and build taxonomy mapping
+    for (uint32_t i = 0; i < num_organisms; i++) {
+        uint32_t taxonomy_id, taxon_level, minimizer_count;
+        uint64_t genome_size;
+        float gc_content;
+        
+        in.read(reinterpret_cast<char*>(&taxonomy_id), sizeof(taxonomy_id));
+        in.read(reinterpret_cast<char*>(&taxon_level), sizeof(taxon_level));
+        in.read(reinterpret_cast<char*>(&gc_content), sizeof(gc_content));
+        in.read(reinterpret_cast<char*>(&genome_size), sizeof(genome_size));
+        in.read(reinterpret_cast<char*>(&minimizer_count), sizeof(minimizer_count));
+        
+        // Read organism name
+        uint16_t name_length;
+        in.read(reinterpret_cast<char*>(&name_length), sizeof(name_length));
+        std::string name(name_length, '\0');
+        in.read(&name[0], name_length);
+        
+        // Read taxonomy path
+        uint16_t taxonomy_length;
+        in.read(reinterpret_cast<char*>(&taxonomy_length), sizeof(taxonomy_length));
+        std::string taxonomy_path(taxonomy_length, '\0');
+        in.read(&taxonomy_path[0], taxonomy_length);
+        
+        // Store in taxonomy mappings
+        taxon_names[taxonomy_id] = name;
+        taxon_parents[taxonomy_id] = 0;  // Simple mapping for now
+        
+        // Create a simple taxonomy node
+        TaxonomyNode node;
+        node.taxon_id = taxonomy_id;
+        node.parent_id = 0;
+        node.rank = taxon_level;
+        strncpy(node.name, name.c_str(), 63);
+        node.name[63] = '\0';
+    }
+    
+    in.close();
+    
+    // Create simple parent lookup (all point to root for now)
+    std::vector<uint32_t> parent_lookup(1000000, 0);  // Support up to 1M taxa
+    
+    // Allocate taxonomy tree on GPU (simplified)
+    std::vector<TaxonomyNode> host_taxonomy;
+    for (const auto& [taxon_id, name] : taxon_names) {
+        TaxonomyNode node;
+        node.taxon_id = taxon_id;
+        node.parent_id = 0;
+        node.rank = 0;
+        strncpy(node.name, name.c_str(), 63);
+        node.name[63] = '\0';
+        host_taxonomy.push_back(node);
+    }
+    
+    num_taxonomy_nodes = host_taxonomy.size();
+    
+    if (num_taxonomy_nodes > 0) {
+        CUDA_CHECK(cudaMalloc(&d_taxonomy_tree, num_taxonomy_nodes * sizeof(TaxonomyNode)));
+        CUDA_CHECK(cudaMemcpy(d_taxonomy_tree, host_taxonomy.data(), 
+                             num_taxonomy_nodes * sizeof(TaxonomyNode), cudaMemcpyHostToDevice));
+        
+        CUDA_CHECK(cudaMalloc(&d_parent_lookup, 1000000 * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMemcpy(d_parent_lookup, parent_lookup.data(), 
+                             1000000 * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    }
+    
+    std::cout << "Loaded taxonomy for " << taxon_names.size() << " organisms" << std::endl;
     return true;
 }
 

@@ -10,6 +10,7 @@
 #include <vector>
 #include <filesystem>
 #include <chrono>
+#include <zlib.h>
 
 void print_usage(const char* program_name) {
     std::cout << "GPU-Accelerated Kraken2-Style Pipeline (High Capacity)" << std::endl;
@@ -415,31 +416,71 @@ bool classify_reads_command(const PipelineConfig& config) {
                 std::cout << "Summary report written to: " << config.report_file << std::endl;
             }
         } else {
-            // Single-end mode - original code
+            // Single-end mode - with gzip support
             std::vector<std::string> reads;
-            std::ifstream fastq_file(config.reads_file);
-            if (!fastq_file.is_open()) {
-                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
-                return false;
-            }
             
-            std::string line;
-            int line_count = 0;
-            while (std::getline(fastq_file, line)) {
-                line_count++;
-                if (line_count % 4 == 2) {  // Sequence line
-                    if (!line.empty() && line.length() >= config.classifier_params.k) {
-                        reads.push_back(line);
-                    }
+            // Check if file is gzipped
+            bool is_gzipped = config.reads_file.substr(config.reads_file.find_last_of(".") + 1) == "gz";
+            
+            if (is_gzipped) {
+                // Use zlib for gzipped files
+                gzFile gz_file = gzopen(config.reads_file.c_str(), "rb");
+                if (!gz_file) {
+                    std::cerr << "Cannot open gzipped reads file: " << config.reads_file << std::endl;
+                    return false;
                 }
                 
-                // Limit for testing
-                if (reads.size() >= 1000000) {
-                    std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
-                    break;
+                char buffer[4096];
+                std::string line;
+                int line_count = 0;
+                
+                while (gzgets(gz_file, buffer, sizeof(buffer))) {
+                    line = buffer;
+                    // Remove newline if present
+                    if (!line.empty() && line.back() == '\n') {
+                        line.pop_back();
+                    }
+                    
+                    line_count++;
+                    if (line_count % 4 == 2) {  // Sequence line
+                        if (!line.empty() && line.length() >= config.classifier_params.k) {
+                            reads.push_back(line);
+                        }
+                    }
+                    
+                    // Limit for testing
+                    if (reads.size() >= 1000000) {
+                        std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
+                        break;
+                    }
                 }
+                gzclose(gz_file);
+            } else {
+                // Use standard ifstream for uncompressed files
+                std::ifstream fastq_file(config.reads_file);
+                if (!fastq_file.is_open()) {
+                    std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                    return false;
+                }
+                
+                std::string line;
+                int line_count = 0;
+                while (std::getline(fastq_file, line)) {
+                    line_count++;
+                    if (line_count % 4 == 2) {  // Sequence line
+                        if (!line.empty() && line.length() >= config.classifier_params.k) {
+                            reads.push_back(line);
+                        }
+                    }
+                    
+                    // Limit for testing
+                    if (reads.size() >= 1000000) {
+                        std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
+                        break;
+                    }
+                }
+                fastq_file.close();
             }
-            fastq_file.close();
             
             if (reads.empty()) {
                 std::cerr << "No valid reads found in " << config.reads_file << std::endl;

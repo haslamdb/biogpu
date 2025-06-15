@@ -409,45 +409,45 @@ target_compile_options(gpu_kraken_pipeline PRIVATE
 #     stdc++fs
 # )
 
-# Debug versions of Kraken tools
-add_executable(gpu_kraken_pipeline_debug
-    k2like_from_scratch/kraken_pipeline_main.cu
-)
-
-set_target_properties(gpu_kraken_pipeline_debug PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/k2like_from_scratch
-)
-
-target_link_libraries(gpu_kraken_pipeline_debug
-    gpu_kraken_database_builder
-    gpu_kraken_classifier
-    gpu_kraken_minimizer_extraction
-    fastq_processing
-    minimizer_extraction
-    ${ZLIB_LIBRARIES}
-    cuda
-    cudart
-    stdc++fs
-)
-
-# Debug compile options
-target_compile_options(gpu_kraken_pipeline_debug PRIVATE
-    $<$<COMPILE_LANGUAGE:CUDA>:
-        -g
-        -G
-        -O0
-        -DDEBUG
-        --extended-lambda
-    >
-    $<$<COMPILE_LANGUAGE:CXX>:
-        -g
-        -O0
-        -DDEBUG
-    >
-)
+# Debug versions of Kraken tools - ARCHIVED
+# add_executable(gpu_kraken_pipeline_debug
+#     k2like_from_scratch/kraken_pipeline_main.cu
+# )
+# 
+# set_target_properties(gpu_kraken_pipeline_debug PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+#     CUDA_RESOLVE_DEVICE_SYMBOLS ON
+#     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/k2like_from_scratch
+# )
+# 
+# target_link_libraries(gpu_kraken_pipeline_debug
+#     gpu_kraken_database_builder
+#     gpu_kraken_classifier
+#     gpu_kraken_minimizer_extraction
+#     fastq_processing
+#     minimizer_extraction
+#     ${ZLIB_LIBRARIES}
+#     cuda
+#     cudart
+#     stdc++fs
+# )
+# 
+# # Debug compile options
+# target_compile_options(gpu_kraken_pipeline_debug PRIVATE
+#     $<$<COMPILE_LANGUAGE:CUDA>:
+#         -g
+#         -G
+#         -O0
+#         -DDEBUG
+#         --extended-lambda
+#     >
+#     $<$<COMPILE_LANGUAGE:CXX>:
+#         -g
+#         -O0
+#         -DDEBUG
+#     >
+# )
 
 # ===========================
 # Database Building Tools
@@ -924,17 +924,17 @@ add_custom_target(compare_profilers
 #     COMMENT "Testing Kraken2-style database building"
 # )
 
-# Test Kraken classification with synthetic data
-add_custom_target(test_kraken_synthetic
-    COMMAND ./k2like_from_scratch/gpu_kraken_pipeline
-            classify
-            --database test_kraken_db
-            --reads synthetic_test.fastq
-            --output kraken_test_results.txt
-            --confidence 0.1
-    DEPENDS gpu_kraken_pipeline test_kraken_db_build
-    COMMENT "Testing Kraken2-style classification with synthetic data"
-)
+# Test Kraken classification with synthetic data - ARCHIVED
+# add_custom_target(test_kraken_synthetic
+#     COMMAND ./k2like_from_scratch/gpu_kraken_pipeline
+#             classify
+#             --database test_kraken_db
+#             --reads synthetic_test.fastq
+#             --output kraken_test_results.txt
+#             --confidence 0.1
+#     DEPENDS gpu_kraken_pipeline test_kraken_db_build
+#     COMMENT "Testing Kraken2-style classification with synthetic data"
+# )
 
 # Test paired-end Kraken classification
 # TODO: Uncomment when gpu_kraken_paired_classifier is implemented
@@ -949,26 +949,26 @@ add_custom_target(test_kraken_synthetic
 #     COMMENT "Testing paired-end Kraken2-style classification"
 # )
 
-# Complete Kraken pipeline test
-add_custom_target(test_complete_kraken
-    COMMAND ./k2like_from_scratch/gpu_kraken_pipeline
-            pipeline
-            --genome-dir test_genomes
-            --reads test_sample.fastq.gz
-            --output complete_kraken_test
-            --confidence 0.1
-    DEPENDS gpu_kraken_pipeline
-    COMMENT "Testing complete Kraken2-style pipeline (build + classify)"
-)
+# Complete Kraken pipeline test - ARCHIVED
+# add_custom_target(test_complete_kraken
+#     COMMAND ./k2like_from_scratch/gpu_kraken_pipeline
+#             pipeline
+#             --genome-dir test_genomes
+#             --reads test_sample.fastq.gz
+#             --output complete_kraken_test
+#             --confidence 0.1
+#     DEPENDS gpu_kraken_pipeline
+#     COMMENT "Testing complete Kraken2-style pipeline (build + classify)"
+# )
 
-# Benchmark Kraken vs other profilers
-add_custom_target(benchmark_kraken_vs_others
-    COMMAND echo "Benchmarking Kraken2-style profiler vs other methods..."
-    COMMAND time ./k2like_from_scratch/gpu_kraken_pipeline classify --database test_kraken_db --reads benchmark_sample.fastq.gz --output kraken_benchmark.txt
-    COMMAND time ./gpu_paired_profiler test_microbes_minimizer.db benchmark_sample_R1.fastq.gz benchmark_sample_R2.fastq.gz minimizer_benchmark
-    DEPENDS gpu_kraken_pipeline gpu_paired_profiler
-    COMMENT "Comparing performance of different profiling approaches"
-)
+# Benchmark Kraken vs other profilers - ARCHIVED
+# add_custom_target(benchmark_kraken_vs_others
+#     COMMAND echo "Benchmarking Kraken2-style profiler vs other methods..."
+#     COMMAND time ./k2like_from_scratch/gpu_kraken_pipeline classify --database test_kraken_db --reads benchmark_sample.fastq.gz --output kraken_benchmark.txt
+#     COMMAND time ./gpu_paired_profiler test_microbes_minimizer.db benchmark_sample_R1.fastq.gz benchmark_sample_R2.fastq.gz minimizer_benchmark
+#     DEPENDS gpu_kraken_pipeline gpu_paired_profiler
+#     COMMENT "Comparing performance of different profiling approaches"
+# )
 
 # ===========================
 # Installation Rules
@@ -998,7 +998,7 @@ install(TARGETS
     gpu_kraken_pipeline
     # gpu_kraken_paired_classifier  # TODO: Uncomment when implemented
     # gpu_kraken_build_db           # TODO: Uncomment when implemented
-    gpu_kraken_pipeline_debug
+    # gpu_kraken_pipeline_debug
     RUNTIME DESTINATION bin
 )
 
@@ -1079,7 +1079,7 @@ message(STATUS "  === Kraken2-style Implementation ===")
 message(STATUS "  k2like_from_scratch/gpu_kraken_pipeline - Complete Kraken2-style pipeline")
 message(STATUS "  k2like_from_scratch/gpu_kraken_paired_classifier - Paired-end Kraken classifier")
 message(STATUS "  k2like_from_scratch/gpu_kraken_build_db - Standalone database builder")
-message(STATUS "  k2like_from_scratch/gpu_kraken_pipeline_debug - Debug version")
+message(STATUS "  k2like_from_scratch/gpu_kraken_pipeline_debug - Debug version (ARCHIVED)")
 message(STATUS "  === Test and Debug Tools ===")
 message(STATUS "  test_minimizer              - Test GPU minimizer extraction")
 message(STATUS "  test_fastq_pipeline         - Full FASTQ processing pipeline")

@@ -2,8 +2,15 @@
 // Complete front-to-back GPU-accelerated Kraken2-style pipeline
 // Build database from genomes + classify reads
 
-#include "gpu_kraken_database_builder.cuh"
-#include "gpu_kraken_classifier.cuh"
+// Forward declarations for the classes we need
+class ClassificationParams;
+class GPUKrakenDatabaseBuilder;
+class PairedEndGPUKrakenClassifier;
+
+// Include the actual headers with class definitions
+#define GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
+#include "gpu_kraken_classifier.cu"
+#include "gpu_kraken_database_builder.cu"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -221,7 +228,7 @@ bool classify_reads_command(const PipelineConfig& config) {
     
     try {
         // Initialize classifier
-        GPUKrakenClassifier classifier(config.classifier_params);
+        PairedEndGPUKrakenClassifier classifier(config.classifier_params);
         
         // Load database
         if (!classifier.load_database(config.database_dir)) {
@@ -262,8 +269,8 @@ bool classify_reads_command(const PipelineConfig& config) {
         
         std::cout << "Loaded " << reads.size() << " reads for classification" << std::endl;
         
-        // Classify reads
-        auto results = classifier.classify_reads_batch(reads, config.batch_size);
+        // Classify reads (single-end for now)
+        auto results = classifier.classify_reads(reads);
         
         // Write results
         std::ofstream output(config.output_path);
@@ -283,7 +290,7 @@ bool classify_reads_command(const PipelineConfig& config) {
                    << result.taxon_id << "\t"
                    << reads[i].length() << "\t"
                    << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
-                   << result.winning_votes << "\t" << result.total_kmers << "\n";
+                   << result.read1_votes << "\t" << result.read1_kmers << "\n";
         }
         output.close();
         

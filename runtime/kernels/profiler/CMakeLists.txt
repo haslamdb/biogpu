@@ -181,6 +181,7 @@ target_compile_options(gpu_kraken_database_builder PRIVATE
         -O3
         --maxrregcount=64
         -DTHRUST_IGNORE_CUB_VERSION_CHECK
+        --extended-lambda
     >
 )
 
@@ -287,7 +288,7 @@ target_compile_options(hybrid_gpu_cpu_profiler PRIVATE
 
 # Main Kraken2-style pipeline executable
 add_executable(gpu_kraken_pipeline
-    k2like_from_scratch/kraken_pipeline_main.cpp
+    k2like_from_scratch/kraken_pipeline_main.cu
 )
 
 set_target_properties(gpu_kraken_pipeline PROPERTIES
@@ -323,6 +324,7 @@ target_compile_options(gpu_kraken_pipeline PRIVATE
         -O3
         -DNDEBUG
         --maxrregcount=64
+        --extended-lambda
     >
     $<$<COMPILE_LANGUAGE:CXX>:
         -O3
@@ -384,7 +386,7 @@ target_compile_options(gpu_kraken_pipeline PRIVATE
 
 # Debug versions of Kraken tools
 add_executable(gpu_kraken_pipeline_debug
-    k2like_from_scratch/kraken_pipeline_main.cpp
+    k2like_from_scratch/kraken_pipeline_main.cu
 )
 
 set_target_properties(gpu_kraken_pipeline_debug PROPERTIES

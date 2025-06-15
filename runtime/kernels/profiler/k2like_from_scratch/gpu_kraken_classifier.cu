@@ -2,6 +2,7 @@
 // GPU-accelerated Kraken2-style taxonomic classifier with PAIRED-END support
 // Implements paired-end concordance, voting boost, and confidence scoring
 
+#pragma once
 #ifndef GPU_KRAKEN_CLASSIFIER_PAIRED_CUH
 #define GPU_KRAKEN_CLASSIFIER_PAIRED_CUH
 
@@ -233,6 +234,7 @@ __device__ __host__ uint32_t jenkins_hash(uint64_t key);
 // IMPLEMENTATION
 // ================================================================
 
+#ifndef GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
 // Implementation continues below - no need to include self
 #include <iostream>
 #include <fstream>
@@ -896,3 +898,5 @@ __device__ __host__ uint32_t jenkins_hash(uint64_t key) {
     hash += (hash << 15);
     return hash;
 }
+
+#endif // GPU_KRAKEN_CLASSIFIER_HEADER_ONLY

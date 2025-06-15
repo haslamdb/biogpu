@@ -2,6 +2,7 @@
 // GPU-accelerated pipeline to build Kraken2-style database from genome files
 // Parallelizes minimizer extraction, LCA computation, and database construction
 
+#pragma once
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
@@ -86,8 +87,8 @@ private:
     GPUTaxonomyNode* d_taxonomy_nodes;
     
     // Processing parameters
-    static const int MAX_SEQUENCE_BATCH = 1000000;  // 1M sequences at once
-    static const int MAX_MINIMIZERS_PER_BATCH = 50000000;  // 50M minimizers
+    static const int MAX_SEQUENCE_BATCH = 10000;  // 10K sequences at once (reduced from 1M)
+    static const int MAX_MINIMIZERS_PER_BATCH = 5000000;  // 5M minimizers (reduced from 50M)
     static const int THREADS_PER_BLOCK = 256;
     
     // Statistics
@@ -219,6 +220,7 @@ __device__ bool has_valid_bases(const char* seq, int length);
 // IMPLEMENTATION
 // ================================================================
 
+#ifndef GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
 // Implementation continues below - no need to include self
 #include <iostream>
 #include <fstream>
@@ -234,6 +236,16 @@ __device__ bool has_valid_bases(const char* seq, int length);
         exit(1); \
     } \
 } while(0)
+
+// Global constants for GPU kernels
+__constant__ int MAX_MINIMIZERS_PER_BATCH = 50000000;  // 50M minimizers
+
+// Functor for sorting minimizer hits
+struct MinimizerHitComparator {
+    __host__ __device__ bool operator()(const GPUMinimizerHit& a, const GPUMinimizerHit& b) const {
+        return a.minimizer_hash < b.minimizer_hash;
+    }
+};
 
 // Constructor
 GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
@@ -593,10 +605,7 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     
     // Sort hits by minimizer hash using Thrust
     thrust::device_ptr<GPUMinimizerHit> hits_ptr(const_cast<GPUMinimizerHit*>(d_hits));
-    thrust::sort(hits_ptr, hits_ptr + num_hits,
-                [] __device__ (const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
-                    return a.minimizer_hash < b.minimizer_hash;
-                });
+    thrust::sort(hits_ptr, hits_ptr + num_hits, MinimizerHitComparator());
     
     // Group by minimizer hash and compute LCA for each group
     // This is a simplified version - full implementation would use CUB for grouping
@@ -613,7 +622,7 @@ bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
     std::cout << "Allocating GPU memory..." << std::endl;
     
     // Calculate memory requirements
-    size_t sequence_memory = MAX_SEQUENCE_BATCH * 10000;  // Assume avg 10kb per sequence
+    size_t sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 5000;  // Assume avg 5kb per sequence (reduced from 10kb)
     size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
     size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
     size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
@@ -784,6 +793,166 @@ void GPUKrakenDatabaseBuilder::print_build_statistics() {
     }
 }
 
+// Load taxonomy data from NCBI dump files
+bool GPUKrakenDatabaseBuilder::load_taxonomy_data(const std::string& taxonomy_path) {
+    std::cout << "Loading taxonomy data from: " << taxonomy_path << std::endl;
+    
+    // Clear existing taxonomy data
+    taxon_names.clear();
+    taxon_parents.clear();
+    
+    // Determine paths to nodes.dmp and names.dmp
+    std::filesystem::path base_path(taxonomy_path);
+    std::string nodes_file, names_file;
+    
+    if (std::filesystem::is_directory(base_path)) {
+        // Look for NCBI taxonomy dump files
+        nodes_file = base_path / "nodes.dmp";
+        names_file = base_path / "names.dmp";
+        
+        // If not found in directory, check parent
+        if (!std::filesystem::exists(nodes_file)) {
+            nodes_file = base_path.parent_path() / "nodes.dmp";
+            names_file = base_path.parent_path() / "names.dmp";
+        }
+    } else {
+        // Assume taxonomy_path is the directory containing the files
+        base_path = base_path.parent_path();
+        nodes_file = base_path / "nodes.dmp";
+        names_file = base_path / "names.dmp";
+    }
+    
+    // First, load the taxonomy tree structure from nodes.dmp
+    if (!std::filesystem::exists(nodes_file)) {
+        std::cerr << "nodes.dmp not found at: " << nodes_file << std::endl;
+        return false;
+    }
+    
+    std::cout << "Loading taxonomy tree from: " << nodes_file << std::endl;
+    std::ifstream nodes_in(nodes_file);
+    if (!nodes_in.is_open()) {
+        std::cerr << "Cannot open nodes.dmp: " << nodes_file << std::endl;
+        return false;
+    }
+    
+    std::string line;
+    int nodes_loaded = 0;
+    std::unordered_map<uint32_t, std::string> taxon_ranks;
+    
+    while (std::getline(nodes_in, line)) {
+        if (line.empty()) continue;
+        
+        // Parse pipe-delimited format: tax_id | parent_tax_id | rank | ...
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> fields;
+        
+        while (std::getline(iss, token, '|')) {
+            // Trim whitespace
+            token.erase(0, token.find_first_not_of(" \t"));
+            token.erase(token.find_last_not_of(" \t") + 1);
+            fields.push_back(token);
+        }
+        
+        if (fields.size() >= 3) {
+            try {
+                uint32_t taxon_id = std::stoul(fields[0]);
+                uint32_t parent_id = std::stoul(fields[1]);
+                std::string rank = fields[2];
+                
+                taxon_parents[taxon_id] = parent_id;
+                taxon_ranks[taxon_id] = rank;
+                nodes_loaded++;
+                
+                // Initialize with taxon ID as name (will be replaced by names.dmp)
+                taxon_names[taxon_id] = "taxon_" + std::to_string(taxon_id);
+            } catch (const std::exception& e) {
+                // Skip malformed lines
+                continue;
+            }
+        }
+    }
+    nodes_in.close();
+    
+    std::cout << "Loaded " << nodes_loaded << " taxonomy nodes" << std::endl;
+    
+    // Now load the scientific names from names.dmp
+    if (!std::filesystem::exists(names_file)) {
+        std::cerr << "names.dmp not found at: " << names_file << std::endl;
+        std::cerr << "Using taxon IDs as names" << std::endl;
+        return nodes_loaded > 0;
+    }
+    
+    std::cout << "Loading taxonomy names from: " << names_file << std::endl;
+    std::ifstream names_in(names_file);
+    if (!names_in.is_open()) {
+        std::cerr << "Cannot open names.dmp: " << names_file << std::endl;
+        return nodes_loaded > 0;
+    }
+    
+    int names_loaded = 0;
+    
+    while (std::getline(names_in, line)) {
+        if (line.empty()) continue;
+        
+        // Parse pipe-delimited format: tax_id | name_txt | unique_name | name_class |
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> fields;
+        
+        while (std::getline(iss, token, '|')) {
+            // Trim whitespace
+            token.erase(0, token.find_first_not_of(" \t"));
+            token.erase(token.find_last_not_of(" \t") + 1);
+            fields.push_back(token);
+        }
+        
+        if (fields.size() >= 4) {
+            try {
+                uint32_t taxon_id = std::stoul(fields[0]);
+                std::string name_txt = fields[1];
+                std::string name_class = fields[3];
+                
+                // Only use scientific names (primary names)
+                if (name_class == "scientific name" && taxon_parents.find(taxon_id) != taxon_parents.end()) {
+                    taxon_names[taxon_id] = name_txt;
+                    names_loaded++;
+                }
+            } catch (const std::exception& e) {
+                // Skip malformed lines
+                continue;
+            }
+        }
+    }
+    names_in.close();
+    
+    std::cout << "Loaded " << names_loaded << " scientific names" << std::endl;
+    
+    // Ensure root node exists
+    if (taxon_names.find(1) == taxon_names.end()) {
+        taxon_names[1] = "root";
+        taxon_parents[1] = 0;
+    }
+    
+    // Print some statistics
+    std::cout << "Total taxa in database: " << taxon_parents.size() << std::endl;
+    
+    // Count taxa by rank
+    std::unordered_map<std::string, int> rank_counts;
+    for (const auto& [taxon_id, rank] : taxon_ranks) {
+        rank_counts[rank]++;
+    }
+    
+    std::cout << "Taxa by rank:" << std::endl;
+    for (const auto& [rank, count] : rank_counts) {
+        if (count > 100) {  // Only show major ranks
+            std::cout << "  " << rank << ": " << count << std::endl;
+        }
+    }
+    
+    return nodes_loaded > 0;
+}
+
 // Device function to check for valid bases
 __device__ bool has_valid_bases(const char* seq, int length) {
     for (int i = 0; i < length; i++) {
@@ -797,3 +966,4 @@ __device__ bool has_valid_bases(const char* seq, int length) {
 }
 
 #endif // GPU_KRAKEN_DATABASE_BUILDER_CUH
+#endif // GPU_KRAKEN_CLASSIFIER_HEADER_ONLY

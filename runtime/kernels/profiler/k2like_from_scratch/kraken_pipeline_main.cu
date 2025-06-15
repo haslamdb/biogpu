@@ -39,6 +39,7 @@ void print_usage(const char* program_name) {
     std::cout << "  --spaces <int>        Spaced seed spacing (default: 7)" << std::endl;
     std::cout << "  --confidence <float>  Confidence threshold 0-1 (default: 0.1)" << std::endl;
     std::cout << "  --batch-size <int>    Reads per batch (default: 10000)" << std::endl;
+    std::cout << "  --gpu-batch <int>     GPU batch size for building (default: 1000)" << std::endl;
     std::cout << "  --taxonomy <dir>      NCBI taxonomy directory (optional)" << std::endl;
     std::cout << "  --threads <int>       CPU threads for I/O (default: 4)" << std::endl;
     std::cout << "  --quick               Quick mode: stop at first hit" << std::endl;
@@ -63,6 +64,7 @@ struct PipelineConfig {
     
     ClassificationParams classifier_params;
     int batch_size = 10000;
+    int gpu_batch_size = 1000;  // GPU batch size for database building
     int cpu_threads = 4;
     bool quick_mode = false;
     bool verbose = false;
@@ -105,6 +107,8 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.classifier_params.confidence_threshold = std::stof(argv[++i]);
         } else if (arg == "--batch-size" && i + 1 < argc) {
             config.batch_size = std::stoi(argv[++i]);
+        } else if (arg == "--gpu-batch" && i + 1 < argc) {
+            config.gpu_batch_size = std::stoi(argv[++i]);
         } else if (arg == "--threads" && i + 1 < argc) {
             config.cpu_threads = std::stoi(argv[++i]);
         } else if (arg == "--quick") {
@@ -190,6 +194,11 @@ bool build_database_command(const PipelineConfig& config) {
     
     try {
         GPUKrakenDatabaseBuilder builder(config.output_path, config.classifier_params);
+        
+        // Set batch size if specified
+        if (config.gpu_batch_size > 0) {
+            builder.set_batch_size(config.gpu_batch_size);
+        }
         
         bool success = builder.build_database_from_genomes(
             config.genome_dir,

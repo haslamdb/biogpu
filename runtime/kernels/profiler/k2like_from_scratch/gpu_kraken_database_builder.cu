@@ -86,9 +86,9 @@ private:
     LCACandidate* d_lca_candidates;
     GPUTaxonomyNode* d_taxonomy_nodes;
     
-    // Processing parameters
-    static const int MAX_SEQUENCE_BATCH = 10000;  // 10K sequences at once (reduced from 1M)
-    static const int MAX_MINIMIZERS_PER_BATCH = 5000000;  // 5M minimizers (reduced from 50M)
+    // Processing parameters - reduced for better memory management
+    int MAX_SEQUENCE_BATCH = 1000;  // 1K sequences at once (reduced from 10K)
+    int MAX_MINIMIZERS_PER_BATCH = 500000;  // 500K minimizers (reduced from 5M)
     static const int THREADS_PER_BLOCK = 256;
     
     // Statistics
@@ -118,7 +118,13 @@ public:
     
     // Configuration
     void set_batch_size(int sequences_per_batch) {
-        // Will be used to tune memory usage
+        if (sequences_per_batch > 0 && sequences_per_batch <= 10000) {
+            MAX_SEQUENCE_BATCH = sequences_per_batch;
+            // Adjust minimizers proportionally
+            MAX_MINIMIZERS_PER_BATCH = sequences_per_batch * 50000;  // ~50K minimizers per genome sequence
+            std::cout << "Set GPU batch size to " << MAX_SEQUENCE_BATCH 
+                      << " sequences, " << MAX_MINIMIZERS_PER_BATCH << " minimizers" << std::endl;
+        }
     }
     
     void print_build_statistics();
@@ -419,6 +425,15 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
         current_offset += sequences[i].length();
     }
     
+    // Check if data fits in allocated memory
+    size_t max_sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;
+    if (concatenated_sequences.length() > max_sequence_memory) {
+        std::cerr << "ERROR: Sequence data (" << concatenated_sequences.length() 
+                  << " bytes) exceeds allocated memory (" << max_sequence_memory << " bytes)" << std::endl;
+        std::cerr << "Try reducing --gpu-batch parameter" << std::endl;
+        return false;
+    }
+    
     // Transfer to GPU
     CUDA_CHECK(cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(),
                          concatenated_sequences.length(), cudaMemcpyHostToDevice));
@@ -447,7 +462,7 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     return true;
 }
 
-// GPU kernel to extract minimizers
+// GPU kernel to extract minimizers - optimized for large sequences
 __global__ void extract_minimizers_kernel(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
@@ -457,50 +472,63 @@ __global__ void extract_minimizers_kernel(
     uint32_t* global_hit_counter,
     ClassificationParams params) {
     
-    int genome_id = blockIdx.x * blockDim.x + threadIdx.x;
-    if (genome_id >= num_genomes) return;
+    // Use grid-stride loop to handle large sequences
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
     
-    const GPUGenomeInfo& genome = genome_info[genome_id];
-    const char* sequence = sequence_data + genome.sequence_offset;
-    uint32_t seq_length = genome.sequence_length;
-    
-    if (seq_length < params.k) {
-        hit_counts[genome_id] = 0;
-        return;
-    }
-    
-    uint32_t local_hit_count = 0;
-    
-    // Extract minimizers from this sequence
-    for (uint32_t i = 0; i <= seq_length - params.k; i++) {
-        // Check for valid bases in k-mer
-        if (!has_valid_bases(sequence + i, params.k)) {
+    // Process all sequences cooperatively
+    for (int genome_id = 0; genome_id < num_genomes; genome_id++) {
+        const GPUGenomeInfo& genome = genome_info[genome_id];
+        const char* sequence = sequence_data + genome.sequence_offset;
+        uint32_t seq_length = genome.sequence_length;
+        
+        if (seq_length < params.k) {
+            if (tid == 0) hit_counts[genome_id] = 0;
             continue;
         }
         
-        // Extract minimizer
-        uint64_t minimizer = extract_single_minimizer(
-            sequence, seq_length, i, params.k, params.ell, params.spaces
-        );
+        // Each thread processes a chunk of the sequence
+        uint32_t kmers_per_thread = (seq_length - params.k + 1 + stride - 1) / stride;
+        uint32_t start_pos = tid * kmers_per_thread;
+        uint32_t end_pos = min(start_pos + kmers_per_thread, seq_length - params.k + 1);
         
-        if (minimizer != UINT64_MAX) {
-            // Get global position for this hit
-            uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+        uint32_t local_hit_count = 0;
+        
+        // Process assigned chunk
+        for (uint32_t i = start_pos; i < end_pos; i++) {
+            // Check for valid bases in k-mer
+            if (!has_valid_bases(sequence + i, params.k)) {
+                continue;
+            }
             
-            if (global_pos < MAX_MINIMIZERS_PER_BATCH) {
-                GPUMinimizerHit hit;
-                hit.minimizer_hash = minimizer;
-                hit.taxon_id = genome.taxon_id;
-                hit.position = i;
-                hit.genome_id = genome.genome_id;
+            // Extract minimizer
+            uint64_t minimizer = extract_single_minimizer(
+                sequence, seq_length, i, params.k, params.ell, params.spaces
+            );
+            
+            if (minimizer != UINT64_MAX) {
+                // Get global position for this hit
+                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
                 
-                minimizer_hits[global_pos] = hit;
-                local_hit_count++;
+                if (global_pos < 500000) {  // Use the class constant MAX_MINIMIZERS_PER_BATCH (500K)
+                    GPUMinimizerHit hit;
+                    hit.minimizer_hash = minimizer;
+                    hit.taxon_id = genome.taxon_id;
+                    hit.position = i;
+                    hit.genome_id = genome.genome_id;
+                    
+                    minimizer_hits[global_pos] = hit;
+                    local_hit_count++;
+                }
             }
         }
+        
+        // Sum up hit counts for this genome
+        atomicAdd(&hit_counts[genome_id], local_hit_count);
+        
+        // Synchronize before moving to next genome
+        __syncthreads();
     }
-    
-    hit_counts[genome_id] = local_hit_count;
 }
 
 // Device function to extract a single minimizer
@@ -569,8 +597,12 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     CUDA_CHECK(cudaMalloc(&d_global_counter, sizeof(uint32_t)));
     CUDA_CHECK(cudaMemcpy(d_global_counter, &zero, sizeof(uint32_t), cudaMemcpyHostToDevice));
     
-    // Launch kernel
-    int num_blocks = (num_sequences + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+    // Launch kernel with multiple blocks for better parallelism
+    // Use more blocks to process large sequences in parallel
+    int num_blocks = min(2048, num_sequences * 32);  // Multiple blocks per genome
+    
+    // Clear hit counts
+    CUDA_CHECK(cudaMemset(d_minimizer_counts, 0, num_sequences * sizeof(uint32_t)));
     
     extract_minimizers_kernel<<<num_blocks, THREADS_PER_BLOCK>>>(
         d_sequences, d_genomes, num_sequences,
@@ -621,22 +653,79 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
 bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
     std::cout << "Allocating GPU memory..." << std::endl;
     
+    // Check available GPU memory first
+    size_t free_memory, total_memory_gpu;
+    cudaMemGetInfo(&free_memory, &total_memory_gpu);
+    std::cout << "GPU Memory: " << (free_memory / 1024 / 1024) << " MB free / " 
+              << (total_memory_gpu / 1024 / 1024) << " MB total" << std::endl;
+    
     // Calculate memory requirements
-    size_t sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 5000;  // Assume avg 5kb per sequence (reduced from 10kb)
+    size_t sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;  // Assume up to 10MB per genome
     size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
     size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
     size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
     
-    CUDA_CHECK(cudaMalloc(&d_sequence_data, sequence_memory));
-    CUDA_CHECK(cudaMalloc(&d_genome_info, genome_info_memory));
-    CUDA_CHECK(cudaMalloc(&d_minimizer_hits, minimizer_memory));
-    CUDA_CHECK(cudaMalloc(&d_minimizer_counts, MAX_SEQUENCE_BATCH * sizeof(uint32_t)));
-    CUDA_CHECK(cudaMalloc(&d_lca_candidates, candidate_memory));
+    size_t total_required = sequence_memory + genome_info_memory + 
+                           minimizer_memory + candidate_memory;
     
-    size_t total_memory = sequence_memory + genome_info_memory + 
-                         minimizer_memory + candidate_memory;
+    std::cout << "Memory requirements:" << std::endl;
+    std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Genome info: " << (genome_info_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  LCA candidates: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Total required: " << (total_required / 1024 / 1024) << " MB" << std::endl;
     
-    std::cout << "Allocated " << (total_memory / 1024 / 1024) 
+    // Check if we have enough memory
+    if (total_required > free_memory * 0.9) {  // Leave 10% buffer
+        std::cerr << "ERROR: Not enough GPU memory! Required: " << (total_required / 1024 / 1024) 
+                  << " MB, Available: " << (free_memory / 1024 / 1024) << " MB" << std::endl;
+        return false;
+    }
+    
+    // Allocate with error checking
+    cudaError_t err;
+    
+    err = cudaMalloc(&d_sequence_data, sequence_memory);
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate sequence memory: " << cudaGetErrorString(err) << std::endl;
+        return false;
+    }
+    
+    err = cudaMalloc(&d_genome_info, genome_info_memory);
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate genome info memory: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_sequence_data);
+        return false;
+    }
+    
+    err = cudaMalloc(&d_minimizer_hits, minimizer_memory);
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate minimizer memory: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_sequence_data);
+        cudaFree(d_genome_info);
+        return false;
+    }
+    
+    err = cudaMalloc(&d_minimizer_counts, MAX_SEQUENCE_BATCH * sizeof(uint32_t));
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate minimizer counts: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_sequence_data);
+        cudaFree(d_genome_info);
+        cudaFree(d_minimizer_hits);
+        return false;
+    }
+    
+    err = cudaMalloc(&d_lca_candidates, candidate_memory);
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate LCA candidates: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_sequence_data);
+        cudaFree(d_genome_info);
+        cudaFree(d_minimizer_hits);
+        cudaFree(d_minimizer_counts);
+        return false;
+    }
+    
+    std::cout << "Successfully allocated " << (total_required / 1024 / 1024) 
               << " MB of GPU memory" << std::endl;
     
     return true;

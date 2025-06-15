@@ -1,0 +1,9 @@
+Database Build Statistics
+========================
+Total sequences: 190
+Total bases: 725519735
+Valid minimizers: 5112927
+LCA assignments: 0
+Sequence processing time: 6.98676s
+Minimizer extraction time: 5.9434s
+LCA computation time: 0.0296849s

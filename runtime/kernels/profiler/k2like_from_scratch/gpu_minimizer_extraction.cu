@@ -167,6 +167,13 @@ __global__ void extract_minimizers_optimized_kernel(
         if (minimizer != UINT64_MAX) {
             // KEY FIX: Only store if different from last minimizer
             if (minimizer != last_minimizer) {
+                // Check if we still have space before incrementing
+                uint32_t current_count = atomicAdd(global_hit_counter, 0); // Read without modifying
+                if (current_count >= max_minimizers) {
+                    // Buffer is full, stop processing
+                    break;
+                }
+                
                 uint32_t global_pos = atomicAdd(global_hit_counter, 1);
                 
                 if (global_pos < max_minimizers) {
@@ -178,6 +185,9 @@ __global__ void extract_minimizers_optimized_kernel(
                     
                     minimizer_hits[global_pos] = hit;
                     local_minimizer_count++;
+                } else {
+                    // We exceeded the limit, stop processing
+                    break;
                 }
                 
                 last_minimizer = minimizer;  // Update last seen minimizer
@@ -364,6 +374,13 @@ bool extract_minimizers_gpu_optimized(
     // Get total hit count
     cudaMemcpy(total_hits, d_global_counter, sizeof(uint32_t), cudaMemcpyDeviceToHost);
     
+    // CRITICAL: Clamp total_hits to max_minimizers to prevent overflow
+    if (*total_hits > max_minimizers) {
+        printf("WARNING: Minimizer extraction hit limit. Clamping %u to %d\n", 
+               *total_hits, max_minimizers);
+        *total_hits = max_minimizers;
+    }
+    
     cudaFree(d_global_counter);
     
     return true;
@@ -373,21 +390,43 @@ bool extract_minimizers_gpu_optimized(
 bool deduplicate_minimizers_gpu(
     GPUMinimizerHit* d_minimizer_hits,
     uint32_t num_hits,
-    uint32_t* final_count) {
+    uint32_t* final_count,
+    uint32_t max_allocated_hits) {
     
     if (num_hits == 0) {
         *final_count = 0;
         return true;
     }
     
+    // CRITICAL: Check bounds before processing
+    if (num_hits > max_allocated_hits) {
+        printf("ERROR: num_hits (%u) exceeds allocated memory (%u)!\n", 
+               num_hits, max_allocated_hits);
+        return false;
+    }
+    
     // Sort by minimizer hash
     thrust::device_ptr<GPUMinimizerHit> hits_ptr(d_minimizer_hits);
     
     try {
+        // Add explicit CUDA error checking before sort
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("CUDA error before sort: %s\n", cudaGetErrorString(err));
+            return false;
+        }
+        
         thrust::sort(hits_ptr, hits_ptr + num_hits, 
             [] __device__ (const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
                 return a.minimizer_hash < b.minimizer_hash;
             });
+        
+        // Check for errors after sort
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("CUDA error after sort: %s\n", cudaGetErrorString(err));
+            return false;
+        }
         
         // Remove duplicates (keep first occurrence of each hash)
         auto new_end = thrust::unique(hits_ptr, hits_ptr + num_hits,
@@ -396,6 +435,13 @@ bool deduplicate_minimizers_gpu(
             });
         
         *final_count = new_end - hits_ptr;
+        
+        // Final error check
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("CUDA error after unique: %s\n", cudaGetErrorString(err));
+            return false;
+        }
         
     } catch (const std::exception& e) {
         printf("Error in deduplication: %s\n", e.what());

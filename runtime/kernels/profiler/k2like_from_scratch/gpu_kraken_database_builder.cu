@@ -591,7 +591,7 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     uint32_t unique_count = 0;
     GPUMinimizerHit* d_hits_mutable = const_cast<GPUMinimizerHit*>(d_hits);
     
-    bool dedup_success = deduplicate_minimizers_gpu(d_hits_mutable, num_hits, &unique_count);
+    bool dedup_success = deduplicate_minimizers_gpu(d_hits_mutable, num_hits, &unique_count, MAX_MINIMIZERS_PER_BATCH);
     if (!dedup_success) {
         std::cerr << "Deduplication failed!" << std::endl;
         return false;

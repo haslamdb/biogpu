@@ -39,7 +39,8 @@ bool extract_minimizers_gpu_optimized(
 bool deduplicate_minimizers_gpu(
     GPUMinimizerHit* d_minimizer_hits,
     uint32_t num_hits,
-    uint32_t* final_count
+    uint32_t* final_count,
+    uint32_t max_allocated_hits
 );
 
 void test_minimizer_extraction();

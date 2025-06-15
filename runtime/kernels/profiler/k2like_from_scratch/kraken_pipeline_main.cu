@@ -49,6 +49,15 @@ void print_usage(const char* program_name) {
     std::cout << "  --threads <int>       CPU threads for I/O (default: 4)" << std::endl;
     std::cout << "  --quick               Quick mode: stop at first hit" << std::endl;
     std::cout << "  --report <file>       Generate summary report" << std::endl;
+    
+    std::cout << "\nStreaming Options (for large datasets):" << std::endl;
+    std::cout << "  --streaming-batch <int>    Read pairs per batch (default: 50000)" << std::endl;
+    std::cout << "  --force-streaming          Force streaming mode regardless of file size" << std::endl;
+    std::cout << "  --disable-streaming        Disable automatic streaming" << std::endl;
+    std::cout << "  --gpu-memory-limit <mb>    GPU memory limit for reads (default: 8192)" << std::endl;
+    std::cout << "\nStreaming Examples:" << std::endl;
+    std::cout << "  # Large paired-end dataset with custom batch size" << std::endl;
+    std::cout << "  " << program_name << " classify --database ./db --reads large_R1.fastq.gz --reads2 large_R2.fastq.gz --output results.txt --streaming-batch 25000" << std::endl;
     std::cout << "\nMemory Usage Examples:" << std::endl;
     std::cout << "  # Use 10M minimizers per batch (high memory, comprehensive)" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --minimizer-capacity 10000000" << std::endl;
@@ -59,6 +68,14 @@ void print_usage(const char* program_name) {
     std::cout << "\n  # Manual control for specific hardware" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --no-auto-memory --minimizer-capacity 8000000" << std::endl;
 }
+
+struct StreamingConfig {
+    size_t read_batch_size = 50000;           // Process 50K read pairs per batch
+    size_t max_gpu_memory_for_reads_mb = 8192; // Reserve 8GB for read processing
+    bool enable_streaming = true;
+    bool show_batch_progress = true;
+    size_t max_reads_in_memory = 1000000;     // Trigger streaming if more reads
+};
 
 struct PipelineConfig {
     std::string command;
@@ -82,6 +99,11 @@ struct PipelineConfig {
     int cpu_threads = 4;
     bool quick_mode = false;
     bool verbose = false;
+    
+    // Streaming configuration
+    StreamingConfig streaming_config;
+    bool force_streaming = false;
+    size_t batch_size_override = 0;
 };
 
 bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
@@ -140,6 +162,15 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.quick_mode = true;
         } else if (arg == "--verbose") {
             config.verbose = true;
+        // Streaming options
+        } else if (arg == "--streaming-batch" && i + 1 < argc) {
+            config.streaming_config.read_batch_size = std::stoi(argv[++i]);
+        } else if (arg == "--force-streaming") {
+            config.force_streaming = true;
+        } else if (arg == "--gpu-memory-limit" && i + 1 < argc) {
+            config.streaming_config.max_gpu_memory_for_reads_mb = std::stoi(argv[++i]);
+        } else if (arg == "--disable-streaming") {
+            config.streaming_config.enable_streaming = false;
         } else {
             std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
         }
@@ -267,7 +298,218 @@ bool build_database_command(const PipelineConfig& config) {
     }
 }
 
+// Streaming FASTQ reader class
+class StreamingFASTQReader {
+private:
+    std::ifstream file1, file2;
+    gzFile gz_file1 = nullptr, gz_file2 = nullptr;
+    bool is_paired;
+    bool is_gzipped;
+    size_t current_read_count = 0;
+    
+public:
+    StreamingFASTQReader(const std::string& file1_path, const std::string& file2_path = "") {
+        is_paired = !file2_path.empty();
+        is_gzipped = file1_path.substr(file1_path.find_last_of(".") + 1) == "gz";
+        
+        if (is_gzipped) {
+            gz_file1 = gzopen(file1_path.c_str(), "rb");
+            if (is_paired) {
+                gz_file2 = gzopen(file2_path.c_str(), "rb");
+            }
+        } else {
+            file1.open(file1_path);
+            if (is_paired) {
+                file2.open(file2_path);
+            }
+        }
+    }
+    
+    ~StreamingFASTQReader() {
+        if (gz_file1) gzclose(gz_file1);
+        if (gz_file2) gzclose(gz_file2);
+    }
+    
+    bool readBatch(std::vector<PairedRead>& batch, size_t batch_size) {
+        batch.clear();
+        batch.reserve(batch_size);
+        
+        std::string line1, line2;
+        int line_count = 0;
+        
+        while (batch.size() < batch_size) {
+            bool has_line1 = false, has_line2 = false;
+            
+            if (is_gzipped) {
+                char buffer1[4096], buffer2[4096];
+                has_line1 = gzgets(gz_file1, buffer1, sizeof(buffer1)) != nullptr;
+                if (has_line1) {
+                    line1 = buffer1;
+                    if (!line1.empty() && line1.back() == '\n') line1.pop_back();
+                }
+                
+                if (is_paired && has_line1) {
+                    has_line2 = gzgets(gz_file2, buffer2, sizeof(buffer2)) != nullptr;
+                    if (has_line2) {
+                        line2 = buffer2;
+                        if (!line2.empty() && line2.back() == '\n') line2.pop_back();
+                    }
+                }
+            } else {
+                has_line1 = std::getline(file1, line1);
+                if (is_paired && has_line1) {
+                    has_line2 = std::getline(file2, line2);
+                }
+            }
+            
+            if (!has_line1) break;
+            
+            line_count++;
+            if (line_count % 4 == 2) {  // Sequence line
+                if (is_paired && has_line2) {
+                    if (line1.length() >= 35 && line2.length() >= 35) {
+                        batch.emplace_back(line1, line2, "pair_" + std::to_string(current_read_count++));
+                    }
+                } else {
+                    if (line1.length() >= 35) {
+                        batch.emplace_back(line1);
+                        batch.back().read_id = "single_" + std::to_string(current_read_count++);
+                    }
+                }
+            }
+        }
+        
+        return !batch.empty();
+    }
+    
+    size_t getTotalReadsProcessed() const { return current_read_count; }
+};
+
+bool classify_reads_with_streaming(const PipelineConfig& config) {
+    std::cout << "\n=== STREAMING CLASSIFICATION ===" << std::endl;
+    
+    try {
+        // Initialize classifier
+        PairedEndGPUKrakenClassifier classifier(config.classifier_params);
+        
+        // Load database
+        if (!classifier.load_database(config.database_dir)) {
+            std::cerr << "Failed to load database from " << config.database_dir << std::endl;
+            return false;
+        }
+        
+        // Setup streaming reader
+        StreamingFASTQReader reader(config.reads_file, config.reads_file2);
+        
+        // Open output file
+        std::ofstream output(config.output_path);
+        if (!output.is_open()) {
+            std::cerr << "Cannot create output file: " << config.output_path << std::endl;
+            return false;
+        }
+        
+        output << "# GPU Kraken Classification Results (Streaming)\n";
+        
+        // Streaming classification loop
+        std::vector<PairedRead> batch;
+        size_t total_reads_processed = 0;
+        size_t batch_number = 0;
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        while (reader.readBatch(batch, config.streaming_config.read_batch_size)) {
+            batch_number++;
+            
+            if (config.streaming_config.show_batch_progress) {
+                std::cout << "Processing batch " << batch_number 
+                          << " (" << batch.size() << " read pairs)..." << std::endl;
+            }
+            
+            // Classify this batch
+            auto batch_results = classifier.classify_paired_reads(batch);
+            
+            // Write results immediately
+            for (size_t i = 0; i < batch_results.size(); i++) {
+                const auto& result = batch_results[i];
+                const auto& read_pair = batch[i];
+                
+                char status = (result.taxon_id > 0) ? 'C' : 'U';
+                
+                if (read_pair.is_paired) {
+                    output << status << "\t"
+                           << read_pair.read_id << "\t"
+                           << result.taxon_id << "\t"
+                           << read_pair.read1.length() << "|" << read_pair.read2.length() << "\t"
+                           << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
+                           << result.read1_votes << "|" << result.read2_votes << "\t" 
+                           << result.read1_kmers << "|" << result.read2_kmers << "\n";
+                } else {
+                    output << status << "\t"
+                           << read_pair.read_id << "\t"
+                           << result.taxon_id << "\t"
+                           << read_pair.read1.length() << "\t"
+                           << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
+                           << result.read1_votes << "\t" << result.read1_kmers << "\n";
+                }
+            }
+            
+            total_reads_processed += batch.size();
+            
+            // Optional: Print progress
+            if (batch_number % 10 == 0) {
+                auto current_time = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time);
+                double reads_per_second = total_reads_processed / (duration.count() + 1);
+                
+                std::cout << "Processed " << total_reads_processed 
+                          << " reads (" << std::fixed << std::setprecision(0) 
+                          << reads_per_second << " reads/sec)" << std::endl;
+            }
+        }
+        
+        output.close();
+        
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+        
+        std::cout << "\n✓ Streaming classification completed!" << std::endl;
+        std::cout << "Total reads processed: " << total_reads_processed << std::endl;
+        std::cout << "Total batches: " << batch_number << std::endl;
+        std::cout << "Time: " << total_duration.count() << " seconds" << std::endl;
+        std::cout << "Results written to: " << config.output_path << std::endl;
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error during streaming classification: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 bool classify_reads_command(const PipelineConfig& config) {
+    // Determine if we should use streaming
+    bool should_stream = config.streaming_config.enable_streaming || config.force_streaming;
+    
+    // Check file size to auto-enable streaming for large files
+    if (!should_stream) {
+        std::ifstream file(config.reads_file, std::ios::ate | std::ios::binary);
+        if (file.is_open()) {
+            size_t file_size_mb = file.tellg() / (1024 * 1024);
+            file.close();
+            
+            // Auto-enable streaming for files > 1GB
+            if (file_size_mb > 1024) {
+                std::cout << "Large input file detected (" << file_size_mb 
+                          << " MB), enabling streaming mode" << std::endl;
+                should_stream = true;
+            }
+        }
+    }
+    
+    if (should_stream) {
+        return classify_reads_with_streaming(config);
+    }
+    
+    // Keep existing non-streaming code as fallback for small files
     std::cout << "\n=== CLASSIFYING READS ===" << std::endl;
     std::cout << "Database: " << config.database_dir << std::endl;
     std::cout << "Reads file: " << config.reads_file << std::endl;

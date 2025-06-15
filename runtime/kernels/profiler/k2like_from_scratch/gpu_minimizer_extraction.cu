@@ -2,11 +2,15 @@
 // Optimized GPU kernel for Kraken2-style minimizer extraction
 // Implements sliding window minimizer algorithm with proper deduplication
 
+#ifndef GPU_MINIMIZER_EXTRACTION_CU
+#define GPU_MINIMIZER_EXTRACTION_CU
+
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <cub/cub.cuh>
+#include "../../../include/biogpu/minimizer_extraction.h"
 
 // Configuration constants
 #define MAX_KMER_LENGTH 64
@@ -29,13 +33,7 @@ struct GPUGenomeInfo {
     uint32_t genome_id;
 };
 
-// Parameters for minimizer extraction
-struct MinimizerParams {
-    int k = 35;          // k-mer length
-    int ell = 31;        // minimizer length
-    int spaces = 7;      // spaced seed spacing
-    uint64_t xor_mask = 0x123456789ABCDEFULL;  // XOR shuffling constant
-};
+// MinimizerParams is defined in minimizer_extraction.h
 
 // Device functions for minimizer computation
 __device__ uint64_t encode_base(char base) {
@@ -275,7 +273,7 @@ __global__ void extract_minimizers_sliding_window_kernel(
 }
 
 // Host function to launch optimized minimizer extraction
-extern "C" bool extract_minimizers_gpu_optimized(
+bool extract_minimizers_gpu_optimized(
     const char* d_sequence_data,
     const GPUGenomeInfo* d_genome_info,
     int num_genomes,
@@ -328,7 +326,7 @@ extern "C" bool extract_minimizers_gpu_optimized(
 }
 
 // Host function for post-processing deduplication using Thrust
-extern "C" bool deduplicate_minimizers_gpu(
+bool deduplicate_minimizers_gpu(
     GPUMinimizerHit* d_minimizer_hits,
     uint32_t num_hits,
     uint32_t* final_count) {
@@ -357,26 +355,10 @@ extern "C" bool deduplicate_minimizers_gpu(
 }
 
 // Test function to validate minimizer extraction
-extern "C" void test_minimizer_extraction() {
-    // Test with small example
-    const char* test_sequence = "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG";
-    int seq_len = strlen(test_sequence);
-    
-    MinimizerParams params;
-    params.k = 10;
-    params.ell = 8;
-    params.spaces = 2;
-    
-    printf("Testing minimizer extraction:\n");
-    printf("Sequence: %s\n", test_sequence);
-    printf("Parameters: k=%d, ell=%d, spaces=%d\n", params.k, params.ell, params.spaces);
-    
-    // Extract minimizers for each k-mer manually
-    for (int pos = 0; pos <= seq_len - params.k; pos++) {
-        uint64_t minimizer = extract_minimizer_sliding_window(
-            test_sequence, pos, params.k, params.ell, params.spaces, params.xor_mask
-        );
-        
-        printf("K-mer at pos %d: minimizer = 0x%016lx\n", pos, minimizer);
-    }
+void test_minimizer_extraction() {
+    // This function needs to be implemented properly with a kernel launch
+    // Currently commented out because it's trying to call device functions from host
+    printf("test_minimizer_extraction: Not implemented - requires kernel launch\n");
 }
+
+#endif // GPU_MINIMIZER_EXTRACTION_CU

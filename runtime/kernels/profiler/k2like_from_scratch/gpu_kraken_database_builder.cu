@@ -2,13 +2,12 @@
 // GPU-accelerated pipeline to build Kraken2-style database from genome files
 // Parallelizes minimizer extraction, LCA computation, and database construction
 
-#pragma once
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
 #include "gpu_kraken_classifier.cu"
 #include "gpu_minimizer_extraction.cu"
-#include "../../../include/biogpu/minimizer_extraction.h"
+// Already included in gpu_minimizer_extraction.cu: #include "../../../include/biogpu/minimizer_extraction.h"
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>

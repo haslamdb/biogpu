@@ -19,7 +19,7 @@ class PairedEndGPUKrakenClassifier;
 #include <chrono>
 
 void print_usage(const char* program_name) {
-    std::cout << "GPU-Accelerated Kraken2-Style Pipeline" << std::endl;
+    std::cout << "GPU-Accelerated Kraken2-Style Pipeline (High Capacity)" << std::endl;
     std::cout << "=====================================" << std::endl;
     std::cout << "\nUsage:" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir <dir> --output <db_dir> [options]" << std::endl;
@@ -42,19 +42,28 @@ void print_usage(const char* program_name) {
     std::cout << "  --confidence <float>  Confidence threshold 0-1 (default: 0.1)" << std::endl;
     std::cout << "  --batch-size <int>    Reads per batch (default: 10000)" << std::endl;
     std::cout << "  --gpu-batch <int>     GPU batch size for building (default: 1000)" << std::endl;
+    
+    // NEW: Memory and capacity options
+    std::cout << "\nMemory and Capacity Options:" << std::endl;
+    std::cout << "  --minimizer-capacity <int>  Max minimizers per batch (default: 5000000)" << std::endl;
+    std::cout << "  --auto-memory               Enable automatic memory scaling (default)" << std::endl;
+    std::cout << "  --no-auto-memory            Disable automatic memory scaling" << std::endl;
+    std::cout << "  --memory-fraction <int>     GPU memory usage % when auto-scaling (default: 80)" << std::endl;
+    
+    std::cout << "\nOther Options:" << std::endl;
     std::cout << "  --taxonomy <dir>      NCBI taxonomy directory (optional)" << std::endl;
     std::cout << "  --threads <int>       CPU threads for I/O (default: 4)" << std::endl;
     std::cout << "  --quick               Quick mode: stop at first hit" << std::endl;
     std::cout << "  --report <file>       Generate summary report" << std::endl;
-    std::cout << "\nExamples:" << std::endl;
-    std::cout << "  # Build database from RefSeq genomes" << std::endl;
-    std::cout << "  " << program_name << " build --genome-dir ./refseq_genomes --output ./kraken_db" << std::endl;
-    std::cout << "\n  # Classify single-end reads" << std::endl;
-    std::cout << "  " << program_name << " classify --database ./kraken_db --reads sample.fastq.gz --output results.txt" << std::endl;
-    std::cout << "\n  # Classify paired-end reads" << std::endl;
-    std::cout << "  " << program_name << " classify --database ./kraken_db --reads sample_R1.fastq.gz --reads2 sample_R2.fastq.gz --output results.txt" << std::endl;
-    std::cout << "\n  # Complete pipeline" << std::endl;
-    std::cout << "  " << program_name << " pipeline --genome-dir ./genomes --reads sample.fastq.gz --output ./results" << std::endl;
+    std::cout << "\nMemory Usage Examples:" << std::endl;
+    std::cout << "  # Use 10M minimizers per batch (high memory, comprehensive)" << std::endl;
+    std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --minimizer-capacity 10000000" << std::endl;
+    std::cout << "\n  # Conservative memory usage (2M minimizers)" << std::endl;
+    std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --minimizer-capacity 2000000" << std::endl;
+    std::cout << "\n  # Let system auto-scale to use 90% of GPU memory" << std::endl;
+    std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --auto-memory --memory-fraction 90" << std::endl;
+    std::cout << "\n  # Manual control for specific hardware" << std::endl;
+    std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --no-auto-memory --minimizer-capacity 8000000" << std::endl;
 }
 
 struct PipelineConfig {
@@ -70,6 +79,12 @@ struct PipelineConfig {
     ClassificationParams classifier_params;
     int batch_size = 10000;
     int gpu_batch_size = 1000;  // GPU batch size for database building
+    
+    // NEW: Minimizer capacity controls
+    int minimizer_capacity = 5000000;     // Default to 5M (up from 1M)
+    bool auto_memory_scaling = true;      // Enable auto-scaling by default
+    int memory_fraction = 80;             // Use 80% of GPU memory
+    
     int cpu_threads = 4;
     bool quick_mode = false;
     bool verbose = false;
@@ -118,6 +133,15 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.gpu_batch_size = std::stoi(argv[++i]);
         } else if (arg == "--threads" && i + 1 < argc) {
             config.cpu_threads = std::stoi(argv[++i]);
+        // NEW: Minimizer capacity control
+        } else if (arg == "--minimizer-capacity" && i + 1 < argc) {
+            config.minimizer_capacity = std::stoi(argv[++i]);
+        } else if (arg == "--auto-memory") {
+            config.auto_memory_scaling = true;
+        } else if (arg == "--no-auto-memory") {
+            config.auto_memory_scaling = false;
+        } else if (arg == "--memory-fraction" && i + 1 < argc) {
+            config.memory_fraction = std::stoi(argv[++i]);
         } else if (arg == "--quick") {
             config.quick_mode = true;
         } else if (arg == "--verbose") {
@@ -190,17 +214,34 @@ bool validate_config(const PipelineConfig& config) {
 }
 
 bool build_database_command(const PipelineConfig& config) {
-    std::cout << "\n=== BUILDING KRAKEN DATABASE ===" << std::endl;
+    std::cout << "\n=== BUILDING KRAKEN DATABASE (High Capacity) ===" << std::endl;
     std::cout << "Genome directory: " << config.genome_dir << std::endl;
     std::cout << "Output directory: " << config.output_path << std::endl;
     std::cout << "Parameters: k=" << config.classifier_params.k 
               << ", ell=" << config.classifier_params.ell 
               << ", spaces=" << config.classifier_params.spaces << std::endl;
     
+    // NEW: Display capacity settings
+    std::cout << "Capacity settings:" << std::endl;
+    if (config.auto_memory_scaling) {
+        std::cout << "  Auto memory scaling: ENABLED (" << config.memory_fraction << "% of GPU memory)" << std::endl;
+    } else {
+        std::cout << "  Auto memory scaling: DISABLED" << std::endl;
+        std::cout << "  Manual minimizer capacity: " << config.minimizer_capacity << std::endl;
+    }
+    
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {
         GPUKrakenDatabaseBuilder builder(config.output_path, config.classifier_params);
+        
+        // NEW: Configure memory and capacity settings
+        if (config.auto_memory_scaling) {
+            builder.enable_auto_memory_scaling(true, config.memory_fraction);
+        } else {
+            builder.enable_auto_memory_scaling(false);
+            builder.set_minimizer_capacity(config.minimizer_capacity);
+        }
         
         // Set batch size if specified
         if (config.gpu_batch_size > 0) {
@@ -543,9 +584,48 @@ bool pipeline_command(const PipelineConfig& config) {
     return true;
 }
 
+// Quick memory check function for user guidance
+void print_memory_recommendations() {
+    int device_count;
+    cudaError_t cuda_status = cudaGetDeviceCount(&device_count);
+    if (cuda_status != cudaSuccess || device_count == 0) {
+        std::cerr << "No CUDA-capable GPU found for memory analysis" << std::endl;
+        return;
+    }
+    
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    
+    size_t total_memory = prop.totalGlobalMem;
+    size_t memory_gb = total_memory / (1024*1024*1024);
+    
+    std::cout << "\n=== MEMORY RECOMMENDATIONS ===" << std::endl;
+    std::cout << "GPU: " << prop.name << " (" << memory_gb << " GB)" << std::endl;
+    
+    // Provide capacity recommendations based on GPU memory
+    if (memory_gb >= 40) {
+        std::cout << "Recommended minimizer capacity: 15,000,000 - 25,000,000" << std::endl;
+        std::cout << "Your GPU has excellent memory - use high capacity for comprehensive databases" << std::endl;
+    } else if (memory_gb >= 24) {
+        std::cout << "Recommended minimizer capacity: 8,000,000 - 15,000,000" << std::endl;
+        std::cout << "Your GPU has good memory - suitable for large microbial databases" << std::endl;
+    } else if (memory_gb >= 16) {
+        std::cout << "Recommended minimizer capacity: 5,000,000 - 10,000,000" << std::endl;
+        std::cout << "Your GPU has moderate memory - good for standard databases" << std::endl;
+    } else if (memory_gb >= 8) {
+        std::cout << "Recommended minimizer capacity: 2,000,000 - 5,000,000" << std::endl;
+        std::cout << "Your GPU has limited memory - consider smaller batches" << std::endl;
+    } else {
+        std::cout << "Recommended minimizer capacity: 1,000,000 - 2,000,000" << std::endl;
+        std::cout << "Your GPU has very limited memory - use conservative settings" << std::endl;
+    }
+    
+    std::cout << "Note: Enable --auto-memory for automatic optimization" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
-    std::cout << "GPU-Accelerated Kraken2-Style Taxonomic Classifier" << std::endl;
-    std::cout << "==================================================" << std::endl;
+    std::cout << "GPU-Accelerated Kraken2-Style Taxonomic Classifier (High Capacity)" << std::endl;
+    std::cout << "=================================================================" << std::endl;
     
     PipelineConfig config;
     
@@ -566,10 +646,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-    std::cout << "Using GPU: " << prop.name << " with " 
-              << prop.totalGlobalMem / (1024*1024*1024) << " GB memory" << std::endl;
+    // Print memory recommendations
+    print_memory_recommendations();
     
     bool success = false;
     

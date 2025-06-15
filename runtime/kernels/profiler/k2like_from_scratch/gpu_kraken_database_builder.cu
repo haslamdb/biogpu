@@ -6,7 +6,7 @@
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
 #include "gpu_kraken_classifier.cu"
-#include "gpu_minimizer_extraction.cu"
+#include "gpu_minimizer_extraction.cuh"
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>

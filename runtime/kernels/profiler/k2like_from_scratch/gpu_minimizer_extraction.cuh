@@ -7,7 +7,7 @@
 
 #include <cuda_runtime.h>
 #include <cstdint>
-#include "../../../include/biogpu/minimizer_extraction.h"
+#include "biogpu/minimizer_extraction.h"
 
 // Structure definitions (if not already in minimizer_extraction.h)
 struct GPUGenomeInfo {

@@ -478,8 +478,8 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
         int optimal_sequence_batch = available_for_sequences / sequence_memory_per_genome;
         
         // Apply reasonable limits
-        optimal_minimizer_capacity = std::min(optimal_minimizer_capacity, size_t(50000000)); // Max 50M
-        optimal_minimizer_capacity = std::max(optimal_minimizer_capacity, size_t(1000000));  // Min 1M
+        optimal_minimizer_capacity = std::min(optimal_minimizer_capacity, (int)50000000); // Max 50M
+        optimal_minimizer_capacity = std::max(optimal_minimizer_capacity, (int)1000000);  // Min 1M
         
         optimal_sequence_batch = std::min(optimal_sequence_batch, 100);  // Max 100 genomes
         optimal_sequence_batch = std::max(optimal_sequence_batch, 5);    // Min 5 genomes

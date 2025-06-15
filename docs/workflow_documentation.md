@@ -1,11 +1,11 @@
 # BioGPU Workflow Documentation
 
 ## Overview
-This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data.
+This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
-**Last Updated**: June 14 2025  
-**Pipeline Version**: 0.10.0  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated microbiome profiler with paired-end support, and adaptive profiler with automatic optimization
+**Last Updated**: June 15 2025  
+**Pipeline Version**: 0.11.0  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, and batch CSV processing
 
 ---
 
@@ -2386,6 +2386,34 @@ bool PairedEndGPUKrakenClassifier::load_taxonomy_tree_from_db(const std::string&
 
 This eliminates the need for separate taxonomy files during classification, as all necessary taxonomic information is embedded in the database.
 
+## GPU-Accelerated Kraken2-Style Taxonomic Classifier
+
+### Overview
+
+The `gpu_kraken_pipeline` is a complete GPU-accelerated implementation of Kraken2-style taxonomic classification with enhanced features:
+
+- **Streaming processing** for large datasets
+- **Paired-end support** with concordance scoring
+- **Batch processing** from CSV files
+- **Compressed input** support (.gz files)
+- **Memory-efficient** design with automatic scaling
+
+### Key Commands
+
+```bash
+# Build database from genomes
+./gpu_kraken_pipeline build --genome-dir ./genomes --output kraken_db
+
+# Single-end classification
+./gpu_kraken_pipeline classify --database kraken_db --reads sample.fastq.gz --output results.txt
+
+# Paired-end classification
+./gpu_kraken_pipeline classify --database kraken_db --reads R1.fastq.gz --reads2 R2.fastq.gz --output results.txt
+
+# Batch processing from CSV
+./gpu_kraken_pipeline batch --csv samples.csv --database kraken_db --batch-output batch_results
+```
+
 #### Classification Output Format
 
 The classifier produces Kraken2-compatible output with the following columns:
@@ -2412,12 +2440,117 @@ With the new optimizations:
 - **Memory usage**: Efficient batch processing with 10,000 reads per batch
 - **Gzip overhead**: Minimal impact on performance
 
+### New Features (v0.11.0)
+
+#### 1. Streaming Input for Large Datasets
+
+The pipeline now supports streaming processing to handle large FASTQ files without loading all reads into memory:
+
+```cpp
+struct StreamingConfig {
+    size_t read_batch_size = 100000;          // Process 100K read pairs per batch
+    size_t max_gpu_memory_for_reads_mb = 8192; // Reserve 8GB for read processing
+    bool enable_streaming = true;
+    bool show_batch_progress = true;
+};
+```
+
+**Features:**
+- Automatic streaming for files > 1GB
+- Configurable batch size (default: 100,000 reads)
+- Memory-efficient processing
+- Real-time progress reporting
+
+**Usage:**
+```bash
+# Force streaming mode with custom batch size
+./gpu_kraken_pipeline classify \
+    --database kraken_db \
+    --reads large_R1.fastq.gz \
+    --reads2 large_R2.fastq.gz \
+    --output results.txt \
+    --streaming-batch 50000 \
+    --force-streaming
+```
+
+#### 2. Paired-End Support with Concordance
+
+Full support for paired-end reads with concordance scoring:
+
+```bash
+# Paired-end classification
+./gpu_kraken_pipeline classify \
+    --database kraken_db \
+    --reads sample_R1.fastq.gz \
+    --reads2 sample_R2.fastq.gz \
+    --output paired_results.txt \
+    --confidence 0.1
+```
+
+**Output format for paired-end:**
+```
+C	pair_1	680797	151|149	0.667	2|3	117|115
+U	pair_2	0	150|151	0.000	0|0	116|117
+```
+
+#### 3. Batch Processing from CSV
+
+Process multiple samples efficiently with a single database load:
+
+```bash
+# Batch processing
+./gpu_kraken_pipeline batch \
+    --csv samples.csv \
+    --database kraken_db \
+    --batch-output batch_results \
+    --streaming-batch 100000
+```
+
+**CSV Format:**
+```csv
+Sample Name,File Path,R1 file,R2 file
+Sample001,/data/fastq/,sample001_R1.fastq.gz,sample001_R2.fastq.gz
+Sample002,/data/fastq/,sample002_R1.fastq.gz,sample002_R2.fastq.gz
+Sample003,/data/fastq/,sample003_R1.fastq.gz,
+```
+
+**Features:**
+- Database loaded once for all samples
+- Automatic sample directory creation
+- Path validation with error reporting
+- Batch summary report generation
+- Support for mixed single/paired-end samples
+
+**Options:**
+- `--no-sample-dirs`: Output all results in one directory
+- `--stop-on-error`: Stop batch on first error
+- `--no-validate-paths`: Skip file existence checks
+
+#### 4. Performance Optimizations
+
+- **Streaming classification**: ~843,032 reads/second
+- **Batch processing**: Database kept in GPU memory across samples
+- **Compressed input**: Native gzip support with minimal overhead
+- **Memory management**: Automatic memory scaling based on GPU capacity
+
 ### TODO: Future Enhancements
 
-1. **CSV Input Support**: 
-   - Add support for processing multiple samples from a CSV file
-   - Maintain consistency with resistance pipeline CSV format
-   - Enable batch processing with single database load
+1. **HTML Report Generation**: 
+   - Parse classification output to generate comprehensive HTML reports
+   - Include taxonomic distribution charts
+   - Sample comparison matrices for batch runs
+   - Integration with clinical reporting system
+
+2. **Output Parsing and Analysis**:
+   - Aggregate statistics across batches
+   - Species abundance calculations
+   - Diversity metrics computation
+   - Contamination detection
+
+3. **Enhanced Batch Processing**:
+   - Parallel sample processing on multiple GPUs
+   - Real-time monitoring dashboard
+   - Integration with LIMS systems
 
 2. **Summary Statistics Output**:
    - Generate TSV file with aggregated classification results

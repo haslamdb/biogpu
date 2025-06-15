@@ -54,7 +54,7 @@ void print_usage(const char* program_name) {
     std::cout << "  --report <file>       Generate summary report" << std::endl;
     
     std::cout << "\nStreaming Options (for large datasets):" << std::endl;
-    std::cout << "  --streaming-batch <int>    Read pairs per batch (default: 50000)" << std::endl;
+    std::cout << "  --streaming-batch <int>    Read pairs per batch (default: 100000)" << std::endl;
     std::cout << "  --force-streaming          Force streaming mode regardless of file size" << std::endl;
     std::cout << "  --disable-streaming        Disable automatic streaming" << std::endl;
     std::cout << "  --gpu-memory-limit <mb>    GPU memory limit for reads (default: 8192)" << std::endl;
@@ -96,7 +96,7 @@ void print_usage(const char* program_name) {
 }
 
 struct StreamingConfig {
-    size_t read_batch_size = 50000;           // Process 50K read pairs per batch
+    size_t read_batch_size = 100000;          // Process 100K read pairs per batch
     size_t max_gpu_memory_for_reads_mb = 8192; // Reserve 8GB for read processing
     bool enable_streaming = true;
     bool show_batch_progress = true;
@@ -987,6 +987,15 @@ bool batch_classify_command(const PipelineConfig& config) {
             std::cerr << "Database directory not found: " << config.database_dir << std::endl;
             return false;
         }
+        
+        // Load database ONCE for all samples
+        std::cout << "\nLoading database (once for all samples)..." << std::endl;
+        PairedEndGPUKrakenClassifier classifier(config.classifier_params);
+        if (!classifier.load_database(config.database_dir)) {
+            std::cerr << "Failed to load database from " << config.database_dir << std::endl;
+            return false;
+        }
+        std::cout << "Database loaded successfully - will be reused for all samples" << std::endl;
         
         // Print sample summary
         processor.getParser().printSummary();

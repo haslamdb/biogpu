@@ -166,3 +166,11 @@ runtime/kernels/profiler/minimizer_pathogen_db.db.summary
 # Working command files
 working_*_commands_*.txt
 working_*_pipeline_command_*.txt
+
+# Kraken output files
+kraken_report_*.txt
+kraken_results_*.txt
+
+# Build statistics
+**/build_stats.txt
+test_kraken_db/taxonomy.tsv

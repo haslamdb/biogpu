@@ -242,6 +242,7 @@ __device__ __host__ uint32_t jenkins_hash(uint64_t key);
 #include <chrono>
 #include <cstring>
 #include <iomanip>
+#include <sstream>
 
 #define CUDA_CHECK(call) do { \
     cudaError_t error = call; \
@@ -792,11 +793,161 @@ void PairedEndGPUKrakenClassifier::retrieve_paired_results_from_gpu(
                          cudaMemcpyDeviceToHost));
 }
 
-// Database loading methods (same as single-end version)
+// Database loading methods
 bool PairedEndGPUKrakenClassifier::load_database(const std::string& database_directory) {
-    // Implementation same as single-end version
-    // (load_hash_table, load_taxonomy_tree, etc.)
-    return true;  // Placeholder
+    std::cout << "Loading database from " << database_directory << "..." << std::endl;
+    
+    // Load hash table
+    std::string hash_table_file = database_directory + "/hash_table.bin";
+    if (!load_hash_table(hash_table_file)) {
+        std::cerr << "Failed to load hash table from " << hash_table_file << std::endl;
+        return false;
+    }
+    
+    // Load taxonomy
+    std::string taxonomy_file = database_directory + "/taxonomy.tsv";
+    if (!load_taxonomy_tree(taxonomy_file)) {
+        std::cerr << "Failed to load taxonomy from " << taxonomy_file << std::endl;
+        return false;
+    }
+    
+    database_loaded = true;
+    std::cout << "Database loaded successfully!" << std::endl;
+    return true;
+}
+
+bool PairedEndGPUKrakenClassifier::load_hash_table(const std::string& hash_table_file) {
+    std::ifstream hash_in(hash_table_file, std::ios::binary);
+    if (!hash_in.is_open()) {
+        std::cerr << "Cannot open hash table file: " << hash_table_file << std::endl;
+        return false;
+    }
+    
+    // Read header
+    uint64_t table_size, num_entries;
+    hash_in.read(reinterpret_cast<char*>(&table_size), sizeof(uint64_t));
+    hash_in.read(reinterpret_cast<char*>(&num_entries), sizeof(uint64_t));
+    
+    std::cout << "Hash table size: " << table_size << ", entries: " << num_entries << std::endl;
+    
+    // Create compact hash table on GPU
+    GPUCompactHashTable h_cht;
+    h_cht.table_size = table_size;
+    h_cht.hash_mask = table_size - 1;
+    h_cht.lca_bits = 20;  // Assuming 20 bits for LCA (up to 1M taxa)
+    h_cht.hash_bits = 32 - h_cht.lca_bits;
+    
+    // Allocate hash table on GPU
+    CUDA_CHECK(cudaMalloc(&h_cht.hash_cells, table_size * sizeof(uint32_t)));
+    CUDA_CHECK(cudaMemset(h_cht.hash_cells, 0, table_size * sizeof(uint32_t)));
+    
+    // Allocate and copy hash table structure to GPU
+    CUDA_CHECK(cudaMalloc(&d_hash_table, sizeof(GPUCompactHashTable)));
+    CUDA_CHECK(cudaMemcpy(d_hash_table, &h_cht, sizeof(GPUCompactHashTable), cudaMemcpyHostToDevice));
+    
+    // Read entries and build compact hash table on host first
+    std::vector<uint32_t> host_hash_cells(table_size, 0);
+    
+    for (uint64_t i = 0; i < num_entries; i++) {
+        uint64_t minimizer_hash;
+        uint32_t lca_taxon, genome_count;
+        float uniqueness_score;
+        
+        hash_in.read(reinterpret_cast<char*>(&minimizer_hash), sizeof(uint64_t));
+        hash_in.read(reinterpret_cast<char*>(&lca_taxon), sizeof(uint32_t));
+        hash_in.read(reinterpret_cast<char*>(&genome_count), sizeof(uint32_t));
+        hash_in.read(reinterpret_cast<char*>(&uniqueness_score), sizeof(float));
+        
+        // Compute compact hash
+        uint32_t compact_hash = compute_compact_hash(minimizer_hash);
+        uint32_t pos = compact_hash & h_cht.hash_mask;
+        
+        // Linear probing to find empty slot
+        int probes = 0;
+        while (host_hash_cells[pos] != 0 && probes < 32) {
+            pos = (pos + 1) & h_cht.hash_mask;
+            probes++;
+        }
+        
+        if (probes < 32) {
+            // Store compact hash (upper bits) and LCA (lower bits)
+            uint32_t stored_hash = compact_hash >> h_cht.lca_bits;
+            uint32_t cell_value = (stored_hash << h_cht.lca_bits) | (lca_taxon & ((1U << h_cht.lca_bits) - 1));
+            host_hash_cells[pos] = cell_value;
+        }
+    }
+    
+    // Copy hash table to GPU
+    CUDA_CHECK(cudaMemcpy(h_cht.hash_cells, host_hash_cells.data(), 
+                         table_size * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    
+    hash_in.close();
+    std::cout << "Hash table loaded: " << num_entries << " entries" << std::endl;
+    return true;
+}
+
+bool PairedEndGPUKrakenClassifier::load_taxonomy_tree(const std::string& taxonomy_file) {
+    std::ifstream tax_in(taxonomy_file);
+    if (!tax_in.is_open()) {
+        std::cerr << "Cannot open taxonomy file: " << taxonomy_file << std::endl;
+        return false;
+    }
+    
+    std::string line;
+    // Skip header
+    std::getline(tax_in, line);
+    
+    std::vector<TaxonomyNode> host_taxonomy;
+    uint32_t max_taxon_id = 0;
+    
+    while (std::getline(tax_in, line)) {
+        std::istringstream iss(line);
+        uint32_t taxon_id, parent_id;
+        std::string name;
+        
+        if (iss >> taxon_id) {
+            iss.ignore(1); // skip tab
+            std::getline(iss, name, '\t');
+            iss >> parent_id;
+            
+            taxon_names[taxon_id] = name;
+            taxon_parents[taxon_id] = parent_id;
+            
+            TaxonomyNode node;
+            node.taxon_id = taxon_id;
+            node.parent_id = parent_id;
+            node.rank = 0;  // Not used for now
+            strncpy(node.name, name.c_str(), 63);
+            node.name[63] = '\0';
+            
+            host_taxonomy.push_back(node);
+            max_taxon_id = std::max(max_taxon_id, taxon_id);
+        }
+    }
+    
+    tax_in.close();
+    
+    num_taxonomy_nodes = host_taxonomy.size();
+    std::cout << "Loaded " << num_taxonomy_nodes << " taxonomy nodes, max ID: " << max_taxon_id << std::endl;
+    
+    // Allocate and copy taxonomy to GPU
+    CUDA_CHECK(cudaMalloc(&d_taxonomy_tree, num_taxonomy_nodes * sizeof(TaxonomyNode)));
+    CUDA_CHECK(cudaMemcpy(d_taxonomy_tree, host_taxonomy.data(), 
+                         num_taxonomy_nodes * sizeof(TaxonomyNode), cudaMemcpyHostToDevice));
+    
+    // Create parent lookup table for fast access
+    std::vector<uint32_t> parent_lookup(max_taxon_id + 1, 0);
+    for (const auto& [taxon_id, parent_id] : taxon_parents) {
+        if (taxon_id <= max_taxon_id) {
+            parent_lookup[taxon_id] = parent_id;
+        }
+    }
+    
+    CUDA_CHECK(cudaMalloc(&d_parent_lookup, (max_taxon_id + 1) * sizeof(uint32_t)));
+    CUDA_CHECK(cudaMemcpy(d_parent_lookup, parent_lookup.data(), 
+                         (max_taxon_id + 1) * sizeof(uint32_t), cudaMemcpyHostToDevice));
+    
+    return true;
 }
 
 // Utility device functions (same as single-end version)

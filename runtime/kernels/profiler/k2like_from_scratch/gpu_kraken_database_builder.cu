@@ -570,6 +570,21 @@ __global__ void extract_minimizers_kernel(
     }
 }
 
+// Apply spaced seed mask to hash
+__device__ uint64_t apply_spaced_seed_mask(uint64_t hash, int spaces) {
+    uint64_t masked = 0;
+    int out_pos = 0;
+    
+    for (int i = 0; i < 32; i++) {
+        if (i % (spaces + 1) != 0) {
+            masked |= ((hash >> (i * 2)) & 3ULL) << (out_pos * 2);
+            out_pos++;
+        }
+    }
+    
+    return masked;
+}
+
 // Device function to extract a single minimizer
 __device__ uint64_t extract_single_minimizer(
     const char* sequence,

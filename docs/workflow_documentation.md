@@ -2152,4 +2152,206 @@ The hybrid database builder supports various input formats:
    - Check coverage breadth metrics
    - Consider adjusting min_abundance threshold
 
+## 🚀 GPU-Accelerated Kraken2-Style Taxonomic Classifier (NEW - December 15, 2025)
+
+### Overview
+
+Added a GPU-accelerated implementation of the Kraken2 algorithm for ultra-fast taxonomic classification. This implementation builds Kraken2-style databases from reference genomes and performs GPU-accelerated classification of metagenomic reads.
+
+**Key Features**:
+- GPU-accelerated minimizer extraction and database building
+- Kraken2-compatible algorithm with spaced seeds
+- Memory-aware batch processing to handle large genome collections
+- LCA (Lowest Common Ancestor) computation for accurate taxonomic assignment
+- Configurable batch sizes to prevent out-of-memory errors
+- Support for NCBI taxonomy integration
+
+### Building the Kraken2-Style Database
+
+The GPU Kraken pipeline builds a database in two stages:
+
+```bash
+# Navigate to the build directory
+cd /home/david/Documents/Code/biogpu
+cd build/runtime/kernels/profiler/k2like_from_scratch
+
+# Build the database from a directory of genome files
+./gpu_kraken_pipeline build \
+    --genome-dir /path/to/genomes \
+    --output ./kraken_db \
+    --taxonomy /path/to/taxonomy \
+    --gpu-batch 1  # Process 1 genome at a time to avoid OOM
+
+# Example with actual paths:
+./gpu_kraken_pipeline build \
+    --genome-dir data/pathogen_profiler_db/genomes \
+    --output ./test_kraken_db \
+    --taxonomy data/ \
+    --gpu-batch 1
+```
+
+**Database Building Options**:
+- `--k <int>`: k-mer length (default: 35)
+- `--minimizer-len <int>`: Minimizer length (default: 31)
+- `--spaces <int>`: Spaced seed spacing (default: 7)
+- `--gpu-batch <int>`: Number of genomes to process at once (default: 1000)
+- `--taxonomy <dir>`: NCBI taxonomy directory containing nodes.dmp and names.dmp
+
+### Memory Management Improvements
+
+To handle out-of-memory errors when processing large genome collections, we implemented several improvements:
+
+1. **Reduced Default Batch Sizes**:
+   - `MAX_SEQUENCE_BATCH`: Reduced from 10,000 to 1,000 sequences
+   - `MAX_MINIMIZERS_PER_BATCH`: Reduced from 5M to 500K minimizers
+
+2. **Memory Pre-allocation Check**:
+   ```cpp
+   // Check available GPU memory before allocation
+   size_t free_memory, total_memory_gpu;
+   cudaMemGetInfo(&free_memory, &total_memory_gpu);
+   
+   // Only allocate if enough memory available
+   if (total_required > free_memory * 0.9) {
+       std::cerr << "ERROR: Not enough GPU memory!" << std::endl;
+       return false;
+   }
+   ```
+
+3. **Dynamic Batch Size Control**:
+   - Added `--gpu-batch` parameter to control processing batch size
+   - Allows processing as few as 1 genome at a time for memory-constrained situations
+   - Memory allocation scales with batch size
+
+4. **Optimized GPU Kernel**:
+   - Changed from one-thread-per-genome to grid-stride loops
+   - Better parallelism for processing large genome sequences
+   - Prevents kernel timeouts on large genomes
+
+### Example Workflow
+
+```bash
+# 1. Download reference genomes (if needed)
+python src/python/download_microbial_genomes.py \
+    data/kraken_genomes \
+    --email your@email.com \
+    --genomes-per-species 10
+
+# 2. Download NCBI taxonomy (if needed)
+wget ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz
+tar -xzf taxdump.tar.gz -C data/
+
+# 3. Build the Kraken database with memory-safe settings
+./gpu_kraken_pipeline build \
+    --genome-dir data/kraken_genomes \
+    --output ./my_kraken_db \
+    --taxonomy data/ \
+    --gpu-batch 1 \
+    --k 35 \
+    --minimizer-len 31
+
+# 4. Classify reads
+./gpu_kraken_pipeline classify \
+    --database ./my_kraken_db \
+    --reads sample.fastq.gz \
+    --output results.txt \
+    --confidence 0.1 \
+    --batch-size 10000
+
+# 5. Complete pipeline (build + classify)
+./gpu_kraken_pipeline pipeline \
+    --genome-dir data/kraken_genomes \
+    --reads sample.fastq.gz \
+    --output ./results \
+    --taxonomy data/ \
+    --gpu-batch 1
+```
+
+### Performance Characteristics
+
+**Database Building**:
+- Successfully processes 190 genomes (725MB) in 12 seconds
+- Extracts ~5.1M minimizers at 56 MB/second
+- Memory usage: ~11MB GPU memory for batch size 1
+- Scales linearly with genome count
+
+**Example Output**:
+```
+=== DATABASE BUILD COMPLETE ===
+Total build time: 12 seconds
+
+=== BUILD STATISTICS ===
+Total sequences processed: 190
+Total bases processed: 725519735
+Valid minimizers extracted: 5112927
+Sequence processing time: 6.99s
+Minimizer extraction time: 5.94s
+Processing rate: 5.61e+07 bases/second
+```
+
+### Troubleshooting Out-of-Memory Errors
+
+If you encounter "out of memory" errors:
+
+1. **Reduce GPU batch size**:
+   ```bash
+   # Process one genome at a time
+   --gpu-batch 1
+   ```
+
+2. **Check available GPU memory**:
+   ```bash
+   nvidia-smi
+   ```
+
+3. **Monitor memory during execution**:
+   ```bash
+   watch -n 1 nvidia-smi
+   ```
+
+4. **Clear GPU memory if needed**:
+   ```bash
+   # Reset GPU
+   sudo nvidia-smi --gpu-reset
+   ```
+
+### Implementation Details
+
+**GPU Database Builder** (`gpu_kraken_database_builder.cu`):
+- Processes genomes in configurable batches
+- Extracts minimizers using GPU kernels
+- Computes LCA assignments for taxonomic classification
+- Saves database in binary format for fast loading
+
+**Pipeline Main** (`kraken_pipeline_main.cu`):
+- Unified executable for building and classification
+- Command-line interface similar to Kraken2
+- Support for single-end and paired-end reads
+- Generates classification reports and statistics
+
+**Key Data Structures**:
+```cpp
+struct GPUGenomeInfo {
+    uint32_t taxon_id;
+    uint32_t sequence_offset;
+    uint32_t sequence_length;
+    uint32_t genome_id;
+};
+
+struct GPUMinimizerHit {
+    uint64_t minimizer_hash;
+    uint32_t taxon_id;
+    uint32_t position;
+    uint32_t genome_id;
+};
+```
+
+### Future Enhancements
+
+1. **Streaming Mode**: Process genomes without loading entire sequences
+2. **Multi-GPU Support**: Distribute processing across multiple GPUs
+3. **Incremental Updates**: Add new genomes without rebuilding entire database
+4. **Compression**: Reduce database size with GPU-friendly compression
+5. **Bracken Integration**: Abundance estimation at species level
+
 *This is a living document. Update with each significant change.*

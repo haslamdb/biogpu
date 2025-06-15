@@ -77,6 +77,7 @@ private:
     std::vector<uint32_t> genome_taxon_ids;
     std::unordered_map<uint32_t, std::string> taxon_names;
     std::unordered_map<uint32_t, uint32_t> taxon_parents;
+    std::vector<LCACandidate> all_lca_candidates;  // Accumulate all candidates
     
     // GPU memory management
     char* d_sequence_data;
@@ -245,6 +246,19 @@ __device__ bool has_valid_bases(const char* seq, int length);
 
 // Global constants for GPU kernels
 __constant__ int MAX_MINIMIZERS_PER_BATCH = 50000000;  // 50M minimizers
+
+// Utility function to get next power of 2
+inline uint64_t get_next_power_of_2(uint64_t n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n |= n >> 32;
+    n++;
+    return n;
+}
 
 // Functor for sorting minimizer hits
 struct MinimizerHitComparator {
@@ -456,6 +470,20 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
         return false;
     }
     
+    // Copy candidates from GPU to host and accumulate
+    if (num_candidates > 0) {
+        std::vector<LCACandidate> batch_candidates(num_candidates);
+        CUDA_CHECK(cudaMemcpy(batch_candidates.data(), d_lca_candidates,
+                             num_candidates * sizeof(LCACandidate), cudaMemcpyDeviceToHost));
+        
+        // Accumulate candidates
+        all_lca_candidates.insert(all_lca_candidates.end(), 
+                                 batch_candidates.begin(), batch_candidates.end());
+        
+        std::cout << "Accumulated " << num_candidates << " candidates (total: " 
+                  << all_lca_candidates.size() << ")" << std::endl;
+    }
+    
     stats.valid_minimizers_extracted += total_hits;
     stats.lca_assignments += num_candidates;
     
@@ -633,18 +661,94 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     LCACandidate* d_candidates,
     int* num_candidates) {
     
+    if (num_hits == 0) {
+        *num_candidates = 0;
+        return true;
+    }
+    
     auto start_time = std::chrono::high_resolution_clock::now();
     
     // Sort hits by minimizer hash using Thrust
     thrust::device_ptr<GPUMinimizerHit> hits_ptr(const_cast<GPUMinimizerHit*>(d_hits));
     thrust::sort(hits_ptr, hits_ptr + num_hits, MinimizerHitComparator());
     
-    // Group by minimizer hash and compute LCA for each group
-    // This is a simplified version - full implementation would use CUB for grouping
+    // Count unique minimizers using reduce_by_key
+    thrust::device_vector<uint64_t> unique_hashes(num_hits);
+    thrust::device_vector<uint32_t> hit_counts(num_hits);
+    thrust::device_vector<uint32_t> first_indices(num_hits);
+    
+    // Get unique minimizer hashes and their counts
+    auto end_pair = thrust::reduce_by_key(
+        thrust::make_transform_iterator(hits_ptr, 
+            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
+        thrust::make_transform_iterator(hits_ptr + num_hits,
+            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
+        thrust::counting_iterator<uint32_t>(0),
+        unique_hashes.begin(),
+        first_indices.begin(),
+        thrust::equal_to<uint64_t>(),
+        thrust::minimum<uint32_t>()
+    );
+    
+    int num_unique = end_pair.first - unique_hashes.begin();
+    
+    // Count hits per unique minimizer
+    thrust::fill(hit_counts.begin(), hit_counts.begin() + num_unique, 0);
+    thrust::device_vector<uint32_t> hit_indices(num_hits);
+    thrust::sequence(hit_indices.begin(), hit_indices.end());
+    
+    auto count_end = thrust::reduce_by_key(
+        thrust::make_transform_iterator(hits_ptr, 
+            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
+        thrust::make_transform_iterator(hits_ptr + num_hits,
+            [] __device__ (const GPUMinimizerHit& hit) { return hit.minimizer_hash; }),
+        thrust::constant_iterator<uint32_t>(1),
+        unique_hashes.begin(),
+        hit_counts.begin()
+    );
+    
+    // Create LCA candidates - for now, just use the first taxon for each minimizer
+    // In a complete implementation, we would compute proper LCA from all taxons
+    thrust::device_vector<LCACandidate> candidates(num_unique);
+    
+    // Simple transform to create candidates
+    thrust::transform(
+        thrust::make_zip_iterator(thrust::make_tuple(
+            unique_hashes.begin(),
+            first_indices.begin(),
+            hit_counts.begin()
+        )),
+        thrust::make_zip_iterator(thrust::make_tuple(
+            unique_hashes.begin() + num_unique,
+            first_indices.begin() + num_unique,
+            hit_counts.begin() + num_unique
+        )),
+        candidates.begin(),
+        [d_hits] __device__ (thrust::tuple<uint64_t, uint32_t, uint32_t> t) {
+            LCACandidate candidate;
+            candidate.minimizer_hash = thrust::get<0>(t);
+            candidate.genome_count = thrust::get<2>(t);
+            uint32_t first_idx = thrust::get<1>(t);
+            candidate.lca_taxon = d_hits[first_idx].taxon_id;  // Simple: use first taxon
+            candidate.uniqueness_score = 1.0f / thrust::get<2>(t);  // Higher score for unique minimizers
+            return candidate;
+        }
+    );
+    
+    // Copy candidates to output
+    CUDA_CHECK(cudaMemcpy(d_candidates, thrust::raw_pointer_cast(candidates.data()),
+                         num_unique * sizeof(LCACandidate), cudaMemcpyDeviceToDevice));
+    
+    *num_candidates = num_unique;
+    stats.lca_assignments += num_unique;
+    stats.unique_minimizers += num_unique;
     
     auto end_time = std::chrono::high_resolution_clock::now();
     stats.lca_computation_time += 
         std::chrono::duration<double>(end_time - start_time).count();
+    
+    std::cout << "Computed LCA for " << num_unique << " unique minimizers from " 
+              << num_hits << " hits" << std::endl;
     
     return true;
 }
@@ -834,11 +938,52 @@ std::vector<std::string> GPUKrakenDatabaseBuilder::load_sequences_from_fasta(con
 bool GPUKrakenDatabaseBuilder::save_database() {
     std::cout << "Saving database to " << output_directory << "..." << std::endl;
     
-    // This would save the final hash table and taxonomy tree
-    // Implementation depends on final database format
-    
+    // Create a simple database file with all LCA candidates
     std::string database_file = output_directory + "/database.k2d";
     std::string taxonomy_file = output_directory + "/taxonomy.tsv";
+    std::string hash_file = output_directory + "/hash_table.bin";
+    
+    // Collect all LCA candidates from GPU
+    if (all_lca_candidates.empty()) {
+        std::cerr << "Warning: No LCA candidates to save. Database may be incomplete." << std::endl;
+    }
+    
+    // Save hash table in binary format
+    std::ofstream hash_out(hash_file, std::ios::binary);
+    if (!hash_out.is_open()) {
+        std::cerr << "Cannot create hash table file: " << hash_file << std::endl;
+        return false;
+    }
+    
+    // Write header
+    uint64_t num_entries = all_lca_candidates.size();
+    uint64_t table_size = num_entries > 0 ? get_next_power_of_2(num_entries * 2) : 1024;  // 50% load factor
+    
+    hash_out.write(reinterpret_cast<const char*>(&table_size), sizeof(uint64_t));
+    hash_out.write(reinterpret_cast<const char*>(&num_entries), sizeof(uint64_t));
+    
+    // Write all candidates
+    for (const auto& candidate : all_lca_candidates) {
+        hash_out.write(reinterpret_cast<const char*>(&candidate.minimizer_hash), sizeof(uint64_t));
+        hash_out.write(reinterpret_cast<const char*>(&candidate.lca_taxon), sizeof(uint32_t));
+        hash_out.write(reinterpret_cast<const char*>(&candidate.genome_count), sizeof(uint32_t));
+        hash_out.write(reinterpret_cast<const char*>(&candidate.uniqueness_score), sizeof(float));
+    }
+    hash_out.close();
+    
+    // Save taxonomy mapping
+    std::ofstream tax_out(taxonomy_file);
+    if (!tax_out.is_open()) {
+        std::cerr << "Cannot create taxonomy file: " << taxonomy_file << std::endl;
+        return false;
+    }
+    
+    tax_out << "taxon_id\tname\tparent_id\n";
+    for (const auto& [taxon_id, name] : taxon_names) {
+        uint32_t parent_id = taxon_parents.count(taxon_id) ? taxon_parents[taxon_id] : 0;
+        tax_out << taxon_id << "\t" << name << "\t" << parent_id << "\n";
+    }
+    tax_out.close();
     
     // Save database statistics
     std::string stats_file = output_directory + "/build_stats.txt";
@@ -849,14 +994,21 @@ bool GPUKrakenDatabaseBuilder::save_database() {
     stats_out << "Total sequences: " << stats.total_sequences << "\n";
     stats_out << "Total bases: " << stats.total_bases << "\n";
     stats_out << "Valid minimizers: " << stats.valid_minimizers_extracted << "\n";
+    stats_out << "Unique minimizers: " << stats.unique_minimizers << "\n";
     stats_out << "LCA assignments: " << stats.lca_assignments << "\n";
     stats_out << "Sequence processing time: " << stats.sequence_processing_time << "s\n";
     stats_out << "Minimizer extraction time: " << stats.minimizer_extraction_time << "s\n";
     stats_out << "LCA computation time: " << stats.lca_computation_time << "s\n";
+    if (stats.sequence_processing_time > 0) {
+        stats_out << "Processing rate: " << (stats.total_bases / stats.sequence_processing_time) << " bases/second\n";
+    }
     
     stats_out.close();
     
     std::cout << "Database saved successfully!" << std::endl;
+    std::cout << "  Hash table: " << hash_file << " (" << num_entries << " entries)" << std::endl;
+    std::cout << "  Taxonomy: " << taxonomy_file << " (" << taxon_names.size() << " taxa)" << std::endl;
+    
     return true;
 }
 

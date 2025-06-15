@@ -31,9 +31,10 @@ void print_usage(const char* program_name) {
     std::cout << "\nRequired Arguments:" << std::endl;
     std::cout << "  --genome-dir <dir>    Directory containing genome FASTA files" << std::endl;
     std::cout << "  --database <db_dir>   Database directory (for classify mode)" << std::endl;
-    std::cout << "  --reads <fastq>       FASTQ file to classify" << std::endl;
+    std::cout << "  --reads <fastq>       FASTQ file to classify (R1 for paired-end)" << std::endl;
     std::cout << "  --output <dir>        Output directory" << std::endl;
     std::cout << "\nOptional Arguments:" << std::endl;
+    std::cout << "  --reads2 <fastq>      R2 FASTQ file for paired-end reads" << std::endl;
     std::cout << "  --k <int>             k-mer length (default: 35)" << std::endl;
     std::cout << "  --minimizer-len <int> Minimizer length (default: 31)" << std::endl;
     std::cout << "  --spaces <int>        Spaced seed spacing (default: 7)" << std::endl;
@@ -47,8 +48,10 @@ void print_usage(const char* program_name) {
     std::cout << "\nExamples:" << std::endl;
     std::cout << "  # Build database from RefSeq genomes" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./refseq_genomes --output ./kraken_db" << std::endl;
-    std::cout << "\n  # Classify reads" << std::endl;
+    std::cout << "\n  # Classify single-end reads" << std::endl;
     std::cout << "  " << program_name << " classify --database ./kraken_db --reads sample.fastq.gz --output results.txt" << std::endl;
+    std::cout << "\n  # Classify paired-end reads" << std::endl;
+    std::cout << "  " << program_name << " classify --database ./kraken_db --reads sample_R1.fastq.gz --reads2 sample_R2.fastq.gz --output results.txt" << std::endl;
     std::cout << "\n  # Complete pipeline" << std::endl;
     std::cout << "  " << program_name << " pipeline --genome-dir ./genomes --reads sample.fastq.gz --output ./results" << std::endl;
 }
@@ -58,6 +61,7 @@ struct PipelineConfig {
     std::string genome_dir;
     std::string database_dir;
     std::string reads_file;
+    std::string reads_file2;  // For paired-end reads
     std::string output_path;
     std::string taxonomy_dir;
     std::string report_file;
@@ -91,6 +95,8 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.database_dir = argv[++i];
         } else if (arg == "--reads" && i + 1 < argc) {
             config.reads_file = argv[++i];
+        } else if (arg == "--reads2" && i + 1 < argc) {
+            config.reads_file2 = argv[++i];
         } else if (arg == "--output" && i + 1 < argc) {
             config.output_path = argv[++i];
         } else if (arg == "--taxonomy" && i + 1 < argc) {
@@ -229,6 +235,12 @@ bool classify_reads_command(const PipelineConfig& config) {
     std::cout << "\n=== CLASSIFYING READS ===" << std::endl;
     std::cout << "Database: " << config.database_dir << std::endl;
     std::cout << "Reads file: " << config.reads_file << std::endl;
+    if (!config.reads_file2.empty()) {
+        std::cout << "Reads file 2: " << config.reads_file2 << std::endl;
+        std::cout << "Mode: Paired-end" << std::endl;
+    } else {
+        std::cout << "Mode: Single-end" << std::endl;
+    }
     std::cout << "Output: " << config.output_path << std::endl;
     std::cout << "Batch size: " << config.batch_size << std::endl;
     std::cout << "Confidence threshold: " << config.classifier_params.confidence_threshold << std::endl;
@@ -245,113 +257,237 @@ bool classify_reads_command(const PipelineConfig& config) {
             return false;
         }
         
-        // Load reads from FASTQ
-        std::vector<std::string> reads;
-        std::ifstream fastq_file(config.reads_file);
-        if (!fastq_file.is_open()) {
-            std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
-            return false;
-        }
+        // Check if paired-end mode
+        bool is_paired = !config.reads_file2.empty();
         
-        std::string line;
-        int line_count = 0;
-        while (std::getline(fastq_file, line)) {
-            line_count++;
-            if (line_count % 4 == 2) {  // Sequence line
-                if (!line.empty() && line.length() >= config.classifier_params.k) {
-                    reads.push_back(line);
+        if (is_paired) {
+            // Load paired-end reads
+            std::vector<PairedRead> paired_reads;
+            std::ifstream fastq_file1(config.reads_file);
+            std::ifstream fastq_file2(config.reads_file2);
+            
+            if (!fastq_file1.is_open()) {
+                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                return false;
+            }
+            if (!fastq_file2.is_open()) {
+                std::cerr << "Cannot open reads file 2: " << config.reads_file2 << std::endl;
+                return false;
+            }
+            
+            std::string line1, line2;
+            int line_count = 0;
+            while (std::getline(fastq_file1, line1) && std::getline(fastq_file2, line2)) {
+                line_count++;
+                if (line_count % 4 == 2) {  // Sequence line
+                    if (!line1.empty() && !line2.empty() && 
+                        line1.length() >= config.classifier_params.k && 
+                        line2.length() >= config.classifier_params.k) {
+                        paired_reads.push_back(PairedRead(line1, line2, "read_" + std::to_string(paired_reads.size())));
+                    }
+                }
+                
+                // Limit for testing
+                if (paired_reads.size() >= 1000000) {
+                    std::cout << "Limited to " << paired_reads.size() << " read pairs for processing" << std::endl;
+                    break;
                 }
             }
+            fastq_file1.close();
+            fastq_file2.close();
             
-            // Limit for testing
-            if (reads.size() >= 1000000) {
-                std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
-                break;
+            if (paired_reads.empty()) {
+                std::cerr << "No valid read pairs found" << std::endl;
+                return false;
             }
-        }
-        fastq_file.close();
-        
-        if (reads.empty()) {
-            std::cerr << "No valid reads found in " << config.reads_file << std::endl;
-            return false;
-        }
-        
-        std::cout << "Loaded " << reads.size() << " reads for classification" << std::endl;
-        
-        // Classify reads (single-end for now)
-        auto results = classifier.classify_reads(reads);
-        
-        // Write results
-        std::ofstream output(config.output_path);
-        if (!output.is_open()) {
-            std::cerr << "Cannot create output file: " << config.output_path << std::endl;
-            return false;
-        }
-        
-        // Kraken2-style output
-        output << "# GPU Kraken Classification Results\n";
-        for (size_t i = 0; i < results.size(); i++) {
-            const auto& result = results[i];
-            char status = (result.taxon_id > 0) ? 'C' : 'U';
             
-            output << status << "\t"
-                   << "read_" << i << "\t"
-                   << result.taxon_id << "\t"
-                   << reads[i].length() << "\t"
-                   << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
-                   << result.read1_votes << "\t" << result.read1_kmers << "\n";
-        }
-        output.close();
-        
-        // Generate summary report if requested
-        if (!config.report_file.empty()) {
-            std::ofstream report(config.report_file);
+            std::cout << "Loaded " << paired_reads.size() << " read pairs for classification" << std::endl;
             
-            // Calculate statistics
-            int classified = 0;
-            int unclassified = 0;
-            std::map<uint32_t, int> taxon_counts;
+            // Classify paired-end reads
+            auto results = classifier.classify_paired_reads(paired_reads);
             
-            for (const auto& result : results) {
-                if (result.taxon_id > 0) {
-                    classified++;
-                    taxon_counts[result.taxon_id]++;
-                } else {
-                    unclassified++;
+            // Write results
+            std::ofstream output(config.output_path);
+            if (!output.is_open()) {
+                std::cerr << "Cannot create output file: " << config.output_path << std::endl;
+                return false;
+            }
+            
+            // Kraken2-style output for paired-end
+            output << "# GPU Kraken Classification Results (Paired-end)\n";
+            for (size_t i = 0; i < results.size(); i++) {
+                const auto& result = results[i];
+                char status = (result.taxon_id > 0) ? 'C' : 'U';
+                
+                output << status << "\t"
+                       << paired_reads[i].read_id << "\t"
+                       << result.taxon_id << "\t"
+                       << paired_reads[i].read1.length() << "|" << paired_reads[i].read2.length() << "\t"
+                       << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
+                       << result.read1_votes << "|" << result.read2_votes << "\t" 
+                       << result.read1_kmers << "|" << result.read2_kmers << "\n";
+            }
+            output.close();
+            
+            // Generate summary report if requested
+            if (!config.report_file.empty()) {
+                std::ofstream report(config.report_file);
+                
+                // Calculate statistics
+                int classified = 0;
+                int unclassified = 0;
+                std::map<uint32_t, int> taxon_counts;
+                
+                for (const auto& result : results) {
+                    if (result.taxon_id > 0) {
+                        classified++;
+                        taxon_counts[result.taxon_id]++;
+                    } else {
+                        unclassified++;
+                    }
+                }
+                
+                report << "Classification Summary Report (Paired-end)\n";
+                report << "==========================================\n";
+                report << "Total read pairs: " << results.size() << "\n";
+                report << "Classified: " << classified << " (" 
+                       << std::fixed << std::setprecision(1) 
+                       << (100.0 * classified / results.size()) << "%)\n";
+                report << "Unclassified: " << unclassified << " (" 
+                       << std::fixed << std::setprecision(1) 
+                       << (100.0 * unclassified / results.size()) << "%)\n";
+                report << "Unique taxa detected: " << taxon_counts.size() << "\n\n";
+                
+                report << "Top Taxa by Read Count:\n";
+                report << "Taxon ID\tRead Count\tPercentage\n";
+                
+                // Sort taxa by count
+                std::vector<std::pair<uint32_t, int>> sorted_taxa;
+                for (const auto& pair : taxon_counts) {
+                    sorted_taxa.push_back(pair);
+                }
+                std::sort(sorted_taxa.begin(), sorted_taxa.end(),
+                         [](const auto& a, const auto& b) { return a.second > b.second; });
+                
+                for (size_t i = 0; i < std::min(size_t(20), sorted_taxa.size()); i++) {
+                    const auto& pair = sorted_taxa[i];
+                    report << pair.first << "\t" << pair.second << "\t"
+                           << std::fixed << std::setprecision(2)
+                           << (100.0 * pair.second / classified) << "%\n";
+                }
+                
+                report.close();
+                std::cout << "Summary report written to: " << config.report_file << std::endl;
+            }
+        } else {
+            // Single-end mode - original code
+            std::vector<std::string> reads;
+            std::ifstream fastq_file(config.reads_file);
+            if (!fastq_file.is_open()) {
+                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                return false;
+            }
+            
+            std::string line;
+            int line_count = 0;
+            while (std::getline(fastq_file, line)) {
+                line_count++;
+                if (line_count % 4 == 2) {  // Sequence line
+                    if (!line.empty() && line.length() >= config.classifier_params.k) {
+                        reads.push_back(line);
+                    }
+                }
+                
+                // Limit for testing
+                if (reads.size() >= 1000000) {
+                    std::cout << "Limited to " << reads.size() << " reads for processing" << std::endl;
+                    break;
                 }
             }
+            fastq_file.close();
             
-            report << "Classification Summary Report\n";
-            report << "============================\n";
-            report << "Total reads: " << results.size() << "\n";
-            report << "Classified: " << classified << " (" 
-                   << std::fixed << std::setprecision(1) 
-                   << (100.0 * classified / results.size()) << "%)\n";
-            report << "Unclassified: " << unclassified << " (" 
-                   << std::fixed << std::setprecision(1) 
-                   << (100.0 * unclassified / results.size()) << "%)\n";
-            report << "Unique taxa detected: " << taxon_counts.size() << "\n\n";
-            
-            report << "Top Taxa by Read Count:\n";
-            report << "Taxon ID\tRead Count\tPercentage\n";
-            
-            // Sort taxa by count
-            std::vector<std::pair<uint32_t, int>> sorted_taxa;
-            for (const auto& pair : taxon_counts) {
-                sorted_taxa.push_back(pair);
-            }
-            std::sort(sorted_taxa.begin(), sorted_taxa.end(),
-                     [](const auto& a, const auto& b) { return a.second > b.second; });
-            
-            for (size_t i = 0; i < std::min(size_t(20), sorted_taxa.size()); i++) {
-                const auto& pair = sorted_taxa[i];
-                report << pair.first << "\t" << pair.second << "\t"
-                       << std::fixed << std::setprecision(2)
-                       << (100.0 * pair.second / classified) << "%\n";
+            if (reads.empty()) {
+                std::cerr << "No valid reads found in " << config.reads_file << std::endl;
+                return false;
             }
             
-            report.close();
-            std::cout << "Summary report written to: " << config.report_file << std::endl;
+            std::cout << "Loaded " << reads.size() << " reads for classification" << std::endl;
+            
+            // Classify reads (single-end)
+            auto results = classifier.classify_reads(reads);
+            
+            // Write results
+            std::ofstream output(config.output_path);
+            if (!output.is_open()) {
+                std::cerr << "Cannot create output file: " << config.output_path << std::endl;
+                return false;
+            }
+            
+            // Kraken2-style output
+            output << "# GPU Kraken Classification Results\n";
+            for (size_t i = 0; i < results.size(); i++) {
+                const auto& result = results[i];
+                char status = (result.taxon_id > 0) ? 'C' : 'U';
+                
+                output << status << "\t"
+                       << "read_" << i << "\t"
+                       << result.taxon_id << "\t"
+                       << reads[i].length() << "\t"
+                       << std::fixed << std::setprecision(3) << result.confidence_score << "\t"
+                       << result.read1_votes << "\t" << result.read1_kmers << "\n";
+            }
+            output.close();
+            
+            // Generate summary report if requested
+            if (!config.report_file.empty()) {
+                std::ofstream report(config.report_file);
+                
+                // Calculate statistics
+                int classified = 0;
+                int unclassified = 0;
+                std::map<uint32_t, int> taxon_counts;
+                
+                for (const auto& result : results) {
+                    if (result.taxon_id > 0) {
+                        classified++;
+                        taxon_counts[result.taxon_id]++;
+                    } else {
+                        unclassified++;
+                    }
+                }
+                
+                report << "Classification Summary Report\n";
+                report << "============================\n";
+                report << "Total reads: " << results.size() << "\n";
+                report << "Classified: " << classified << " (" 
+                       << std::fixed << std::setprecision(1) 
+                       << (100.0 * classified / results.size()) << "%)\n";
+                report << "Unclassified: " << unclassified << " (" 
+                       << std::fixed << std::setprecision(1) 
+                       << (100.0 * unclassified / results.size()) << "%)\n";
+                report << "Unique taxa detected: " << taxon_counts.size() << "\n\n";
+                
+                report << "Top Taxa by Read Count:\n";
+                report << "Taxon ID\tRead Count\tPercentage\n";
+                
+                // Sort taxa by count
+                std::vector<std::pair<uint32_t, int>> sorted_taxa;
+                for (const auto& pair : taxon_counts) {
+                    sorted_taxa.push_back(pair);
+                }
+                std::sort(sorted_taxa.begin(), sorted_taxa.end(),
+                         [](const auto& a, const auto& b) { return a.second > b.second; });
+                
+                for (size_t i = 0; i < std::min(size_t(20), sorted_taxa.size()); i++) {
+                    const auto& pair = sorted_taxa[i];
+                    report << pair.first << "\t" << pair.second << "\t"
+                           << std::fixed << std::setprecision(2)
+                           << (100.0 * pair.second / classified) << "%\n";
+                }
+                
+                report.close();
+                std::cout << "Summary report written to: " << config.report_file << std::endl;
+            }
         }
         
         auto end_time = std::chrono::high_resolution_clock::now();

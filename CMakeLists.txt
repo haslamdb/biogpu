@@ -147,6 +147,58 @@ add_custom_target(benchmark_integrated
 )
 
 # ===========================
+# Kraken2-style Taxonomic Profiling Targets
+# ===========================
+
+# Build Kraken2-style database from genomes
+add_custom_target(build_kraken_database
+    COMMAND ${CMAKE_BINARY_DIR}/runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline
+            build
+            --genome-dir ${CMAKE_SOURCE_DIR}/data/reference_genomes
+            --output ${CMAKE_SOURCE_DIR}/data/kraken_database
+            --k 35 --minimizer-len 31 --spaces 7
+    DEPENDS runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline
+    COMMENT "Building Kraken2-style taxonomic database from reference genomes"
+)
+
+# Test Kraken2-style classification
+add_custom_target(test_kraken_classification
+    COMMAND ${CMAKE_BINARY_DIR}/runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline
+            classify
+            --database ${CMAKE_SOURCE_DIR}/data/kraken_database
+            --reads ${CMAKE_SOURCE_DIR}/data/test_fastq/synthetic_R1.fastq.gz
+            --output ${CMAKE_BINARY_DIR}/kraken_results.txt
+            --report ${CMAKE_BINARY_DIR}/kraken_summary.txt
+            --confidence 0.1 --batch-size 10000
+    DEPENDS runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline build_kraken_database
+    COMMENT "Testing Kraken2-style taxonomic classification"
+)
+
+# Complete Kraken2-style pipeline (build + classify)
+add_custom_target(test_complete_kraken_pipeline
+    COMMAND ${CMAKE_BINARY_DIR}/runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline
+            pipeline
+            --genome-dir ${CMAKE_SOURCE_DIR}/data/reference_genomes
+            --reads ${CMAKE_SOURCE_DIR}/data/test_fastq/synthetic_R1.fastq.gz
+            --output ${CMAKE_BINARY_DIR}/complete_kraken_test
+            --confidence 0.1
+    DEPENDS runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline
+    COMMENT "Testing complete Kraken2-style pipeline (build database + classify reads)"
+)
+
+# Test paired-end Kraken2-style classification
+add_custom_target(test_kraken_paired_classification
+    COMMAND ${CMAKE_BINARY_DIR}/runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_paired_classifier
+            --database ${CMAKE_SOURCE_DIR}/data/kraken_database
+            --reads1 ${CMAKE_SOURCE_DIR}/data/test_fastq/synthetic_R1.fastq.gz
+            --reads2 ${CMAKE_SOURCE_DIR}/data/test_fastq/synthetic_R2.fastq.gz
+            --output ${CMAKE_BINARY_DIR}/kraken_paired_results.txt
+            --confidence 0.1 --paired-weight 2.0
+    DEPENDS runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_paired_classifier build_kraken_database
+    COMMENT "Testing paired-end Kraken2-style classification with concordance scoring"
+)
+
+# ===========================
 # Analysis and Reporting Targets
 # ===========================
 
@@ -171,6 +223,17 @@ add_custom_target(clinical_interpretation
     COMMENT "Generating clinical interpretation report"
 )
 
+# Generate taxonomic profiling report
+add_custom_target(analyze_taxonomic_profile
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/src/python/taxonomic_profile_analyzer.py
+            ${CMAKE_BINARY_DIR}/kraken_results.txt
+            ${CMAKE_BINARY_DIR}/kraken_summary.txt
+            --generate-html
+            --include-lineages
+            --output ${CMAKE_BINARY_DIR}/taxonomic_report.html
+    COMMENT "Generating comprehensive taxonomic profiling report"
+)
+
 # ===========================
 # Installation Rules
 # ===========================
@@ -188,6 +251,7 @@ install(PROGRAMS
     ${CMAKE_SOURCE_DIR}/src/python/index_validator.py
     ${CMAKE_SOURCE_DIR}/src/python/build_protein_resistance_db.py
     ${CMAKE_SOURCE_DIR}/src/python/diagnostic_analyzer.py
+    ${CMAKE_SOURCE_DIR}/src/python/taxonomic_profile_analyzer.py
     DESTINATION bin
 )
 
@@ -212,23 +276,36 @@ message(STATUS "")
 message(STATUS "Pipeline Modules:")
 message(STATUS "  ✓ Resistance Detection (runtime/kernels/resistance)")
 message(STATUS "  ✓ Profiling Pipeline (runtime/kernels/profiler)")
+message(STATUS "  ✓ Kraken2-style Classification (runtime/kernels/profiler/k2like_from_scratch)")
 message(STATUS "")
 message(STATUS "Build targets:")
+message(STATUS "  === Resistance Detection ===")
 message(STATUS "  build_clean_resistance_db     - Build simplified resistance database")
 message(STATUS "  build_integrated_resistance_db - Build unified resistance database")
 message(STATUS "  test_clean_pipeline           - Test simplified pipeline")
 message(STATUS "  test_integrated_pipeline      - Test with synthetic data")
 message(STATUS "  validate_fq_database          - Validate FQ resistance database")
 message(STATUS "  benchmark_integrated          - Performance comparison")
-message(STATUS "  analyze_resistance_profile    - Generate HTML reports")
+message(STATUS "  === Taxonomic Profiling ===")
+message(STATUS "  build_kraken_database         - Build Kraken2-style taxonomic database")
+message(STATUS "  test_kraken_classification    - Test single-end classification")
+message(STATUS "  test_kraken_paired_classification - Test paired-end classification")
+message(STATUS "  test_complete_kraken_pipeline - Complete build + classify pipeline")
+message(STATUS "  === Analysis and Reporting ===")
+message(STATUS "  analyze_resistance_profile    - Generate HTML resistance reports")
+message(STATUS "  analyze_taxonomic_profile     - Generate HTML taxonomic reports")
 message(STATUS "  clinical_interpretation       - Create clinical reports")
 message(STATUS "")
 message(STATUS "Pipeline executables will be built in:")
 message(STATUS "  ${CMAKE_BINARY_DIR}/runtime/kernels/resistance/")
 message(STATUS "  ${CMAKE_BINARY_DIR}/runtime/kernels/profiler/")
+message(STATUS "  ${CMAKE_BINARY_DIR}/runtime/kernels/profiler/k2like_from_scratch/")
 message(STATUS "")
 message(STATUS "Usage examples:")
 message(STATUS "  1. Build everything: make")
 message(STATUS "  2. Build only resistance: make -C runtime/kernels/resistance")
 message(STATUS "  3. Build only profiler: make -C runtime/kernels/profiler")
+message(STATUS "  4. Build Kraken database: make build_kraken_database")
+message(STATUS "  5. Test classification: make test_kraken_classification")
+message(STATUS "  6. Complete pipeline: make test_complete_kraken_pipeline")
 message(STATUS "")

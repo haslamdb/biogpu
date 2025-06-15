@@ -1,35 +1,83 @@
-cmake_minimum_required(VERSION 3.20)
-project(BioGPU VERSION 0.6.0 LANGUAGES CXX CUDA)
+# BioGPU Root CMakeLists.txt
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-# C++ Standard
+project(BioGPU LANGUAGES CXX CUDA)
+
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# CUDA Standard
+# Set CUDA standard 
 set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# Project include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
+# Find required packages
+find_package(Threads REQUIRED)
 
-# CUDA include directories
-if(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES)
-    include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+# Check CUDA compute capability
+include(CheckLanguage)
+check_language(CUDA)
+
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES 60 70 75 80 86)  # Support multiple GPU generations
 endif()
 
-# CUDA library directories
-link_directories(/usr/local/cuda/lib64)
-link_directories(/usr/local/cuda/targets/x86_64-linux/lib)
+# Set compilation flags
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo -use_fast_math")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 
-# ===========================
-# Add Subdirectories
-# ===========================
+# Debug vs Release
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+else()
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG")
+endif()
 
-# Add resistance detection pipeline
-add_subdirectory(runtime/kernels/resistance)
+# Include directories
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/runtime/kernels)
+include_directories(${CUDA_INCLUDE_DIRS})
 
-# Add profiling pipeline (when ready)
-add_subdirectory(runtime/kernels/profiler)
+# Add subdirectories
+add_subdirectory(runtime/kernels)
+
+# Optional: Add tests if you want them
+option(BUILD_TESTS "Build test programs" OFF)
+if(BUILD_TESTS)
+    enable_testing()
+    # add_subdirectory(tests)  # Commented out until tests directory exists
+endif()
+
+# Optional: Add examples
+option(BUILD_EXAMPLES "Build example programs" OFF)
+if(BUILD_EXAMPLES)
+    # add_subdirectory(examples)  # Commented out until examples directory exists
+endif()
+
+# Print configuration summary
+message(STATUS "BioGPU Configuration Summary:")
+message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+message(STATUS "  CUDA flags: ${CMAKE_CUDA_FLAGS}")
+message(STATUS "  CXX flags: ${CMAKE_CXX_FLAGS}")
+message(STATUS "  Build tests: ${BUILD_TESTS}")
+message(STATUS "  Build examples: ${BUILD_EXAMPLES}")
+
+# Create config header (commented out until config.h.in exists)
+# configure_file(
+#     ${CMAKE_SOURCE_DIR}/include/biogpu/config.h.in
+#     ${CMAKE_BINARY_DIR}/include/biogpu/config.h
+# )
+
+# Install configuration
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+        
+# install(FILES ${CMAKE_BINARY_DIR}/include/biogpu/config.h
+#         DESTINATION include/biogpu)
 
 # ===========================
 # Database Building Targets

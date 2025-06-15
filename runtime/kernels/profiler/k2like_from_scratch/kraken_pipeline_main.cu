@@ -9,6 +9,7 @@ class PairedEndGPUKrakenClassifier;
 
 // Include the actual headers with class definitions
 #define GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
+#define GPU_KRAKEN_DATABASE_BUILDER_HEADER_ONLY
 #include "gpu_kraken_classifier.cu"
 #include "gpu_kraken_database_builder.cu"
 #include <iostream>

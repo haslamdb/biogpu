@@ -173,6 +173,8 @@ private:
     std::vector<std::string> find_genome_files(const std::string& directory);
 };
 
+#ifndef GPU_KRAKEN_DATABASE_BUILDER_HEADER_ONLY
+
 // ================================================================
 // CUDA KERNELS - Keep existing interfaces but fix implementation
 // ================================================================
@@ -303,6 +305,17 @@ __device__ uint32_t compute_simple_lca_gpu(uint32_t taxon1, uint32_t taxon2) {
     return (taxon1 < taxon2) ? taxon1 : taxon2;
 }
 
+// Host version of the same function
+__host__ uint32_t compute_simple_lca_host(uint32_t taxon1, uint32_t taxon2) {
+    if (taxon1 == 0) return taxon2;
+    if (taxon2 == 0) return taxon1;
+    if (taxon1 == taxon2) return taxon1;
+    
+    // Simplified LCA - return smaller taxon ID
+    // In a real implementation, this would walk up the taxonomy tree
+    return (taxon1 < taxon2) ? taxon1 : taxon2;
+}
+
 // Device function to check for valid bases
 __device__ bool has_valid_bases(const char* seq, int length) {
     for (int i = 0; i < length; i++) {
@@ -318,6 +331,8 @@ __device__ bool has_valid_bases(const char* seq, int length) {
 // ================================================================
 // IMPLEMENTATION - Keep all original functionality
 // ================================================================
+
+#endif // GPU_KRAKEN_DATABASE_BUILDER_HEADER_ONLY
 
 #ifndef GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
 #include <iostream>
@@ -803,7 +818,7 @@ bool GPUKrakenDatabaseBuilder::save_database() {
             // Update genome count and compute simple LCA
             auto& existing = unique_candidates[candidate.minimizer_hash];
             existing.genome_count++;
-            existing.lca_taxon = compute_simple_lca_gpu(existing.lca_taxon, candidate.lca_taxon);
+            existing.lca_taxon = compute_simple_lca_host(existing.lca_taxon, candidate.lca_taxon);
             existing.uniqueness_score = 1.0f / existing.genome_count;
         }
     }
@@ -1072,5 +1087,6 @@ bool GPUKrakenDatabaseBuilder::build_compact_hash_table_gpu(
     return true;
 }
 
-#endif // GPU_KRAKEN_DATABASE_BUILDER_CUH
 #endif // GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
+
+#endif // GPU_KRAKEN_DATABASE_BUILDER_CUH

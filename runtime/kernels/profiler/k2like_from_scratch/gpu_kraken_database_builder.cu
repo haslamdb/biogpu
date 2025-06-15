@@ -89,7 +89,7 @@ private:
     
     // Processing parameters - reduced for better memory management
     int MAX_SEQUENCE_BATCH = 1000;  // 1K sequences at once (reduced from 10K)
-    int MAX_MINIMIZERS_PER_BATCH = 500000;  // 500K minimizers (reduced from 5M)
+    int MAX_MINIMIZERS_PER_BATCH = 50000000;  // 50M minimizers
     static const int THREADS_PER_BLOCK = 256;
     
     // Statistics
@@ -122,7 +122,7 @@ public:
         if (sequences_per_batch > 0 && sequences_per_batch <= 10000) {
             MAX_SEQUENCE_BATCH = sequences_per_batch;
             // Adjust minimizers proportionally
-            MAX_MINIMIZERS_PER_BATCH = sequences_per_batch * 50000;  // ~50K minimizers per genome sequence
+            // Keep MAX_MINIMIZERS_PER_BATCH at 50M regardless of batch size
             std::cout << "Set GPU batch size to " << MAX_SEQUENCE_BATCH 
                       << " sequences, " << MAX_MINIMIZERS_PER_BATCH << " minimizers" << std::endl;
         }
@@ -513,30 +513,41 @@ __global__ void extract_minimizers_kernel(
     ClassificationParams params,
     int max_minimizers) {
     
-    // Use grid-stride loop to handle large sequences
+    // Grid-stride loop to process all k-mers from all genomes
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
+    int total_threads = blockDim.x * gridDim.x;
     
-    // Process all sequences cooperatively
-    for (int genome_id = 0; genome_id < num_genomes; genome_id++) {
-        const GPUGenomeInfo& genome = genome_info[genome_id];
-        const char* sequence = sequence_data + genome.sequence_offset;
-        uint32_t seq_length = genome.sequence_length;
+    // Calculate total number of k-mers across all genomes
+    uint64_t total_kmers = 0;
+    for (int g = 0; g < num_genomes; g++) {
+        if (genome_info[g].sequence_length >= params.k) {
+            total_kmers += genome_info[g].sequence_length - params.k + 1;
+        }
+    }
+    
+    // Each thread processes k-mers using grid-stride
+    for (uint64_t kmer_idx = tid; kmer_idx < total_kmers; kmer_idx += total_threads) {
+        // Find which genome and position this k-mer belongs to
+        int genome_id = 0;
+        uint64_t cumulative_kmers = 0;
+        uint32_t kmer_pos = 0;
         
-        if (seq_length < params.k) {
-            if (tid == 0) hit_counts[genome_id] = 0;
-            continue;
+        for (int g = 0; g < num_genomes; g++) {
+            uint32_t seq_len = genome_info[g].sequence_length;
+            if (seq_len < params.k) continue;
+            
+            uint32_t kmers_in_genome = seq_len - params.k + 1;
+            if (kmer_idx < cumulative_kmers + kmers_in_genome) {
+                genome_id = g;
+                kmer_pos = kmer_idx - cumulative_kmers;
+                break;
+            }
+            cumulative_kmers += kmers_in_genome;
         }
         
-        // Each thread processes a chunk of the sequence
-        uint32_t kmers_per_thread = (seq_length - params.k + 1 + stride - 1) / stride;
-        uint32_t start_pos = tid * kmers_per_thread;
-        uint32_t end_pos = min(start_pos + kmers_per_thread, seq_length - params.k + 1);
-        
-        uint32_t local_hit_count = 0;
-        
-        // Process assigned chunk
-        for (uint32_t i = start_pos; i < end_pos; i++) {
+        const GPUGenomeInfo& genome = genome_info[genome_id];
+        const char* sequence = sequence_data + genome.sequence_offset;
+        uint32_t i = kmer_pos;
             // Check for valid bases in k-mer
             if (!has_valid_bases(sequence + i, params.k)) {
                 continue;
@@ -563,13 +574,9 @@ __global__ void extract_minimizers_kernel(
                 }
             }
         }
-        
-        // Sum up hit counts for this genome
-        atomicAdd(&hit_counts[genome_id], local_hit_count);
-        
-        // Synchronize before moving to next genome
-        __syncthreads();
-    }
+    
+    // Store hit count for this genome
+    hit_counts[genome_id] = local_hit_count;
 }
 
 // Device function to extract a single minimizer
@@ -638,9 +645,8 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     CUDA_CHECK(cudaMalloc(&d_global_counter, sizeof(uint32_t)));
     CUDA_CHECK(cudaMemcpy(d_global_counter, &zero, sizeof(uint32_t), cudaMemcpyHostToDevice));
     
-    // Launch kernel with multiple blocks for better parallelism
-    // Use more blocks to process large sequences in parallel
-    int num_blocks = min(2048, num_sequences * 32);  // Multiple blocks per genome
+    // Launch kernel with one thread per genome
+    int num_blocks = (num_sequences + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
     
     // Clear hit counts
     CUDA_CHECK(cudaMemset(d_minimizer_counts, 0, num_sequences * sizeof(uint32_t)));
@@ -662,7 +668,25 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
         std::chrono::duration<double>(end_time - start_time).count();
     
     std::cout << "Extracted " << *total_hits << " minimizers from " 
-              << num_sequences << " sequences" << std::endl;
+              << num_sequences << " sequences (limit was " << MAX_MINIMIZERS_PER_BATCH << ")" << std::endl;
+    
+    if (*total_hits >= MAX_MINIMIZERS_PER_BATCH) {
+        std::cerr << "WARNING: Hit minimizer limit! Some minimizers may have been dropped." << std::endl;
+    }
+    
+    // Debug: print average minimizers per sequence
+    std::vector<uint32_t> h_counts(num_sequences);
+    CUDA_CHECK(cudaMemcpy(h_counts.data(), d_minimizer_counts, 
+                         num_sequences * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    uint64_t total_bases = 0;
+    for (int i = 0; i < num_sequences; i++) {
+        uint32_t seq_len = 0;
+        CUDA_CHECK(cudaMemcpy(&seq_len, &d_genomes[i].sequence_length, 
+                             sizeof(uint32_t), cudaMemcpyDeviceToHost));
+        total_bases += seq_len;
+    }
+    std::cout << "Debug: Average minimizers per sequence: " << (*total_hits / (double)num_sequences) 
+              << ", per base: " << (*total_hits / (double)total_bases) << std::endl;
     
     return true;
 }

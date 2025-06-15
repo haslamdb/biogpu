@@ -321,7 +321,8 @@ std::vector<PairedReadClassification> PairedEndGPUKrakenClassifier::classify_pai
         all_results.insert(all_results.end(), 
                           batch_results.begin(), batch_results.end());
         
-        if ((batch_start / batch_size) % 100 == 0) {
+        // Report progress every 10 batches or at the end
+        if ((batch_end - batch_size) % (batch_size * 10) == 0 || batch_end == paired_reads.size()) {
             std::cout << "Processed " << batch_end << "/" << paired_reads.size() 
                       << " read pairs..." << std::endl;
         }

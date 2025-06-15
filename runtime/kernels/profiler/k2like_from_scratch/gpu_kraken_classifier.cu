@@ -798,7 +798,7 @@ bool PairedEndGPUKrakenClassifier::load_database(const std::string& database_dir
     std::cout << "Loading database from " << database_directory << "..." << std::endl;
     
     // Load hash table
-    std::string hash_table_file = database_directory + "/hash_table.bin";
+    std::string hash_table_file = database_directory + "/hash_table.k2d";
     if (!load_hash_table(hash_table_file)) {
         std::cerr << "Failed to load hash table from " << hash_table_file << std::endl;
         return false;

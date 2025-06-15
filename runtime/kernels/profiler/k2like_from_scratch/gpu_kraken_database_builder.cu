@@ -184,7 +184,8 @@ __global__ void extract_minimizers_kernel(
     GPUMinimizerHit* minimizer_hits,
     uint32_t* hit_counts,
     uint32_t* global_hit_counter,
-    ClassificationParams params
+    ClassificationParams params,
+    int max_minimizers
 );
 
 // Kernel to sort and deduplicate minimizers by hash
@@ -509,7 +510,8 @@ __global__ void extract_minimizers_kernel(
     GPUMinimizerHit* minimizer_hits,
     uint32_t* hit_counts,
     uint32_t* global_hit_counter,
-    ClassificationParams params) {
+    ClassificationParams params,
+    int max_minimizers) {
     
     // Use grid-stride loop to handle large sequences
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -549,7 +551,7 @@ __global__ void extract_minimizers_kernel(
                 // Get global position for this hit
                 uint32_t global_pos = atomicAdd(global_hit_counter, 1);
                 
-                if (global_pos < 500000) {  // Use the class constant MAX_MINIMIZERS_PER_BATCH (500K)
+                if (global_pos < max_minimizers) {
                     GPUMinimizerHit hit;
                     hit.minimizer_hash = minimizer;
                     hit.taxon_id = genome.taxon_id;
@@ -645,7 +647,7 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     
     extract_minimizers_kernel<<<num_blocks, THREADS_PER_BLOCK>>>(
         d_sequences, d_genomes, num_sequences,
-        d_hits, d_minimizer_counts, d_global_counter, params
+        d_hits, d_minimizer_counts, d_global_counter, params, MAX_MINIMIZERS_PER_BATCH
     );
     
     CUDA_CHECK(cudaDeviceSynchronize());

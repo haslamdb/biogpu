@@ -5,7 +5,7 @@
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
-#include "gpu_kraken_classifier.cuh"
+#include "gpu_kraken_classifier.cu"
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -219,7 +219,7 @@ __device__ bool has_valid_bases(const char* seq, int length);
 // IMPLEMENTATION
 // ================================================================
 
-#include "gpu_kraken_database_builder.cuh"
+// Implementation continues below - no need to include self
 #include <iostream>
 #include <fstream>
 #include <sstream>

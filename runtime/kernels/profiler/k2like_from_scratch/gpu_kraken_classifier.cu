@@ -233,7 +233,7 @@ __device__ __host__ uint32_t jenkins_hash(uint64_t key);
 // IMPLEMENTATION
 // ================================================================
 
-#include "gpu_kraken_classifier_paired.cuh"
+// Implementation continues below - no need to include self
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -431,7 +431,7 @@ void PairedEndGPUKrakenClassifier::transfer_paired_reads_to_gpu(const std::vecto
     std::string concatenated_r1, concatenated_r2;
     std::vector<uint32_t> offsets_r1, offsets_r2;
     std::vector<uint32_t> lengths_r1, lengths_r2;
-    std::vector<bool> is_paired_flags;
+    std::vector<uint8_t> is_paired_flags;
     
     uint32_t current_offset_r1 = 0, current_offset_r2 = 0;
     
@@ -473,7 +473,7 @@ void PairedEndGPUKrakenClassifier::transfer_paired_reads_to_gpu(const std::vecto
                          lengths_r2.size() * sizeof(uint32_t), cudaMemcpyHostToDevice));
     
     CUDA_CHECK(cudaMemcpy(d_is_paired_flags, is_paired_flags.data(),
-                         is_paired_flags.size() * sizeof(bool), cudaMemcpyHostToDevice));
+                         is_paired_flags.size() * sizeof(uint8_t), cudaMemcpyHostToDevice));
 }
 
 // Single-end compatibility wrapper

@@ -130,6 +130,7 @@ runtime/kernels/profiler/adaptive_paired_end_profiler
 runtime/kernels/profiler/adaptive_paired_end_profiler_debug
 runtime/kernels/profiler/adaptive_paired_profiler
 runtime/kernels/profiler/adaptive_paired_profiler_debug
+runtime/kernels/profiler/adaptive_paired_profiler_batched
 runtime/kernels/profiler/analyze_database
 runtime/kernels/profiler/build_db_from_kmers
 runtime/kernels/profiler/build_minimizer_db
@@ -151,7 +152,17 @@ runtime/kernels/profiler/test_fastq_pipeline
 runtime/kernels/profiler/test_minimizer
 runtime/kernels/profiler/test_stats
 
+# Kraken2-style executables (when built)
+runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline
+runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_paired_classifier
+runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_build_db
+runtime/kernels/profiler/k2like_from_scratch/gpu_kraken_pipeline_debug
+
 # Profiler database files
 runtime/kernels/profiler/minimized_pathogens_db
 runtime/kernels/profiler/minimized_pathogens_db.summary
 runtime/kernels/profiler/minimizer_pathogen_db.db.summary
+
+# Working command files
+working_*_commands_*.txt
+working_*_pipeline_command_*.txt

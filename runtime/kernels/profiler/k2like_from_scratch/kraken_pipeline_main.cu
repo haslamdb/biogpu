@@ -299,38 +299,80 @@ bool classify_reads_command(const PipelineConfig& config) {
         if (is_paired) {
             // Load paired-end reads
             std::vector<PairedRead> paired_reads;
-            std::ifstream fastq_file1(config.reads_file);
-            std::ifstream fastq_file2(config.reads_file2);
             
-            if (!fastq_file1.is_open()) {
-                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
-                return false;
-            }
-            if (!fastq_file2.is_open()) {
-                std::cerr << "Cannot open reads file 2: " << config.reads_file2 << std::endl;
-                return false;
-            }
+            // Check if files are gzipped
+            bool is_gzipped1 = config.reads_file.substr(config.reads_file.find_last_of(".") + 1) == "gz";
+            bool is_gzipped2 = config.reads_file2.substr(config.reads_file2.find_last_of(".") + 1) == "gz";
             
-            std::string line1, line2;
-            int line_count = 0;
-            while (std::getline(fastq_file1, line1) && std::getline(fastq_file2, line2)) {
-                line_count++;
-                if (line_count % 4 == 2) {  // Sequence line
-                    if (!line1.empty() && !line2.empty() && 
-                        line1.length() >= config.classifier_params.k && 
-                        line2.length() >= config.classifier_params.k) {
-                        paired_reads.push_back(PairedRead(line1, line2, "read_" + std::to_string(paired_reads.size())));
-                    }
+            if (is_gzipped1 && is_gzipped2) {
+                // Use zlib for gzipped files
+                gzFile gz_file1 = gzopen(config.reads_file.c_str(), "rb");
+                gzFile gz_file2 = gzopen(config.reads_file2.c_str(), "rb");
+                
+                if (!gz_file1) {
+                    std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                    return false;
+                }
+                if (!gz_file2) {
+                    std::cerr << "Cannot open reads file 2: " << config.reads_file2 << std::endl;
+                    gzclose(gz_file1);
+                    return false;
                 }
                 
-                // Limit for testing
-                if (paired_reads.size() >= 1000000) {
-                    std::cout << "Limited to " << paired_reads.size() << " read pairs for processing" << std::endl;
-                    break;
+                const int buffer_size = 1024;
+                char buffer1[buffer_size];
+                char buffer2[buffer_size];
+                std::string line1, line2;
+                int line_count1 = 0, line_count2 = 0;
+                
+                while (gzgets(gz_file1, buffer1, buffer_size) && gzgets(gz_file2, buffer2, buffer_size)) {
+                    line1 = buffer1;
+                    line2 = buffer2;
+                    
+                    // Remove newline
+                    if (!line1.empty() && line1.back() == '\n') line1.pop_back();
+                    if (!line2.empty() && line2.back() == '\n') line2.pop_back();
+                    
+                    line_count1++;
+                    if (line_count1 % 4 == 2) {  // Sequence line
+                        if (!line1.empty() && !line2.empty() && 
+                            line1.length() >= config.classifier_params.k && 
+                            line2.length() >= config.classifier_params.k) {
+                            paired_reads.push_back(PairedRead(line1, line2, "read_" + std::to_string(paired_reads.size())));
+                        }
+                    }
                 }
+                gzclose(gz_file1);
+                gzclose(gz_file2);
+            } else {
+                // Use standard ifstream for uncompressed files
+                std::ifstream fastq_file1(config.reads_file);
+                std::ifstream fastq_file2(config.reads_file2);
+                
+                if (!fastq_file1.is_open()) {
+                    std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                    return false;
+                }
+                if (!fastq_file2.is_open()) {
+                    std::cerr << "Cannot open reads file 2: " << config.reads_file2 << std::endl;
+                    return false;
+                }
+                
+                std::string line1, line2;
+                int line_count = 0;
+                while (std::getline(fastq_file1, line1) && std::getline(fastq_file2, line2)) {
+                    line_count++;
+                    if (line_count % 4 == 2) {  // Sequence line
+                        if (!line1.empty() && !line2.empty() && 
+                            line1.length() >= config.classifier_params.k && 
+                            line2.length() >= config.classifier_params.k) {
+                            paired_reads.push_back(PairedRead(line1, line2, "read_" + std::to_string(paired_reads.size())));
+                        }
+                    }
+                }
+                fastq_file1.close();
+                fastq_file2.close();
             }
-            fastq_file1.close();
-            fastq_file2.close();
             
             if (paired_reads.empty()) {
                 std::cerr << "No valid read pairs found" << std::endl;

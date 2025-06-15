@@ -313,6 +313,7 @@ target_compile_options(hybrid_gpu_cpu_profiler PRIVATE
 # Main Kraken2-style pipeline executable
 add_executable(gpu_kraken_pipeline
     k2like_from_scratch/kraken_pipeline_main.cu
+    k2like_from_scratch/sample_csv_parser.cpp
 )
 
 set_target_properties(gpu_kraken_pipeline PROPERTIES

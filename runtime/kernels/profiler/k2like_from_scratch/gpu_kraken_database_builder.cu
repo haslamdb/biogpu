@@ -67,7 +67,7 @@ private:
     
     // UPDATED: More reasonable processing parameters
     int MAX_SEQUENCE_BATCH = 25;           // Smaller batches for better memory management
-    int MAX_MINIMIZERS_PER_BATCH = 5000000; // Increased from 2M to 5M
+    int MAX_MINIMIZERS_PER_BATCH = 1000000; // Reduced for true sliding window approach
     static const int MAX_READ_LENGTH = 1000;
     static const int THREADS_PER_BLOCK = 256;
     static const int MAX_TAXA_PER_PAIR = 128;
@@ -182,7 +182,7 @@ private:
 // MurmurHash3 implementation - now in header file
 // Using the implementation from gpu_minimizer_extraction.cuh
 
-// IMPROVED: Minimizer extraction with Kraken2-style features
+// TRUE Kraken2-style sliding window minimizer extraction
 __global__ void extract_minimizers_kraken2_improved_kernel(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
@@ -213,53 +213,86 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
     if (thread_id != 0) return;
     
     uint32_t local_minimizer_count = 0;
-    int last_minimizer_pos = -1;
-    uint64_t last_minimizer = UINT64_MAX;
-    uint32_t total_kmers = seq_length - params.k + 1;
     
-    // FIXED: Less aggressive compression - process like Kraken2
-    for (uint32_t kmer_idx = 0; kmer_idx < total_kmers; kmer_idx++) {
+    // Calculate window size (typically k - minimizer_length + 1)
+    // For k=35, minimizer_length=31, window_size = 5
+    int window_size = params.k - params.ell + 1;
+    if (window_size < 1) window_size = 1;
+    
+    // Total number of windows in the sequence
+    int total_windows = seq_length - params.k - window_size + 2;
+    if (total_windows <= 0) {
+        hit_counts_per_genome[genome_id] = 0;
+        return;
+    }
+    
+    uint64_t last_min_hash = UINT64_MAX;
+    int last_min_pos = -1;
+    
+    // Process sequence with TRUE sliding window approach
+    for (int window_start = 0; window_start < total_windows; window_start++) {
         
-        // Extract minimizer for this k-mer using Kraken2's approach
-        MinimizerWindow window = extract_kmer_minimizer(
-            sequence, kmer_idx, params.k, params.ell, params.xor_mask
-        );
+        // Find minimum k-mer hash in current window
+        uint64_t window_min_hash = UINT64_MAX;
+        int window_min_pos = -1;
         
-        if (!window.valid) continue;
-        
-        // Apply toggle mask
-        window.minimizer_hash ^= toggle_mask;
-        
-        // Apply hash-based subsampling if enabled
-        if (min_clear_hash_value > 0) {
-            if (window.minimizer_hash < min_clear_hash_value) {
-                continue;  // Skip due to subsampling
+        // Check all k-mers in the window
+        for (int kmer_offset = 0; kmer_offset < window_size; kmer_offset++) {
+            int kmer_pos = window_start + kmer_offset;
+            
+            // Bounds check
+            if (kmer_pos + params.k > seq_length) break;
+            
+            // Extract k-mer
+            uint64_t kmer = extract_kmer(sequence, kmer_pos, params.k);
+            if (kmer == UINT64_MAX) continue;
+            
+            // Get canonical form
+            uint64_t canon_kmer = canonical_kmer(kmer, params.k);
+            
+            // Apply MurmurHash3
+            uint64_t hash = murmur_hash3(canon_kmer);
+            
+            // Apply toggle mask
+            hash ^= toggle_mask;
+            
+            // Track minimum in window
+            if (hash < window_min_hash) {
+                window_min_hash = hash;
+                window_min_pos = kmer_pos;
             }
         }
         
-        // Key insight: Only output when minimizer position changes
-        // This is what achieves compression in Kraken2
-        if (window.minimizer_pos != last_minimizer_pos) {
+        // Skip if no valid k-mer in window
+        if (window_min_hash == UINT64_MAX) continue;
+        
+        // Apply subsampling if enabled
+        if (min_clear_hash_value > 0 && window_min_hash < min_clear_hash_value) {
+            continue;
+        }
+        
+        // KEY: Only output when the minimum k-mer changes
+        if (window_min_hash != last_min_hash || window_min_pos != last_min_pos) {
             // Check if we have space
             uint32_t current_count = atomicAdd(global_hit_counter, 0);
             if (current_count >= max_minimizers) {
-                break;  // Buffer full
+                break;
             }
             
             uint32_t global_pos = atomicAdd(global_hit_counter, 1);
             
             if (global_pos < max_minimizers) {
                 GPUMinimizerHit hit;
-                hit.minimizer_hash = window.minimizer_hash;
+                hit.minimizer_hash = window_min_hash;
                 hit.taxon_id = genome.taxon_id;
-                hit.position = window.minimizer_pos;  // Store actual minimizer position
+                hit.position = window_min_pos;
                 hit.genome_id = genome.genome_id;
                 
                 minimizer_hits[global_pos] = hit;
                 local_minimizer_count++;
                 
-                last_minimizer_pos = window.minimizer_pos;
-                last_minimizer = window.minimizer_hash;
+                last_min_hash = window_min_hash;
+                last_min_pos = window_min_pos;
             } else {
                 break;
             }

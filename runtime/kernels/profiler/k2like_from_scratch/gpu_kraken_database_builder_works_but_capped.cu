@@ -65,20 +65,12 @@ private:
     LCACandidate* d_lca_candidates;
     GPUTaxonomyNode* d_taxonomy_nodes;
     
-    // UPDATED: Higher minimizer capacity for comprehensive databases
-    int MAX_SEQUENCE_BATCH = 25;           // Keep sequences reasonable
-    int MAX_MINIMIZERS_PER_BATCH = 5000000; // INCREASED from 1M to 5M
+    // UPDATED: More reasonable processing parameters
+    int MAX_SEQUENCE_BATCH = 25;           // Smaller batches for better memory management
+    int MAX_MINIMIZERS_PER_BATCH = 1000000; // Reduced for true sliding window approach
     static const int MAX_READ_LENGTH = 1000;
     static const int THREADS_PER_BLOCK = 256;
     static const int MAX_TAXA_PER_PAIR = 128;
-    
-    // NEW: Dynamic memory scaling based on available GPU memory
-    bool auto_scale_memory = true;
-    size_t max_gpu_memory_usage_fraction = 80; // Use up to 80% of GPU memory
-    
-    // NEW: Statistics to track if we're hitting limits
-    uint64_t total_minimizers_capped = 0;
-    uint64_t total_batches_capped = 0;
     
     // Convert existing params to minimizer params
     MinimizerParams minimizer_params;
@@ -119,31 +111,6 @@ public:
             MAX_SEQUENCE_BATCH = sequences_per_batch;
             std::cout << "Set GPU batch size to " << MAX_SEQUENCE_BATCH 
                       << " sequences, " << MAX_MINIMIZERS_PER_BATCH << " minimizers" << std::endl;
-        }
-    }
-    
-    // NEW: Method to set minimizer capacity explicitly
-    void set_minimizer_capacity(int minimizers_per_batch) {
-        if (minimizers_per_batch > 0 && minimizers_per_batch <= 50000000) { // Cap at 50M
-            MAX_MINIMIZERS_PER_BATCH = minimizers_per_batch;
-            std::cout << "Set minimizer capacity to " << MAX_MINIMIZERS_PER_BATCH 
-                      << " per batch" << std::endl;
-            
-            // Recalculate memory requirements
-            check_and_adjust_memory();
-        } else {
-            std::cerr << "Warning: Invalid minimizer capacity. Must be 1-50M" << std::endl;
-        }
-    }
-    
-    // NEW: Auto-scale based on GPU memory
-    void enable_auto_memory_scaling(bool enable = true, size_t memory_fraction = 80) {
-        auto_scale_memory = enable;
-        max_gpu_memory_usage_fraction = memory_fraction;
-        if (enable) {
-            std::cout << "Enabled auto memory scaling (using " << memory_fraction 
-                      << "% of GPU memory)" << std::endl;
-            check_and_adjust_memory();
         }
     }
     
@@ -426,7 +393,7 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     minimizer_params.spaces = params.spaces;
     minimizer_params.xor_mask = 0x3c8bfbb395c60474ULL;  // Kraken2-style XOR mask
     
-    std::cout << "Initializing GPU Kraken database builder (High Capacity)..." << std::endl;
+    std::cout << "Initializing GPU Kraken database builder (Kraken2-inspired)..." << std::endl;
     std::cout << "Parameters: k=" << minimizer_params.k 
               << ", ell=" << minimizer_params.ell 
               << ", spaces=" << minimizer_params.spaces << std::endl;
@@ -434,13 +401,11 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     // Create output directory
     std::filesystem::create_directories(output_directory);
     
-    // Enable auto-scaling by default for better memory utilization
-    enable_auto_memory_scaling(true, 80);
+    // Check GPU memory and adjust batch sizes
+    check_and_adjust_memory();
     
     // Initialize statistics
     memset(&stats, 0, sizeof(stats));
-    total_minimizers_capped = 0;
-    total_batches_capped = 0;
 }
 
 // Destructor - keep original
@@ -448,7 +413,7 @@ GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
     free_gpu_memory();
 }
 
-// UPDATED: Smarter memory management
+// Keep original memory checking logic
 void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     size_t free_mem, total_mem;
     cudaMemGetInfo(&free_mem, &total_mem);
@@ -456,70 +421,21 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
               << (total_mem / 1024 / 1024) << " MB total" << std::endl;
     
-    if (auto_scale_memory) {
-        // Calculate optimal batch sizes based on available memory
-        size_t usable_memory = (total_mem * max_gpu_memory_usage_fraction) / 100;
+    size_t sequence_memory = MAX_SEQUENCE_BATCH * 10000000; 
+    size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
+    size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
+    size_t total_needed = sequence_memory + minimizer_memory + genome_info_memory;
+    
+    size_t safe_memory = free_mem * 0.8;
+    
+    if (total_needed > safe_memory) {
+        double scale = (double)safe_memory / total_needed;
+        MAX_SEQUENCE_BATCH = (int)(MAX_SEQUENCE_BATCH * scale);
+        MAX_MINIMIZERS_PER_BATCH = (int)(MAX_MINIMIZERS_PER_BATCH * scale);
         
-        // Memory breakdown:
-        size_t sequence_memory_per_genome = 10000000; // ~10MB avg per genome
-        size_t minimizer_hit_size = sizeof(GPUMinimizerHit); // 24 bytes
-        size_t lca_candidate_size = sizeof(LCACandidate);     // 20 bytes
-        size_t genome_info_size = sizeof(GPUGenomeInfo);      // 16 bytes
-        
-        // Reserve memory for other allocations (20% buffer)
-        size_t available_for_minimizers = usable_memory * 0.6; // 60% for minimizers
-        size_t available_for_sequences = usable_memory * 0.2;  // 20% for sequences
-        
-        // Calculate optimal minimizer capacity
-        size_t memory_per_minimizer = minimizer_hit_size + lca_candidate_size;
-        int optimal_minimizer_capacity = available_for_minimizers / memory_per_minimizer;
-        
-        // Calculate optimal sequence batch size
-        int optimal_sequence_batch = available_for_sequences / sequence_memory_per_genome;
-        
-        // Apply reasonable limits
-        optimal_minimizer_capacity = std::min(optimal_minimizer_capacity, size_t(50000000)); // Max 50M
-        optimal_minimizer_capacity = std::max(optimal_minimizer_capacity, size_t(1000000));  // Min 1M
-        
-        optimal_sequence_batch = std::min(optimal_sequence_batch, 100);  // Max 100 genomes
-        optimal_sequence_batch = std::max(optimal_sequence_batch, 5);    // Min 5 genomes
-        
-        MAX_MINIMIZERS_PER_BATCH = optimal_minimizer_capacity;
-        MAX_SEQUENCE_BATCH = optimal_sequence_batch;
-        
-        std::cout << "Auto-scaled batch sizes:" << std::endl;
-        std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
-        std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
-        std::cout << "  Estimated memory usage: " << (usable_memory / 1024 / 1024) << " MB" << std::endl;
-    } else {
-        // Manual validation of current settings
-        size_t sequence_memory = MAX_SEQUENCE_BATCH * 10000000; 
-        size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
-        size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
-        size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
-        size_t total_needed = sequence_memory + minimizer_memory + candidate_memory + genome_info_memory;
-        
-        std::cout << "Memory requirements (manual settings):" << std::endl;
-        std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
-        std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
-        std::cout << "  LCA candidates: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
-        std::cout << "  Total required: " << (total_needed / 1024 / 1024) << " MB" << std::endl;
-        
-        size_t safe_memory = free_mem * 0.8;
-        
-        if (total_needed > safe_memory) {
-            std::cout << "WARNING: Current settings may exceed available GPU memory!" << std::endl;
-            std::cout << "Consider enabling auto-scaling or reducing batch sizes." << std::endl;
-            
-            // Auto-adjust if memory requirements are too high
-            double scale = (double)safe_memory / total_needed;
-            MAX_MINIMIZERS_PER_BATCH = (int)(MAX_MINIMIZERS_PER_BATCH * scale);
-            MAX_SEQUENCE_BATCH = (int)(MAX_SEQUENCE_BATCH * scale);
-            
-            std::cout << "Auto-adjusted to fit memory:" << std::endl;
-            std::cout << "  Minimizers: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
-            std::cout << "  Sequences: " << MAX_SEQUENCE_BATCH << std::endl;
-        }
+        std::cout << "Adjusted batch sizes for memory:" << std::endl;
+        std::cout << "  Sequences: " << MAX_SEQUENCE_BATCH << std::endl;
+        std::cout << "  Minimizers: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
     }
 }
 
@@ -703,7 +619,7 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     return true;
 }
 
-// UPDATED: Track when we hit capacity limits
+// UPDATED: Use improved minimizer extraction kernel
 bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     const char* d_sequences,
     const GPUGenomeInfo* d_genomes,
@@ -711,8 +627,7 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     GPUMinimizerHit* d_hits,
     uint32_t* total_hits) {
     
-    std::cout << "Extracting minimizers from " << num_sequences 
-              << " sequences (capacity: " << MAX_MINIMIZERS_PER_BATCH << ")..." << std::endl;
+    std::cout << "Extracting minimizers from " << num_sequences << " sequences..." << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
@@ -725,7 +640,7 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     // Clear hit counts
     CUDA_CHECK(cudaMemset(d_minimizer_counts, 0, num_sequences * sizeof(uint32_t)));
     
-    // Launch improved kernel with higher capacity
+    // Launch improved kernel
     extract_minimizers_kraken2_improved_kernel<<<num_sequences, 1>>>(
         d_sequences, d_genomes, num_sequences,
         d_hits, d_minimizer_counts, d_global_counter,
@@ -743,15 +658,9 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     
     CUDA_CHECK(cudaMemcpy(total_hits, d_global_counter, sizeof(uint32_t), cudaMemcpyDeviceToHost));
     
-    // NEW: Track if we hit the limit
-    if (*total_hits >= MAX_MINIMIZERS_PER_BATCH) {
-        total_minimizers_capped += (*total_hits - MAX_MINIMIZERS_PER_BATCH);
-        total_batches_capped++;
-        
-        printf("WARNING: Minimizer extraction hit capacity limit!\n");
-        printf("  Extracted: %u, Capacity: %d\n", *total_hits, MAX_MINIMIZERS_PER_BATCH);
-        printf("  This batch was capped - consider increasing capacity\n");
-        
+    if (*total_hits > MAX_MINIMIZERS_PER_BATCH) {
+        printf("WARNING: Minimizer extraction hit limit. Clamping %u to %d\n", 
+               *total_hits, MAX_MINIMIZERS_PER_BATCH);
         *total_hits = MAX_MINIMIZERS_PER_BATCH;
     }
     
@@ -994,7 +903,7 @@ bool GPUKrakenDatabaseBuilder::save_database() {
     return true;
 }
 
-// UPDATED: Include capping statistics
+// Keep original statistics printing with additional info
 void GPUKrakenDatabaseBuilder::print_build_statistics() {
     std::cout << "\n=== BUILD STATISTICS ===" << std::endl;
     std::cout << "Total sequences processed: " << stats.total_sequences << std::endl;
@@ -1003,16 +912,6 @@ void GPUKrakenDatabaseBuilder::print_build_statistics() {
     std::cout << "Valid minimizers extracted: " << stats.valid_minimizers_extracted << std::endl;
     std::cout << "Unique minimizers: " << stats.unique_minimizers << std::endl;
     std::cout << "LCA assignments computed: " << stats.lca_assignments << std::endl;
-    
-    // NEW: Capping statistics
-    if (total_batches_capped > 0) {
-        std::cout << "\n⚠️  CAPACITY WARNINGS:" << std::endl;
-        std::cout << "Batches that hit minimizer limit: " << total_batches_capped << std::endl;
-        std::cout << "Estimated minimizers lost to capping: " << total_minimizers_capped << std::endl;
-        std::cout << "Recommendation: Increase minimizer capacity or enable auto-scaling" << std::endl;
-    } else {
-        std::cout << "\n✓ No capacity limits hit during processing" << std::endl;
-    }
     
     if (stats.total_kmers_processed > 0) {
         double compression = (double)stats.valid_minimizers_extracted / stats.total_kmers_processed;

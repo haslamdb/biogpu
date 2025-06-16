@@ -255,11 +255,9 @@ bool extract_minimizers_gpu_optimized(
     // Clear hit counts
     cudaMemset(d_hit_counts, 0, num_genomes * sizeof(uint32_t));
     
-    // UPDATED: Launch with more threads and shared memory
-    int threads_per_block = 256;  // Use 256 threads instead of 1
-    size_t shared_mem_size = threads_per_block * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(bool));
-    
-    extract_minimizers_optimized_kernel<<<num_genomes, threads_per_block, shared_mem_size>>>(
+    // FIXED: Always use the corrected kernel with proper deduplication
+    // Use 1 thread per block for proper sequential processing
+    extract_minimizers_optimized_kernel<<<num_genomes, 1>>>(
         d_sequence_data, d_genome_info, num_genomes,
         d_minimizer_hits, d_hit_counts, d_global_counter,
         params, max_minimizers

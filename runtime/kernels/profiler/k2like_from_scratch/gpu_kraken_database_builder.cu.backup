@@ -228,10 +228,8 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
     uint64_t toggle_mask,
     int max_minimizers) {
     
-    // OPTIMIZED: Use multiple threads per genome instead of just thread 0
     int genome_id = blockIdx.x;
     int thread_id = threadIdx.x;
-    int block_size = blockDim.x;
     
     if (genome_id >= num_genomes) return;
     
@@ -244,83 +242,98 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
         return;
     }
     
-    // Shared memory for thread coordination
-    extern __shared__ uint64_t shared_mem[];
-    uint64_t* shared_minimizers = shared_mem;
-    uint32_t* shared_positions = (uint32_t*)(shared_minimizers + blockDim.x);
-    bool* shared_valid = (bool*)(shared_positions + blockDim.x);
+    // Only thread 0 per block to ensure proper sequential processing
+    if (thread_id != 0) return;
     
-    uint32_t total_kmers = seq_length - params.k + 1;
-    uint32_t kmers_per_thread = (total_kmers + block_size - 1) / block_size;
-    uint32_t start_kmer = thread_id * kmers_per_thread;
-    uint32_t end_kmer = min(start_kmer + kmers_per_thread, total_kmers);
+    uint32_t local_minimizer_count = 0;
     
-    // Each thread processes its assigned k-mers
-    shared_minimizers[thread_id] = UINT64_MAX;
-    shared_positions[thread_id] = 0;
-    shared_valid[thread_id] = false;
+    // Calculate window size (typically k - minimizer_length + 1)
+    // For k=35, minimizer_length=31, window_size = 5
+    int window_size = params.k - params.ell + 1;
+    if (window_size < 1) window_size = 1;
     
-    // Process assigned k-mers
-    for (uint32_t kmer_idx = start_kmer; kmer_idx < end_kmer; kmer_idx++) {
-        uint64_t minimizer = extract_minimizer_sliding_window(
-            sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
-        );
+    // Total number of windows in the sequence
+    int total_windows = seq_length - params.k - window_size + 2;
+    if (total_windows <= 0) {
+        hit_counts_per_genome[genome_id] = 0;
+        return;
+    }
+    
+    uint64_t last_min_hash = UINT64_MAX;
+    int last_min_pos = -1;
+    
+    // Process sequence with TRUE sliding window approach
+    for (int window_start = 0; window_start < total_windows; window_start++) {
         
-        if (minimizer != UINT64_MAX) {
-            // Apply subsampling if enabled
-            if (min_clear_hash_value > 0 && minimizer < min_clear_hash_value) {
-                continue;
-            }
+        // Find minimum k-mer hash in current window
+        uint64_t window_min_hash = UINT64_MAX;
+        int window_min_pos = -1;
+        
+        // Check all k-mers in the window
+        for (int kmer_offset = 0; kmer_offset < window_size; kmer_offset++) {
+            int kmer_pos = window_start + kmer_offset;
+            
+            // Bounds check
+            if (kmer_pos + params.k > seq_length) break;
+            
+            // Extract k-mer
+            uint64_t kmer = extract_kmer(sequence, kmer_pos, params.k);
+            if (kmer == UINT64_MAX) continue;
+            
+            // Get canonical form
+            uint64_t canon_kmer = canonical_kmer(kmer, params.k);
+            
+            // Apply MurmurHash3
+            uint64_t hash = murmur_hash3(canon_kmer);
             
             // Apply toggle mask
-            minimizer ^= toggle_mask;
+            hash ^= toggle_mask;
             
-            // Store first valid minimizer from this thread's range
-            if (!shared_valid[thread_id]) {
-                shared_minimizers[thread_id] = minimizer;
-                shared_positions[thread_id] = kmer_idx;
-                shared_valid[thread_id] = true;
+            // Track minimum in window
+            if (hash < window_min_hash) {
+                window_min_hash = hash;
+                window_min_pos = kmer_pos;
+            }
+        }
+        
+        // Skip if no valid k-mer in window
+        if (window_min_hash == UINT64_MAX) continue;
+        
+        // Apply subsampling if enabled
+        if (min_clear_hash_value > 0 && window_min_hash < min_clear_hash_value) {
+            continue;
+        }
+        
+        // KEY: Only output when the minimum k-mer changes
+        if (window_min_hash != last_min_hash || window_min_pos != last_min_pos) {
+            // Check if we have space
+            uint32_t current_count = atomicAdd(global_hit_counter, 0);
+            if (current_count >= max_minimizers) {
+                break;
+            }
+            
+            uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+            
+            if (global_pos < max_minimizers) {
+                GPUMinimizerHit hit;
+                hit.minimizer_hash = window_min_hash;
+                hit.taxon_id = genome.taxon_id;
+                hit.position = window_min_pos;
+                hit.genome_id = genome.genome_id;
+                
+                minimizer_hits[global_pos] = hit;
+                local_minimizer_count++;
+                
+                last_min_hash = window_min_hash;
+                last_min_pos = window_min_pos;
+            } else {
                 break;
             }
         }
     }
     
-    __syncthreads();
-    
-    // Thread 0 processes results in order to maintain deduplication
-    if (thread_id == 0) {
-        uint64_t last_minimizer = UINT64_MAX;
-        uint32_t local_count = 0;
-        
-        // Process all positions in order
-        for (uint32_t pos = 0; pos < total_kmers; pos++) {
-            uint32_t responsible_thread = pos / kmers_per_thread;
-            if (responsible_thread >= block_size) responsible_thread = block_size - 1;
-            
-            if (shared_valid[responsible_thread] && 
-                shared_positions[responsible_thread] == pos &&
-                shared_minimizers[responsible_thread] != last_minimizer) {
-                
-                uint32_t current_count = atomicAdd(global_hit_counter, 0);
-                if (current_count >= max_minimizers) break;
-                
-                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
-                if (global_pos < max_minimizers) {
-                    GPUMinimizerHit hit;
-                    hit.minimizer_hash = shared_minimizers[responsible_thread];
-                    hit.taxon_id = genome.taxon_id;
-                    hit.position = pos;
-                    hit.genome_id = genome.genome_id;
-                    
-                    minimizer_hits[global_pos] = hit;
-                    local_count++;
-                    last_minimizer = shared_minimizers[responsible_thread];
-                }
-            }
-        }
-        
-        hit_counts_per_genome[genome_id] = local_count;
-    }
+    // Store final count for this genome
+    hit_counts_per_genome[genome_id] = local_minimizer_count;
 }
 
 // FIXED: Kernel to convert hits to candidates without over-aggressive deduplication
@@ -712,26 +725,14 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     // Clear hit counts
     CUDA_CHECK(cudaMemset(d_minimizer_counts, 0, num_sequences * sizeof(uint32_t)));
     
-    // Add timing to measure improvement
-    auto kernel_start = std::chrono::high_resolution_clock::now();
-    
     // Launch improved kernel with higher capacity
-    int threads_per_block = 256;
-    size_t shared_mem_size = threads_per_block * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(bool));
-    
-    extract_minimizers_kraken2_improved_kernel<<<num_sequences, threads_per_block, shared_mem_size>>>(
+    extract_minimizers_kraken2_improved_kernel<<<num_sequences, 1>>>(
         d_sequences, d_genomes, num_sequences,
         d_hits, d_minimizer_counts, d_global_counter,
         minimizer_params, min_clear_hash_value, toggle_mask, MAX_MINIMIZERS_PER_BATCH
     );
     
     CUDA_CHECK(cudaDeviceSynchronize());
-    
-    auto kernel_end = std::chrono::high_resolution_clock::now();
-    auto kernel_duration = std::chrono::duration<double>(kernel_end - kernel_start).count();
-    
-    std::cout << "  Kernel execution time: " << std::fixed << std::setprecision(3) 
-              << kernel_duration << "s" << std::endl;
     
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {

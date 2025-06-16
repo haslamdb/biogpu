@@ -27,6 +27,7 @@
 // Note: extract_minimizer_sliding_window implementation moved to header file for cross-compilation unit access
 
 // FIXED: Proper Kraken2-style sliding window minimizer extraction
+// FIXED: Multi-threaded kernel to match the database builder
 __global__ void extract_minimizers_optimized_kernel(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
@@ -37,8 +38,10 @@ __global__ void extract_minimizers_optimized_kernel(
     MinimizerParams params,
     int max_minimizers) {
     
+    // OPTIMIZED: Use multiple threads per genome
     int genome_id = blockIdx.x;
     int thread_id = threadIdx.x;
+    int block_size = blockDim.x;
     
     if (genome_id >= num_genomes) return;
     
@@ -51,55 +54,75 @@ __global__ void extract_minimizers_optimized_kernel(
         return;
     }
     
-    // FIXED: Only thread 0 per block to ensure proper sequential processing
-    if (thread_id != 0) return;
+    // Shared memory for thread coordination
+    extern __shared__ uint64_t shared_mem[];
+    uint64_t* shared_minimizers = shared_mem;
+    uint32_t* shared_positions = (uint32_t*)(shared_minimizers + blockDim.x);
+    bool* shared_valid = (bool*)(shared_positions + blockDim.x);
     
-    uint32_t local_minimizer_count = 0;
-    uint64_t last_minimizer = UINT64_MAX;  // KEY FIX: Track last minimizer
     uint32_t total_kmers = seq_length - params.k + 1;
+    uint32_t kmers_per_thread = (total_kmers + block_size - 1) / block_size;
+    uint32_t start_kmer = thread_id * kmers_per_thread;
+    uint32_t end_kmer = min(start_kmer + kmers_per_thread, total_kmers);
     
-    // FIXED: Process k-mers sequentially with proper deduplication
-    for (uint32_t kmer_idx = 0; kmer_idx < total_kmers; kmer_idx++) {
-        
-        // Extract minimizer for this k-mer
+    // Each thread processes its assigned k-mers
+    shared_minimizers[thread_id] = UINT64_MAX;
+    shared_positions[thread_id] = 0;
+    shared_valid[thread_id] = false;
+    
+    // Process assigned k-mers
+    for (uint32_t kmer_idx = start_kmer; kmer_idx < end_kmer; kmer_idx++) {
         uint64_t minimizer = extract_minimizer_sliding_window(
             sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
         );
         
         if (minimizer != UINT64_MAX) {
-            // KEY FIX: Only store if different from last minimizer
-            if (minimizer != last_minimizer) {
-                // Check if we still have space before incrementing
-                uint32_t current_count = atomicAdd(global_hit_counter, 0); // Read without modifying
-                if (current_count >= max_minimizers) {
-                    // Buffer is full, stop processing
-                    break;
-                }
-                
-                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
-                
-                if (global_pos < max_minimizers) {
-                    GPUMinimizerHit hit;
-                    hit.minimizer_hash = minimizer;
-                    hit.taxon_id = genome.taxon_id;
-                    hit.position = kmer_idx;
-                    hit.genome_id = genome.genome_id;
-                    
-                    minimizer_hits[global_pos] = hit;
-                    local_minimizer_count++;
-                } else {
-                    // We exceeded the limit, stop processing
-                    break;
-                }
-                
-                last_minimizer = minimizer;  // Update last seen minimizer
+            // Store first valid minimizer from this thread's range
+            if (!shared_valid[thread_id]) {
+                shared_minimizers[thread_id] = minimizer;
+                shared_positions[thread_id] = kmer_idx;
+                shared_valid[thread_id] = true;
+                break;
             }
-            // If minimizer == last_minimizer, skip it (this creates compression!)
         }
     }
     
-    // Store final count for this genome
-    hit_counts_per_genome[genome_id] = local_minimizer_count;
+    __syncthreads();
+    
+    // Thread 0 processes results in order to maintain deduplication
+    if (thread_id == 0) {
+        uint64_t last_minimizer = UINT64_MAX;
+        uint32_t local_count = 0;
+        
+        // Process all positions in order
+        for (uint32_t pos = 0; pos < total_kmers; pos++) {
+            uint32_t responsible_thread = pos / kmers_per_thread;
+            if (responsible_thread >= block_size) responsible_thread = block_size - 1;
+            
+            if (shared_valid[responsible_thread] && 
+                shared_positions[responsible_thread] == pos &&
+                shared_minimizers[responsible_thread] != last_minimizer) {
+                
+                uint32_t current_count = atomicAdd(global_hit_counter, 0);
+                if (current_count >= max_minimizers) break;
+                
+                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+                if (global_pos < max_minimizers) {
+                    GPUMinimizerHit hit;
+                    hit.minimizer_hash = shared_minimizers[responsible_thread];
+                    hit.taxon_id = genome.taxon_id;
+                    hit.position = pos;
+                    hit.genome_id = genome.genome_id;
+                    
+                    minimizer_hits[global_pos] = hit;
+                    local_count++;
+                    last_minimizer = shared_minimizers[responsible_thread];
+                }
+            }
+        }
+        
+        hit_counts_per_genome[genome_id] = local_count;
+    }
 }
 
 // Alternative kernel: multi-threaded version with cooperation (for very large genomes)

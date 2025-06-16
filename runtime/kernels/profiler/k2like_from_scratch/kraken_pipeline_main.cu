@@ -482,6 +482,9 @@ public:
     size_t getTotalReadsProcessed() const { return current_read_count; }
 };
 
+// Forward declarations
+bool generate_classification_reports(const PipelineConfig& config);
+
 bool classify_reads_with_streaming_and_classifier(const PipelineConfig& config, PairedEndGPUKrakenClassifier& classifier) {
     try {
         // Setup streaming reader
@@ -1273,10 +1276,13 @@ bool generate_classification_reports(const PipelineConfig& config) {
             sample_name = reads_path.stem().string();
             
             // Remove common suffixes
-            if (sample_name.ends_with("_R1") || sample_name.ends_with("_r1")) {
+            if (sample_name.size() >= 3 && 
+                (sample_name.substr(sample_name.size() - 3) == "_R1" || 
+                 sample_name.substr(sample_name.size() - 3) == "_r1")) {
                 sample_name = sample_name.substr(0, sample_name.length() - 3);
             }
-            if (sample_name.ends_with(".fastq") || sample_name.ends_with(".fq")) {
+            if ((sample_name.size() >= 6 && sample_name.substr(sample_name.size() - 6) == ".fastq") ||
+                (sample_name.size() >= 3 && sample_name.substr(sample_name.size() - 3) == ".fq")) {
                 sample_name = sample_name.substr(0, sample_name.find_last_of('.'));
             }
         }

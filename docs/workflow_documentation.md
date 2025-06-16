@@ -2160,7 +2160,7 @@ Added a GPU-accelerated implementation of the Kraken2 algorithm for ultra-fast t
 
 **Key Features**:
 - GPU-accelerated minimizer extraction and database building
-- **OPTIMIZED (Dec 2025)**: Multi-threaded kernel using 256 threads per block for major performance gains
+- **OPTIMIZED (June 15, 2025)**: Multi-threaded kernel using 256 threads per block for major performance gains
 - Kraken2-compatible algorithm with spaced seeds (k=35, m=31, spaces=7)
 - Memory-aware batch processing to handle large genome collections
 - LCA (Lowest Common Ancestor) computation for accurate taxonomic assignment
@@ -2275,7 +2275,7 @@ tar -xzf taxdump.tar.gz -C data/
 
 **Database Building**:
 - Successfully processes 190 genomes (725MB) in 28 seconds (v0.11.0)
-- **OPTIMIZED (Dec 2025)**: Multi-threaded minimizer extraction using 256 threads per block
+- **OPTIMIZED (June 15, 2025)**: Multi-threaded minimizer extraction using 256 threads per block
   - Previous: Single-thread execution per genome (thread_id != 0 return)
   - Current: Full parallel processing with shared memory coordination
   - Kernel execution times: 0.265s - 0.987s per 5-genome batch

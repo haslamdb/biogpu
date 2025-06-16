@@ -6,6 +6,7 @@
 #include "gpu_kraken_classifier.cu"
 #include "gpu_kraken_database_builder.cu"
 #include "sample_csv_parser.h"
+#include "classification_report_generator.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -93,6 +94,15 @@ void print_usage(const char* program_name) {
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --auto-memory --memory-fraction 90" << std::endl;
     std::cout << "\n  # Manual control for specific hardware" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --no-auto-memory --minimizer-capacity 8000000" << std::endl;
+    
+    std::cout << "\nReport Generation Options:" << std::endl;
+    std::cout << "  --no-reports                   Disable automatic report generation" << std::endl;
+    std::cout << "  --reports-mpa-only             Generate only MetaPhlAn-style profile" << std::endl;
+    std::cout << "  --reports-species-only         Generate only species count table" << std::endl;
+    std::cout << "  --reports-genus-only           Generate only genus count table" << std::endl;
+    std::cout << "  --reports-min-abundance <f>    Minimum abundance threshold % (default: 0.01)" << std::endl;
+    std::cout << "  --reports-include-unclassified Include unclassified reads in reports" << std::endl;
+    std::cout << "  --reports-sample-name <name>   Custom sample name (default: auto-detect)" << std::endl;
 }
 
 struct StreamingConfig {
@@ -137,6 +147,15 @@ struct PipelineConfig {
     bool create_sample_dirs = true;
     bool stop_on_error = false;
     bool validate_paths_on_load = true;
+    
+    // NEW: Report generation options
+    bool generate_reports = true;           // Generate comprehensive reports
+    bool reports_only_mpa = false;         // Generate only MetaPhlAn-style
+    bool reports_only_species = false;     // Generate only species counts
+    bool reports_only_genus = false;       // Generate only genus counts
+    float reports_min_abundance = 0.01f;   // Minimum abundance threshold (%)
+    bool reports_include_unclassified = false;
+    std::string reports_sample_name = "";  // Auto-detect from input file if empty
 };
 
 bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
@@ -216,6 +235,20 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.stop_on_error = true;
         } else if (arg == "--no-validate-paths") {
             config.validate_paths_on_load = false;
+        } else if (arg == "--no-reports") {
+            config.generate_reports = false;
+        } else if (arg == "--reports-mpa-only") {
+            config.reports_only_mpa = true;
+        } else if (arg == "--reports-species-only") {
+            config.reports_only_species = true;
+        } else if (arg == "--reports-genus-only") {
+            config.reports_only_genus = true;
+        } else if (arg == "--reports-min-abundance" && i + 1 < argc) {
+            config.reports_min_abundance = std::stof(argv[++i]);
+        } else if (arg == "--reports-include-unclassified") {
+            config.reports_include_unclassified = true;
+        } else if (arg == "--reports-sample-name" && i + 1 < argc) {
+            config.reports_sample_name = argv[++i];
         } else {
             std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
         }
@@ -996,7 +1029,13 @@ bool classify_reads_command(const PipelineConfig& config) {
                   << duration.count() << " seconds" << std::endl;
         std::cout << "Results written to: " << config.output_path << std::endl;
         
-        return true;
+        // Generate reports after successful classification
+        bool success = true;
+        if (config.generate_reports) {
+            success = generate_classification_reports(config);
+        }
+        
+        return success;
         
     } catch (const std::exception& e) {
         std::cerr << "Error during classification: " << e.what() << std::endl;
@@ -1033,6 +1072,14 @@ bool pipeline_command(const PipelineConfig& config) {
     if (!classify_reads_command(classify_config)) {
         std::cerr << "Pipeline failed at classification step" << std::endl;
         return false;
+    }
+    
+    // Generate reports for pipeline mode
+    if (classify_config.generate_reports) {
+        PipelineConfig report_config = config;
+        report_config.output_path = results_file;
+        report_config.database_dir = db_dir;  // For taxonomy access
+        generate_classification_reports(report_config);
     }
     
     std::cout << "\n✓ Complete pipeline finished successfully!" << std::endl;
@@ -1112,6 +1159,14 @@ bool batch_classify_command(const PipelineConfig& config) {
                 
                 // Use streaming classification with pre-loaded classifier
                 bool success = classify_reads_with_streaming_and_classifier(sample_config, classifier);
+                
+                // Generate reports for this sample
+                if (success && config.generate_reports) {
+                    PipelineConfig report_config = config;
+                    report_config.output_path = sample_config.output_path;
+                    report_config.reports_sample_name = sample.sample_name;
+                    generate_classification_reports(report_config);
+                }
                 
                 return success ? 0 : 1;
                 
@@ -1198,6 +1253,121 @@ void print_memory_recommendations() {
     }
     
     std::cout << "Note: Enable --auto-memory for automatic optimization" << std::endl;
+}
+
+// NEW: Generate comprehensive reports after classification
+bool generate_classification_reports(const PipelineConfig& config) {
+    if (!config.generate_reports) {
+        std::cout << "Report generation disabled - skipping reports" << std::endl;
+        return true;
+    }
+    
+    std::cout << "\n=== GENERATING CLASSIFICATION REPORTS ===" << std::endl;
+    
+    try {
+        // Determine sample name
+        std::string sample_name = config.reports_sample_name;
+        if (sample_name.empty()) {
+            // Auto-detect from reads file name
+            std::filesystem::path reads_path(config.reads_file);
+            sample_name = reads_path.stem().string();
+            
+            // Remove common suffixes
+            if (sample_name.ends_with("_R1") || sample_name.ends_with("_r1")) {
+                sample_name = sample_name.substr(0, sample_name.length() - 3);
+            }
+            if (sample_name.ends_with(".fastq") || sample_name.ends_with(".fq")) {
+                sample_name = sample_name.substr(0, sample_name.find_last_of('.'));
+            }
+        }
+        
+        std::cout << "Sample name: " << sample_name << std::endl;
+        
+        // Create reports directory
+        std::string reports_dir;
+        std::filesystem::path output_path(config.output_path);
+        
+        if (output_path.extension() == ".txt") {
+            // Output is a file, create reports directory next to it
+            reports_dir = output_path.parent_path() / (sample_name + "_reports");
+        } else {
+            // Output is a directory, create reports subdirectory
+            reports_dir = output_path / "reports";
+        }
+        
+        std::filesystem::create_directories(reports_dir);
+        std::cout << "Reports directory: " << reports_dir << std::endl;
+        
+        // Initialize report generator
+        ClassificationReportGenerator generator(reports_dir);
+        generator.set_abundance_threshold(config.reports_min_abundance);
+        generator.include_unclassified_reads(config.reports_include_unclassified);
+        
+        // Load classification results
+        std::string kraken_output = config.output_path;
+        if (std::filesystem::is_directory(kraken_output)) {
+            kraken_output = kraken_output + "/classification_results.txt";
+        }
+        
+        if (!generator.load_kraken_results(kraken_output)) {
+            std::cerr << "Failed to load classification results from: " << kraken_output << std::endl;
+            return false;
+        }
+        
+        // Load taxonomy
+        std::string taxonomy_file;
+        if (config.command == "classify" || config.command == "batch") {
+            taxonomy_file = config.database_dir + "/taxonomy.tsv";
+        } else if (config.command == "pipeline") {
+            taxonomy_file = config.output_path + "/database/taxonomy.tsv";
+        }
+        
+        if (!std::filesystem::exists(taxonomy_file)) {
+            std::cerr << "Warning: Taxonomy file not found at: " << taxonomy_file << std::endl;
+            std::cerr << "Reports will have limited taxonomic information" << std::endl;
+        } else {
+            if (!generator.load_taxonomy(taxonomy_file)) {
+                std::cerr << "Warning: Failed to load taxonomy from: " << taxonomy_file << std::endl;
+            }
+        }
+        
+        // Generate reports based on configuration
+        bool success = false;
+        
+        if (config.reports_only_mpa) {
+            std::string mpa_file = reports_dir + "/" + sample_name + "_profile.mpa";
+            generator.compute_statistics();
+            success = generator.generate_mpa_report(mpa_file);
+            generator.print_summary();
+            
+        } else if (config.reports_only_species) {
+            std::string species_file = reports_dir + "/" + sample_name + "_species.tsv";
+            generator.compute_statistics();
+            success = generator.generate_species_counts(species_file);
+            generator.print_summary();
+            
+        } else if (config.reports_only_genus) {
+            std::string genus_file = reports_dir + "/" + sample_name + "_genus.tsv";
+            generator.compute_statistics();
+            success = generator.generate_genus_counts(genus_file);
+            generator.print_summary();
+            
+        } else {
+            // Generate all reports
+            success = generator.generate_all_reports(sample_name);
+        }
+        
+        if (success) {
+            std::cout << "\n✓ Classification reports generated successfully!" << std::endl;
+            std::cout << "Reports available in: " << reports_dir << std::endl;
+        }
+        
+        return success;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error generating reports: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 int main(int argc, char* argv[]) {

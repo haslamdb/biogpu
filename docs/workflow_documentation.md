@@ -2160,6 +2160,7 @@ Added a GPU-accelerated implementation of the Kraken2 algorithm for ultra-fast t
 
 **Key Features**:
 - GPU-accelerated minimizer extraction and database building
+- **OPTIMIZED (Dec 2025)**: Multi-threaded kernel using 256 threads per block for major performance gains
 - Kraken2-compatible algorithm with spaced seeds (k=35, m=31, spaces=7)
 - Memory-aware batch processing to handle large genome collections
 - LCA (Lowest Common Ancestor) computation for accurate taxonomic assignment
@@ -2273,9 +2274,14 @@ tar -xzf taxdump.tar.gz -C data/
 ### Performance Characteristics
 
 **Database Building**:
-- Successfully processes 190 genomes (725MB) in 12 seconds
-- Extracts ~5.1M minimizers at 56 MB/second
-- Memory usage: ~11MB GPU memory for batch size 1
+- Successfully processes 190 genomes (725MB) in 28 seconds (v0.11.0)
+- **OPTIMIZED (Dec 2025)**: Multi-threaded minimizer extraction using 256 threads per block
+  - Previous: Single-thread execution per genome (thread_id != 0 return)
+  - Current: Full parallel processing with shared memory coordination
+  - Kernel execution times: 0.265s - 0.987s per 5-genome batch
+- Extracts ~48,640 minimizers with 15,131.9x compression ratio
+- Processing rate: 16.8 million bases/second
+- Memory usage: ~2.3GB GPU memory for batch processing
 - Scales linearly with genome count
 
 **Example Output**:
@@ -2325,6 +2331,7 @@ If you encounter "out of memory" errors:
 - Extracts minimizers using GPU kernels
 - Computes LCA assignments for taxonomic classification
 - Saves database in binary format for fast loading
+- **Note**: See `docs/build_k2_like_database_parameters.md` for detailed comparison of our implementation with original Kraken2 parameters and algorithm
 
 **Pipeline Main** (`kraken_pipeline_main.cu`):
 - Unified executable for building and classification

@@ -7,12 +7,25 @@
 #include "gpu_kraken_database_builder.cu"
 #include "sample_csv_parser.h"
 #include "classification_report_generator.h"
+
+// ADD THESE NEW INCLUDES:
+#include "fast_enhanced_classifier.h"              // The fast enhanced classifier
+#include "phase1_enhanced_classifier_with_phylo.h" // The phylo-aware classifier
+#include "ncbi_taxonomy_loader.h"                  // NCBI taxonomy support
+
 #include <iostream>
 #include <string>
 #include <vector>
 #include <filesystem>
 #include <chrono>
 #include <zlib.h>
+
+// Enhanced classification mode selection
+enum class ClassificationMode {
+    STANDARD,           // Original paired-end GPU classifier
+    FAST_ENHANCED,      // Fast enhanced with compact taxonomy
+    PHYLO_ENHANCED      // Full phylogenetic validation
+};
 
 void print_usage(const char* program_name) {
     std::cout << "GPU-Accelerated Kraken2-Style Pipeline (High Capacity)" << std::endl;
@@ -95,6 +108,17 @@ void print_usage(const char* program_name) {
     std::cout << "\n  # Manual control for specific hardware" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --no-auto-memory --minimizer-capacity 8000000" << std::endl;
     
+    std::cout << "\nEnhanced Classification Options:" << std::endl;
+    std::cout << "  --enhanced                     Enable enhanced classification features" << std::endl;
+    std::cout << "  --classification-mode <mode>   Classification mode:" << std::endl;
+    std::cout << "                                   standard        - Original GPU classifier" << std::endl;
+    std::cout << "                                   fast-enhanced   - Fast enhanced with compact taxonomy" << std::endl;
+    std::cout << "                                   phylo-enhanced  - Full phylogenetic validation" << std::endl;
+    std::cout << "  --compact-taxonomy <file>      Compact taxonomy file (for fast-enhanced)" << std::endl;
+    std::cout << "  --taxonomy-nodes <file>        NCBI nodes.dmp file (for phylo-enhanced)" << std::endl;
+    std::cout << "  --taxonomy-names <file>        NCBI names.dmp file (for phylo-enhanced)" << std::endl;
+    std::cout << "  --phylo-quality <level>        Phylogenetic quality: fast|balanced|accurate" << std::endl;
+    
     std::cout << "\nReport Generation Options:" << std::endl;
     std::cout << "  --no-reports                   Disable automatic report generation" << std::endl;
     std::cout << "  --reports-mpa-only             Generate only MetaPhlAn-style profile" << std::endl;
@@ -103,6 +127,17 @@ void print_usage(const char* program_name) {
     std::cout << "  --reports-min-abundance <f>    Minimum abundance threshold % (default: 0.01)" << std::endl;
     std::cout << "  --reports-include-unclassified Include unclassified reads in reports" << std::endl;
     std::cout << "  --reports-sample-name <name>   Custom sample name (default: auto-detect)" << std::endl;
+    
+    std::cout << "\nEnhanced Classification Examples:" << std::endl;
+    std::cout << "  # Fast enhanced mode with compact taxonomy" << std::endl;
+    std::cout << "  " << program_name << " classify --database ./db --reads sample.fastq.gz \\" << std::endl;
+    std::cout << "    --classification-mode fast-enhanced --compact-taxonomy compact_tax.bin --output results.txt" << std::endl;
+    std::cout << "\n  # Full phylogenetic validation mode" << std::endl;
+    std::cout << "  " << program_name << " classify --database ./db --reads sample.fastq.gz \\" << std::endl;
+    std::cout << "    --classification-mode phylo-enhanced --taxonomy-nodes nodes.dmp \\" << std::endl;
+    std::cout << "    --taxonomy-names names.dmp --output results.txt" << std::endl;
+    std::cout << "\n  # Build compact taxonomy for fast enhanced mode" << std::endl;
+    std::cout << "  build_compact_taxonomy --nodes nodes.dmp --names names.dmp --output compact_taxonomy.bin" << std::endl;
 }
 
 struct StreamingConfig {
@@ -156,6 +191,14 @@ struct PipelineConfig {
     float reports_min_abundance = 0.01f;   // Minimum abundance threshold (%)
     bool reports_include_unclassified = false;
     std::string reports_sample_name = "";  // Auto-detect from input file if empty
+    
+    // ADD THESE NEW FIELDS:
+    ClassificationMode classification_mode = ClassificationMode::STANDARD;
+    std::string compact_taxonomy_path;                    // For fast enhanced mode
+    std::string taxonomy_nodes_path;                      // For phylo enhanced mode  
+    std::string taxonomy_names_path;                      // For phylo enhanced mode
+    bool enable_enhanced_features = false;               // Enable enhanced classification
+    FastEnhancedParams::PhyloQualityLevel phylo_quality = FastEnhancedParams::BALANCED;
 };
 
 bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
@@ -249,6 +292,38 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.reports_include_unclassified = true;
         } else if (arg == "--reports-sample-name" && i + 1 < argc) {
             config.reports_sample_name = argv[++i];
+        // Enhanced classification options
+        } else if (arg == "--enhanced") {
+            config.enable_enhanced_features = true;
+        } else if (arg == "--classification-mode" && i + 1 < argc) {
+            std::string mode = argv[++i];
+            if (mode == "standard") {
+                config.classification_mode = ClassificationMode::STANDARD;
+            } else if (mode == "fast-enhanced") {
+                config.classification_mode = ClassificationMode::FAST_ENHANCED;
+                config.enable_enhanced_features = true;
+            } else if (mode == "phylo-enhanced") {
+                config.classification_mode = ClassificationMode::PHYLO_ENHANCED;
+                config.enable_enhanced_features = true;
+            } else {
+                std::cerr << "Unknown classification mode: " << mode << std::endl;
+                return false;
+            }
+        } else if (arg == "--compact-taxonomy" && i + 1 < argc) {
+            config.compact_taxonomy_path = argv[++i];
+        } else if (arg == "--taxonomy-nodes" && i + 1 < argc) {
+            config.taxonomy_nodes_path = argv[++i];
+        } else if (arg == "--taxonomy-names" && i + 1 < argc) {
+            config.taxonomy_names_path = argv[++i];
+        } else if (arg == "--phylo-quality" && i + 1 < argc) {
+            std::string quality = argv[++i];
+            if (quality == "fast") {
+                config.phylo_quality = FastEnhancedParams::FAST_APPROXIMATE;
+            } else if (quality == "balanced") {
+                config.phylo_quality = FastEnhancedParams::BALANCED;
+            } else if (quality == "accurate") {
+                config.phylo_quality = FastEnhancedParams::HIGH_ACCURACY;
+            }
         } else {
             std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
         }
@@ -661,6 +736,12 @@ bool classify_reads_with_streaming(const PipelineConfig& config) {
 }
 
 bool classify_reads_command(const PipelineConfig& config) {
+    // Check if enhanced classification is requested
+    if (config.enable_enhanced_features) {
+        return classify_reads_enhanced(config);
+    }
+    
+    // Otherwise use existing standard classification
     // Determine if we should use streaming
     bool should_stream = config.streaming_config.enable_streaming || config.force_streaming;
     
@@ -1046,6 +1127,276 @@ bool classify_reads_command(const PipelineConfig& config) {
     }
 }
 
+// Forward declarations for enhanced classification functions
+bool classify_reads_fast_enhanced(const PipelineConfig& config);
+bool classify_reads_phylo_enhanced(const PipelineConfig& config);
+
+// Enhanced classification dispatcher
+bool classify_reads_enhanced(const PipelineConfig& config) {
+    std::cout << "\n=== ENHANCED CLASSIFICATION ===" << std::endl;
+    std::cout << "Mode: ";
+    
+    switch (config.classification_mode) {
+        case ClassificationMode::FAST_ENHANCED:
+            std::cout << "Fast Enhanced (with compact taxonomy)" << std::endl;
+            return classify_reads_fast_enhanced(config);
+            
+        case ClassificationMode::PHYLO_ENHANCED:
+            std::cout << "Phylogenetic Enhanced (with NCBI taxonomy)" << std::endl;
+            return classify_reads_phylo_enhanced(config);
+            
+        default:
+            std::cout << "Standard (falling back to original classifier)" << std::endl;
+            return classify_reads_command(config);
+    }
+}
+
+bool classify_reads_fast_enhanced(const PipelineConfig& config) {
+    if (config.compact_taxonomy_path.empty()) {
+        std::cerr << "Error: --compact-taxonomy required for fast enhanced mode" << std::endl;
+        std::cerr << "Build compact taxonomy first with build_compact_taxonomy tool" << std::endl;
+        return false;
+    }
+    
+    try {
+        // Configure fast enhanced parameters
+        FastEnhancedParams params;
+        params.k = config.classifier_params.k;
+        params.ell = config.classifier_params.ell;
+        params.spaces = config.classifier_params.spaces;
+        params.primary_confidence_threshold = config.classifier_params.confidence_threshold;
+        params.secondary_confidence_threshold = config.classifier_params.confidence_threshold * 1.5f;
+        params.compact_taxonomy_path = config.compact_taxonomy_path;
+        params.phylo_quality = config.phylo_quality;
+        
+        // Initialize fast enhanced classifier
+        FastEnhancedClassifier classifier(params, 50000);
+        
+        // Load database
+        if (!classifier.load_database(config.database_dir)) {
+            std::cerr << "Failed to load database from " << config.database_dir << std::endl;
+            return false;
+        }
+        
+        // Load reads (similar to existing code but adapted for enhanced results)
+        std::vector<std::string> reads;
+        
+        // Check if file is gzipped
+        bool is_gzipped = config.reads_file.substr(config.reads_file.find_last_of(".") + 1) == "gz";
+        
+        if (is_gzipped) {
+            // Use zlib for gzipped files
+            gzFile gz_file = gzopen(config.reads_file.c_str(), "rb");
+            if (!gz_file) {
+                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                return false;
+            }
+            
+            const int buffer_size = 1024;
+            char buffer[buffer_size];
+            std::string current_line;
+            int line_count = 0;
+            
+            while (gzgets(gz_file, buffer, buffer_size)) {
+                current_line += buffer;
+                if (current_line.back() == '\n') {
+                    current_line.pop_back();
+                    line_count++;
+                    if (line_count % 4 == 2) {  // Sequence line
+                        if (!current_line.empty() && current_line.length() >= params.k) {
+                            reads.push_back(current_line);
+                        }
+                    }
+                    current_line.clear();
+                }
+            }
+            gzclose(gz_file);
+        } else {
+            // Use standard ifstream for uncompressed files
+            std::ifstream fastq_file(config.reads_file);
+            if (!fastq_file.is_open()) {
+                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                return false;
+            }
+            
+            std::string line;
+            int line_count = 0;
+            while (std::getline(fastq_file, line)) {
+                line_count++;
+                if (line_count % 4 == 2) {  // Sequence line
+                    if (!line.empty() && line.length() >= params.k) {
+                        reads.push_back(line);
+                    }
+                }
+            }
+            fastq_file.close();
+        }
+        
+        if (reads.empty()) {
+            std::cerr << "No valid reads found" << std::endl;
+            return false;
+        }
+        
+        std::cout << "Loaded " << reads.size() << " reads for fast enhanced classification" << std::endl;
+        
+        // Classify with enhanced features
+        auto results = classifier.classify_fast_enhanced(reads);
+        
+        // Write enhanced results
+        std::ofstream output(config.output_path);
+        output << "# GPU Kraken Enhanced Classification Results\n";
+        
+        for (size_t i = 0; i < results.size(); i++) {
+            const auto& result = results[i];
+            char status = (result.taxon_id > 0) ? 'C' : 'U';
+            
+            output << status << "\t"
+                   << "read_" << i << "\t"
+                   << result.taxon_id << "\t"
+                   << reads[i].length() << "\t"
+                   << std::fixed << std::setprecision(3) << result.primary_confidence << "\t"
+                   << result.total_kmers << "\t" 
+                   << result.classified_kmers << "\t"
+                   << result.phylogenetic_consistency_score << "\n";
+        }
+        output.close();
+        
+        // Print enhanced statistics
+        classifier.print_fast_enhanced_statistics(results);
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error in fast enhanced classification: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool classify_reads_phylo_enhanced(const PipelineConfig& config) {
+    if (config.taxonomy_nodes_path.empty() || config.taxonomy_names_path.empty()) {
+        std::cerr << "Error: --taxonomy-nodes and --taxonomy-names required for phylo enhanced mode" << std::endl;
+        return false;
+    }
+    
+    try {
+        // Configure phylogenetic parameters
+        Phase1EnhancedParams enhanced_params;
+        enhanced_params.k = config.classifier_params.k;
+        enhanced_params.ell = config.classifier_params.ell;
+        enhanced_params.spaces = config.classifier_params.spaces;
+        enhanced_params.primary_confidence_threshold = config.classifier_params.confidence_threshold;
+        enhanced_params.secondary_confidence_threshold = config.classifier_params.confidence_threshold * 1.5f;
+        enhanced_params.enable_phylogenetic_validation = true;
+        
+        PhylogeneticClassificationParams phylo_params;
+        phylo_params.use_phylogenetic_validation = true;
+        phylo_params.taxonomy_nodes_path = config.taxonomy_nodes_path;
+        phylo_params.taxonomy_names_path = config.taxonomy_names_path;
+        
+        // Initialize phylogenetic enhanced classifier
+        Phase1EnhancedClassifierWithPhylogeny classifier(enhanced_params, phylo_params, 50000);
+        
+        // Load database
+        if (!classifier.load_database(config.database_dir)) {
+            std::cerr << "Failed to load database from " << config.database_dir << std::endl;
+            return false;
+        }
+        
+        // Load reads
+        std::vector<std::string> reads;
+        
+        // Check if file is gzipped
+        bool is_gzipped = config.reads_file.substr(config.reads_file.find_last_of(".") + 1) == "gz";
+        
+        if (is_gzipped) {
+            // Use zlib for gzipped files
+            gzFile gz_file = gzopen(config.reads_file.c_str(), "rb");
+            if (!gz_file) {
+                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                return false;
+            }
+            
+            const int buffer_size = 1024;
+            char buffer[buffer_size];
+            std::string current_line;
+            int line_count = 0;
+            
+            while (gzgets(gz_file, buffer, buffer_size)) {
+                current_line += buffer;
+                if (current_line.back() == '\n') {
+                    current_line.pop_back();
+                    line_count++;
+                    if (line_count % 4 == 2) {  // Sequence line
+                        if (!current_line.empty() && current_line.length() >= enhanced_params.k) {
+                            reads.push_back(current_line);
+                        }
+                    }
+                    current_line.clear();
+                }
+            }
+            gzclose(gz_file);
+        } else {
+            // Use standard ifstream for uncompressed files
+            std::ifstream fastq_file(config.reads_file);
+            if (!fastq_file.is_open()) {
+                std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
+                return false;
+            }
+            
+            std::string line;
+            int line_count = 0;
+            while (std::getline(fastq_file, line)) {
+                line_count++;
+                if (line_count % 4 == 2) {  // Sequence line
+                    if (!line.empty() && line.length() >= enhanced_params.k) {
+                        reads.push_back(line);
+                    }
+                }
+            }
+            fastq_file.close();
+        }
+        
+        if (reads.empty()) {
+            std::cerr << "No valid reads found" << std::endl;
+            return false;
+        }
+        
+        std::cout << "Loaded " << reads.size() << " reads for phylogenetic enhanced classification" << std::endl;
+        
+        // Classify with phylogenetic validation
+        auto results = classifier.classify_enhanced_with_phylogeny(reads);
+        
+        // Write results with lineage information
+        std::ofstream output(config.output_path);
+        output << "# GPU Kraken Phylogenetic Enhanced Classification Results\n";
+        
+        for (size_t i = 0; i < results.size(); i++) {
+            const auto& result = results[i];
+            char status = (result.taxon_id > 0) ? 'C' : 'U';
+            
+            output << status << "\t"
+                   << "read_" << i << "\t"
+                   << result.taxon_id << "\t"
+                   << reads[i].length() << "\t"
+                   << std::fixed << std::setprecision(3) << result.primary_confidence << "\t"
+                   << result.secondary_confidence << "\t"
+                   << result.phylogenetic_consistency_score << "\t"
+                   << (result.passed_phylogenetic_filter ? "PHYLO_OK" : "PHYLO_FAIL") << "\t"
+                   << result.classification_path << "\n";
+        }
+        output.close();
+        
+        // Print phylogenetic statistics
+        classifier.print_enhanced_statistics_with_phylogeny(results);
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error in phylogenetic enhanced classification: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 bool pipeline_command(const PipelineConfig& config) {
     std::cout << "\n=== RUNNING COMPLETE PIPELINE ===" << std::endl;
     
@@ -1055,7 +1406,7 @@ bool pipeline_command(const PipelineConfig& config) {
     std::string results_file = config.output_path + "/classification_results.txt";
     std::string report_file = config.output_path + "/summary_report.txt";
     
-    // Step 1: Build database
+    // Step 1: Build database (same as before)
     PipelineConfig build_config = config;
     build_config.command = "build";
     build_config.output_path = db_dir;
@@ -1065,23 +1416,30 @@ bool pipeline_command(const PipelineConfig& config) {
         return false;
     }
     
-    // Step 2: Classify reads
+    // Step 2: Classify reads (enhanced or standard)
     PipelineConfig classify_config = config;
     classify_config.command = "classify";
     classify_config.database_dir = db_dir;
     classify_config.output_path = results_file;
     classify_config.report_file = report_file;
     
-    if (!classify_reads_command(classify_config)) {
+    bool success;
+    if (config.enable_enhanced_features) {
+        success = classify_reads_enhanced(classify_config);
+    } else {
+        success = classify_reads_command(classify_config);
+    }
+    
+    if (!success) {
         std::cerr << "Pipeline failed at classification step" << std::endl;
         return false;
     }
     
-    // Generate reports for pipeline mode
+    // Generate reports
     if (classify_config.generate_reports) {
         PipelineConfig report_config = config;
         report_config.output_path = results_file;
-        report_config.database_dir = db_dir;  // For taxonomy access
+        report_config.database_dir = db_dir;
         generate_classification_reports(report_config);
     }
     

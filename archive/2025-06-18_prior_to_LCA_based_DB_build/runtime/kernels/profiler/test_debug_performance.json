@@ -1,0 +1,12 @@
+{
+  "total_reads": 100,
+  "processing_time_seconds": 17,
+  "reads_per_second": 5.88235,
+  "cache_hit_rate": 0.00212766,
+  "average_batch_time_ms": 17336,
+  "tier_loads": 3,
+  "tier_evictions": 0,
+  "memory_limit_gb": 10,
+  "database_tiers": 3,
+  "classification_rate": 2
+}

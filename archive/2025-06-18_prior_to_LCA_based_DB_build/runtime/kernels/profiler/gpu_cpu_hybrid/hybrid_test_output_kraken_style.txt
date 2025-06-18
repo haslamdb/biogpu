@@ -1,0 +1,19 @@
+20.69	46537	46537	S	562	Escherichia coli strain SEV4 chromosome
+15.98	4320	4320	S	1311	Streptococcus agalactiae strain AR977 chromosome
+13.32	62848	62848	S	1280	Staphylococcus aureus strain WA121-2021_16354 chromosome
+9.30	6629	6629	S	1313	Streptococcus pneumoniae strain PZ900700204 chromosome
+7.64	5879	5879	S	1496	Clostridioides difficile strain Z1322PCD0028 chromosome
+5.21	999	999	S	1639	Listeria monocytogenes CFSAN002349 chromosome
+5.11	3261	3261	S	1351	Enterococcus faecalis strain M817 chromosome
+4.07	40780	40780	S	623	Shigella flexneri strain A chromosome
+2.79	862	862	S	727	Haemophilus influenzae strain 93P1H1 chromosome
+2.09	509	509	S	487	Neisseria meningitidis strain M26263 chromosome
+1.88	8280	8280	S	550	Enterobacter cloacae strain GX1Z-1L chromosome
+1.81	10194	10194	S	573	Klebsiella pneumoniae strain FK1979 chromosome
+1.77	398	398	S	480	Moraxella catarrhalis strain A_01_mct chromosome
+1.70	792	792	S	470	Acinetobacter baumannii strain DETAB-E108 chromosome
+1.69	5175	5175	S	546	Citrobacter freundii strain RHBSTW-00923 chromosome
+1.62	1640	1640	S	584	Proteus mirabilis strain PM7752 chromosome
+1.41	4178	4178	S	28901	Salmonella enterica subsp. enterica serovar Dublin strain PSUSE00060 chromosome
+1.29	2314	2314	S	615	Serratia marcescens strain L18 chromosome
+0.62	638	638	S	287	Pseudomonas aeruginosa strain E80 chromosome

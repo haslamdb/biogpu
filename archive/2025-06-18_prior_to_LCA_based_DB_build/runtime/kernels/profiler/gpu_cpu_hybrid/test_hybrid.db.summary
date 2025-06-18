@@ -1,0 +1,40 @@
+Comprehensive Metagenomic Database Summary
+==========================================
+
+Total organisms: 190
+
+Taxonomic Level Distribution:
+- Species: 3
+- Strain: 187
+
+Phylum Distribution:
+- Firmicutes: 10
+- Proteobacteria: 30
+- Unknown_phylum: 150
+
+Sequence Statistics:
+- Total sequence data: 725 Mbp
+- Average GC content: 45.6%
+- AMR target organisms: 80
+
+Largest genomes:
+- Pseudomonas aeruginosa strain SE5429 chromosome: 7.10 Mbp (65.96% GC)
+- Pseudomonas aeruginosa strain P8W chromosome: 7.08 Mbp (65.98% GC)
+- Pseudomonas aeruginosa strain 1903031130 chromosome: 6.91 Mbp (66.01% GC)
+- Pseudomonas aeruginosa strain SE5352 chromosome: 6.90 Mbp (66.01% GC)
+- Pseudomonas aeruginosa strain E167 chromosome: 6.83 Mbp (66.22% GC)
+- Pseudomonas aeruginosa strain E80 chromosome: 6.82 Mbp (66.09% GC)
+- Pseudomonas aeruginosa strain CRPA_91 chromosome: 6.78 Mbp (66.26% GC)
+- Pseudomonas aeruginosa strain PA1_NCHU chromosome: 6.53 Mbp (66.30% GC)
+- Pseudomonas aeruginosa strain NY4605 chromosome: 6.42 Mbp (66.43% GC)
+- Pseudomonas aeruginosa strain CRPA_97 chromosome: 6.32 Mbp (66.51% GC)
+- Serratia marcescens strain CH31 chromosome: 5.48 Mbp (59.10% GC)
+- Serratia marcescens strain S50079 chromosome: 5.45 Mbp (59.74% GC)
+- Klebsiella pneumoniae strain Iso00267 chromosome: 5.45 Mbp (57.26% GC)
+- Klebsiella pneumoniae strain KP35 chromosome: 5.44 Mbp (57.41% GC)
+- Klebsiella pneumoniae strain KP36 chromosome: 5.44 Mbp (57.41% GC)
+- Klebsiella pneumoniae strain KP18 chromosome: 5.42 Mbp (57.27% GC)
+- Klebsiella pneumoniae strain Iso00073 chromosome: 5.42 Mbp (57.34% GC)
+- Serratia marcescens strain SMBC50 chromosome: 5.42 Mbp (59.76% GC)
+- Klebsiella pneumoniae strain Iso00199 chromosome: 5.36 Mbp (57.51% GC)
+- Serratia marcescens strain SM02 chromosome: 5.34 Mbp (59.58% GC)

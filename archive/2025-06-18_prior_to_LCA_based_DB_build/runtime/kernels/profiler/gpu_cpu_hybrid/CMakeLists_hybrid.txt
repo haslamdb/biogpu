@@ -1,0 +1,102 @@
+cmake_minimum_required(VERSION 3.18)
+project(HybridMetagenomicProfiler LANGUAGES CXX CUDA)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find CUDA
+find_package(CUDA REQUIRED)
+enable_language(CUDA)
+
+# Set CUDA properties
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+
+# CUDA architecture - adjust based on your GPU
+set(CMAKE_CUDA_ARCHITECTURES "75;80;86")  # V100, A100, RTX30xx/40xx
+
+# Compiler flags for optimization
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG")
+set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
+
+# Include directories
+include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+
+# Source files
+set(SOURCES
+    hybrid_profiler.cu
+)
+
+# Create executable
+add_executable(hybrid_profiler ${SOURCES})
+
+# Link libraries
+target_link_libraries(hybrid_profiler
+    ${CUDA_LIBRARIES}
+    ${CUDA_RUNTIME_LIBRARY}
+)
+
+# Set CUDA properties for the target
+set_target_properties(hybrid_profiler PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+# Optimization for specific use case
+target_compile_options(hybrid_profiler PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --maxrregcount=32
+        -Xptxas -O3
+        -Xcompiler -O3
+        -Xcompiler -march=native
+    >
+)
+
+# Add debug target
+add_executable(hybrid_profiler_debug ${SOURCES})
+target_link_libraries(hybrid_profiler_debug
+    ${CUDA_LIBRARIES}
+    ${CUDA_RUNTIME_LIBRARY}
+)
+
+set_target_properties(hybrid_profiler_debug PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+target_compile_options(hybrid_profiler_debug PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        -g -G
+        -Xcompiler -g
+    >
+)
+
+# Installation
+install(TARGETS hybrid_profiler
+    RUNTIME DESTINATION bin
+)
+
+# Build database preparation tool
+add_executable(prepare_database tools/prepare_database.cpp)
+target_link_libraries(prepare_database)
+
+# Testing
+enable_testing()
+
+# Unit tests if you want to add them later
+# add_subdirectory(tests)
+
+# Print configuration
+message(STATUS "CUDA Version: ${CUDA_VERSION}")
+message(STATUS "CUDA Architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+
+# Performance tuning hints
+message(STATUS "")
+message(STATUS "Performance Tuning:")
+message(STATUS "- For maximum performance, use Release build: cmake -DCMAKE_BUILD_TYPE=Release")
+message(STATUS "- Adjust CUDA architectures for your specific GPU")
+message(STATUS "- Consider using NVIDIA Nsight Systems for profiling")chm

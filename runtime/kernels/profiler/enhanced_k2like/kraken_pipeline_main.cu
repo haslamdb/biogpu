@@ -7,9 +7,6 @@
 #include "gpu_kraken_database_builder.cu"
 #include "sample_csv_parser.h"
 #include "classification_report_generator.h"
-// Enhanced classification includes
-#include "../enhanced_k2like/phase1_enhanced_classifier_with_phylo.h"
-#include "../enhanced_k2like/enhanced_classification_params.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -98,14 +95,6 @@ void print_usage(const char* program_name) {
     std::cout << "\n  # Manual control for specific hardware" << std::endl;
     std::cout << "  " << program_name << " build --genome-dir ./genomes --output ./db --no-auto-memory --minimizer-capacity 8000000" << std::endl;
     
-    std::cout << "\nEnhanced Classification Options:" << std::endl;
-    std::cout << "  --enhanced-classification      Enable enhanced classification with phylogeny" << std::endl;
-    std::cout << "  --taxonomy-nodes <file>        Path to NCBI nodes.dmp file" << std::endl;
-    std::cout << "  --taxonomy-names <file>        Path to NCBI names.dmp file" << std::endl;
-    std::cout << "  --primary-threshold <float>    Primary confidence threshold (default: 0.1)" << std::endl;
-    std::cout << "  --secondary-threshold <float>  Secondary confidence threshold (default: 0.3)" << std::endl;
-    std::cout << "  --phylo-distance <float>       Max phylogenetic distance (default: 0.5)" << std::endl;
-    
     std::cout << "\nReport Generation Options:" << std::endl;
     std::cout << "  --no-reports                   Disable automatic report generation" << std::endl;
     std::cout << "  --reports-mpa-only             Generate only MetaPhlAn-style profile" << std::endl;
@@ -167,11 +156,6 @@ struct PipelineConfig {
     float reports_min_abundance = 0.01f;   // Minimum abundance threshold (%)
     bool reports_include_unclassified = false;
     std::string reports_sample_name = "";  // Auto-detect from input file if empty
-    
-    // Enhanced classification options
-    bool use_enhanced_classification = false;
-    Phase1EnhancedParams enhanced_params;
-    PhylogeneticClassificationParams phylo_params;
 };
 
 bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
@@ -265,18 +249,6 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             config.reports_include_unclassified = true;
         } else if (arg == "--reports-sample-name" && i + 1 < argc) {
             config.reports_sample_name = argv[++i];
-        } else if (arg == "--enhanced-classification") {
-            config.use_enhanced_classification = true;
-        } else if (arg == "--taxonomy-nodes" && i + 1 < argc) {
-            config.phylo_params.taxonomy_nodes_path = argv[++i];
-        } else if (arg == "--taxonomy-names" && i + 1 < argc) {
-            config.phylo_params.taxonomy_names_path = argv[++i];
-        } else if (arg == "--primary-threshold" && i + 1 < argc) {
-            config.enhanced_params.primary_confidence_threshold = std::stof(argv[++i]);
-        } else if (arg == "--secondary-threshold" && i + 1 < argc) {
-            config.enhanced_params.secondary_confidence_threshold = std::stof(argv[++i]);
-        } else if (arg == "--phylo-distance" && i + 1 < argc) {
-            config.phylo_params.max_phylogenetic_distance = std::stof(argv[++i]);
         } else {
             std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
         }
@@ -736,125 +708,6 @@ bool classify_reads_command(const PipelineConfig& config) {
         if (!classifier.load_database(config.database_dir)) {
             std::cerr << "Failed to load database from " << config.database_dir << std::endl;
             return false;
-        }
-        
-        // Check if we should use enhanced classification
-        if (config.use_enhanced_classification) {
-            std::cout << "Using enhanced classification with phylogenetic validation" << std::endl;
-            
-            // Set default taxonomy paths if not specified
-            if (config.phylo_params.taxonomy_nodes_path.empty()) {
-                config.phylo_params.taxonomy_nodes_path = config.database_dir + "/../taxonomy/nodes.dmp";
-            }
-            if (config.phylo_params.taxonomy_names_path.empty()) {
-                config.phylo_params.taxonomy_names_path = config.database_dir + "/../taxonomy/names.dmp";
-            }
-            
-            // Create enhanced classifier
-            Phase1EnhancedClassifierWithPhylogeny enhanced_classifier(
-                config.enhanced_params, config.phylo_params);
-            
-            // Load database for enhanced classifier
-            if (!enhanced_classifier.load_database(config.database_dir)) {
-                std::cerr << "Failed to load database for enhanced classifier" << std::endl;
-                return false;
-            }
-            
-            // Load reads
-            std::vector<std::string> reads;
-            
-            // Check if file is gzipped
-            bool is_gzipped = config.reads_file.substr(config.reads_file.find_last_of(".") + 1) == "gz";
-            
-            if (is_gzipped) {
-                // Use zlib for gzipped files
-                gzFile gz_file = gzopen(config.reads_file.c_str(), "rb");
-                if (!gz_file) {
-                    std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
-                    return false;
-                }
-                
-                const int buffer_size = 1024;
-                char buffer[buffer_size];
-                std::string current_line;
-                int line_count = 0;
-                
-                while (gzgets(gz_file, buffer, buffer_size)) {
-                    current_line += buffer;
-                    if (current_line.back() == '\n') {
-                        current_line.pop_back();
-                        line_count++;
-                        if (line_count % 4 == 2) {  // Sequence line
-                            if (!current_line.empty() && current_line.length() >= config.classifier_params.k) {
-                                reads.push_back(current_line);
-                            }
-                        }
-                        current_line.clear();
-                    }
-                }
-                gzclose(gz_file);
-            } else {
-                // Use standard ifstream for uncompressed files
-                std::ifstream fastq_file(config.reads_file);
-                if (!fastq_file.is_open()) {
-                    std::cerr << "Cannot open reads file: " << config.reads_file << std::endl;
-                    return false;
-                }
-                
-                std::string line;
-                int line_count = 0;
-                while (std::getline(fastq_file, line)) {
-                    line_count++;
-                    if (line_count % 4 == 2) {  // Sequence line
-                        if (!line.empty() && line.length() >= config.classifier_params.k) {
-                            reads.push_back(line);
-                        }
-                    }
-                }
-                fastq_file.close();
-            }
-            
-            if (reads.empty()) {
-                std::cerr << "No valid reads found" << std::endl;
-                return false;
-            }
-            
-            std::cout << "Loaded " << reads.size() << " reads for enhanced classification" << std::endl;
-            
-            // Perform enhanced classification
-            auto enhanced_results = enhanced_classifier.classify_enhanced_with_phylogeny(reads);
-            enhanced_classifier.print_enhanced_statistics_with_phylogeny(enhanced_results);
-            
-            // Write results to standard Kraken output format
-            std::ofstream output(config.output_path);
-            if (!output.is_open()) {
-                std::cerr << "Cannot create output file: " << config.output_path << std::endl;
-                return false;
-            }
-            
-            output << "# GPU Kraken Enhanced Classification Results\n";
-            for (size_t i = 0; i < enhanced_results.size(); i++) {
-                const auto& result = enhanced_results[i];
-                char status = (result.taxon_id > 0) ? 'C' : 'U';
-                
-                output << status << "\t"
-                       << "read_" << i << "\t"
-                       << result.taxon_id << "\t"
-                       << reads[i].length() << "\t"
-                       << std::fixed << std::setprecision(3) << result.secondary_confidence << "\t"
-                       << result.classified_kmers << "\t" 
-                       << result.total_kmers << "\n";
-            }
-            output.close();
-            
-            std::cout << "Enhanced classification results written to " << config.output_path << std::endl;
-            
-            // Generate enhanced reports if enabled
-            if (config.generate_reports) {
-                generate_enhanced_classification_reports(config, enhanced_results, reads);
-            }
-            
-            return true;
         }
         
         // Check if paired-end mode
@@ -1520,81 +1373,6 @@ bool generate_classification_reports(const PipelineConfig& config) {
     } catch (const std::exception& e) {
         std::cerr << "Error generating reports: " << e.what() << std::endl;
         return false;
-    }
-}
-
-// Generate enhanced classification reports
-void generate_enhanced_classification_reports(const PipelineConfig& config,
-                                            const std::vector<Phase1ClassificationResult>& results,
-                                            const std::vector<std::string>& reads) {
-    
-    std::string base_output = config.output_path;
-    if (base_output.find_last_of(".") != std::string::npos) {
-        base_output = base_output.substr(0, base_output.find_last_of("."));
-    }
-    
-    // Generate comprehensive classification report
-    ClassificationReportGenerator report_gen;
-    
-    // Convert enhanced results to standard format for report generation
-    std::vector<PairedReadClassification> standard_results;
-    standard_results.reserve(results.size());
-    
-    for (const auto& enhanced : results) {
-        PairedReadClassification std_result;
-        std_result.taxon_id = enhanced.taxon_id;
-        std_result.confidence_score = enhanced.secondary_confidence;
-        std_result.read1_votes = enhanced.classified_kmers;
-        std_result.read1_kmers = enhanced.total_kmers;
-        std_result.read2_votes = 0;
-        std_result.read2_kmers = 0;
-        standard_results.push_back(std_result);
-    }
-    
-    // Generate standard reports
-    report_gen.generate_all_reports(base_output, standard_results,
-                                   config.reports_sample_name.empty() ? 
-                                   std::filesystem::path(config.reads_file).stem().string() : 
-                                   config.reports_sample_name);
-    
-    // Generate enhanced classification specific report
-    std::string enhanced_report_path = base_output + "_enhanced_classification_details.txt";
-    std::ofstream enhanced_report(enhanced_report_path);
-    
-    if (enhanced_report.is_open()) {
-        enhanced_report << "Enhanced Classification Detailed Report\n";
-        enhanced_report << "=====================================\n\n";
-        
-        int stage1_passed = 0, stage2_passed = 0, high_confidence = 0;
-        int phylo_passed = 0, minimizer_met = 0, has_conflicts = 0;
-        
-        for (const auto& result : results) {
-            if (result.passed_stage1) stage1_passed++;
-            if (result.passed_stage2) stage2_passed++;
-            if (result.is_high_confidence_call) high_confidence++;
-            if (result.passed_phylogenetic_filter) phylo_passed++;
-            if (result.multiple_minimizer_requirement_met) minimizer_met++;
-            if (result.has_taxonomic_conflicts) has_conflicts++;
-        }
-        
-        enhanced_report << "Classification Statistics:\n";
-        enhanced_report << "  Total reads: " << results.size() << "\n";
-        enhanced_report << "  Stage 1 passed: " << stage1_passed << " (" 
-                       << std::fixed << std::setprecision(1) 
-                       << (100.0 * stage1_passed / results.size()) << "%)\n";
-        enhanced_report << "  Stage 2 passed: " << stage2_passed << " (" 
-                       << (100.0 * stage2_passed / results.size()) << "%)\n";
-        enhanced_report << "  High confidence: " << high_confidence << " (" 
-                       << (100.0 * high_confidence / results.size()) << "%)\n";
-        enhanced_report << "  Phylogenetic filter passed: " << phylo_passed << " (" 
-                       << (100.0 * phylo_passed / results.size()) << "%)\n";
-        enhanced_report << "  Minimizer requirement met: " << minimizer_met << " (" 
-                       << (100.0 * minimizer_met / results.size()) << "%)\n";
-        enhanced_report << "  Taxonomic conflicts detected: " << has_conflicts << " (" 
-                       << (100.0 * has_conflicts / results.size()) << "%)\n";
-        
-        enhanced_report.close();
-        std::cout << "Enhanced classification report written to " << enhanced_report_path << std::endl;
     }
 }
 

@@ -1,0 +1,1219 @@
+// gpu_kraken_database_builder.cu
+// COMPLETE REPLACEMENT: Kraken2-inspired GPU database builder with all original functionality
+// Fixes the over-aggressive deduplication while maintaining all features
+
+#ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
+#define GPU_KRAKEN_DATABASE_BUILDER_CUH
+
+#include "gpu_kraken_classifier.cu"
+#include "gpu_minimizer_extraction.cuh"
+#include <cuda_runtime.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include <thrust/sort.h>
+#include <thrust/reduce.h>
+#include <thrust/unique.h>
+#include <thrust/scan.h>
+#include <cub/cub.cuh>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <fstream>
+#include <filesystem>
+#include <chrono>
+
+// Keep all original structures
+struct GPUTaxonomyNode {
+    uint32_t taxon_id;
+    uint32_t parent_id;
+    uint8_t rank;
+    uint8_t padding[3];
+};
+
+// Database building statistics
+struct GPUBuildStats {
+    uint64_t total_sequences;
+    uint64_t total_bases;
+    uint64_t total_kmers_processed;
+    uint64_t valid_minimizers_extracted;
+    uint64_t unique_minimizers;
+    uint64_t lca_assignments;
+    double sequence_processing_time;
+    double minimizer_extraction_time;
+    double lca_computation_time;
+    double database_construction_time;
+};
+
+class GPUKrakenDatabaseBuilder {
+private:
+    // Configuration
+    ClassificationParams params;
+    std::string output_directory;
+    
+    // Host data
+    std::vector<std::string> genome_files;
+    std::vector<uint32_t> genome_taxon_ids;
+    std::unordered_map<uint32_t, std::string> taxon_names;
+    std::unordered_map<uint32_t, uint32_t> taxon_parents;
+    std::vector<LCACandidate> all_lca_candidates;
+    
+    // GPU memory management
+    char* d_sequence_data;
+    GPUGenomeInfo* d_genome_info;
+    GPUMinimizerHit* d_minimizer_hits;
+    uint32_t* d_minimizer_counts;
+    LCACandidate* d_lca_candidates;
+    GPUTaxonomyNode* d_taxonomy_nodes;
+    
+    // UPDATED: Higher minimizer capacity for comprehensive databases
+    int MAX_SEQUENCE_BATCH = 25;           // Keep sequences reasonable
+    int MAX_MINIMIZERS_PER_BATCH = 5000000; // INCREASED from 1M to 5M
+    static const int MAX_READ_LENGTH = 1000;
+    static const int THREADS_PER_BLOCK = 256;
+    static const int MAX_TAXA_PER_PAIR = 128;
+    
+    // NEW: Dynamic memory scaling based on available GPU memory
+    bool auto_scale_memory = true;
+    size_t max_gpu_memory_usage_fraction = 80; // Use up to 80% of GPU memory
+    
+    // NEW: Statistics to track if we're hitting limits
+    uint64_t total_minimizers_capped = 0;
+    uint64_t total_batches_capped = 0;
+    
+    // Convert existing params to minimizer params
+    MinimizerParams minimizer_params;
+    
+    // NEW: Kraken2-inspired parameters
+    uint64_t min_clear_hash_value = 0;  // For hash-based subsampling
+    double subsampling_rate = 1.0;      // Fraction of minimizers to keep
+    uint64_t toggle_mask = 0xe37e28c4271b5a2dULL;  // Kraken2-style toggle mask
+    
+    // Statistics
+    GPUBuildStats stats;
+    
+public:
+    GPUKrakenDatabaseBuilder(const std::string& output_dir,
+                            const ClassificationParams& config = ClassificationParams());
+    ~GPUKrakenDatabaseBuilder();
+    
+    // Main pipeline methods (keep all original interfaces)
+    bool build_database_from_genomes(
+        const std::string& genome_library_path,
+        const std::string& taxonomy_path = ""
+    );
+    
+    bool build_database_from_file_list(
+        const std::string& file_list_path,
+        const std::string& taxonomy_path = ""
+    );
+    
+    // Step-by-step processing
+    bool load_genome_files(const std::string& library_path);
+    bool load_taxonomy_data(const std::string& taxonomy_path);
+    bool process_genomes_gpu();
+    bool save_database();
+    
+    // Configuration
+    void set_batch_size(int sequences_per_batch) {
+        if (sequences_per_batch > 0 && sequences_per_batch <= 1000) {
+            MAX_SEQUENCE_BATCH = sequences_per_batch;
+            std::cout << "Set GPU batch size to " << MAX_SEQUENCE_BATCH 
+                      << " sequences, " << MAX_MINIMIZERS_PER_BATCH << " minimizers" << std::endl;
+        }
+    }
+    
+    // NEW: Method to set minimizer capacity explicitly
+    void set_minimizer_capacity(int minimizers_per_batch) {
+        if (minimizers_per_batch > 0 && minimizers_per_batch <= 50000000) { // Cap at 50M
+            MAX_MINIMIZERS_PER_BATCH = minimizers_per_batch;
+            std::cout << "Set minimizer capacity to " << MAX_MINIMIZERS_PER_BATCH 
+                      << " per batch" << std::endl;
+            
+            // Recalculate memory requirements
+            check_and_adjust_memory();
+        } else {
+            std::cerr << "Warning: Invalid minimizer capacity. Must be 1-50M" << std::endl;
+        }
+    }
+    
+    // NEW: Auto-scale based on GPU memory
+    void enable_auto_memory_scaling(bool enable = true, size_t memory_fraction = 80) {
+        auto_scale_memory = enable;
+        max_gpu_memory_usage_fraction = memory_fraction;
+        if (enable) {
+            std::cout << "Enabled auto memory scaling (using " << memory_fraction 
+                      << "% of GPU memory)" << std::endl;
+            check_and_adjust_memory();
+        }
+    }
+    
+    // NEW: Set subsampling rate (like Kraken2's --max-db-size functionality)
+    void set_subsampling_rate(double rate) {
+        if (rate > 0.0 && rate <= 1.0) {
+            subsampling_rate = rate;
+            min_clear_hash_value = (uint64_t)((1.0 - rate) * UINT64_MAX);
+            std::cout << "Set subsampling rate to " << rate 
+                      << " (min_clear_hash_value: 0x" << std::hex << min_clear_hash_value 
+                      << std::dec << ")" << std::endl;
+        }
+    }
+    
+    void print_build_statistics();
+    
+    // Testing function for integration
+    void test_minimizer_extraction_integration();
+    
+private:
+    // GPU processing methods
+    bool allocate_gpu_memory();
+    void free_gpu_memory();
+    void check_and_adjust_memory();
+    
+    bool process_sequence_batch(
+        const std::vector<std::string>& sequences,
+        const std::vector<uint32_t>& taxon_ids,
+        int batch_offset
+    );
+    
+    // UPDATED: Use improved minimizer extraction
+    bool extract_minimizers_gpu(
+        const char* d_sequences,
+        const GPUGenomeInfo* d_genomes,
+        int num_sequences,
+        GPUMinimizerHit* d_hits,
+        uint32_t* total_hits
+    );
+    
+    // FIXED: Proper LCA computation without over-aggressive deduplication
+    bool compute_lca_assignments_gpu(
+        const GPUMinimizerHit* d_hits,
+        int num_hits,
+        LCACandidate* d_candidates,
+        int* num_candidates
+    );
+    
+    bool build_compact_hash_table_gpu(
+        const LCACandidate* d_candidates,
+        int num_candidates
+    );
+    
+    // File processing (keep all original methods)
+    std::vector<std::string> load_sequences_from_fasta(const std::string& fasta_path);
+    bool parse_taxonomy_files(const std::string& taxonomy_path);
+    
+    // Utility methods
+    uint32_t extract_taxon_from_filename(const std::string& filename);
+    std::vector<std::string> find_genome_files(const std::string& directory);
+};
+
+#ifndef GPU_KRAKEN_DATABASE_BUILDER_HEADER_ONLY
+
+// ================================================================
+// CUDA KERNELS - Keep existing interfaces but fix implementation
+// ================================================================
+
+// MurmurHash3 implementation - now in header file
+// Using the implementation from gpu_minimizer_extraction.cuh
+
+// TRUE Kraken2-style sliding window minimizer extraction
+__global__ void extract_minimizers_kraken2_improved_kernel(
+    const char* sequence_data,
+    const GPUGenomeInfo* genome_info,
+    int num_genomes,
+    GPUMinimizerHit* minimizer_hits,
+    uint32_t* hit_counts_per_genome,
+    uint32_t* global_hit_counter,
+    MinimizerParams params,
+    uint64_t min_clear_hash_value,
+    uint64_t toggle_mask,
+    int max_minimizers) {
+    
+    // OPTIMIZED: Use multiple threads per genome instead of just thread 0
+    int genome_id = blockIdx.x;
+    int thread_id = threadIdx.x;
+    int block_size = blockDim.x;
+    
+    if (genome_id >= num_genomes) return;
+    
+    const GPUGenomeInfo& genome = genome_info[genome_id];
+    const char* sequence = sequence_data + genome.sequence_offset;
+    uint32_t seq_length = genome.sequence_length;
+    
+    if (seq_length < params.k) {
+        if (thread_id == 0) hit_counts_per_genome[genome_id] = 0;
+        return;
+    }
+    
+    // Shared memory for thread coordination
+    extern __shared__ uint64_t shared_mem[];
+    uint64_t* shared_minimizers = shared_mem;
+    uint32_t* shared_positions = (uint32_t*)(shared_minimizers + blockDim.x);
+    bool* shared_valid = (bool*)(shared_positions + blockDim.x);
+    
+    uint32_t total_kmers = seq_length - params.k + 1;
+    uint32_t kmers_per_thread = (total_kmers + block_size - 1) / block_size;
+    uint32_t start_kmer = thread_id * kmers_per_thread;
+    uint32_t end_kmer = min(start_kmer + kmers_per_thread, total_kmers);
+    
+    // Each thread processes its assigned k-mers
+    shared_minimizers[thread_id] = UINT64_MAX;
+    shared_positions[thread_id] = 0;
+    shared_valid[thread_id] = false;
+    
+    // Process assigned k-mers
+    for (uint32_t kmer_idx = start_kmer; kmer_idx < end_kmer; kmer_idx++) {
+        uint64_t minimizer = extract_minimizer_sliding_window(
+            sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+        );
+        
+        if (minimizer != UINT64_MAX) {
+            // Apply subsampling if enabled
+            if (min_clear_hash_value > 0 && minimizer < min_clear_hash_value) {
+                continue;
+            }
+            
+            // Apply toggle mask
+            minimizer ^= toggle_mask;
+            
+            // Store first valid minimizer from this thread's range
+            if (!shared_valid[thread_id]) {
+                shared_minimizers[thread_id] = minimizer;
+                shared_positions[thread_id] = kmer_idx;
+                shared_valid[thread_id] = true;
+                break;
+            }
+        }
+    }
+    
+    __syncthreads();
+    
+    // Thread 0 processes results in order to maintain deduplication
+    if (thread_id == 0) {
+        uint64_t last_minimizer = UINT64_MAX;
+        uint32_t local_count = 0;
+        
+        // Process all positions in order
+        for (uint32_t pos = 0; pos < total_kmers; pos++) {
+            uint32_t responsible_thread = pos / kmers_per_thread;
+            if (responsible_thread >= block_size) responsible_thread = block_size - 1;
+            
+            if (shared_valid[responsible_thread] && 
+                shared_positions[responsible_thread] == pos &&
+                shared_minimizers[responsible_thread] != last_minimizer) {
+                
+                uint32_t current_count = atomicAdd(global_hit_counter, 0);
+                if (current_count >= max_minimizers) break;
+                
+                uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+                if (global_pos < max_minimizers) {
+                    GPUMinimizerHit hit;
+                    hit.minimizer_hash = shared_minimizers[responsible_thread];
+                    hit.taxon_id = genome.taxon_id;
+                    hit.position = pos;
+                    hit.genome_id = genome.genome_id;
+                    
+                    minimizer_hits[global_pos] = hit;
+                    local_count++;
+                    last_minimizer = shared_minimizers[responsible_thread];
+                }
+            }
+        }
+        
+        hit_counts_per_genome[genome_id] = local_count;
+    }
+}
+
+// FIXED: Kernel to convert hits to candidates without over-aggressive deduplication
+__global__ void convert_hits_to_candidates_fixed(
+    const GPUMinimizerHit* hits,
+    int num_hits,
+    LCACandidate* candidates) {
+    
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_hits) return;
+    
+    const GPUMinimizerHit& hit = hits[idx];
+    LCACandidate& candidate = candidates[idx];
+    
+    candidate.minimizer_hash = hit.minimizer_hash;
+    candidate.lca_taxon = hit.taxon_id;
+    candidate.genome_count = 1;  // Will be updated during final merge
+    candidate.uniqueness_score = 1.0f;
+}
+
+// Simple LCA computation device function
+__device__ uint32_t compute_simple_lca_gpu(uint32_t taxon1, uint32_t taxon2) {
+    if (taxon1 == 0) return taxon2;
+    if (taxon2 == 0) return taxon1;
+    if (taxon1 == taxon2) return taxon1;
+    
+    // Simplified LCA - return smaller taxon ID
+    // In a real implementation, this would walk up the taxonomy tree
+    return (taxon1 < taxon2) ? taxon1 : taxon2;
+}
+
+// Host version of the same function
+__host__ uint32_t compute_simple_lca_host(uint32_t taxon1, uint32_t taxon2) {
+    if (taxon1 == 0) return taxon2;
+    if (taxon2 == 0) return taxon1;
+    if (taxon1 == taxon2) return taxon1;
+    
+    // Simplified LCA - return smaller taxon ID
+    // In a real implementation, this would walk up the taxonomy tree
+    return (taxon1 < taxon2) ? taxon1 : taxon2;
+}
+
+// Device function to check for valid bases
+__device__ bool has_valid_bases(const char* seq, int length) {
+    for (int i = 0; i < length; i++) {
+        char c = seq[i];
+        if (c != 'A' && c != 'C' && c != 'G' && c != 'T' &&
+            c != 'a' && c != 'c' && c != 'g' && c != 't') {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ================================================================
+// IMPLEMENTATION - Keep all original functionality
+// ================================================================
+
+#endif // GPU_KRAKEN_DATABASE_BUILDER_HEADER_ONLY
+
+#ifndef GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <regex>
+#include <iomanip>
+
+#define CUDA_CHECK(call) do { \
+    cudaError_t error = call; \
+    if (error != cudaSuccess) { \
+        fprintf(stderr, "CUDA error at %s:%d - %s\n", __FILE__, __LINE__, \
+                cudaGetErrorString(error)); \
+        exit(1); \
+    } \
+} while(0)
+
+// Constructor - keep original but add new features
+GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
+    const std::string& output_dir,
+    const ClassificationParams& config)
+    : output_directory(output_dir), params(config),
+      d_sequence_data(nullptr), d_genome_info(nullptr),
+      d_minimizer_hits(nullptr), d_minimizer_counts(nullptr),
+      d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr) {
+    
+    // Convert classification params to minimizer params
+    minimizer_params.k = params.k;
+    minimizer_params.ell = params.ell;
+    minimizer_params.spaces = params.spaces;
+    minimizer_params.xor_mask = 0x3c8bfbb395c60474ULL;  // Kraken2-style XOR mask
+    
+    std::cout << "Initializing GPU Kraken database builder (High Capacity)..." << std::endl;
+    std::cout << "Parameters: k=" << minimizer_params.k 
+              << ", ell=" << minimizer_params.ell 
+              << ", spaces=" << minimizer_params.spaces << std::endl;
+    
+    // Create output directory
+    std::filesystem::create_directories(output_directory);
+    
+    // Enable auto-scaling by default for better memory utilization
+    enable_auto_memory_scaling(true, 80);
+    
+    // Initialize statistics
+    memset(&stats, 0, sizeof(stats));
+    total_minimizers_capped = 0;
+    total_batches_capped = 0;
+}
+
+// Destructor - keep original
+GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
+    free_gpu_memory();
+}
+
+// UPDATED: Smarter memory management
+void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
+    size_t free_mem, total_mem;
+    cudaMemGetInfo(&free_mem, &total_mem);
+    
+    std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
+              << (total_mem / 1024 / 1024) << " MB total" << std::endl;
+    
+    if (auto_scale_memory) {
+        // Calculate optimal batch sizes based on available memory
+        size_t usable_memory = (total_mem * max_gpu_memory_usage_fraction) / 100;
+        
+        // Memory breakdown:
+        size_t sequence_memory_per_genome = 10000000; // ~10MB avg per genome
+        size_t minimizer_hit_size = sizeof(GPUMinimizerHit); // 24 bytes
+        size_t lca_candidate_size = sizeof(LCACandidate);     // 20 bytes
+        size_t genome_info_size = sizeof(GPUGenomeInfo);      // 16 bytes
+        
+        // Reserve memory for other allocations (20% buffer)
+        size_t available_for_minimizers = usable_memory * 0.6; // 60% for minimizers
+        size_t available_for_sequences = usable_memory * 0.2;  // 20% for sequences
+        
+        // Calculate optimal minimizer capacity
+        size_t memory_per_minimizer = minimizer_hit_size + lca_candidate_size;
+        int optimal_minimizer_capacity = available_for_minimizers / memory_per_minimizer;
+        
+        // Calculate optimal sequence batch size
+        int optimal_sequence_batch = available_for_sequences / sequence_memory_per_genome;
+        
+        // Apply reasonable limits
+        optimal_minimizer_capacity = std::min(optimal_minimizer_capacity, (int)50000000); // Max 50M
+        optimal_minimizer_capacity = std::max(optimal_minimizer_capacity, (int)1000000);  // Min 1M
+        
+        optimal_sequence_batch = std::min(optimal_sequence_batch, 100);  // Max 100 genomes
+        optimal_sequence_batch = std::max(optimal_sequence_batch, 5);    // Min 5 genomes
+        
+        MAX_MINIMIZERS_PER_BATCH = optimal_minimizer_capacity;
+        MAX_SEQUENCE_BATCH = optimal_sequence_batch;
+        
+        std::cout << "Auto-scaled batch sizes:" << std::endl;
+        std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+        std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
+        std::cout << "  Estimated memory usage: " << (usable_memory / 1024 / 1024) << " MB" << std::endl;
+    } else {
+        // Manual validation of current settings
+        size_t sequence_memory = MAX_SEQUENCE_BATCH * 10000000; 
+        size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
+        size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
+        size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
+        size_t total_needed = sequence_memory + minimizer_memory + candidate_memory + genome_info_memory;
+        
+        std::cout << "Memory requirements (manual settings):" << std::endl;
+        std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
+        std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
+        std::cout << "  LCA candidates: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
+        std::cout << "  Total required: " << (total_needed / 1024 / 1024) << " MB" << std::endl;
+        
+        size_t safe_memory = free_mem * 0.8;
+        
+        if (total_needed > safe_memory) {
+            std::cout << "WARNING: Current settings may exceed available GPU memory!" << std::endl;
+            std::cout << "Consider enabling auto-scaling or reducing batch sizes." << std::endl;
+            
+            // Auto-adjust if memory requirements are too high
+            double scale = (double)safe_memory / total_needed;
+            MAX_MINIMIZERS_PER_BATCH = (int)(MAX_MINIMIZERS_PER_BATCH * scale);
+            MAX_SEQUENCE_BATCH = (int)(MAX_SEQUENCE_BATCH * scale);
+            
+            std::cout << "Auto-adjusted to fit memory:" << std::endl;
+            std::cout << "  Minimizers: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+            std::cout << "  Sequences: " << MAX_SEQUENCE_BATCH << std::endl;
+        }
+    }
+}
+
+// Keep original main pipeline method
+bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
+    const std::string& genome_library_path,
+    const std::string& taxonomy_path) {
+    
+    std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES (Kraken2-inspired) ===" << std::endl;
+    auto total_start = std::chrono::high_resolution_clock::now();
+    
+    if (!load_genome_files(genome_library_path)) {
+        std::cerr << "Failed to load genome files" << std::endl;
+        return false;
+    }
+    
+    if (!taxonomy_path.empty()) {
+        if (!load_taxonomy_data(taxonomy_path)) {
+            std::cerr << "Warning: Failed to load taxonomy data" << std::endl;
+        }
+    }
+    
+    if (!process_genomes_gpu()) {
+        std::cerr << "Failed to process genomes on GPU" << std::endl;
+        return false;
+    }
+    
+    if (!save_database()) {
+        std::cerr << "Failed to save database" << std::endl;
+        return false;
+    }
+    
+    auto total_end = std::chrono::high_resolution_clock::now();
+    auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(total_end - total_start);
+    
+    std::cout << "\n=== DATABASE BUILD COMPLETE ===" << std::endl;
+    std::cout << "Total build time: " << total_duration.count() << " seconds" << std::endl;
+    print_build_statistics();
+    
+    return true;
+}
+
+// Keep original file loading logic
+bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path) {
+    std::cout << "Loading genome files from: " << library_path << std::endl;
+    
+    genome_files = find_genome_files(library_path);
+    
+    if (genome_files.empty()) {
+        std::cerr << "No genome files found in " << library_path << std::endl;
+        return false;
+    }
+    
+    genome_taxon_ids.reserve(genome_files.size());
+    for (const auto& file : genome_files) {
+        uint32_t taxon_id = extract_taxon_from_filename(file);
+        genome_taxon_ids.push_back(taxon_id);
+        
+        if (taxon_names.find(taxon_id) == taxon_names.end()) {
+            std::filesystem::path p(file);
+            taxon_names[taxon_id] = p.stem().string();
+        }
+    }
+    
+    std::cout << "Loaded " << genome_files.size() << " genome files" << std::endl;
+    stats.total_sequences = genome_files.size();
+    
+    return true;
+}
+
+// Keep original genome processing but use improved minimizer extraction
+bool GPUKrakenDatabaseBuilder::process_genomes_gpu() {
+    std::cout << "Processing genomes on GPU..." << std::endl;
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    if (!allocate_gpu_memory()) {
+        return false;
+    }
+    
+    for (size_t batch_start = 0; batch_start < genome_files.size(); 
+         batch_start += MAX_SEQUENCE_BATCH) {
+        
+        size_t batch_end = std::min(batch_start + MAX_SEQUENCE_BATCH, genome_files.size());
+        
+        std::cout << "Processing batch " << (batch_start / MAX_SEQUENCE_BATCH + 1) 
+                  << ": genomes " << batch_start << "-" << batch_end << std::endl;
+        
+        std::vector<std::string> batch_sequences;
+        std::vector<uint32_t> batch_taxon_ids;
+        
+        for (size_t i = batch_start; i < batch_end; i++) {
+            auto sequences = load_sequences_from_fasta(genome_files[i]);
+            for (const auto& seq : sequences) {
+                batch_sequences.push_back(seq);
+                batch_taxon_ids.push_back(genome_taxon_ids[i]);
+                stats.total_bases += seq.length();
+            }
+        }
+        
+        if (!process_sequence_batch(batch_sequences, batch_taxon_ids, batch_start)) {
+            std::cerr << "Failed to process batch starting at " << batch_start << std::endl;
+            return false;
+        }
+    }
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    stats.sequence_processing_time = 
+        std::chrono::duration<double>(end_time - start_time).count();
+    
+    return true;
+}
+
+// UPDATED: Process sequence batch with improved minimizer extraction
+bool GPUKrakenDatabaseBuilder::process_sequence_batch(
+    const std::vector<std::string>& sequences,
+    const std::vector<uint32_t>& taxon_ids,
+    int batch_offset) {
+    
+    if (sequences.empty()) return true;
+    
+    std::string concatenated_sequences;
+    std::vector<GPUGenomeInfo> genome_infos;
+    
+    uint32_t current_offset = 0;
+    for (size_t i = 0; i < sequences.size(); i++) {
+        GPUGenomeInfo info;
+        info.taxon_id = taxon_ids[i];
+        info.sequence_offset = current_offset;
+        info.sequence_length = sequences[i].length();
+        info.genome_id = batch_offset + i;
+        
+        genome_infos.push_back(info);
+        concatenated_sequences += sequences[i];
+        current_offset += sequences[i].length();
+        
+        if (sequences[i].length() >= minimizer_params.k) {
+            stats.total_kmers_processed += sequences[i].length() - minimizer_params.k + 1;
+        }
+    }
+    
+    size_t max_sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;
+    if (concatenated_sequences.length() > max_sequence_memory) {
+        std::cerr << "ERROR: Sequence data exceeds allocated memory" << std::endl;
+        return false;
+    }
+    
+    CUDA_CHECK(cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(),
+                         concatenated_sequences.length(), cudaMemcpyHostToDevice));
+    
+    CUDA_CHECK(cudaMemcpy(d_genome_info, genome_infos.data(),
+                         genome_infos.size() * sizeof(GPUGenomeInfo),
+                         cudaMemcpyHostToDevice));
+    
+    uint32_t total_hits = 0;
+    if (!extract_minimizers_gpu(d_sequence_data, d_genome_info, 
+                               genome_infos.size(), d_minimizer_hits, &total_hits)) {
+        return false;
+    }
+    
+    int num_candidates = 0;
+    if (!compute_lca_assignments_gpu(d_minimizer_hits, total_hits,
+                                    d_lca_candidates, &num_candidates)) {
+        return false;
+    }
+    
+    if (num_candidates > 0) {
+        std::vector<LCACandidate> batch_candidates(num_candidates);
+        CUDA_CHECK(cudaMemcpy(batch_candidates.data(), d_lca_candidates,
+                             num_candidates * sizeof(LCACandidate), cudaMemcpyDeviceToHost));
+        
+        all_lca_candidates.insert(all_lca_candidates.end(), 
+                                 batch_candidates.begin(), batch_candidates.end());
+        
+        std::cout << "Accumulated " << num_candidates << " candidates (total: " 
+                  << all_lca_candidates.size() << ")" << std::endl;
+    }
+    
+    stats.valid_minimizers_extracted += total_hits;
+    stats.lca_assignments += num_candidates;
+    
+    return true;
+}
+
+// UPDATED: Track when we hit capacity limits
+bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
+    const char* d_sequences,
+    const GPUGenomeInfo* d_genomes,
+    int num_sequences,
+    GPUMinimizerHit* d_hits,
+    uint32_t* total_hits) {
+    
+    std::cout << "Extracting minimizers from " << num_sequences 
+              << " sequences (capacity: " << MAX_MINIMIZERS_PER_BATCH << ")..." << std::endl;
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // Reset global counter
+    uint32_t zero = 0;
+    uint32_t* d_global_counter;
+    CUDA_CHECK(cudaMalloc(&d_global_counter, sizeof(uint32_t)));
+    CUDA_CHECK(cudaMemcpy(d_global_counter, &zero, sizeof(uint32_t), cudaMemcpyHostToDevice));
+    
+    // Clear hit counts
+    CUDA_CHECK(cudaMemset(d_minimizer_counts, 0, num_sequences * sizeof(uint32_t)));
+    
+    // Add timing to measure improvement
+    auto kernel_start = std::chrono::high_resolution_clock::now();
+    
+    // Launch improved kernel with higher capacity
+    int threads_per_block = 256;
+    size_t shared_mem_size = threads_per_block * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(bool));
+    
+    extract_minimizers_kraken2_improved_kernel<<<num_sequences, threads_per_block, shared_mem_size>>>(
+        d_sequences, d_genomes, num_sequences,
+        d_hits, d_minimizer_counts, d_global_counter,
+        minimizer_params, min_clear_hash_value, toggle_mask, MAX_MINIMIZERS_PER_BATCH
+    );
+    
+    CUDA_CHECK(cudaDeviceSynchronize());
+    
+    auto kernel_end = std::chrono::high_resolution_clock::now();
+    auto kernel_duration = std::chrono::duration<double>(kernel_end - kernel_start).count();
+    
+    std::cout << "  Kernel execution time: " << std::fixed << std::setprecision(3) 
+              << kernel_duration << "s" << std::endl;
+    
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        printf("CUDA error in minimizer extraction: %s\n", cudaGetErrorString(error));
+        cudaFree(d_global_counter);
+        return false;
+    }
+    
+    CUDA_CHECK(cudaMemcpy(total_hits, d_global_counter, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    
+    // NEW: Track if we hit the limit
+    if (*total_hits >= MAX_MINIMIZERS_PER_BATCH) {
+        total_minimizers_capped += (*total_hits - MAX_MINIMIZERS_PER_BATCH);
+        total_batches_capped++;
+        
+        printf("WARNING: Minimizer extraction hit capacity limit!\n");
+        printf("  Extracted: %u, Capacity: %d\n", *total_hits, MAX_MINIMIZERS_PER_BATCH);
+        printf("  This batch was capped - consider increasing capacity\n");
+        
+        *total_hits = MAX_MINIMIZERS_PER_BATCH;
+    }
+    
+    cudaFree(d_global_counter);
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    stats.minimizer_extraction_time += 
+        std::chrono::duration<double>(end_time - start_time).count();
+    
+    std::cout << "Extracted " << *total_hits << " minimizers" << std::endl;
+    
+    return true;
+}
+
+// FIXED: Compute LCA assignments without over-aggressive deduplication
+bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
+    const GPUMinimizerHit* d_hits,
+    int num_hits,
+    LCACandidate* d_candidates,
+    int* num_candidates) {
+    
+    if (num_hits == 0) {
+        *num_candidates = 0;
+        return true;
+    }
+    
+    std::cout << "Computing LCA assignments for " << num_hits << " hits..." << std::endl;
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // FIXED: Instead of aggressive deduplication, just convert hits to candidates
+    // The deduplication will happen during final database merge
+    int blocks = (num_hits + 255) / 256;
+    convert_hits_to_candidates_fixed<<<blocks, 256>>>(
+        d_hits, num_hits, d_candidates
+    );
+    CUDA_CHECK(cudaDeviceSynchronize());
+    
+    *num_candidates = num_hits;  // Keep all hits as candidates
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    stats.lca_computation_time += 
+        std::chrono::duration<double>(end_time - start_time).count();
+    
+    std::cout << "Created " << *num_candidates << " LCA candidates" << std::endl;
+    
+    return true;
+}
+
+// Keep all original utility functions
+bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
+    std::cout << "Allocating GPU memory..." << std::endl;
+    
+    size_t free_memory, total_memory_gpu;
+    cudaMemGetInfo(&free_memory, &total_memory_gpu);
+    std::cout << "GPU Memory: " << (free_memory / 1024 / 1024) << " MB free / " 
+              << (total_memory_gpu / 1024 / 1024) << " MB total" << std::endl;
+    
+    size_t sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;
+    size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
+    size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
+    size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
+    
+    size_t total_required = sequence_memory + genome_info_memory + 
+                           minimizer_memory + candidate_memory;
+    
+    std::cout << "Memory requirements:" << std::endl;
+    std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Total required: " << (total_required / 1024 / 1024) << " MB" << std::endl;
+    
+    if (total_required > free_memory * 0.9) {
+        std::cerr << "ERROR: Not enough GPU memory!" << std::endl;
+        return false;
+    }
+    
+    CUDA_CHECK(cudaMalloc(&d_sequence_data, sequence_memory));
+    CUDA_CHECK(cudaMalloc(&d_genome_info, genome_info_memory));
+    CUDA_CHECK(cudaMalloc(&d_minimizer_hits, minimizer_memory));
+    CUDA_CHECK(cudaMalloc(&d_minimizer_counts, MAX_SEQUENCE_BATCH * sizeof(uint32_t)));
+    CUDA_CHECK(cudaMalloc(&d_lca_candidates, candidate_memory));
+    
+    std::cout << "Successfully allocated " << (total_required / 1024 / 1024) 
+              << " MB of GPU memory" << std::endl;
+    
+    return true;
+}
+
+void GPUKrakenDatabaseBuilder::free_gpu_memory() {
+    if (d_sequence_data) { cudaFree(d_sequence_data); d_sequence_data = nullptr; }
+    if (d_genome_info) { cudaFree(d_genome_info); d_genome_info = nullptr; }
+    if (d_minimizer_hits) { cudaFree(d_minimizer_hits); d_minimizer_hits = nullptr; }
+    if (d_minimizer_counts) { cudaFree(d_minimizer_counts); d_minimizer_counts = nullptr; }
+    if (d_lca_candidates) { cudaFree(d_lca_candidates); d_lca_candidates = nullptr; }
+    if (d_taxonomy_nodes) { cudaFree(d_taxonomy_nodes); d_taxonomy_nodes = nullptr; }
+}
+
+// Keep all original file processing methods
+std::vector<std::string> GPUKrakenDatabaseBuilder::find_genome_files(const std::string& directory) {
+    std::vector<std::string> files;
+    
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
+        if (entry.is_regular_file()) {
+            std::string extension = entry.path().extension().string();
+            
+            if (extension == ".fna" || extension == ".fa" || extension == ".fasta" ||
+                extension == ".ffn" || extension == ".faa") {
+                files.push_back(entry.path().string());
+            }
+        }
+    }
+    
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+uint32_t GPUKrakenDatabaseBuilder::extract_taxon_from_filename(const std::string& filename) {
+    std::filesystem::path p(filename);
+    std::string stem = p.stem().string();
+    
+    std::regex taxid_pattern(R"(taxid[_-](\d+))");
+    std::smatch match;
+    if (std::regex_search(stem, match, taxid_pattern)) {
+        return std::stoul(match[1].str());
+    }
+    
+    std::regex gcf_pattern(R"(GCF_(\d+\.\d+))");
+    if (std::regex_search(stem, match, gcf_pattern)) {
+        std::hash<std::string> hasher;
+        return hasher(match[1].str()) % 1000000 + 1000000;
+    }
+    
+    std::hash<std::string> hasher;
+    return hasher(stem) % 1000000 + 2000000;
+}
+
+std::vector<std::string> GPUKrakenDatabaseBuilder::load_sequences_from_fasta(const std::string& fasta_path) {
+    std::vector<std::string> sequences;
+    std::ifstream file(fasta_path);
+    
+    if (!file.is_open()) {
+        std::cerr << "Cannot open FASTA file: " << fasta_path << std::endl;
+        return sequences;
+    }
+    
+    std::string line, current_sequence;
+    bool in_sequence = false;
+    
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+        
+        if (line[0] == '>') {
+            if (in_sequence && !current_sequence.empty()) {
+                sequences.push_back(current_sequence);
+                current_sequence.clear();
+            }
+            in_sequence = true;
+        } else if (in_sequence) {
+            current_sequence += line;
+        }
+    }
+    
+    if (!current_sequence.empty()) {
+        sequences.push_back(current_sequence);
+    }
+    
+    file.close();
+    return sequences;
+}
+
+// UPDATED: Save database with improved statistics
+bool GPUKrakenDatabaseBuilder::save_database() {
+    std::cout << "Saving database to " << output_directory << "..." << std::endl;
+    
+    // Process all LCA candidates and merge duplicates
+    std::unordered_map<uint64_t, LCACandidate> unique_candidates;
+    
+    for (const auto& candidate : all_lca_candidates) {
+        if (unique_candidates.find(candidate.minimizer_hash) == unique_candidates.end()) {
+            unique_candidates[candidate.minimizer_hash] = candidate;
+        } else {
+            // Update genome count and compute simple LCA
+            auto& existing = unique_candidates[candidate.minimizer_hash];
+            existing.genome_count++;
+            existing.lca_taxon = compute_simple_lca_host(existing.lca_taxon, candidate.lca_taxon);
+            existing.uniqueness_score = 1.0f / existing.genome_count;
+        }
+    }
+    
+    stats.unique_minimizers = unique_candidates.size();
+    
+    // Save hash table
+    std::string hash_file = output_directory + "/hash_table.k2d";
+    std::ofstream hash_out(hash_file, std::ios::binary);
+    
+    if (!hash_out.is_open()) {
+        std::cerr << "Cannot create hash table file: " << hash_file << std::endl;
+        return false;
+    }
+    
+    uint64_t table_size = unique_candidates.size() * 2;
+    uint64_t num_entries = unique_candidates.size();
+    
+    hash_out.write(reinterpret_cast<const char*>(&table_size), sizeof(uint64_t));
+    hash_out.write(reinterpret_cast<const char*>(&num_entries), sizeof(uint64_t));
+    
+    for (const auto& [hash, candidate] : unique_candidates) {
+        hash_out.write(reinterpret_cast<const char*>(&candidate.minimizer_hash), sizeof(uint64_t));
+        hash_out.write(reinterpret_cast<const char*>(&candidate.lca_taxon), sizeof(uint32_t));
+        hash_out.write(reinterpret_cast<const char*>(&candidate.genome_count), sizeof(uint32_t));
+        hash_out.write(reinterpret_cast<const char*>(&candidate.uniqueness_score), sizeof(float));
+    }
+    hash_out.close();
+    
+    // Save taxonomy
+    std::string taxonomy_file = output_directory + "/taxonomy.tsv";
+    std::ofstream tax_out(taxonomy_file);
+    
+    tax_out << "taxon_id\tname\tparent_id\n";
+    for (const auto& [taxon_id, name] : taxon_names) {
+        uint32_t parent_id = taxon_parents.count(taxon_id) ? taxon_parents[taxon_id] : 0;
+        tax_out << taxon_id << "\t" << name << "\t" << parent_id << "\n";
+    }
+    tax_out.close();
+    
+    // Save configuration
+    std::string config_file = output_directory + "/config.txt";
+    std::ofstream config_out(config_file);
+    config_out << "k=" << minimizer_params.k << "\n";
+    config_out << "ell=" << minimizer_params.ell << "\n";
+    config_out << "spaces=" << minimizer_params.spaces << "\n";
+    config_out << "subsampling_rate=" << subsampling_rate << "\n";
+    config_out << "min_clear_hash_value=0x" << std::hex << min_clear_hash_value << std::dec << "\n";
+    config_out.close();
+    
+    std::cout << "Database saved successfully!" << std::endl;
+    std::cout << "  Hash table: " << hash_file << " (" << num_entries << " entries)" << std::endl;
+    std::cout << "  Taxonomy: " << taxonomy_file << " (" << taxon_names.size() << " taxa)" << std::endl;
+    
+    return true;
+}
+
+// UPDATED: Include capping statistics
+void GPUKrakenDatabaseBuilder::print_build_statistics() {
+    std::cout << "\n=== BUILD STATISTICS ===" << std::endl;
+    std::cout << "Total sequences processed: " << stats.total_sequences << std::endl;
+    std::cout << "Total bases processed: " << stats.total_bases << std::endl;
+    std::cout << "Total k-mers processed: " << stats.total_kmers_processed << std::endl;
+    std::cout << "Valid minimizers extracted: " << stats.valid_minimizers_extracted << std::endl;
+    std::cout << "Unique minimizers: " << stats.unique_minimizers << std::endl;
+    std::cout << "LCA assignments computed: " << stats.lca_assignments << std::endl;
+    
+    // NEW: Capping statistics
+    if (total_batches_capped > 0) {
+        std::cout << "\n⚠️  CAPACITY WARNINGS:" << std::endl;
+        std::cout << "Batches that hit minimizer limit: " << total_batches_capped << std::endl;
+        std::cout << "Estimated minimizers lost to capping: " << total_minimizers_capped << std::endl;
+        std::cout << "Recommendation: Increase minimizer capacity or enable auto-scaling" << std::endl;
+    } else {
+        std::cout << "\n✓ No capacity limits hit during processing" << std::endl;
+    }
+    
+    if (stats.total_kmers_processed > 0) {
+        double compression = (double)stats.valid_minimizers_extracted / stats.total_kmers_processed;
+        std::cout << "Initial compression ratio: " << std::fixed << std::setprecision(4) 
+                  << compression << " (" << std::fixed << std::setprecision(1) 
+                  << (1.0/compression) << "x reduction)" << std::endl;
+        
+        double final_compression = (double)stats.unique_minimizers / stats.total_kmers_processed;
+        std::cout << "Final compression ratio: " << std::fixed << std::setprecision(4) 
+                  << final_compression << " (" << std::fixed << std::setprecision(1) 
+                  << (1.0/final_compression) << "x reduction)" << std::endl;
+    }
+    
+    if (subsampling_rate < 1.0) {
+        std::cout << "Subsampling rate applied: " << std::fixed << std::setprecision(3) 
+                  << subsampling_rate << std::endl;
+    }
+    
+    std::cout << "Processing times:" << std::endl;
+    std::cout << "  Sequence processing: " << std::fixed << std::setprecision(2) 
+              << stats.sequence_processing_time << "s" << std::endl;
+    std::cout << "  Minimizer extraction: " << std::fixed << std::setprecision(2) 
+              << stats.minimizer_extraction_time << "s" << std::endl;
+    std::cout << "  LCA computation: " << std::fixed << std::setprecision(2) 
+              << stats.lca_computation_time << "s" << std::endl;
+    
+    if (stats.total_bases > 0) {
+        double bases_per_second = stats.total_bases / 
+            (stats.sequence_processing_time + stats.minimizer_extraction_time);
+        std::cout << "Processing rate: " << std::scientific << std::setprecision(2) 
+                  << bases_per_second << " bases/second" << std::endl;
+    }
+}
+
+// Keep all original taxonomy loading methods (they work fine)
+bool GPUKrakenDatabaseBuilder::load_taxonomy_data(const std::string& taxonomy_path) {
+    std::cout << "Loading taxonomy data from: " << taxonomy_path << std::endl;
+    
+    taxon_names.clear();
+    taxon_parents.clear();
+    
+    std::filesystem::path base_path(taxonomy_path);
+    std::string nodes_file, names_file;
+    
+    if (std::filesystem::is_directory(base_path)) {
+        nodes_file = base_path / "nodes.dmp";
+        names_file = base_path / "names.dmp";
+        
+        if (!std::filesystem::exists(nodes_file)) {
+            nodes_file = base_path.parent_path() / "nodes.dmp";
+            names_file = base_path.parent_path() / "names.dmp";
+        }
+    } else {
+        base_path = base_path.parent_path();
+        nodes_file = base_path / "nodes.dmp";
+        names_file = base_path / "names.dmp";
+    }
+    
+    if (!std::filesystem::exists(nodes_file)) {
+        std::cerr << "nodes.dmp not found at: " << nodes_file << std::endl;
+        return false;
+    }
+    
+    std::cout << "Loading taxonomy tree from: " << nodes_file << std::endl;
+    std::ifstream nodes_in(nodes_file);
+    if (!nodes_in.is_open()) {
+        std::cerr << "Cannot open nodes.dmp: " << nodes_file << std::endl;
+        return false;
+    }
+    
+    std::string line;
+    int nodes_loaded = 0;
+    std::unordered_map<uint32_t, std::string> taxon_ranks;
+    
+    while (std::getline(nodes_in, line)) {
+        if (line.empty()) continue;
+        
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> fields;
+        
+        while (std::getline(iss, token, '|')) {
+            token.erase(0, token.find_first_not_of(" \t"));
+            token.erase(token.find_last_not_of(" \t") + 1);
+            fields.push_back(token);
+        }
+        
+        if (fields.size() >= 3) {
+            try {
+                uint32_t taxon_id = std::stoul(fields[0]);
+                uint32_t parent_id = std::stoul(fields[1]);
+                std::string rank = fields[2];
+                
+                taxon_parents[taxon_id] = parent_id;
+                taxon_ranks[taxon_id] = rank;
+                nodes_loaded++;
+                
+                taxon_names[taxon_id] = "taxon_" + std::to_string(taxon_id);
+            } catch (const std::exception& e) {
+                continue;
+            }
+        }
+    }
+    nodes_in.close();
+    
+    std::cout << "Loaded " << nodes_loaded << " taxonomy nodes" << std::endl;
+    
+    if (!std::filesystem::exists(names_file)) {
+        std::cerr << "names.dmp not found at: " << names_file << std::endl;
+        std::cerr << "Using taxon IDs as names" << std::endl;
+        return nodes_loaded > 0;
+    }
+    
+    std::cout << "Loading taxonomy names from: " << names_file << std::endl;
+    std::ifstream names_in(names_file);
+    if (!names_in.is_open()) {
+        std::cerr << "Cannot open names.dmp: " << names_file << std::endl;
+        return nodes_loaded > 0;
+    }
+    
+    int names_loaded = 0;
+    
+    while (std::getline(names_in, line)) {
+        if (line.empty()) continue;
+        
+        std::istringstream iss(line);
+        std::string token;
+        std::vector<std::string> fields;
+        
+        while (std::getline(iss, token, '|')) {
+            token.erase(0, token.find_first_not_of(" \t"));
+            token.erase(token.find_last_not_of(" \t") + 1);
+            fields.push_back(token);
+        }
+        
+        if (fields.size() >= 4) {
+            try {
+                uint32_t taxon_id = std::stoul(fields[0]);
+                std::string name_txt = fields[1];
+                std::string name_class = fields[3];
+                
+                if (name_class == "scientific name" && taxon_parents.find(taxon_id) != taxon_parents.end()) {
+                    taxon_names[taxon_id] = name_txt;
+                    names_loaded++;
+                }
+            } catch (const std::exception& e) {
+                continue;
+            }
+        }
+    }
+    names_in.close();
+    
+    std::cout << "Loaded " << names_loaded << " scientific names" << std::endl;
+    
+    if (taxon_names.find(1) == taxon_names.end()) {
+        taxon_names[1] = "root";
+        taxon_parents[1] = 0;
+    }
+    
+    std::cout << "Total taxa in database: " << taxon_parents.size() << std::endl;
+    
+    return nodes_loaded > 0;
+}
+
+// Keep original test function
+void GPUKrakenDatabaseBuilder::test_minimizer_extraction_integration() {
+    std::cout << "Testing minimizer extraction integration..." << std::endl;
+    
+    std::string test_seq = "ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG";
+    std::vector<std::string> test_sequences = {test_seq};
+    std::vector<uint32_t> test_taxon_ids = {12345};
+    
+    bool success = process_sequence_batch(test_sequences, test_taxon_ids, 0);
+    
+    if (success) {
+        std::cout << "✓ Minimizer extraction test PASSED" << std::endl;
+    } else {
+        std::cout << "✗ Minimizer extraction test FAILED" << std::endl;
+    }
+}
+
+// Placeholder methods to maintain interface compatibility
+bool GPUKrakenDatabaseBuilder::build_database_from_file_list(
+    const std::string& file_list_path,
+    const std::string& taxonomy_path) {
+    // Implementation would be similar to build_database_from_genomes
+    // but loading file list instead of directory
+    std::cerr << "build_database_from_file_list not yet implemented" << std::endl;
+    return false;
+}
+
+bool GPUKrakenDatabaseBuilder::parse_taxonomy_files(const std::string& taxonomy_path) {
+    return load_taxonomy_data(taxonomy_path);
+}
+
+bool GPUKrakenDatabaseBuilder::build_compact_hash_table_gpu(
+    const LCACandidate* d_candidates,
+    int num_candidates) {
+    // This functionality is now integrated into save_database()
+    return true;
+}
+
+#endif // GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
+
+#endif // GPU_KRAKEN_DATABASE_BUILDER_CUH

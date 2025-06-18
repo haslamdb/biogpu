@@ -324,6 +324,7 @@ set_target_properties(gpu_kraken_pipeline PROPERTIES
 )
 
 target_link_libraries(gpu_kraken_pipeline
+    gpu_enhanced_classification_phylo  # Add enhanced classification
     gpu_kraken_database_builder
     gpu_kraken_classifier
     gpu_kraken_minimizer_extraction
@@ -358,6 +359,66 @@ target_compile_options(gpu_kraken_pipeline PRIVATE
         -DNDEBUG
     >
 )
+
+# ========================================
+# Enhanced K2-like Classifier with Phylogeny
+# ========================================
+
+# Enhanced classification with phylogeny library
+add_library(gpu_enhanced_classification_phylo STATIC
+    enhanced_k2like/phase1_enhanced_classification_cc.cu
+)
+
+set_target_properties(gpu_enhanced_classification_phylo PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(gpu_enhanced_classification_phylo PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -O3
+        --maxrregcount=64
+        -DTHRUST_IGNORE_CUB_VERSION_CHECK
+        --extended-lambda
+    >
+)
+
+# Enhanced classifier test executable
+add_executable(test_enhanced_classifier
+    enhanced_k2like/test_enhanced_classifier_cc.cu
+)
+
+set_target_properties(test_enhanced_classifier PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/enhanced_k2like
+)
+
+target_link_libraries(test_enhanced_classifier
+    gpu_enhanced_classification_phylo
+    gpu_kraken_database_builder
+    gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
+    fastq_processing
+    minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    cuda
+    cudart
+    stdc++fs
+)
+
+if(Thrust_FOUND)
+    target_link_libraries(test_enhanced_classifier Thrust::Thrust)
+endif()
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(test_enhanced_classifier OpenMP::OpenMP_CXX)
+endif()
 
 # Paired-end Kraken classifier
 # TODO: Uncomment when gpu_kraken_paired_main.cpp is implemented

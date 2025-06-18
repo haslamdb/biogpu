@@ -1,0 +1,127 @@
+# ========================================
+# Enhanced K2-like Classifier additions
+# Add this to the profiler CMakeLists.txt
+# ========================================
+
+# Enhanced K2-like libraries
+add_library(phase1_enhanced_classification STATIC
+    enhanced_k2like/phase1_enhanced_classification_cc.cu
+)
+
+set_target_properties(phase1_enhanced_classification PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(phase1_enhanced_classification PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -O3
+        --maxrregcount=64
+        -DTHRUST_IGNORE_CUB_VERSION_CHECK
+        --extended-lambda
+    >
+)
+
+# Link with existing libraries
+target_link_libraries(phase1_enhanced_classification
+    gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
+    cuda
+    cudart
+)
+
+# Enhanced classifier executables
+add_executable(gpu_kraken_enhanced_pipeline
+    enhanced_k2like/kraken_pipeline_main.cu
+    enhanced_k2like/sample_csv_parser.cpp
+)
+
+set_target_properties(gpu_kraken_enhanced_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/enhanced_k2like
+)
+
+target_link_libraries(gpu_kraken_enhanced_pipeline
+    phase1_enhanced_classification
+    gpu_kraken_database_builder
+    gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
+    fastq_processing
+    minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    cuda
+    cudart
+    stdc++fs
+)
+
+# Test program for enhanced classifier
+add_executable(test_enhanced_classifier
+    enhanced_k2like/test_enhanced_classifier_cc.cu
+)
+
+set_target_properties(test_enhanced_classifier PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/enhanced_k2like
+)
+
+target_link_libraries(test_enhanced_classifier
+    phase1_enhanced_classification
+    gpu_kraken_database_builder
+    gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
+    fastq_processing
+    minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    cuda
+    cudart
+    stdc++fs
+)
+
+if(Thrust_FOUND)
+    target_link_libraries(gpu_kraken_enhanced_pipeline Thrust::Thrust)
+    target_link_libraries(test_enhanced_classifier Thrust::Thrust)
+endif()
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(gpu_kraken_enhanced_pipeline OpenMP::OpenMP_CXX)
+    target_link_libraries(test_enhanced_classifier OpenMP::OpenMP_CXX)
+endif()
+
+# Optimized compile options
+target_compile_options(gpu_kraken_enhanced_pipeline PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        -O3
+        -DNDEBUG
+        --maxrregcount=64
+        --extended-lambda
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)
+
+target_compile_options(test_enhanced_classifier PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        -O3
+        -DNDEBUG
+        --maxrregcount=64
+        --extended-lambda
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)

@@ -1,9 +1,0 @@
-Classification Summary Report (Paired-end)
-==========================================
-Total read pairs: 201124
-Classified: 0 (0.0%)
-Unclassified: 201124 (100.0%)
-Unique taxa detected: 0
-
-Top Taxa by Read Count:
-Taxon ID	Read Count	Percentage

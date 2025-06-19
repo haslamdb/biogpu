@@ -366,12 +366,27 @@ target_compile_options(gpu_kraken_pipeline PRIVATE
 # ========================================
 
 # Enhanced classification with phylogeny library
-# Using header-only implementation from phase1_enhanced_classifier_with_phylo.h
-# so we create an interface library instead
-add_library(gpu_enhanced_classification_phylo INTERFACE)
+add_library(gpu_enhanced_classification_phylo STATIC
+    enhanced_k2like/phase1_enhanced_classification_cc.cu
+)
 
-# Interface libraries don't need properties or compile options
-# The header will be included by targets that link to this
+set_target_properties(gpu_enhanced_classification_phylo PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(gpu_enhanced_classification_phylo PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -O3
+        --maxrregcount=64
+        -DTHRUST_IGNORE_CUB_VERSION_CHECK
+        --extended-lambda
+    >
+)
 
 # Enhanced classifier test executable
 # TODO: Enable when test_enhanced_classifier_cc.cu is implemented

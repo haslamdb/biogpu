@@ -301,6 +301,29 @@ public:
         phylo_params.min_consistency_score = min_consistency;
     }
     
+    // Load Kraken database from directory
+    bool load_database(const std::string& db_dir) {
+        std::cout << "Loading database from: " << db_dir << std::endl;
+        
+        // Load hash table
+        std::string hash_table_file = db_dir + "/hash_table.k2d";
+        if (!load_hash_table(hash_table_file)) {
+            std::cerr << "Failed to load hash table from " << hash_table_file << std::endl;
+            return false;
+        }
+        
+        // Load phylogeny if not already loaded
+        if (!phylogeny_loaded && !phylo_params.taxonomy_nodes_path.empty()) {
+            if (!load_phylogenetic_data()) {
+                std::cerr << "Failed to load phylogenetic data" << std::endl;
+                return false;
+            }
+        }
+        
+        std::cout << "Database loaded successfully" << std::endl;
+        return true;
+    }
+    
 private:
     bool allocate_gpu_memory() {
         // Same as before - allocate results and k-mer tracking memory
@@ -355,6 +378,59 @@ private:
     void transfer_reads_to_gpu(const std::vector<std::string>& reads) {
         // Placeholder - use existing read transfer logic from base class
         std::cout << "Transferring " << reads.size() << " reads to GPU..." << std::endl;
+    }
+    
+    bool load_hash_table(const std::string& hash_table_file) {
+        // Similar implementation to FastEnhancedClassifier
+        std::ifstream hash_in(hash_table_file, std::ios::binary);
+        if (!hash_in.is_open()) {
+            std::cerr << "Cannot open hash table file: " << hash_table_file << std::endl;
+            return false;
+        }
+        
+        // Read header
+        uint64_t table_size, num_entries;
+        hash_in.read(reinterpret_cast<char*>(&table_size), sizeof(uint64_t));
+        hash_in.read(reinterpret_cast<char*>(&num_entries), sizeof(uint64_t));
+        
+        std::cout << "Hash table size: " << table_size << ", entries: " << num_entries << std::endl;
+        
+        // Create compact hash table
+        GPUCompactHashTable h_cht;
+        h_cht.table_size = table_size;
+        h_cht.hash_mask = table_size - 1;
+        h_cht.lca_bits = 20;
+        h_cht.hash_bits = 32 - h_cht.lca_bits;
+        
+        // Allocate on GPU
+        cudaMalloc(&h_cht.hash_cells, table_size * sizeof(uint32_t));
+        cudaMemset(h_cht.hash_cells, 0, table_size * sizeof(uint32_t));
+        
+        cudaMalloc(&d_hash_table, sizeof(GPUCompactHashTable));
+        cudaMemcpy(d_hash_table, &h_cht, sizeof(GPUCompactHashTable), cudaMemcpyHostToDevice);
+        
+        // Read entries
+        std::vector<uint32_t> host_hash_cells(table_size, 0);
+        
+        for (uint64_t i = 0; i < num_entries; i++) {
+            uint64_t minimizer_hash;
+            uint32_t lca_taxon, genome_count;
+            float uniqueness_score;
+            
+            hash_in.read(reinterpret_cast<char*>(&minimizer_hash), sizeof(uint64_t));
+            hash_in.read(reinterpret_cast<char*>(&lca_taxon), sizeof(uint32_t));
+            hash_in.read(reinterpret_cast<char*>(&genome_count), sizeof(uint32_t));
+            hash_in.read(reinterpret_cast<char*>(&uniqueness_score), sizeof(float));
+            
+            uint32_t pos = minimizer_hash & h_cht.hash_mask;
+            host_hash_cells[pos] = lca_taxon;
+        }
+        
+        cudaMemcpy(h_cht.hash_cells, host_hash_cells.data(), 
+                   table_size * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        
+        hash_in.close();
+        return true;
     }
 };
 

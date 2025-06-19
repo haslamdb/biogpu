@@ -1,0 +1,163 @@
+# Enhanced K2-like Classifier CMakeLists.txt
+# Local CMakeLists.txt for enhanced_k2like directory
+
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+
+# Find required packages if not already found by parent
+if(NOT TARGET CUDA::cuda)
+    find_package(CUDAToolkit REQUIRED)
+endif()
+
+find_package(Threads REQUIRED)
+
+# Find zlib for compressed FASTQ support
+find_package(ZLIB REQUIRED)
+
+# Enhanced K2-like classifier library
+add_library(phase1_enhanced_classification STATIC
+    phase1_enhanced_classification_cc.cu
+)
+
+set_target_properties(phase1_enhanced_classification PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(phase1_enhanced_classification PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -O3
+        --maxrregcount=64
+        -DTHRUST_IGNORE_CUB_VERSION_CHECK
+        --extended-lambda
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)
+
+# Include directories
+target_include_directories(phase1_enhanced_classification PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../k2like_from_scratch
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tools
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../include
+)
+
+# Link with existing libraries from parent
+target_link_libraries(phase1_enhanced_classification
+    gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    CUDA::cuda
+    CUDA::cudart
+    Threads::Threads
+)
+
+# Enhanced classifier executable
+add_executable(gpu_kraken_enhanced_pipeline
+    kraken_pipeline_main.cu
+    ../k2like_from_scratch/sample_csv_parser.cpp
+)
+
+set_target_properties(gpu_kraken_enhanced_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+target_include_directories(gpu_kraken_enhanced_pipeline PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../k2like_from_scratch
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tools
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../include
+)
+
+target_link_libraries(gpu_kraken_enhanced_pipeline
+    phase1_enhanced_classification
+    gpu_kraken_database_builder
+    gpu_kraken_classifier
+    gpu_kraken_minimizer_extraction
+    fastq_processing
+    minimizer_extraction
+    ${ZLIB_LIBRARIES}
+    CUDA::cuda
+    CUDA::cudart
+    Threads::Threads
+    stdc++fs
+)
+
+# Compact taxonomy builder tool (if it exists)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../tools/build_compact_taxonomy.cpp)
+    add_executable(build_compact_taxonomy
+        ../tools/build_compact_taxonomy.cpp
+    )
+
+    set_target_properties(build_compact_taxonomy PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+
+    target_include_directories(build_compact_taxonomy PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../tools
+    )
+
+    target_link_libraries(build_compact_taxonomy
+        CUDA::cuda
+        CUDA::cudart
+        stdc++fs
+    )
+endif()
+
+# Optimized compile options
+target_compile_options(gpu_kraken_enhanced_pipeline PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        -O3
+        -DNDEBUG
+        --maxrregcount=64
+        --extended-lambda
+    >
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -O3
+        -march=native
+        -DNDEBUG
+    >
+)
+
+# Add custom targets for testing (adjust paths as needed)
+add_custom_target(test_enhanced_classification
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/gpu_kraken_enhanced_pipeline
+            classify
+            --database ${CMAKE_CURRENT_BINARY_DIR}/../test_db
+            --reads ${CMAKE_CURRENT_SOURCE_DIR}/../../../../data/test_reads.fastq
+            --output ${CMAKE_CURRENT_BINARY_DIR}/enhanced_test_results.txt
+            --enhanced
+            --classification-mode fast-enhanced
+            --confidence 0.1
+    DEPENDS gpu_kraken_enhanced_pipeline
+    COMMENT "Testing enhanced classification pipeline"
+)
+
+# Installation rules
+install(TARGETS gpu_kraken_enhanced_pipeline
+        RUNTIME DESTINATION bin
+        COMPONENT enhanced_classifier)
+
+# Create a configuration summary
+message(STATUS "Enhanced K2-like Classifier Configuration:")
+message(STATUS "  Enhanced pipeline: gpu_kraken_enhanced_pipeline")
+message(STATUS "  Library: phase1_enhanced_classification")
+message(STATUS "  Support for:")
+message(STATUS "    ✓ Fast enhanced classification with compact taxonomy")
+message(STATUS "    ✓ Phylogenetic enhanced classification with NCBI taxonomy")
+message(STATUS "    ✓ K-mer tracking for post-hoc analysis")
+message(STATUS "    ✓ Multi-stage confidence filtering")
+message(STATUS "    ✓ Database building with phylogenetic metadata")

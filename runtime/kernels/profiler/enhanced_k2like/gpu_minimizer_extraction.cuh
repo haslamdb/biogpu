@@ -56,7 +56,7 @@ bool deduplicate_minimizers_gpu(
     uint32_t max_allocated_hits
 );
 
-void test_minimizer_extraction();
+extern "C" void test_minimizer_extraction();
 
 // Device function implementations - moved to header for cross-compilation unit access
 __device__ inline uint64_t encode_base(char base) {

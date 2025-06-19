@@ -11,7 +11,7 @@
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <cub/cub.cuh>
-#include "../../../include/biogpu/minimizer_extraction.h"
+// Removed biogpu/minimizer_extraction.h to avoid conflicts with local definitions
 
 // Configuration constants
 #define MAX_KMER_LENGTH 64

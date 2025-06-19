@@ -5,7 +5,7 @@
 // Include the actual implementations
 #include "gpu_kraken_classifier.cu"
 #include "gpu_kraken_database_builder.cu"
-#include "sample_csv_parser.h"
+#include "../k2like_from_scratch/sample_csv_parser.h"
 #include "classification_report_generator.h"
 
 // ADD THESE NEW INCLUDES:
@@ -734,6 +734,9 @@ bool classify_reads_with_streaming(const PipelineConfig& config) {
         return false;
     }
 }
+
+// Forward declaration
+bool classify_reads_enhanced(const PipelineConfig& config);
 
 bool classify_reads_command(const PipelineConfig& config) {
     // Check if enhanced classification is requested

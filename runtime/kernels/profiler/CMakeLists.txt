@@ -366,41 +366,61 @@ target_compile_options(gpu_kraken_pipeline PRIVATE
 # ========================================
 
 # Enhanced classification with phylogeny library
-add_library(gpu_enhanced_classification_phylo STATIC
-    enhanced_k2like/phase1_enhanced_classification_cc.cu
-)
+# Using header-only implementation from phase1_enhanced_classifier_with_phylo.h
+# so we create an interface library instead
+add_library(gpu_enhanced_classification_phylo INTERFACE)
 
-set_target_properties(gpu_enhanced_classification_phylo PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    POSITION_INDEPENDENT_CODE ON
-)
-
-target_compile_options(gpu_enhanced_classification_phylo PRIVATE
-    $<$<COMPILE_LANGUAGE:CUDA>:
-        --use_fast_math
-        --generate-line-info
-        -O3
-        --maxrregcount=64
-        -DTHRUST_IGNORE_CUB_VERSION_CHECK
-        --extended-lambda
-    >
-)
+# Interface libraries don't need properties or compile options
+# The header will be included by targets that link to this
 
 # Enhanced classifier test executable
-add_executable(test_enhanced_classifier
-    enhanced_k2like/test_enhanced_classifier_cc.cu
+# TODO: Enable when test_enhanced_classifier_cc.cu is implemented
+# add_executable(test_enhanced_classifier
+#     enhanced_k2like/test_enhanced_classifier_cc.cu
+# )
+
+# set_target_properties(test_enhanced_classifier PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+#     CUDA_RESOLVE_DEVICE_SYMBOLS ON
+#     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/enhanced_k2like
+# )
+# 
+# target_link_libraries(test_enhanced_classifier
+#     gpu_enhanced_classification_phylo
+#     gpu_kraken_database_builder
+#     gpu_kraken_classifier
+#     gpu_kraken_minimizer_extraction
+#     fastq_processing
+#     minimizer_extraction
+#     ${ZLIB_LIBRARIES}
+#     cuda
+#     cudart
+#     stdc++fs
+# )
+# 
+# if(Thrust_FOUND)
+#     target_link_libraries(test_enhanced_classifier Thrust::Thrust)
+# endif()
+# 
+# if(OpenMP_CXX_FOUND)
+#     target_link_libraries(test_enhanced_classifier OpenMP::OpenMP_CXX)
+# endif()
+
+# Enhanced Kraken pipeline executable
+add_executable(enhanced_kraken_pipeline
+    enhanced_k2like/kraken_pipeline_main.cu
+    k2like_from_scratch/sample_csv_parser.cpp
 )
 
-set_target_properties(test_enhanced_classifier PROPERTIES
+set_target_properties(enhanced_kraken_pipeline PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "61;70;75;80;86"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/enhanced_k2like
 )
 
-target_link_libraries(test_enhanced_classifier
+target_link_libraries(enhanced_kraken_pipeline
     gpu_enhanced_classification_phylo
     gpu_kraken_database_builder
     gpu_kraken_classifier
@@ -414,11 +434,11 @@ target_link_libraries(test_enhanced_classifier
 )
 
 if(Thrust_FOUND)
-    target_link_libraries(test_enhanced_classifier Thrust::Thrust)
+    target_link_libraries(enhanced_kraken_pipeline Thrust::Thrust)
 endif()
 
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(test_enhanced_classifier OpenMP::OpenMP_CXX)
+    target_link_libraries(enhanced_kraken_pipeline OpenMP::OpenMP_CXX)
 endif()
 
 # Paired-end Kraken classifier

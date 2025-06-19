@@ -5,7 +5,7 @@
 #define FAST_ENHANCED_CLASSIFIER_H
 
 #include "enhanced_classification_params.h"
-#include "compact_gpu_taxonomy.h"
+#include "../tools/compact_gpu_taxonomy.h"
 #include <vector>
 #include <iostream>
 #include <memory>

@@ -16,7 +16,7 @@ struct GPUPhylogeneticData {
 };
 
 // Device function to find LCA of two taxa
-__device__ uint32_t find_lca_gpu_phylo(
+__device__ inline uint32_t find_lca_gpu_phylo(
     uint32_t taxon1, 
     uint32_t taxon2,
     const uint32_t* parent_lookup,
@@ -60,7 +60,7 @@ __device__ uint32_t find_lca_gpu_phylo(
 }
 
 // Device function to calculate normalized phylogenetic distance
-__device__ float calculate_phylogenetic_distance_gpu(
+__device__ inline float calculate_phylogenetic_distance_gpu(
     uint32_t taxon1,
     uint32_t taxon2,
     const uint32_t* parent_lookup,
@@ -86,7 +86,7 @@ __device__ float calculate_phylogenetic_distance_gpu(
 }
 
 // Device function to check if two taxa are closely related
-__device__ bool are_taxa_closely_related_gpu(
+__device__ inline bool are_taxa_closely_related_gpu(
     uint32_t taxon1,
     uint32_t taxon2,
     const uint32_t* parent_lookup,
@@ -124,7 +124,7 @@ __device__ bool are_taxa_closely_related_gpu(
 }
 
 // Device function for weighted phylogenetic consistency calculation
-__device__ float calculate_weighted_phylogenetic_consistency_gpu(
+__device__ inline float calculate_weighted_phylogenetic_consistency_gpu(
     const uint32_t* hit_taxa,
     const uint32_t* hit_votes,
     int num_taxa,
@@ -158,7 +158,7 @@ __device__ float calculate_weighted_phylogenetic_consistency_gpu(
 }
 
 // Device function for rank-based weighting
-__device__ float calculate_rank_weighted_consistency_gpu(
+__device__ inline float calculate_rank_weighted_consistency_gpu(
     const uint32_t* hit_taxa,
     const uint32_t* hit_votes,
     int num_taxa,
@@ -215,7 +215,7 @@ __device__ float calculate_rank_weighted_consistency_gpu(
 }
 
 // Device function for hybrid phylogenetic consistency
-__device__ float calculate_hybrid_phylogenetic_consistency_gpu(
+__device__ inline float calculate_hybrid_phylogenetic_consistency_gpu(
     const uint32_t* hit_taxa,
     const uint32_t* hit_votes,
     int num_taxa,
@@ -246,7 +246,7 @@ __device__ float calculate_hybrid_phylogenetic_consistency_gpu(
 }
 
 // Host function to copy phylogenetic data to GPU
-__host__ bool copy_phylogenetic_data_to_gpu(
+__host__ inline bool copy_phylogenetic_data_to_gpu(
     const std::vector<uint32_t>& parent_lookup,
     const std::vector<uint8_t>& depth_lookup,
     const std::vector<uint8_t>& rank_lookup,
@@ -306,7 +306,7 @@ __host__ bool copy_phylogenetic_data_to_gpu(
 }
 
 // Host function to free GPU phylogenetic data
-__host__ void free_phylogenetic_data_gpu(GPUPhylogeneticData* d_phylo_data) {
+__host__ inline void free_phylogenetic_data_gpu(GPUPhylogeneticData* d_phylo_data) {
     if (d_phylo_data->parent_lookup) {
         cudaFree(d_phylo_data->parent_lookup);
         d_phylo_data->parent_lookup = nullptr;

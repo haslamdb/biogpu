@@ -115,14 +115,26 @@ __device__ uint32_t find_paired_classification_with_confidence(
     const uint32_t* parent_lookup
 );
 
-// Utility function declarations
+// Utility function declarations (implementations in .cu file)
 __device__ __host__ uint64_t hash_minimizer(const char* seq, int len);
 __device__ __host__ uint64_t apply_spaced_seed_mask(uint64_t hash, int spaces);
 __device__ __host__ bool has_ambiguous_bases(const char* seq, int len);
-__device__ __host__ uint32_t compute_compact_hash(uint64_t minimizer_hash);
-__device__ __host__ uint32_t jenkins_hash(uint64_t key);
 
-// Inline implementation of lookup_lca_gpu for cross-compilation unit usage
+// Inline implementations for cross-compilation unit usage
+__device__ __host__ inline uint32_t jenkins_hash(uint64_t key) {
+    uint32_t hash = (uint32_t)(key ^ (key >> 32));
+    hash += (hash << 10);
+    hash ^= (hash >> 6);
+    hash += (hash << 3);
+    hash ^= (hash >> 11);
+    hash += (hash << 15);
+    return hash;
+}
+
+__device__ __host__ inline uint32_t compute_compact_hash(uint64_t minimizer_hash) {
+    return jenkins_hash(minimizer_hash) & 0x7FFFFFFF;
+}
+
 __device__ inline uint32_t lookup_lca_gpu_impl(const GPUCompactHashTable* cht, uint64_t minimizer_hash) {
     uint32_t compact_hash = compute_compact_hash(minimizer_hash);
     uint32_t pos = compact_hash & cht->hash_mask;

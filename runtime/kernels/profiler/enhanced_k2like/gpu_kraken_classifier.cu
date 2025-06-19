@@ -90,19 +90,7 @@ __device__ __host__ bool has_ambiguous_bases(const char* seq, int len) {
     return false;
 }
 
-__device__ __host__ uint32_t compute_compact_hash(uint64_t minimizer_hash) {
-    return jenkins_hash(minimizer_hash) & 0x7FFFFFFF;
-}
-
-__device__ __host__ uint32_t jenkins_hash(uint64_t key) {
-    uint32_t hash = (uint32_t)(key ^ (key >> 32));
-    hash += (hash << 10);
-    hash ^= (hash >> 6);
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
-    return hash;
-}
+// These functions are now inline in the header file
 
 // ================================================================
 // CUDA KERNEL IMPLEMENTATIONS

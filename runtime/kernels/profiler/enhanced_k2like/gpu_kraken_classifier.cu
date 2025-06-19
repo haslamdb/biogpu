@@ -25,27 +25,8 @@
 // CUDA DEVICE FUNCTION IMPLEMENTATIONS
 // ================================================================
 
-__device__ uint32_t lookup_lca_gpu(const GPUCompactHashTable* cht, uint64_t minimizer_hash) {
-    uint32_t compact_hash = compute_compact_hash(minimizer_hash);
-    uint32_t pos = compact_hash & cht->hash_mask;
-    uint32_t lca_mask = (1U << cht->lca_bits) - 1;
-    
-    for (int probe = 0; probe < 32; probe++) {
-        uint32_t cell = cht->hash_cells[pos];
-        if (cell == 0) return 0;
-        
-        uint32_t stored_hash = cell >> cht->lca_bits;
-        uint32_t expected_hash = compact_hash >> cht->lca_bits;
-        
-        if (stored_hash == expected_hash) {
-            return cell & lca_mask;
-        }
-        
-        pos = (pos + 1) & cht->hash_mask;
-    }
-    
-    return 0;
-}
+// Use the inline version from header file instead
+#define lookup_lca_gpu lookup_lca_gpu_impl
 
 __device__ uint64_t extract_minimizer_with_spaced_seeds(
     const char* sequence, int pos, int k, int ell, int spaces) {

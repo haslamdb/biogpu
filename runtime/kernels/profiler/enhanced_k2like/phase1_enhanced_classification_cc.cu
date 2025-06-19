@@ -155,7 +155,7 @@ __global__ void phase1_enhanced_classification_kernel(
         }
         
         // Look up in hash table using function from gpu_kraken_classifier.h
-        uint32_t lca = lookup_lca_gpu(hash_table, minimizer);
+        uint32_t lca = lookup_lca_gpu_impl(hash_table, minimizer);
         if (lca == 0) continue;
         
         result.classified_kmers++;

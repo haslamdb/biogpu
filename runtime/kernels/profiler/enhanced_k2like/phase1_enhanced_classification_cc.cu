@@ -5,15 +5,76 @@
 #ifndef PHASE1_ENHANCED_CLASSIFICATION_CU
 #define PHASE1_ENHANCED_CLASSIFICATION_CU
 
-#include "gpu_kraken_classifier.cu"
+#include <cuda_runtime.h>
+#include <vector>
+#include <unordered_map>
+#include <string>
+#include <cstdint>
+
+// Forward declarations of types from gpu_kraken_classifier.cu
+struct PairedRead {
+    std::string read1;
+    std::string read2;
+    std::string read_id;
+    bool is_paired;
+    
+    PairedRead(const std::string& r1, const std::string& r2 = "", 
+               const std::string& id = "") 
+        : read1(r1), read2(r2), read_id(id), is_paired(!r2.empty()) {}
+};
+
+struct GPUCompactHashTable {
+    uint32_t* hash_cells;
+    uint32_t table_size;
+    uint32_t hash_mask;
+    uint32_t lca_bits;
+    uint32_t hash_bits;
+};
+
+struct ClassificationParams {
+    int k = 35;
+    int ell = 31;
+    int spaces = 7;
+    float confidence_threshold = 0.0f;
+    bool use_spaced_seeds = true;
+    int max_ambiguous_bases = 5;
+    bool use_paired_end_bonus = true;
+    float paired_concordance_weight = 2.0f;
+    float min_pair_concordance = 0.5f;
+    bool require_both_reads_classified = false;
+};
+
+struct PairedReadClassification {
+    uint32_t taxon_id;
+    float confidence_score;
+    uint32_t read1_votes;
+    uint32_t read2_votes;
+    uint32_t read1_kmers;
+    uint32_t read2_kmers;
+    uint32_t concordant_votes;
+    float pair_concordance;
+    bool got_paired_bonus;
+    uint32_t read1_best_taxon;
+    uint32_t read2_best_taxon;
+    float read1_confidence;
+    float read2_confidence;
+};
+
+struct TaxonomyNode {
+    uint32_t taxon_id;
+    uint32_t parent_id;
+    uint8_t rank;
+    char name[64];
+};
+
+// Forward declaration of the classifier class
+class PairedEndGPUKrakenClassifier;
+
 #include "enhanced_classification_params.h"
 #include "fast_enhanced_classifier.h"
 #include "phase1_enhanced_classifier_with_phylo.h"
 #include "../tools/compact_gpu_taxonomy.h"
 #include "gpu_minimizer_extraction.cuh"
-#include <cuda_runtime.h>
-#include <vector>
-#include <unordered_map>
 
 using namespace BioGPU::Enhanced;
 using namespace BioGPU::CompactTaxonomy;

@@ -1,9 +1,0 @@
-# Example batch file for adaptive_paired_profiler
-# Format: sample_name    R1_file    R2_file
-# Lines starting with # are comments
-
-sample1	sample1_R1.fastq.gz	sample1_R2.fastq.gz
-sample2	sample2_R1.fastq.gz	sample2_R2.fastq.gz
-sample3	sample3_R1.fastq	sample3_R2.fastq
-# Single-end example (no R2 file)
-sample4	sample4_reads.fastq

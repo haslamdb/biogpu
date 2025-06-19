@@ -735,50 +735,11 @@ public:
     bool process_genomes_gpu();
     bool save_database();
     
-    // Configuration
-    void set_batch_size(int sequences_per_batch) {
-        if (sequences_per_batch > 0 && sequences_per_batch <= 1000) {
-            MAX_SEQUENCE_BATCH = sequences_per_batch;
-            std::cout << "Set GPU batch size to " << MAX_SEQUENCE_BATCH 
-                      << " sequences, " << MAX_MINIMIZERS_PER_BATCH << " minimizers" << std::endl;
-        }
-    }
-    
-    // NEW: Method to set minimizer capacity explicitly
-    void set_minimizer_capacity(int minimizers_per_batch) {
-        if (minimizers_per_batch > 0 && minimizers_per_batch <= 50000000) { // Cap at 50M
-            MAX_MINIMIZERS_PER_BATCH = minimizers_per_batch;
-            std::cout << "Set minimizer capacity to " << MAX_MINIMIZERS_PER_BATCH 
-                      << " per batch" << std::endl;
-            
-            // Recalculate memory requirements
-            check_and_adjust_memory();
-        } else {
-            std::cerr << "Warning: Invalid minimizer capacity. Must be 1-50M" << std::endl;
-        }
-    }
-    
-    // NEW: Auto-scale based on GPU memory
-    void enable_auto_memory_scaling(bool enable = true, size_t memory_fraction = 80) {
-        auto_scale_memory = enable;
-        max_gpu_memory_usage_fraction = memory_fraction;
-        if (enable) {
-            std::cout << "Enabled auto memory scaling (using " << memory_fraction 
-                      << "% of GPU memory)" << std::endl;
-            check_and_adjust_memory();
-        }
-    }
-    
-    // NEW: Set subsampling rate (like Kraken2's --max-db-size functionality)
-    void set_subsampling_rate(double rate) {
-        if (rate > 0.0 && rate <= 1.0) {
-            subsampling_rate = rate;
-            min_clear_hash_value = (uint64_t)((1.0 - rate) * UINT64_MAX);
-            std::cout << "Set subsampling rate to " << rate 
-                      << " (min_clear_hash_value: 0x" << std::hex << min_clear_hash_value 
-                      << std::dec << ")" << std::endl;
-        }
-    }
+    // Configuration - declarations only (implementations moved outside class)
+    void set_batch_size(int sequences_per_batch);
+    void set_minimizer_capacity(int minimizers_per_batch);
+    void enable_auto_memory_scaling(bool enable = true, size_t memory_fraction = 80);
+    void set_subsampling_rate(double rate);
     
     void print_build_statistics();
     

@@ -10,6 +10,7 @@
 #include "fast_enhanced_classifier.h"
 #include "phase1_enhanced_classifier_with_phylo.h"
 #include "../tools/compact_gpu_taxonomy.h"
+#include "gpu_minimizer_extraction.cuh"
 #include <cuda_runtime.h>
 #include <vector>
 #include <unordered_map>
@@ -660,7 +661,7 @@ public:
         std::cout << "High confidence: " << high_confidence << " (" 
                   << (100.0 * high_confidence / total) << "%)" << std::endl;
         
-        if (params.enable_phylogenetic_validation) {
+        if (enhanced_params.enable_phylogenetic_validation) {
             std::cout << "Phylogenetic filter passed: " << phylo_passed << " (" 
                       << (100.0 * phylo_passed / total) << "%)" << std::endl;
         }
@@ -675,7 +676,7 @@ public:
             std::cout << "  Primary: " << std::fixed << std::setprecision(3) 
                       << (total_primary_conf / classified) << std::endl;
             std::cout << "  Secondary: " << (total_secondary_conf / classified) << std::endl;
-            if (params.enable_phylogenetic_validation) {
+            if (enhanced_params.enable_phylogenetic_validation) {
                 std::cout << "  Phylogenetic: " << (total_phylo_score / classified) << std::endl;
             }
         }
@@ -723,7 +724,7 @@ private:
         if (tracking_enabled) {
             d_kmer_tracker = new GPUKmerTracker();
             
-            uint32_t max_kmers_total = max_reads * params.forward_compat.max_kmers_to_track;
+            uint32_t max_kmers_total = max_reads * enhanced_params.forward_compat.max_kmers_to_track;
             
             cudaMalloc(&d_kmer_tracker->minimizer_hashes, max_kmers_total * sizeof(uint64_t));
             cudaMalloc(&d_kmer_tracker->read_positions, max_kmers_total * sizeof(uint16_t));
@@ -732,7 +733,7 @@ private:
             cudaMalloc(&d_kmer_tracker->kmer_counts, max_reads * sizeof(uint16_t));
             cudaMalloc(&d_kmer_tracker->tracking_overflow_flags, max_reads * sizeof(bool));
             
-            d_kmer_tracker->max_kmers_per_read = params.forward_compat.max_kmers_to_track;
+            d_kmer_tracker->max_kmers_per_read = enhanced_params.forward_compat.max_kmers_to_track;
             d_kmer_tracker->max_reads = max_reads;
             
             std::cout << "K-mer tracking allocated: " << (max_kmers_total * 4 * sizeof(uint64_t) / 1024 / 1024) 
@@ -765,7 +766,7 @@ private:
     void retrieve_kmer_tracking_data(std::vector<Phase1ClassificationResult>& results, int num_reads) {
         // Retrieve k-mer counts and overflow flags
         std::vector<uint16_t> kmer_counts(num_reads);
-        std::vector<bool> overflow_flags(num_reads);
+        std::vector<uint8_t> overflow_flags(num_reads);  // Use uint8_t instead of bool
         
         cudaMemcpy(kmer_counts.data(), d_kmer_tracker->kmer_counts,
                    num_reads * sizeof(uint16_t), cudaMemcpyDeviceToHost);
@@ -773,7 +774,7 @@ private:
                    num_reads * sizeof(bool), cudaMemcpyDeviceToHost);
         
         // Retrieve actual k-mer data
-        uint32_t max_kmers_total = max_reads * params.forward_compat.max_kmers_to_track;
+        uint32_t max_kmers_total = max_reads * enhanced_params.forward_compat.max_kmers_to_track;
         
         std::vector<uint64_t> all_minimizers(max_kmers_total);
         std::vector<uint16_t> all_positions(max_kmers_total);
@@ -795,10 +796,10 @@ private:
             auto& tracking = result.kmer_tracking;
             
             tracking.num_tracked_kmers = kmer_counts[read_id];
-            tracking.tracking_overflow = overflow_flags[read_id];
+            tracking.tracking_overflow = (bool)overflow_flags[read_id];
             
             // Extract k-mer data for this read
-            uint32_t start_idx = read_id * params.forward_compat.max_kmers_to_track;
+            uint32_t start_idx = read_id * enhanced_params.forward_compat.max_kmers_to_track;
             uint32_t count = tracking.num_tracked_kmers;
             
             tracking.minimizer_hashes.assign(

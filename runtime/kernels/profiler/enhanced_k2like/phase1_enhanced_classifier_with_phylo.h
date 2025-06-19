@@ -15,6 +15,23 @@
 using namespace BioGPU::Enhanced;
 using namespace BioGPU::Taxonomy;
 
+// Forward declaration of CUDA kernel
+__global__ void phase1_enhanced_classification_with_phylo_kernel(
+    const char* sequences,
+    const uint32_t* read_offsets,
+    const uint32_t* read_lengths,
+    const GPUCompactHashTable* hash_table,
+    const TaxonomyNode* taxonomy_tree,
+    const uint32_t* parent_lookup,
+    const uint8_t* depth_lookup,
+    const uint8_t* rank_lookup,
+    uint32_t max_taxon_id,
+    GPUKmerTracker* kmer_tracker,
+    Phase1ClassificationResult* results,
+    int num_reads,
+    Phase1EnhancedParams params,
+    PhylogeneticClassificationParams phylo_params);
+
 class Phase1EnhancedClassifierWithPhylogeny {
 private:
     Phase1EnhancedParams params;
@@ -433,22 +450,5 @@ private:
         return true;
     }
 };
-
-// Updated CUDA kernel declaration (to be implemented in .cu file)
-__global__ void phase1_enhanced_classification_with_phylo_kernel(
-    const char* sequences,
-    const uint32_t* read_offsets,
-    const uint32_t* read_lengths,
-    const GPUCompactHashTable* hash_table,
-    const TaxonomyNode* taxonomy_tree,
-    const uint32_t* parent_lookup,
-    const uint8_t* depth_lookup,
-    const uint8_t* rank_lookup,
-    uint32_t max_taxon_id,
-    GPUKmerTracker* kmer_tracker,
-    Phase1ClassificationResult* results,
-    int num_reads,
-    Phase1EnhancedParams params,
-    PhylogeneticClassificationParams phylo_params);
 
 #endif // PHASE1_ENHANCED_CLASSIFIER_WITH_PHYLO_H

@@ -16,6 +16,19 @@
 using namespace BioGPU::Enhanced;
 using namespace BioGPU::CompactTaxonomy;
 
+// Forward declaration of CUDA kernel
+__global__ void fast_enhanced_classification_kernel(
+    const char* sequences,
+    const uint32_t* read_offsets,
+    const uint32_t* read_lengths,
+    const GPUCompactHashTable* hash_table,
+    const TaxonHashTable* taxonomy_table,
+    const PhyloDistanceCache* distance_cache,
+    GPUKmerTracker* kmer_tracker,
+    Phase1ClassificationResult* results,
+    int num_reads,
+    FastEnhancedParams params);
+
 // Updated enhanced classification parameters for compact taxonomy
 struct FastEnhancedParams : public Phase1EnhancedParams {
     // Compact taxonomy file path (pre-built binary)
@@ -403,18 +416,5 @@ private:
         }
     }
 };
-
-// Updated CUDA kernel declaration for fast enhanced classification
-__global__ void fast_enhanced_classification_kernel(
-    const char* sequences,
-    const uint32_t* read_offsets,
-    const uint32_t* read_lengths,
-    const GPUCompactHashTable* hash_table,
-    const TaxonHashTable* taxonomy_table,      // Compact taxonomy
-    const PhyloDistanceCache* distance_cache,  // Optional distance cache
-    GPUKmerTracker* kmer_tracker,
-    Phase1ClassificationResult* results,
-    int num_reads,
-    FastEnhancedParams params);
 
 #endif // FAST_ENHANCED_CLASSIFIER_H

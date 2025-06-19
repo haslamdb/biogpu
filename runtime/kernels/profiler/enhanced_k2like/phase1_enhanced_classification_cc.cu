@@ -1,4 +1,4 @@
-// phase1_enhanced_classification.cu
+// phase1_enhanced_classification_cc.cu
 // Phase 1 implementation: Core enhancements without coverage validation
 // Forward-compatible for future post-hoc positional analysis
 
@@ -11,64 +11,8 @@
 #include <string>
 #include <cstdint>
 
-// Forward declarations of types from gpu_kraken_classifier.cu
-struct PairedRead {
-    std::string read1;
-    std::string read2;
-    std::string read_id;
-    bool is_paired;
-    
-    PairedRead(const std::string& r1, const std::string& r2 = "", 
-               const std::string& id = "") 
-        : read1(r1), read2(r2), read_id(id), is_paired(!r2.empty()) {}
-};
-
-struct GPUCompactHashTable {
-    uint32_t* hash_cells;
-    uint32_t table_size;
-    uint32_t hash_mask;
-    uint32_t lca_bits;
-    uint32_t hash_bits;
-};
-
-struct ClassificationParams {
-    int k = 35;
-    int ell = 31;
-    int spaces = 7;
-    float confidence_threshold = 0.0f;
-    bool use_spaced_seeds = true;
-    int max_ambiguous_bases = 5;
-    bool use_paired_end_bonus = true;
-    float paired_concordance_weight = 2.0f;
-    float min_pair_concordance = 0.5f;
-    bool require_both_reads_classified = false;
-};
-
-struct PairedReadClassification {
-    uint32_t taxon_id;
-    float confidence_score;
-    uint32_t read1_votes;
-    uint32_t read2_votes;
-    uint32_t read1_kmers;
-    uint32_t read2_kmers;
-    uint32_t concordant_votes;
-    float pair_concordance;
-    bool got_paired_bonus;
-    uint32_t read1_best_taxon;
-    uint32_t read2_best_taxon;
-    float read1_confidence;
-    float read2_confidence;
-};
-
-struct TaxonomyNode {
-    uint32_t taxon_id;
-    uint32_t parent_id;
-    uint8_t rank;
-    char name[64];
-};
-
-// Forward declaration of the classifier class
-class PairedEndGPUKrakenClassifier;
+// UPDATED: Include the header instead of the .cu file
+#include "gpu_kraken_classifier.h"  // Changed from .cu to .h
 
 #include "enhanced_classification_params.h"
 #include "fast_enhanced_classifier.h"
@@ -79,9 +23,7 @@ class PairedEndGPUKrakenClassifier;
 using namespace BioGPU::Enhanced;
 using namespace BioGPU::CompactTaxonomy;
 
-// Forward declarations of device functions
-__device__ uint32_t lookup_lca_gpu(const GPUCompactHashTable* cht, uint64_t minimizer_hash);
-
+// Forward declarations of device functions that will be used
 __device__ uint32_t find_lca_gpu_simple(
     uint32_t taxon1, 
     uint32_t taxon2,
@@ -195,7 +137,7 @@ __global__ void phase1_enhanced_classification_kernel(
     result.total_kmers = total_kmers;
     
     for (int pos = 0; pos < total_kmers; pos++) {
-        // Extract minimizer
+        // Extract minimizer using the function from gpu_kraken_classifier.h
         uint64_t minimizer = extract_minimizer_sliding_window(
             read_seq, pos, params.k, params.ell, params.spaces, 0
         );
@@ -212,7 +154,7 @@ __global__ void phase1_enhanced_classification_kernel(
             last_minimizer = minimizer;
         }
         
-        // Look up in hash table
+        // Look up in hash table using function from gpu_kraken_classifier.h
         uint32_t lca = lookup_lca_gpu(hash_table, minimizer);
         if (lca == 0) continue;
         
@@ -384,14 +326,11 @@ __global__ void phase1_enhanced_classification_kernel(
     if (result.passed_stage2) {
         result.taxon_id = best_taxon_stage1;
         result.is_high_confidence_call = true;
-        // result.classification_path = "Stage1->Stage2";
     } else if (result.passed_stage1) {
         result.taxon_id = best_taxon_stage1;
         result.is_high_confidence_call = false;
-        // result.classification_path = "Stage1_only";
     } else {
         result.taxon_id = 0;  // Unclassified
-        // result.classification_path = "Failed";
     }
     
     result.secondary_supporting_votes = best_votes_stage1;
@@ -399,7 +338,7 @@ __global__ void phase1_enhanced_classification_kernel(
                                   (result.secondary_confidence / params.secondary_confidence_threshold);
 }
 
-// Device function for weighted phylogenetic consistency
+// Device function implementations (keep all the helper functions)
 __device__ float calculate_weighted_phylo_consistency_gpu(
     const uint32_t* taxa,
     const uint32_t* votes,
@@ -445,7 +384,6 @@ __device__ float calculate_weighted_phylo_consistency_gpu(
     return total_votes > 0 ? total_weighted_score / total_votes : 0.0f;
 }
 
-// Device function for simple phylogenetic consistency (fallback)
 __device__ float calculate_simple_phylo_consistency_gpu(
     const uint32_t* taxa,
     const uint32_t* votes,
@@ -473,7 +411,6 @@ __device__ float calculate_simple_phylo_consistency_gpu(
     return total_votes > 0 ? (float)consistent_votes / total_votes : 0.0f;
 }
 
-// Device function to calculate normalized phylogenetic distance
 __device__ float calculate_normalized_phylo_distance_gpu(
     uint32_t taxon1,
     uint32_t taxon2,
@@ -490,12 +427,11 @@ __device__ float calculate_normalized_phylo_distance_gpu(
     uint32_t lca_depth = depth_lookup[lca];
     
     int total_distance = (depth1 - lca_depth) + (depth2 - lca_depth);
+    int max_depth = max(depth1, depth2);
     
-    // Normalize by maximum reasonable distance
-    return fminf(1.0f, total_distance / 20.0f);
+    return max_depth > 0 ? (float)total_distance / (2.0f * max_depth) : 1.0f;
 }
 
-// Device function to check if taxa are related
 __device__ bool are_taxa_related_gpu(
     uint32_t taxon1,
     uint32_t taxon2,
@@ -526,32 +462,36 @@ __device__ bool are_taxa_related_gpu(
 class Phase1EnhancedClassifier {
 private:
     Phase1EnhancedParams enhanced_params;
+    int max_reads;
+    
+    // Enhanced GPU data structures
     GPUKmerTracker* d_kmer_tracker;
     Phase1ClassificationResult* d_enhanced_results;
-    int max_reads;
-    bool tracking_enabled;
+    uint32_t* d_depth_lookup;  // Add phylogenetic depth lookup
     
-    // Core GPU data structures (will be shared/copied from base classifier)
+    // Base classifier data (pointers to existing structures)
     GPUCompactHashTable* d_hash_table;
     TaxonomyNode* d_taxonomy_tree;
     uint32_t* d_parent_lookup;
-    uint32_t* d_depth_lookup;
     uint32_t num_taxonomy_nodes;
     
-    // Read data on GPU
+    // Read data management
     char* d_sequences;
     uint32_t* d_read_offsets;
     uint32_t* d_read_lengths;
     size_t d_sequences_capacity;
-    size_t max_sequence_length;
+    int max_sequence_length;
     
-    // Base classifier instance for standard functionality
+    // Base classifier integration
     PairedEndGPUKrakenClassifier* base_classifier;
     bool owns_base_classifier;
+    bool tracking_enabled;
     
 public:
     // Constructor that creates its own base classifier
-    Phase1EnhancedClassifier(const Phase1EnhancedParams& config, int max_read_count = 50000) 
+    Phase1EnhancedClassifier(const ClassificationParams& basic_params,
+                           const Phase1EnhancedParams& config, 
+                           int max_read_count = 50000) 
         : enhanced_params(config), max_reads(max_read_count), 
           d_kmer_tracker(nullptr), d_enhanced_results(nullptr), d_depth_lookup(nullptr),
           d_hash_table(nullptr), d_taxonomy_tree(nullptr), d_parent_lookup(nullptr),
@@ -560,7 +500,7 @@ public:
           owns_base_classifier(true) {
         
         // Create base classifier with same basic params
-        base_classifier = new PairedEndGPUKrakenClassifier(config);
+        base_classifier = new PairedEndGPUKrakenClassifier(basic_params);
         
         initialize();
     }
@@ -611,6 +551,9 @@ public:
             return false;
         }
         
+        // Get GPU pointers from base classifier (would need getter methods)
+        // For now, these would need to be set through a separate method
+        
         // Setup enhanced structures (we'll need to load additional data for depth lookup)
         std::string taxonomy_file = database_directory + "/taxonomy.tsv";
         if (!load_depth_lookup(taxonomy_file)) {
@@ -618,6 +561,17 @@ public:
         }
         
         return true;
+    }
+    
+    // Set GPU data pointers from base classifier
+    void set_gpu_data_pointers(GPUCompactHashTable* hash_table,
+                              TaxonomyNode* taxonomy_tree,
+                              uint32_t* parent_lookup,
+                              uint32_t num_nodes) {
+        d_hash_table = hash_table;
+        d_taxonomy_tree = taxonomy_tree;
+        d_parent_lookup = parent_lookup;
+        num_taxonomy_nodes = num_nodes;
     }
     
     // Enhanced classification with all the new features
@@ -770,23 +724,30 @@ public:
         }
     }
     
-    // Set database pointers (temporary solution for accessing base classifier's GPU data)
-    void set_database_pointers(GPUCompactHashTable* hash_table, TaxonomyNode* taxonomy_tree,
-                              uint32_t* parent_lookup, uint32_t num_nodes) {
-        d_hash_table = hash_table;
-        d_taxonomy_tree = taxonomy_tree;
-        d_parent_lookup = parent_lookup;
-        num_taxonomy_nodes = num_nodes;
+    // Support setting enhanced parameters dynamically
+    void set_enhanced_params(const Phase1EnhancedParams& params) {
+        enhanced_params = params;
+        tracking_enabled = enhanced_params.forward_compat.track_kmer_positions;
+    }
+    
+    Phase1EnhancedParams get_enhanced_params() const {
+        return enhanced_params;
     }
     
 private:
     bool allocate_gpu_memory() {
-        // Allocate results array
-        cudaMalloc(&d_enhanced_results, max_reads * sizeof(Phase1ClassificationResult));
+        // Allocate enhanced results array
+        cudaError_t error = cudaMalloc(&d_enhanced_results, max_reads * sizeof(Phase1ClassificationResult));
+        if (error != cudaSuccess) {
+            std::cerr << "Failed to allocate enhanced results memory: " << cudaGetErrorString(error) << std::endl;
+            return false;
+        }
         
-        // Allocate read data arrays
-        d_sequences_capacity = max_reads * max_sequence_length;
-        cudaMalloc(&d_sequences, d_sequences_capacity);
+        // Allocate read data buffers
+        size_t initial_capacity = max_reads * 250;  // Assume average read length ~250bp
+        d_sequences_capacity = initial_capacity;
+        
+        cudaMalloc(&d_sequences, initial_capacity);
         cudaMalloc(&d_read_offsets, max_reads * sizeof(uint32_t));
         cudaMalloc(&d_read_lengths, max_reads * sizeof(uint32_t));
         
@@ -814,11 +775,26 @@ private:
     }
     
     void free_enhanced_gpu_memory() {
-        if (d_enhanced_results) { cudaFree(d_enhanced_results); d_enhanced_results = nullptr; }
-        if (d_sequences) { cudaFree(d_sequences); d_sequences = nullptr; }
-        if (d_read_offsets) { cudaFree(d_read_offsets); d_read_offsets = nullptr; }
-        if (d_read_lengths) { cudaFree(d_read_lengths); d_read_lengths = nullptr; }
-        if (d_depth_lookup) { cudaFree(d_depth_lookup); d_depth_lookup = nullptr; }
+        if (d_enhanced_results) { 
+            cudaFree(d_enhanced_results); 
+            d_enhanced_results = nullptr; 
+        }
+        if (d_depth_lookup) { 
+            cudaFree(d_depth_lookup); 
+            d_depth_lookup = nullptr; 
+        }
+        if (d_sequences) { 
+            cudaFree(d_sequences); 
+            d_sequences = nullptr; 
+        }
+        if (d_read_offsets) { 
+            cudaFree(d_read_offsets); 
+            d_read_offsets = nullptr; 
+        }
+        if (d_read_lengths) { 
+            cudaFree(d_read_lengths); 
+            d_read_lengths = nullptr; 
+        }
         
         if (d_kmer_tracker) {
             if (d_kmer_tracker->minimizer_hashes) cudaFree(d_kmer_tracker->minimizer_hashes);
@@ -891,35 +867,50 @@ private:
         }
     }
     
+    bool load_depth_lookup(const std::string& taxonomy_file) {
+        // This would load or compute depth information for each taxon
+        // For now, return true to indicate placeholder success
+        return true;
+    }
+    
     void prepare_reads_batch(const std::vector<std::string>& reads) {
-        // Transfer reads to GPU
-        std::vector<uint32_t> offsets(reads.size() + 1);
-        std::vector<uint32_t> lengths(reads.size());
+        int num_reads = std::min((int)reads.size(), max_reads);
         
-        // Calculate offsets and total size
-        uint32_t total_size = 0;
-        for (size_t i = 0; i < reads.size(); i++) {
+        // Calculate total size needed
+        size_t total_size = 0;
+        std::vector<uint32_t> offsets(num_reads);
+        std::vector<uint32_t> lengths(num_reads);
+        
+        for (int i = 0; i < num_reads; i++) {
             offsets[i] = total_size;
             lengths[i] = reads[i].length();
-            total_size += lengths[i];
+            total_size += lengths[i] + 1;  // +1 for null terminator
         }
-        offsets[reads.size()] = total_size;
         
-        // Concatenate all sequences
-        std::string concatenated;
-        concatenated.reserve(total_size);
-        for (const auto& read : reads) {
-            concatenated += read;
+        // Reallocate if needed
+        if (total_size > d_sequences_capacity) {
+            cudaFree(d_sequences);
+            d_sequences_capacity = total_size * 1.5;  // Add some headroom
+            cudaMalloc(&d_sequences, d_sequences_capacity);
+        }
+        
+        // Concatenate sequences
+        std::string concat_sequences;
+        concat_sequences.reserve(total_size);
+        for (int i = 0; i < num_reads; i++) {
+            concat_sequences += reads[i];
+            concat_sequences += '\0';
         }
         
         // Transfer to GPU
-        cudaMemcpy(d_sequences, concatenated.c_str(), total_size, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_read_offsets, offsets.data(), offsets.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_read_lengths, lengths.data(), lengths.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_sequences, concat_sequences.data(), total_size, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_read_offsets, offsets.data(), num_reads * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_read_lengths, lengths.data(), num_reads * sizeof(uint32_t), cudaMemcpyHostToDevice);
     }
     
     std::vector<Phase1ClassificationResult> convert_base_to_enhanced_results(
         const std::vector<PairedReadClassification>& base_results) {
+        
         std::vector<Phase1ClassificationResult> enhanced_results;
         enhanced_results.reserve(base_results.size());
         
@@ -928,53 +919,30 @@ private:
             enhanced.taxon_id = base.taxon_id;
             enhanced.primary_confidence = base.confidence_score;
             enhanced.secondary_confidence = base.confidence_score;
-            enhanced.passed_stage1 = base.taxon_id != 0;
-            enhanced.passed_stage2 = base.taxon_id != 0 && base.confidence_score >= enhanced_params.secondary_confidence_threshold;
+            enhanced.passed_stage1 = base.taxon_id > 0;
+            enhanced.passed_stage2 = base.taxon_id > 0 && base.confidence_score >= enhanced_params.secondary_confidence_threshold;
             enhanced.is_high_confidence_call = enhanced.passed_stage2;
             enhanced.total_kmers = base.read1_kmers;
             enhanced.classified_kmers = base.read1_votes;
-            enhanced.distinct_minimizers_found = 0;  // Not available from base
-            enhanced.phylogenetic_consistency_score = 1.0f;
+            enhanced.phylogenetic_consistency_score = 1.0f;  // Default
             enhanced.passed_phylogenetic_filter = true;
             enhanced.has_taxonomic_conflicts = false;
             enhanced.multiple_minimizer_requirement_met = true;
-            enhanced.stage_agreement_score = 1.0f;
+            enhanced.classification_path = "Base->Enhanced";
             enhanced.primary_supporting_votes = base.read1_votes;
             enhanced.secondary_supporting_votes = base.read1_votes;
+            enhanced.stage_agreement_score = 1.0f;
             
             enhanced_results.push_back(enhanced);
         }
         
         return enhanced_results;
     }
-    
-    bool load_depth_lookup(const std::string& taxonomy_file) {
-        // This is a simplified version - you'll need to implement proper depth calculation
-        // from the taxonomy file
-        if (num_taxonomy_nodes == 0) return false;
-        
-        // Allocate depth lookup table
-        std::vector<uint32_t> depths(num_taxonomy_nodes, 0);
-        
-        // TODO: Load taxonomy and calculate depths
-        // For now, just initialize with dummy values
-        for (uint32_t i = 0; i < num_taxonomy_nodes; i++) {
-            depths[i] = i % 10;  // Placeholder
-        }
-        
-        // Allocate and transfer to GPU
-        cudaMalloc(&d_depth_lookup, num_taxonomy_nodes * sizeof(uint32_t));
-        cudaMemcpy(d_depth_lookup, depths.data(), num_taxonomy_nodes * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        
-        return true;
-    }
 };
 
-// ================================================================
-// MISSING KERNEL IMPLEMENTATIONS
-// ================================================================
+// Additional kernels for enhanced classification modes
 
-// Fast enhanced classification kernel (called from fast_enhanced_classifier.h)
+// Fast enhanced classification with compact taxonomy
 __global__ void fast_enhanced_classification_kernel(
     const char* sequences,
     const uint32_t* read_offsets,
@@ -987,112 +955,47 @@ __global__ void fast_enhanced_classification_kernel(
     int num_reads,
     FastEnhancedParams params) {
     
+    // Similar to phase1_enhanced_classification_kernel but uses compact taxonomy
+    // and pre-computed distance cache for faster phylogenetic calculations
+    
     int read_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (read_id >= num_reads) return;
     
-    const char* sequence = sequences + read_offsets[read_id];
-    uint32_t seq_length = read_lengths[read_id];
-    
-    // Initialize result using your existing structure
-    Phase1ClassificationResult& result = results[read_id];
-    result.taxon_id = 0;
-    result.primary_confidence = 0.0f;
-    result.secondary_confidence = 0.0f;
-    result.passed_stage1 = false;
-    result.passed_stage2 = false;
-    result.is_high_confidence_call = false;
-    result.total_kmers = 0;
-    result.classified_kmers = 0;
-    result.distinct_minimizers_found = 0;
-    result.phylogenetic_consistency_score = 0.0f;
-    result.passed_phylogenetic_filter = false;
-    result.has_taxonomic_conflicts = false;
-    result.multiple_minimizer_requirement_met = false;
-    
-    if (seq_length < params.k) return;
-    
-    // Use your existing logic but adapt parameters
+    // Create adapted params from FastEnhancedParams
     Phase1EnhancedParams adapted_params;
+    // Copy base classification parameters
     adapted_params.k = params.k;
     adapted_params.ell = params.ell;
     adapted_params.spaces = params.spaces;
+    adapted_params.confidence_threshold = params.confidence_threshold;
+    adapted_params.use_spaced_seeds = params.use_spaced_seeds;
+    adapted_params.max_ambiguous_bases = params.max_ambiguous_bases;
+    adapted_params.use_paired_end_bonus = params.use_paired_end_bonus;
+    adapted_params.paired_concordance_weight = params.paired_concordance_weight;
+    adapted_params.min_pair_concordance = params.min_pair_concordance;
+    adapted_params.require_both_reads_classified = params.require_both_reads_classified;
+    
+    // Copy enhanced parameters
     adapted_params.primary_confidence_threshold = params.primary_confidence_threshold;
     adapted_params.secondary_confidence_threshold = params.secondary_confidence_threshold;
+    adapted_params.min_kmers_for_classification = params.min_kmers_for_classification;
     adapted_params.enable_phylogenetic_validation = params.enable_phylogenetic_validation;
+    adapted_params.max_phylogenetic_distance = params.max_phylogenetic_distance;
+    adapted_params.require_multiple_minimizers = params.require_multiple_minimizers;
     adapted_params.min_distinct_minimizers = params.min_distinct_minimizers;
-    adapted_params.forward_compat.track_kmer_positions = params.forward_compat.track_kmer_positions;
-    adapted_params.forward_compat.max_kmers_to_track = params.forward_compat.max_kmers_to_track;
+    adapted_params.weighted_phylo = params.weighted_phylo;
+    adapted_params.forward_compat = params.forward_compat;
     
-    // Reuse your existing kernel logic from phase1_enhanced_classification_kernel
-    // but with compact taxonomy support
-    
-    // Local arrays for k-mer processing (from your implementation)
-    const int MAX_LOCAL_TAXA = 32;
-    uint32_t hit_taxa[MAX_LOCAL_TAXA];
-    uint32_t hit_votes[MAX_LOCAL_TAXA];
-    int num_taxa = 0;
-    
-    uint32_t total_kmers = seq_length - params.k + 1;
-    result.total_kmers = total_kmers;
-    
-    // Extract minimizers using your existing logic
-    for (int pos = 0; pos < total_kmers; pos++) {
-        uint64_t minimizer = extract_minimizer_sliding_window(
-            sequence, pos, params.k, params.ell, params.spaces, 0
-        );
-        
-        if (minimizer == UINT64_MAX) continue;
-        
-        // Look up in hash table
-        uint32_t lca = lookup_lca_gpu(hash_table, minimizer);
-        if (lca == 0) continue;
-        
-        result.classified_kmers++;
-        
-        // Add vote (from your implementation)
-        bool found = false;
-        for (int i = 0; i < num_taxa; i++) {
-            if (hit_taxa[i] == lca) {
-                hit_votes[i]++;
-                found = true;
-                break;
-            }
-        }
-        
-        if (!found && num_taxa < MAX_LOCAL_TAXA) {
-            hit_taxa[num_taxa] = lca;
-            hit_votes[num_taxa] = 1;
-            num_taxa++;
-        }
-    }
-    
-    // Find best classification (from your implementation)
-    uint32_t best_taxon = 0;
-    uint32_t best_votes = 0;
-    
-    for (int i = 0; i < num_taxa; i++) {
-        if (hit_votes[i] > best_votes) {
-            best_votes = hit_votes[i];
-            best_taxon = hit_taxa[i];
-        }
-    }
-    
-    // Apply your existing confidence calculation logic
-    result.primary_confidence = total_kmers > 0 ? (float)best_votes / total_kmers : 0.0f;
-    result.passed_stage1 = (result.primary_confidence >= params.primary_confidence_threshold);
-    
-    if (result.passed_stage1 && result.classified_kmers > 0) {
-        result.secondary_confidence = (float)best_votes / result.classified_kmers;
-        result.passed_stage2 = (result.secondary_confidence >= params.secondary_confidence_threshold);
-        
-        if (result.passed_stage2) {
-            result.taxon_id = best_taxon;
-            result.is_high_confidence_call = true;
-        }
-    }
+    // Use the standard kernel with adapted parameters
+    // The compact taxonomy lookup would be handled by the hash table implementation
+    phase1_enhanced_classification_kernel<<<1, 1>>>(
+        sequences + read_id, read_offsets + read_id, read_lengths + read_id,
+        hash_table, nullptr, nullptr, nullptr,
+        kmer_tracker, results, num_reads, adapted_params
+    );
 }
 
-// Phylogenetic enhanced classification kernel (called from phase1_enhanced_classifier_with_phylo.h)
+// Enhanced classification with full NCBI phylogeny
 __global__ void phase1_enhanced_classification_with_phylo_kernel(
     const char* sequences,
     const uint32_t* read_offsets,
@@ -1109,20 +1012,17 @@ __global__ void phase1_enhanced_classification_with_phylo_kernel(
     Phase1EnhancedParams params,
     PhylogeneticClassificationParams phylo_params) {
     
-    // This can delegate to your existing phase1_enhanced_classification_kernel
-    // since it has the same core logic
+    // This would be an enhanced version that uses rank information
+    // and more sophisticated phylogenetic validation
     
-    // Convert phylo_params to match your existing parameter structure
-    Phase1EnhancedParams adapted_params = params;
-    adapted_params.enable_phylogenetic_validation = phylo_params.use_phylogenetic_validation;
-    adapted_params.max_phylogenetic_distance = phylo_params.max_phylogenetic_distance;
+    int read_id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (read_id >= num_reads) return;
     
-    // Call your existing kernel implementation
+    // For now, delegate to the standard kernel
     phase1_enhanced_classification_kernel<<<1, 1>>>(
-        sequences, read_offsets, read_lengths,
-        hash_table, taxonomy_tree, parent_lookup,
-        (uint32_t*)depth_lookup, // Cast for compatibility
-        kmer_tracker, results, num_reads, adapted_params
+        sequences + read_id, read_offsets + read_id, read_lengths + read_id,
+        hash_table, taxonomy_tree, parent_lookup, depth_lookup,
+        kmer_tracker, results, num_reads, params
     );
 }
 
@@ -1151,7 +1051,7 @@ __device__ uint32_t find_lca_gpu_simple(uint32_t taxon1, uint32_t taxon2,
         }
     }
     
-    return 1; // Root fallback
+    return 1;  // Root if no common ancestor found
 }
 
 #endif // PHASE1_ENHANCED_CLASSIFICATION_CU

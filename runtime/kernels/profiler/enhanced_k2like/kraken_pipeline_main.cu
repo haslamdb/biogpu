@@ -2,9 +2,9 @@
 // Complete front-to-back GPU-accelerated Kraken2-style pipeline
 // Build database from genomes + classify reads
 
-// Include the actual implementations
-#include "gpu_kraken_classifier.cu"
-#include "gpu_kraken_database_builder.cu"
+// Include the headers
+#include "gpu_kraken_classifier.h"
+#include "gpu_kraken_database_builder.h"
 #include "sample_csv_parser.h"
 #include "classification_report_generator.h"
 

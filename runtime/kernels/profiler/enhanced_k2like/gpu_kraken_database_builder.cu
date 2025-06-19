@@ -350,32 +350,21 @@ public:
 private:
     // Extract host-side lookup tables from the compact taxonomy
     bool extract_host_lookup_tables() {
-        // This would require accessing the internal data structures of CompactGPUTaxonomy
-        // You'll need to add accessor methods to your CompactGPUTaxonomy class
-        
-        // For now, assuming you add these methods to CompactGPUTaxonomy:
-        // - get_parent_lookup_map()
-        // - get_name_lookup_map() 
-        // - get_rank_lookup_map()
-        // - get_depth_lookup_map()
-        
         if (!compact_taxonomy) {
             return false;
         }
         
-        // Extract lookup tables (you'll need to implement these accessor methods)
-        // parent_lookup = compact_taxonomy->get_parent_lookup_map();
-        // name_lookup = compact_taxonomy->get_name_lookup_map();
-        // rank_lookup = compact_taxonomy->get_rank_lookup_map();
-        // depth_lookup = compact_taxonomy->get_depth_lookup_map();
+        // Extract lookup tables using the accessor methods
+        parent_lookup = compact_taxonomy->get_parent_lookup_map();
+        name_lookup = compact_taxonomy->get_name_lookup_map();
+        rank_lookup = compact_taxonomy->get_rank_lookup_map();
+        depth_lookup = compact_taxonomy->get_depth_lookup_map();
+        max_taxon_id = compact_taxonomy->get_max_taxon_id();
         
-        // For now, just indicate that extraction was successful
-        // You'll need to implement the actual extraction based on your CompactGPUTaxonomy internal structure
+        std::cout << "Extracted host lookup tables from compact taxonomy" << std::endl;
+        std::cout << "  Taxa count: " << parent_lookup.size() << std::endl;
+        std::cout << "  Max taxon ID: " << max_taxon_id << std::endl;
         
-        std::cout << "Warning: Host lookup table extraction not yet implemented" << std::endl;
-        std::cout << "Using simplified phylogenetic calculations" << std::endl;
-        
-        // Fallback: mark as loaded but use simple calculations
         return true;
     }
     

@@ -7,7 +7,20 @@
 
 #include <cuda_runtime.h>
 #include <cstdint>
-#include "biogpu/minimizer_extraction.h"
+// Removed biogpu/minimizer_extraction.h to avoid LCACandidate redefinition
+// Using local definitions instead
+
+// Parameters for minimizer extraction
+struct MinimizerParams {
+    int k = 35;                               // k-mer length
+    int ell = 31;                            // minimizer length  
+    int spaces = 7;                          // spaced seed spacing
+    uint64_t xor_mask = 0x123456789ABCDEFULL; // XOR shuffling constant
+    
+    MinimizerParams() = default;
+    MinimizerParams(int k_val, int ell_val, int spaces_val) 
+        : k(k_val), ell(ell_val), spaces(spaces_val) {}
+};
 
 // Structure definitions (if not already in minimizer_extraction.h)
 struct GPUGenomeInfo {

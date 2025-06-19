@@ -12,6 +12,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 # Project include directories
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/../../../include)
 
 # CUDA include directories
 if(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES)
@@ -130,7 +131,7 @@ set_target_properties(gpu_kmer_database PROPERTIES
 
 # GPU Kraken classifier library
 add_library(gpu_kraken_classifier STATIC
-    k2like_from_scratch/gpu_kraken_classifier.cu
+    enhanced_k2like/gpu_kraken_classifier.cu
 )
 
 set_target_properties(gpu_kraken_classifier PROPERTIES
@@ -164,7 +165,7 @@ endif()
 
 # GPU minimizer extraction library for Kraken
 add_library(gpu_kraken_minimizer_extraction STATIC
-    k2like_from_scratch/gpu_minimizer_extraction.cu
+    enhanced_k2like/gpu_minimizer_extraction.cu
 )
 
 set_target_properties(gpu_kraken_minimizer_extraction PROPERTIES
@@ -187,7 +188,7 @@ target_compile_options(gpu_kraken_minimizer_extraction PRIVATE
 
 # GPU Kraken database builder library
 add_library(gpu_kraken_database_builder STATIC
-    k2like_from_scratch/gpu_kraken_database_builder.cu
+    enhanced_k2like/gpu_kraken_database_builder.cu
 )
 
 set_target_properties(gpu_kraken_database_builder PROPERTIES

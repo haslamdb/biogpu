@@ -19,6 +19,13 @@ using namespace BioGPU::Enhanced;
 using namespace BioGPU::CompactTaxonomy;
 
 // Forward declarations of device functions
+__device__ uint32_t find_lca_gpu_simple(
+    uint32_t taxon1, 
+    uint32_t taxon2,
+    const uint32_t* parent_lookup,
+    const uint32_t* depth_lookup,
+    uint32_t max_taxon_id);
+
 __device__ float calculate_weighted_phylo_consistency_gpu(
     const uint32_t* taxa,
     const uint32_t* votes,

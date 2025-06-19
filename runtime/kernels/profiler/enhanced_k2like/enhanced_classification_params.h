@@ -4,17 +4,31 @@
 #ifndef ENHANCED_CLASSIFICATION_PARAMS_H
 #define ENHANCED_CLASSIFICATION_PARAMS_H
 
-#include "gpu_kraken_classifier.cu"  // Base ClassificationParams
 #include "ncbi_taxonomy_loader.h"      // NCBI taxonomy loader
 #include "gpu_phylogenetic_calculator.cuh"  // GPU phylogenetic functions
 #include <vector>
 #include <string>
+#include <cstdint>
+
+// Forward declaration of ClassificationParams
+struct ClassificationParams;
 
 namespace BioGPU {
 namespace Enhanced {
 
 // Phase 1 Enhanced Parameters (no coverage validation yet)
-struct Phase1EnhancedParams : public ClassificationParams {
+struct Phase1EnhancedParams {
+    // Base classification parameters (duplicated from ClassificationParams)
+    int k = 35;
+    int ell = 31;
+    int spaces = 7;
+    float confidence_threshold = 0.0f;
+    bool use_spaced_seeds = true;
+    int max_ambiguous_bases = 5;
+    bool use_paired_end_bonus = true;
+    float paired_concordance_weight = 2.0f;
+    float min_pair_concordance = 0.5f;
+    bool require_both_reads_classified = false;
     // Multi-level filtering
     float primary_confidence_threshold = 0.1f;     // Initial filter
     float secondary_confidence_threshold = 0.3f;   // Stricter secondary filter

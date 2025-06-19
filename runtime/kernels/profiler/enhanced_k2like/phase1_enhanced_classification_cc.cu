@@ -80,6 +80,8 @@ using namespace BioGPU::Enhanced;
 using namespace BioGPU::CompactTaxonomy;
 
 // Forward declarations of device functions
+__device__ uint32_t lookup_lca_gpu(const GPUCompactHashTable* cht, uint64_t minimizer_hash);
+
 __device__ uint32_t find_lca_gpu_simple(
     uint32_t taxon1, 
     uint32_t taxon2,

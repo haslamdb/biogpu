@@ -1175,8 +1175,7 @@ bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
     const std::string& taxonomy_path) {
     
     std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES (Kraken2-inspired) ===" << std::endl;
-    std::cout << "DEBUG: genome_library_path = '" << genome_library_path << "'" << std::endl;
-    std::cout << "DEBUG: genome_library_path.length() = " << genome_library_path.length() << std::endl;
+    std::cout << "Input genome_library_path: '" << genome_library_path << "'" << std::endl;
     auto total_start = std::chrono::high_resolution_clock::now();
     
     if (!load_genome_files(genome_library_path)) {

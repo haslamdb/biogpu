@@ -1052,9 +1052,26 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     total_batches_capped = 0;
 }
 
-// Destructor - keep original
+// Destructor - safe with CUDA context validation
 GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
-    free_gpu_memory();
+    try {
+        // Check if we're in a valid CUDA context before cleanup
+        int device;
+        cudaError_t err = cudaGetDevice(&device);
+        if (err == cudaSuccess) {
+            free_gpu_memory();
+        } else {
+            // CUDA context is invalid - just null the pointers without freeing
+            d_sequence_data = nullptr;
+            d_genome_info = nullptr;
+            d_minimizer_hits = nullptr;
+            d_minimizer_counts = nullptr;
+            d_lca_candidates = nullptr;
+            d_taxonomy_nodes = nullptr;
+        }
+    } catch (...) {
+        // Suppress all exceptions in destructor
+    }
 }
 
 // UPDATED: Smarter memory management
@@ -1304,7 +1321,7 @@ bool GPUKrakenDatabaseBuilder::process_genomes_gpu() {
     return true;
 }
 
-// UPDATED: Process sequence batch with improved minimizer extraction
+// UPDATED: Process sequence batch with memory bounds checking
 bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     const std::vector<std::string>& sequences,
     const std::vector<uint32_t>& taxon_ids,
@@ -1312,11 +1329,48 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     
     if (sequences.empty()) return true;
     
+    // Validate input consistency
+    if (sequences.size() != taxon_ids.size()) {
+        std::cerr << "ERROR: Sequence/taxon count mismatch" << std::endl;
+        return false;
+    }
+    
+    // Pre-calculate total size to prevent buffer overflow
+    size_t total_sequence_length = 0;
+    for (const auto& seq : sequences) {
+        total_sequence_length += seq.length();
+        
+        // Skip sequences that are too short or too long
+        if (seq.length() < minimizer_params.k) {
+            continue; // Skip, but don't fail
+        }
+        if (seq.length() > 50000000) { // 50MB limit per sequence
+            std::cerr << "Warning: Skipping very large sequence (" 
+                      << seq.length() << " bp)" << std::endl;
+            continue;
+        }
+    }
+    
+    // Check if total size exceeds our allocated memory
+    size_t max_sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;
+    if (total_sequence_length > max_sequence_memory) {
+        std::cerr << "ERROR: Total sequence length (" << total_sequence_length 
+                  << ") exceeds allocated memory (" << max_sequence_memory << ")" << std::endl;
+        return false;
+    }
+    
+    // Build genome info and concatenated sequences with bounds checking
     std::string concatenated_sequences;
     std::vector<GPUGenomeInfo> genome_infos;
     
+    concatenated_sequences.reserve(total_sequence_length);
+    genome_infos.reserve(sequences.size());
+    
     uint32_t current_offset = 0;
     for (size_t i = 0; i < sequences.size(); i++) {
+        if (sequences[i].length() < minimizer_params.k) continue;
+        if (sequences[i].length() > 50000000) continue;
+        
         GPUGenomeInfo info;
         info.taxon_id = taxon_ids[i];
         info.sequence_offset = current_offset;
@@ -1327,24 +1381,39 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
         concatenated_sequences += sequences[i];
         current_offset += sequences[i].length();
         
-        if (sequences[i].length() >= minimizer_params.k) {
-            stats.total_kmers_processed += sequences[i].length() - minimizer_params.k + 1;
-        }
+        // Update stats safely
+        stats.total_kmers_processed += sequences[i].length() - minimizer_params.k + 1;
     }
     
-    size_t max_sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;
+    if (genome_infos.empty()) {
+        std::cout << "No valid sequences in this batch, skipping" << std::endl;
+        return true;
+    }
+    
+    // Final size validation before GPU copy
     if (concatenated_sequences.length() > max_sequence_memory) {
-        std::cerr << "ERROR: Sequence data exceeds allocated memory" << std::endl;
+        std::cerr << "ERROR: Final concatenated size exceeds memory limit" << std::endl;
         return false;
     }
     
-    CUDA_CHECK(cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(),
-                         concatenated_sequences.length(), cudaMemcpyHostToDevice));
+    // Copy to GPU with error checking
+    cudaError_t err = cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(),
+                                concatenated_sequences.length(), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        std::cerr << "ERROR: Failed to copy sequence data to GPU: " 
+                  << cudaGetErrorString(err) << std::endl;
+        return false;
+    }
     
-    CUDA_CHECK(cudaMemcpy(d_genome_info, genome_infos.data(),
-                         genome_infos.size() * sizeof(GPUGenomeInfo),
-                         cudaMemcpyHostToDevice));
+    err = cudaMemcpy(d_genome_info, genome_infos.data(),
+                    genome_infos.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        std::cerr << "ERROR: Failed to copy genome info to GPU: " 
+                  << cudaGetErrorString(err) << std::endl;
+        return false;
+    }
     
+    // Continue with GPU processing...
     uint32_t total_hits = 0;
     if (!extract_minimizers_gpu(d_sequence_data, d_genome_info, 
                                genome_infos.size(), d_minimizer_hits, &total_hits)) {
@@ -1359,8 +1428,13 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     
     if (num_candidates > 0) {
         std::vector<LCACandidate> batch_candidates(num_candidates);
-        CUDA_CHECK(cudaMemcpy(batch_candidates.data(), d_lca_candidates,
-                             num_candidates * sizeof(LCACandidate), cudaMemcpyDeviceToHost));
+        err = cudaMemcpy(batch_candidates.data(), d_lca_candidates,
+                        num_candidates * sizeof(LCACandidate), cudaMemcpyDeviceToHost);
+        if (err != cudaSuccess) {
+            std::cerr << "ERROR: Failed to copy candidates from GPU: " 
+                      << cudaGetErrorString(err) << std::endl;
+            return false;
+        }
         
         all_lca_candidates.insert(all_lca_candidates.end(), 
                                  batch_candidates.begin(), batch_candidates.end());
@@ -1547,12 +1621,21 @@ bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
 }
 
 void GPUKrakenDatabaseBuilder::free_gpu_memory() {
-    if (d_sequence_data) { cudaFree(d_sequence_data); d_sequence_data = nullptr; }
-    if (d_genome_info) { cudaFree(d_genome_info); d_genome_info = nullptr; }
-    if (d_minimizer_hits) { cudaFree(d_minimizer_hits); d_minimizer_hits = nullptr; }
-    if (d_minimizer_counts) { cudaFree(d_minimizer_counts); d_minimizer_counts = nullptr; }
-    if (d_lca_candidates) { cudaFree(d_lca_candidates); d_lca_candidates = nullptr; }
-    if (d_taxonomy_nodes) { cudaFree(d_taxonomy_nodes); d_taxonomy_nodes = nullptr; }
+    // Lambda for safe CUDA free with null pointer checking
+    auto safe_free = [](void** ptr) {
+        if (ptr && *ptr) {
+            cudaError_t err = cudaFree(*ptr);
+            // Don't print errors in destructor - just ensure pointer is nulled
+            *ptr = nullptr;
+        }
+    };
+
+    safe_free((void**)&d_sequence_data);
+    safe_free((void**)&d_genome_info);
+    safe_free((void**)&d_minimizer_hits);
+    safe_free((void**)&d_minimizer_counts);
+    safe_free((void**)&d_lca_candidates);
+    safe_free((void**)&d_taxonomy_nodes);
 }
 
 // Keep all original file processing methods
@@ -1640,19 +1723,40 @@ std::vector<std::string> GPUKrakenDatabaseBuilder::load_sequences_from_fasta(con
     return sequences;
 }
 
-// UPDATED: Save database with improved statistics
+// UPDATED: Save database with buffer overflow protection
 bool GPUKrakenDatabaseBuilder::save_database() {
     std::cout << "Saving database to " << output_directory << "..." << std::endl;
     
-    // Process all LCA candidates and merge duplicates
+    // Create output directory if it doesn't exist
+    try {
+        std::filesystem::create_directories(output_directory);
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create output directory: " << e.what() << std::endl;
+        return false;
+    }
+    
+    // Process all LCA candidates and merge duplicates with bounds checking
     std::unordered_map<uint64_t, LCACandidate> unique_candidates;
     
+    // Reserve space to prevent rehashing during insertion
+    unique_candidates.reserve(all_lca_candidates.size());
+    
+    size_t processed_count = 0;
     for (const auto& candidate : all_lca_candidates) {
-        if (unique_candidates.find(candidate.minimizer_hash) == unique_candidates.end()) {
+        processed_count++;
+        
+        // Progress reporting for large datasets
+        if (processed_count % 1000000 == 0) {
+            std::cout << "Processing candidate " << processed_count 
+                      << "/" << all_lca_candidates.size() << std::endl;
+        }
+        
+        auto it = unique_candidates.find(candidate.minimizer_hash);
+        if (it == unique_candidates.end()) {
             unique_candidates[candidate.minimizer_hash] = candidate;
         } else {
             // Update genome count and compute simple LCA
-            auto& existing = unique_candidates[candidate.minimizer_hash];
+            auto& existing = it->second;
             existing.genome_count++;
             existing.lca_taxon = compute_simple_lca_host(existing.lca_taxon, candidate.lca_taxon);
             existing.uniqueness_score = 1.0f / existing.genome_count;
@@ -1660,54 +1764,99 @@ bool GPUKrakenDatabaseBuilder::save_database() {
     }
     
     stats.unique_minimizers = unique_candidates.size();
+    std::cout << "Processed " << all_lca_candidates.size() << " candidates into " 
+              << unique_candidates.size() << " unique minimizers" << std::endl;
     
-    // Save hash table
+    // Save hash table with proper file path construction
     std::string hash_file = output_directory + "/hash_table.k2d";
-    std::ofstream hash_out(hash_file, std::ios::binary);
+    std::cout << "Writing hash table to: " << hash_file << std::endl;
     
+    std::ofstream hash_out(hash_file, std::ios::binary);
     if (!hash_out.is_open()) {
         std::cerr << "Cannot create hash table file: " << hash_file << std::endl;
         return false;
     }
     
+    // Write header with validation
     uint64_t table_size = unique_candidates.size() * 2;
     uint64_t num_entries = unique_candidates.size();
     
     hash_out.write(reinterpret_cast<const char*>(&table_size), sizeof(uint64_t));
     hash_out.write(reinterpret_cast<const char*>(&num_entries), sizeof(uint64_t));
     
+    if (hash_out.fail()) {
+        std::cerr << "Failed to write hash table header" << std::endl;
+        hash_out.close();
+        return false;
+    }
+    
+    // Write entries with error checking
+    size_t entries_written = 0;
     for (const auto& [hash, candidate] : unique_candidates) {
         hash_out.write(reinterpret_cast<const char*>(&candidate.minimizer_hash), sizeof(uint64_t));
         hash_out.write(reinterpret_cast<const char*>(&candidate.lca_taxon), sizeof(uint32_t));
         hash_out.write(reinterpret_cast<const char*>(&candidate.genome_count), sizeof(uint32_t));
         hash_out.write(reinterpret_cast<const char*>(&candidate.uniqueness_score), sizeof(float));
+        
+        if (hash_out.fail()) {
+            std::cerr << "Failed to write hash table entry " << entries_written << std::endl;
+            hash_out.close();
+            return false;
+        }
+        
+        entries_written++;
+        if (entries_written % 100000 == 0) {
+            std::cout << "Written " << entries_written << "/" << num_entries << " entries" << std::endl;
+        }
     }
     hash_out.close();
     
-    // Save taxonomy
+    // Save taxonomy with bounds checking
     std::string taxonomy_file = output_directory + "/taxonomy.tsv";
+    std::cout << "Writing taxonomy to: " << taxonomy_file << std::endl;
+    
     std::ofstream tax_out(taxonomy_file);
+    if (!tax_out.is_open()) {
+        std::cerr << "Cannot create taxonomy file: " << taxonomy_file << std::endl;
+        return false;
+    }
     
     tax_out << "taxon_id\tname\tparent_id\n";
     for (const auto& [taxon_id, name] : taxon_names) {
         uint32_t parent_id = taxon_parents.count(taxon_id) ? taxon_parents[taxon_id] : 0;
         tax_out << taxon_id << "\t" << name << "\t" << parent_id << "\n";
+        
+        if (tax_out.fail()) {
+            std::cerr << "Failed to write taxonomy entry for taxon " << taxon_id << std::endl;
+            tax_out.close();
+            return false;
+        }
     }
     tax_out.close();
     
-    // Save configuration
+    // Save configuration with error checking
     std::string config_file = output_directory + "/config.txt";
+    std::cout << "Writing config to: " << config_file << std::endl;
+    
     std::ofstream config_out(config_file);
+    if (!config_out.is_open()) {
+        std::cerr << "Cannot create config file: " << config_file << std::endl;
+        return false;
+    }
+    
     config_out << "k=" << minimizer_params.k << "\n";
     config_out << "ell=" << minimizer_params.ell << "\n";
     config_out << "spaces=" << minimizer_params.spaces << "\n";
     config_out << "subsampling_rate=" << subsampling_rate << "\n";
     config_out << "min_clear_hash_value=0x" << std::hex << min_clear_hash_value << std::dec << "\n";
+    config_out << "unique_minimizers=" << stats.unique_minimizers << "\n";
+    config_out << "total_sequences=" << stats.total_sequences << "\n";
     config_out.close();
     
-    std::cout << "Database saved successfully!" << std::endl;
+    std::cout << "Database components saved successfully!" << std::endl;
     std::cout << "  Hash table: " << hash_file << " (" << num_entries << " entries)" << std::endl;
     std::cout << "  Taxonomy: " << taxonomy_file << " (" << taxon_names.size() << " taxa)" << std::endl;
+    std::cout << "  Config: " << config_file << std::endl;
     
     return true;
 }

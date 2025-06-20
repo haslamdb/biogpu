@@ -1,0 +1,5 @@
+k=35
+ell=31
+spaces=7
+subsampling_rate=1
+min_clear_hash_value=0x0

@@ -10,18 +10,11 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
+#include <vector>
+#include <cstdio>
+#include <algorithm>
 
-// ===========================
-// CUDA Error Checking Macro
-// ===========================
-#define CUDA_CHECK_KERNEL(call) do { \
-    cudaError_t error = call; \
-    if (error != cudaSuccess) { \
-        fprintf(stderr, "CUDA error at %s:%d - %s\n", __FILE__, __LINE__, \
-                cudaGetErrorString(error)); \
-        return false; \
-    } \
-} while(0)
+// CUDA_CHECK_KERNEL macro is already defined in gpu_database_kernels.h
 
 // ===========================
 // Device Function Implementations
@@ -397,14 +390,14 @@ __global__ void validate_memory_integrity_kernel(
 LaunchConfig calculate_optimal_launch_config(int num_elements, int threads_per_block, size_t shared_memory) {
     LaunchConfig config;
     
-    config.block_size = dim3(threads_per_block);
-    config.grid_size = dim3((num_elements + threads_per_block - 1) / threads_per_block);
-    config.shared_memory = shared_memory;
-    config.stream = 0;  // Use default stream
+    config.threads_x = threads_per_block;
+    config.blocks_x = (num_elements + threads_per_block - 1) / threads_per_block;
+    config.shared_memory_bytes = shared_memory;
+    config.stream = nullptr;  // Use default stream
     
     // Ensure grid size doesn't exceed limits
-    if (config.grid_size.x > 65535) {
-        config.grid_size.x = 65535;
+    if (config.blocks_x > 65535) {
+        config.blocks_x = 65535;
     }
     
     return config;
@@ -413,28 +406,29 @@ LaunchConfig calculate_optimal_launch_config(int num_elements, int threads_per_b
 bool launch_minimizer_extraction_kernel(
     const GPUBatchData& batch_data,
     const MinimizerParams& params,
-    const KernelConfig& config,
     uint32_t* total_hits_output) {
     
     // Calculate launch configuration
     LaunchConfig launch_config = calculate_optimal_launch_config(
-        batch_data.num_genomes, 
-        config.threads_per_block,
-        config.shared_memory_per_block
+        batch_data.max_genomes, 
+        256,  // default threads per block
+        0     // no shared memory needed
     );
     
     // Launch the kernel
+    dim3 grid(launch_config.blocks_x, launch_config.blocks_y, launch_config.blocks_z);
+    dim3 block(launch_config.threads_x, launch_config.threads_y, launch_config.threads_z);
     extract_minimizers_sliding_window_kernel<<<
-        launch_config.grid_size,
-        launch_config.block_size,
-        launch_config.shared_memory,
-        launch_config.stream
+        grid,
+        block,
+        launch_config.shared_memory_bytes,
+        (cudaStream_t)launch_config.stream
     >>>(
-        batch_data.sequence_data,
-        batch_data.genome_info,
-        batch_data.num_genomes,
-        batch_data.minimizer_hits,
-        batch_data.global_hit_counter,
+        batch_data.d_sequence_data,
+        batch_data.d_genome_info,
+        batch_data.max_genomes,
+        batch_data.d_minimizer_hits,
+        batch_data.d_global_counter,
         params,
         batch_data.max_minimizers
     );
@@ -442,7 +436,7 @@ bool launch_minimizer_extraction_kernel(
     CUDA_CHECK_KERNEL(cudaDeviceSynchronize());
     
     // Get total hits
-    CUDA_CHECK_KERNEL(cudaMemcpy(total_hits_output, batch_data.global_hit_counter, 
+    CUDA_CHECK_KERNEL(cudaMemcpy(total_hits_output, batch_data.d_global_counter, 
                                  sizeof(uint32_t), cudaMemcpyDeviceToHost));
     
     return true;
@@ -460,16 +454,16 @@ bool launch_improved_minimizer_kernel(
     size_t shared_mem_size = threads_per_block * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(bool));
     
     extract_minimizers_kraken2_improved_kernel<<<
-        batch_data.num_genomes, 
+        batch_data.max_genomes, 
         threads_per_block, 
         shared_mem_size
     >>>(
-        batch_data.sequence_data,
-        batch_data.genome_info,
-        batch_data.num_genomes,
-        batch_data.minimizer_hits,
-        batch_data.hit_counts_per_genome,
-        batch_data.global_hit_counter,
+        batch_data.d_sequence_data,
+        batch_data.d_genome_info,
+        batch_data.max_genomes,
+        batch_data.d_minimizer_hits,
+        batch_data.d_hit_counts,
+        batch_data.d_global_counter,
         params,
         min_clear_hash_value,
         toggle_mask,
@@ -479,7 +473,7 @@ bool launch_improved_minimizer_kernel(
     CUDA_CHECK_KERNEL(cudaDeviceSynchronize());
     
     // Get total hits and clamp to maximum
-    CUDA_CHECK_KERNEL(cudaMemcpy(total_hits_output, batch_data.global_hit_counter, 
+    CUDA_CHECK_KERNEL(cudaMemcpy(total_hits_output, batch_data.d_global_counter, 
                                  sizeof(uint32_t), cudaMemcpyDeviceToHost));
     
     if (*total_hits_output > batch_data.max_minimizers) {
@@ -506,12 +500,16 @@ bool launch_lca_computation_kernel(
     
     if (parent_lookup != nullptr) {
         // Use LCA computation with taxonomy
-        compute_lca_for_minimizers_kernel<<<config.grid_size, config.block_size>>>(
+        dim3 grid(config.blocks_x, config.blocks_y, config.blocks_z);
+        dim3 block(config.threads_x, config.threads_y, config.threads_z);
+        compute_lca_for_minimizers_kernel<<<grid, block>>>(
             hits, num_hits, candidates, parent_lookup, max_taxon_id
         );
     } else {
         // Simple conversion without LCA computation
-        convert_hits_to_candidates_kernel<<<config.grid_size, config.block_size>>>(
+        dim3 grid(config.blocks_x, config.blocks_y, config.blocks_z);
+        dim3 block(config.threads_x, config.threads_y, config.threads_z);
+        convert_hits_to_candidates_kernel<<<grid, block>>>(
             hits, num_hits, candidates
         );
     }
@@ -530,10 +528,12 @@ bool launch_memory_initialization_kernel(
     GPUMinimizerHit* hit_buffer,
     size_t hit_count) {
     
-    size_t max_elements = max({sequence_size, genome_count, hit_count});
+    size_t max_elements = std::max({sequence_size, genome_count, hit_count});
     LaunchConfig config = calculate_optimal_launch_config(max_elements, 256, 0);
     
-    initialize_gpu_memory_kernel<<<config.grid_size, config.block_size>>>(
+    dim3 grid(config.blocks_x, config.blocks_y, config.blocks_z);
+    dim3 block(config.threads_x, config.threads_y, config.threads_z);
+    initialize_gpu_memory_kernel<<<grid, block>>>(
         sequence_buffer, genome_buffer, hit_buffer,
         sequence_size, genome_count, hit_count
     );
@@ -552,21 +552,24 @@ bool launch_memory_validation_kernel(
     
     LaunchConfig config = calculate_optimal_launch_config(num_genomes, 256, 0);
     
-    validate_memory_integrity_kernel<<<config.grid_size, config.block_size>>>(
+    dim3 grid(config.blocks_x, config.blocks_y, config.blocks_z);
+    dim3 block(config.threads_x, config.threads_y, config.threads_z);
+    validate_memory_integrity_kernel<<<grid, block>>>(
         sequence_data, genome_info, num_genomes, d_validation_results
     );
     
     CUDA_CHECK_KERNEL(cudaDeviceSynchronize());
     
-    // Check results
-    std::vector<bool> host_results(num_genomes);
+    // Check results - use std::vector<uint8_t> instead of std::vector<bool>
+    // because std::vector<bool> doesn't have data() method
+    std::vector<uint8_t> host_results(num_genomes);
     CUDA_CHECK_KERNEL(cudaMemcpy(host_results.data(), d_validation_results, 
                                  num_genomes * sizeof(bool), cudaMemcpyDeviceToHost));
     
     cudaFree(d_validation_results);
     
     // Return true if all validations passed
-    for (bool result : host_results) {
+    for (uint8_t result : host_results) {
         if (!result) return false;
     }
     
@@ -584,16 +587,16 @@ bool check_kernel_execution_errors(const char* kernel_name) {
 
 void print_kernel_launch_info(const LaunchConfig& config, const char* kernel_name) {
     printf("Launching %s with:\n", kernel_name);
-    printf("  Grid size: (%d, %d, %d)\n", config.grid_size.x, config.grid_size.y, config.grid_size.z);
-    printf("  Block size: (%d, %d, %d)\n", config.block_size.x, config.block_size.y, config.block_size.z);
-    printf("  Shared memory: %zu bytes\n", config.shared_memory);
+    printf("  Grid size: (%d, %d, %d)\n", config.blocks_x, config.blocks_y, config.blocks_z);
+    printf("  Block size: (%d, %d, %d)\n", config.threads_x, config.threads_y, config.threads_z);
+    printf("  Shared memory: %zu bytes\n", config.shared_memory_bytes);
 }
 
 bool validate_kernel_parameters(const GPUBatchData& batch_data) {
-    if (batch_data.sequence_data == nullptr) return false;
-    if (batch_data.genome_info == nullptr) return false;
-    if (batch_data.minimizer_hits == nullptr) return false;
-    if (batch_data.num_genomes <= 0) return false;
+    if (batch_data.d_sequence_data == nullptr) return false;
+    if (batch_data.d_genome_info == nullptr) return false;
+    if (batch_data.d_minimizer_hits == nullptr) return false;
+    if (batch_data.max_genomes <= 0) return false;
     if (batch_data.max_minimizers <= 0) return false;
     
     return true;

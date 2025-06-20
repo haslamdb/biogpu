@@ -7,35 +7,8 @@
 
 #include <cuda_runtime.h>
 #include <cstdint>
-// Removed biogpu/minimizer_extraction.h to avoid LCACandidate redefinition
-// Using local definitions instead
-
-// Parameters for minimizer extraction
-struct MinimizerParams {
-    int k = 35;                               // k-mer length
-    int ell = 31;                            // minimizer length  
-    int spaces = 7;                          // spaced seed spacing
-    uint64_t xor_mask = 0x123456789ABCDEFULL; // XOR shuffling constant
-    
-    MinimizerParams() = default;
-    MinimizerParams(int k_val, int ell_val, int spaces_val) 
-        : k(k_val), ell(ell_val), spaces(spaces_val) {}
-};
-
-// Structure definitions (if not already in minimizer_extraction.h)
-struct GPUGenomeInfo {
-    uint32_t taxon_id;
-    uint32_t sequence_offset;    // Offset in concatenated sequence buffer
-    uint32_t sequence_length;
-    uint32_t genome_id;         // Index in genome array
-};
-
-struct GPUMinimizerHit {
-    uint64_t minimizer_hash;
-    uint32_t taxon_id;
-    uint32_t position;          // Position in source sequence
-    uint32_t genome_id;         // Source genome index
-};
+#include "gpu_kraken_types.h"
+#include "gpu/gpu_database_kernels.h"
 
 // Function declarations
 bool extract_minimizers_gpu_optimized(

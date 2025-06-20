@@ -9,9 +9,8 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
-
-// Forward declarations
-struct SpeciesTrackingData;
+#include <fstream>
+#include "../gpu_kraken_types.h"
 
 // File processing configuration
 struct FileProcessingConfig {
@@ -74,6 +73,7 @@ private:
     bool validate_path_safety(const std::string& path);
     bool is_valid_genome_file_extension(const std::string& extension);
     bool validate_fasta_format(const std::string& file_path);
+    bool validate_sequence_content(const std::string& sequence);
     
     // Internal processing helpers
     bool process_single_fasta_file(

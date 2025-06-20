@@ -19,6 +19,9 @@
 #include <filesystem>
 #include <chrono>
 #include <zlib.h>
+#include <sys/stat.h>  // for stat()
+#include <cstdio>      // for fopen()
+#include <cstring>     // for strcasecmp()
 
 // Enhanced classification mode selection
 enum class ClassificationMode {
@@ -332,21 +335,57 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
     return true;
 }
 
-// Helper function to determine if path is a concatenated FNA file
+// FIXED: Safe version of is_concatenated_fna_file function
+// This prevents the malloc error by avoiding unsafe std::filesystem operations
 bool is_concatenated_fna_file(const std::string& path) {
-    if (!std::filesystem::exists(path)) {
+    std::cout << "DEBUG: Conservative check if path is concatenated FNA file: '" << path << "'" << std::endl;
+    
+    // Basic validation
+    if (path.empty() || path.size() > 4096) {
+        std::cout << "DEBUG: Path validation failed" << std::endl;
         return false;
     }
     
-    if (!std::filesystem::is_regular_file(path)) {
+    // Use stat() to check if it's a regular file (most reliable cross-platform way)
+    struct stat file_stat;
+    if (stat(path.c_str(), &file_stat) != 0) {
+        std::cout << "DEBUG: stat() failed - file does not exist" << std::endl;
         return false;
     }
     
-    // Check file extension
-    std::string ext = std::filesystem::path(path).extension().string();
+    // Check if it's a regular file
+    if (!S_ISREG(file_stat.st_mode)) {
+        std::cout << "DEBUG: Path is not a regular file" << std::endl;
+        return false;
+    }
+    
+    std::cout << "DEBUG: Path is a regular file" << std::endl;
+    
+    // Manual extension extraction
+    size_t last_dot = path.find_last_of('.');
+    size_t last_slash = path.find_last_of('/');
+    size_t last_backslash = path.find_last_of('\\');
+    
+    // Make sure the dot is after the last path separator
+    size_t last_separator = std::max(
+        last_slash == std::string::npos ? 0 : last_slash,
+        last_backslash == std::string::npos ? 0 : last_backslash
+    );
+    
+    if (last_dot == std::string::npos || last_dot <= last_separator) {
+        std::cout << "DEBUG: No valid extension found" << std::endl;
+        return false;
+    }
+    
+    std::string ext = path.substr(last_dot);
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     
-    return (ext == ".fna" || ext == ".fasta" || ext == ".fa");
+    std::cout << "DEBUG: Extracted extension: '" << ext << "'" << std::endl;
+    
+    bool result = (ext == ".fna" || ext == ".fasta" || ext == ".fa");
+    std::cout << "DEBUG: Is FNA file: " << (result ? "true" : "false") << std::endl;
+    
+    return result;
 }
 
 bool validate_config(const PipelineConfig& config) {
@@ -515,10 +554,32 @@ bool build_database_command(const PipelineConfig& config) {
         std::cout << "Input path: '" << config.genome_dir << "'" << std::endl;
         std::cout << "Taxonomy path: '" << config.taxonomy_dir << "'" << std::endl;
         
+        // Debug: Check string integrity before is_concatenated_fna_file
+        std::cout << "DEBUG: Checking genome_dir string integrity..." << std::endl;
+        std::cout << "DEBUG: genome_dir size = " << config.genome_dir.size() << std::endl;
+        for (size_t i = 0; i < config.genome_dir.size(); i++) {
+            if (config.genome_dir[i] == '\0') {
+                std::cerr << "ERROR: Null character found in genome_dir at position " << i << std::endl;
+                return false;
+            }
+        }
+        std::cout << "DEBUG: genome_dir string integrity OK" << std::endl;
+        
         bool success = false;
         
+        std::cout << "DEBUG: About to call is_concatenated_fna_file..." << std::endl;
+        
         // Check if input is a concatenated FNA file or a directory
-        if (is_concatenated_fna_file(config.genome_dir)) {
+        bool is_fna_file = false;
+        try {
+            is_fna_file = is_concatenated_fna_file(config.genome_dir);
+            std::cout << "DEBUG: is_concatenated_fna_file returned " << is_fna_file << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR in is_concatenated_fna_file: " << e.what() << std::endl;
+            return false;
+        }
+        
+        if (is_fna_file) {
             std::cout << "Detected concatenated FNA file - using streaming processor" << std::endl;
             success = builder->build_database_from_streaming_fna(config.genome_dir, config.taxonomy_dir);
         } else {

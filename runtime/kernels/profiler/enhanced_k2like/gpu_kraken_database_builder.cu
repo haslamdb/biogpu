@@ -1062,7 +1062,6 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
     std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
     
-    // Now safely call auto-scaling (will use the safe check_and_adjust_memory)
     try {
         if (auto_scale_memory) {
             std::cout << "Enabled auto memory scaling (using " << max_gpu_memory_usage_fraction 
@@ -1099,7 +1098,6 @@ GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
     }
 }
 
-// CRITICAL FIX for malloc(): invalid size (unsorted) error
 void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     size_t free_mem, total_mem;
     cudaError_t cuda_status = cudaMemGetInfo(&free_mem, &total_mem);
@@ -1111,97 +1109,41 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
               << (total_mem / 1024 / 1024) << " MB total" << std::endl;
     
-    if (!auto_scale_memory) {
-        return;  // Exit early if auto-scaling is disabled
-    }
-    
-    // CRITICAL FIX: Use simple, safe logic to prevent overflow
-    size_t memory_gb = total_mem / (1024ULL * 1024ULL * 1024ULL);
-    
-    std::cout << "GPU Memory: " << memory_gb << " GB detected" << std::endl;
+    if (auto_scale_memory) {
+        // SAFE: Use simple logic to prevent overflow
+        size_t memory_gb = total_mem / (1024ULL * 1024ULL * 1024ULL);
         
-        // Safe, conservative settings based on GPU memory size
+        std::cout << "GPU Memory: " << memory_gb << " GB detected" << std::endl;
+        
+        // SAFE: Conservative settings based on GPU memory size
         if (memory_gb >= 24) {
-            MAX_MINIMIZERS_PER_BATCH = 3000000;  // 3M for high-end GPUs
+            MAX_MINIMIZERS_PER_BATCH = 3000000;
             MAX_SEQUENCE_BATCH = 25;
-            std::cout << "High-end GPU configuration" << std::endl;
         } else if (memory_gb >= 16) {
-            MAX_MINIMIZERS_PER_BATCH = 2000000;  // 2M for mid-range
+            MAX_MINIMIZERS_PER_BATCH = 2000000;
             MAX_SEQUENCE_BATCH = 20;
-            std::cout << "Mid-range GPU configuration" << std::endl;
         } else if (memory_gb >= 8) {
-            MAX_MINIMIZERS_PER_BATCH = 1000000;  // 1M for lower-end
+            MAX_MINIMIZERS_PER_BATCH = 1000000;
             MAX_SEQUENCE_BATCH = 15;
-            std::cout << "Standard GPU configuration" << std::endl;
         } else {
-            MAX_MINIMIZERS_PER_BATCH = 500000;   // 500K for very limited memory
+            MAX_MINIMIZERS_PER_BATCH = 500000;
             MAX_SEQUENCE_BATCH = 10;
-            std::cout << "Limited memory GPU configuration" << std::endl;
         }
         
-        std::cout << "Auto-scaled settings (safe):" << std::endl;
+        std::cout << "Auto-scaled settings:" << std::endl;
         std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
         std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
     }
     
-    // Final validation to prevent any overflow
+    // CRITICAL: Final validation to prevent overflow
     if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 10000000) {
-        std::cerr << "ERROR: Invalid minimizer batch size: " << MAX_MINIMIZERS_PER_BATCH << ", using safe default" << std::endl;
-        MAX_MINIMIZERS_PER_BATCH = 1000000; // Safe 1M default
+        std::cerr << "ERROR: Invalid minimizer batch size, using safe default" << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 1000000;
     }
     
     if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 50) {
-        std::cerr << "ERROR: Invalid sequence batch size: " << MAX_SEQUENCE_BATCH << ", using safe default" << std::endl;
-        MAX_SEQUENCE_BATCH = 10; // Safe default
-    }
-    
-    // Verify we can safely calculate memory requirements
-    try {
-        // Use 64-bit arithmetic for safety check and validate no overflow
-        const uint64_t bytes_per_sequence = 3000000ULL; // 3MB per sequence
-        const uint64_t bytes_per_minimizer = 24ULL; // 24 bytes per minimizer
-        
-        // Check for overflow before multiplication
-        if (MAX_SEQUENCE_BATCH > SIZE_MAX / bytes_per_sequence) {
-            throw std::overflow_error("Sequence memory would overflow");
-        }
-        if (MAX_MINIMIZERS_PER_BATCH > SIZE_MAX / bytes_per_minimizer) {
-            throw std::overflow_error("Minimizer memory would overflow");
-        }
-        
-        uint64_t sequence_memory_check = static_cast<uint64_t>(MAX_SEQUENCE_BATCH) * bytes_per_sequence;
-        uint64_t minimizer_memory_check = static_cast<uint64_t>(MAX_MINIMIZERS_PER_BATCH) * bytes_per_minimizer;
-        
-        // Check for addition overflow
-        if (sequence_memory_check > SIZE_MAX - minimizer_memory_check) {
-            throw std::overflow_error("Total memory would overflow");
-        }
-        
-        uint64_t total_check = sequence_memory_check + minimizer_memory_check;
-        
-        // Use 70% of available memory as safe limit
-        uint64_t safe_memory_limit = (free_mem * max_gpu_memory_usage_fraction) / 100;
-        
-        if (total_check > safe_memory_limit) {
-            // Scale down if still too large
-            double scale_factor = static_cast<double>(safe_memory_limit) / static_cast<double>(total_check);
-            if (scale_factor < 1.0 && scale_factor > 0.0) {
-                MAX_MINIMIZERS_PER_BATCH = static_cast<int>(MAX_MINIMIZERS_PER_BATCH * scale_factor);
-                MAX_SEQUENCE_BATCH = static_cast<int>(MAX_SEQUENCE_BATCH * scale_factor);
-                
-                // Ensure minimums
-                MAX_MINIMIZERS_PER_BATCH = std::max(MAX_MINIMIZERS_PER_BATCH, 100000);
-                MAX_SEQUENCE_BATCH = std::max(MAX_SEQUENCE_BATCH, 5);
-                
-                std::cout << "Scaled down further for memory safety:" << std::endl;
-                std::cout << "  Minimizers: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
-                std::cout << "  Sequences: " << MAX_SEQUENCE_BATCH << std::endl;
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error in memory calculation: " << e.what() << ", using ultra-safe defaults" << std::endl;
-        MAX_MINIMIZERS_PER_BATCH = 500000;
-        MAX_SEQUENCE_BATCH = 5;
+        std::cerr << "ERROR: Invalid sequence batch size, using safe default" << std::endl;
+        MAX_SEQUENCE_BATCH = 10;
     }
 }
 

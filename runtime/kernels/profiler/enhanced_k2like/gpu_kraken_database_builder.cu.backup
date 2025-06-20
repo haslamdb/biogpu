@@ -5,6 +5,7 @@
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
+#include "gpu_kraken_database_builder.h"
 #include "gpu_kraken_classifier.h"
 #include "gpu_minimizer_extraction.cuh"
 #include "streaming_fna_processor.h"
@@ -740,175 +741,6 @@ public:
     }
 };
 
-class GPUKrakenDatabaseBuilder {
-private:
-    // Configuration
-    ClassificationParams params;
-    std::string output_directory;
-    
-    // Host data
-    std::vector<std::string> genome_files;
-    std::vector<uint32_t> genome_taxon_ids;
-    std::unordered_map<uint32_t, std::string> taxon_names;
-    std::unordered_map<uint32_t, uint32_t> taxon_parents;
-    std::vector<LCACandidate> all_lca_candidates;
-    
-    // GPU memory management
-    char* d_sequence_data;
-    GPUGenomeInfo* d_genome_info;
-    GPUMinimizerHit* d_minimizer_hits;
-    uint32_t* d_minimizer_counts;
-    LCACandidate* d_lca_candidates;
-    GPUTaxonomyNode* d_taxonomy_nodes;
-    
-    // UPDATED: Higher minimizer capacity for comprehensive databases
-    int MAX_SEQUENCE_BATCH = 25;           // Keep sequences reasonable
-    int MAX_MINIMIZERS_PER_BATCH = 5000000; // INCREASED from 1M to 5M
-    static const int MAX_READ_LENGTH = 1000;
-    static const int THREADS_PER_BLOCK = 256;
-    static const int MAX_TAXA_PER_PAIR = 128;
-    
-    // NEW: Dynamic memory scaling based on available GPU memory
-    bool auto_scale_memory = true;
-    size_t max_gpu_memory_usage_fraction = 80; // Use up to 80% of GPU memory
-    
-    // NEW: Statistics to track if we're hitting limits
-    uint64_t total_minimizers_capped = 0;
-    uint64_t total_batches_capped = 0;
-    
-    // Convert existing params to minimizer params
-    MinimizerParams minimizer_params;
-    
-    // NEW: Kraken2-inspired parameters
-    uint64_t min_clear_hash_value = 0;  // For hash-based subsampling
-    double subsampling_rate = 1.0;      // Fraction of minimizers to keep
-    uint64_t toggle_mask = 0xe37e28c4271b5a2dULL;  // Kraken2-style toggle mask
-    
-    // Statistics
-    GPUBuildStats stats;
-    
-    // NEW: Enhanced taxonomy processor and phylogenetic data
-    EnhancedNCBITaxonomyProcessor enhanced_taxonomy_processor;
-    EnhancedBuildStats enhanced_stats;
-    std::vector<PhylogeneticLCACandidate> phylogenetic_candidates;
-    ContributingTaxaArrays contributing_taxa_arrays;
-    SpeciesTrackingData species_tracking;
-    
-public:
-    GPUKrakenDatabaseBuilder(const std::string& output_dir,
-                            const ClassificationParams& config = ClassificationParams());
-    ~GPUKrakenDatabaseBuilder();
-    
-    // Main pipeline methods (keep all original interfaces)
-    bool build_database_from_genomes(
-        const std::string& genome_library_path,
-        const std::string& taxonomy_path = ""
-    );
-    
-    bool build_database_from_file_list(
-        const std::string& file_list_path,
-        const std::string& taxonomy_path = ""
-    );
-    
-    // Step-by-step processing
-    bool load_genome_files(const std::string& library_path);
-    bool load_taxonomy_data(const std::string& taxonomy_path);
-    bool process_genomes_gpu();
-    bool save_database();
-    
-    // Configuration - declarations only (implementations moved outside class)
-    void set_batch_size(int sequences_per_batch);
-    void set_minimizer_capacity(int minimizers_per_batch);
-    void enable_auto_memory_scaling(bool enable = true, size_t memory_fraction = 80);
-    void set_subsampling_rate(double rate);
-    
-    void print_build_statistics();
-    
-    // Testing function for integration
-    void test_minimizer_extraction_integration();
-    
-    // NEW: Enhanced database building methods
-    bool build_database_from_concatenated_fna(
-        const std::string& fna_file_path,
-        const std::string& taxonomy_nodes_path = "",
-        const std::string& taxonomy_names_path = "",
-        const std::string& compact_taxonomy_path = "");
-    
-    // NEW: Alternative method that uses pre-parsed FNA processor
-    bool build_database_with_fna_processor(
-        ConcatenatedFnaProcessor& fna_processor,
-        const std::string& taxonomy_nodes_path = "",
-        const std::string& taxonomy_names_path = "",
-        const std::string& compact_taxonomy_path = "");
-    
-    // NEW: Pre-build compact taxonomy
-    bool prebuild_compact_taxonomy(const std::string& nodes_path, 
-                                  const std::string& names_path,
-                                  const std::string& output_path);
-    
-    // NEW: Streaming support for large concatenated FNA files
-    bool build_database_from_streaming_fna(const std::string& fna_file_path,
-                                          const std::string& taxonomy_path = "");
-    
-private:
-    // GPU processing methods
-    bool allocate_gpu_memory();
-    void free_gpu_memory();
-    void check_and_adjust_memory();
-    void check_and_adjust_memory_safe();
-    void validate_memory_settings();
-    
-    bool process_sequence_batch(
-        const std::vector<std::string>& sequences,
-        const std::vector<uint32_t>& taxon_ids,
-        int batch_offset
-    );
-    
-    // UPDATED: Use improved minimizer extraction
-    bool extract_minimizers_gpu(
-        const char* d_sequences,
-        const GPUGenomeInfo* d_genomes,
-        int num_sequences,
-        GPUMinimizerHit* d_hits,
-        uint32_t* total_hits
-    );
-    
-    // FIXED: Proper LCA computation without over-aggressive deduplication
-    bool compute_lca_assignments_gpu(
-        const GPUMinimizerHit* d_hits,
-        int num_hits,
-        LCACandidate* d_candidates,
-        int* num_candidates
-    );
-    
-    bool build_compact_hash_table_gpu(
-        const LCACandidate* d_candidates,
-        int num_candidates
-    );
-    
-    // File processing (keep all original methods)
-    std::vector<std::string> load_sequences_from_fasta(const std::string& fasta_path);
-    bool parse_taxonomy_files(const std::string& taxonomy_path);
-    
-    // Utility methods
-    uint32_t extract_taxon_from_filename(const std::string& filename);
-    std::vector<std::string> find_genome_files(const std::string& directory);
-    bool validate_path_safety(const std::string& path);
-    
-    // NEW: Enhanced processing methods
-    bool process_concatenated_fna_file(const std::string& fna_file_path);
-    bool enhance_candidates_with_phylogenetics();
-    bool save_enhanced_database();
-    
-    // NEW: Helper methods for saving enhanced database
-    void build_contributing_taxa_arrays();
-    uint32_t add_to_contributing_taxa_arrays(const PhylogeneticLCACandidate& candidate);
-    bool save_streamlined_hash_table(const std::vector<StreamlinedMinimizerMetadata>& metadata, 
-                                      const std::string& filename);
-    bool save_contributing_taxa_arrays(const std::string& filename);
-    bool save_enhanced_config(const std::string& filename);
-    bool save_standard_database();
-};
 
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_HEADER_ONLY
 
@@ -1105,42 +937,64 @@ __device__ bool has_valid_bases(const char* seq, int length) {
 
 // Fixed GPUKrakenDatabaseBuilder constructor and memory allocation
 // This fixes the malloc(): invalid size (unsorted) error
+// FIXED: GPUKrakenDatabaseBuilder constructor with proper initialization order and bounds checking
+// This fixes the heap corruption issue identified by valgrind
+
 GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     const std::string& output_dir,
     const ClassificationParams& config)
-    : output_directory(output_dir), params(config),
-      d_sequence_data(nullptr), d_genome_info(nullptr),
-      d_minimizer_hits(nullptr), d_minimizer_counts(nullptr),
-      d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr) {
+    : output_directory(output_dir),  // Initialize string first
+      params(config),                // Copy config (not reference)
+      d_sequence_data(nullptr),
+      d_genome_info(nullptr),
+      d_minimizer_hits(nullptr),
+      d_minimizer_counts(nullptr),
+      d_lca_candidates(nullptr),
+      d_taxonomy_nodes(nullptr),
+      MAX_SEQUENCE_BATCH(10),              // Safe default
+      MAX_MINIMIZERS_PER_BATCH(1000000),   // Safe 1M default
+      auto_scale_memory(true),
+      max_gpu_memory_usage_fraction(80),
+      total_minimizers_capped(0),
+      total_batches_capped(0),
+      min_clear_hash_value(0),
+      subsampling_rate(1.0),
+      toggle_mask(0xe37e28c4271b5a2dULL) {
     
-    // CRITICAL: Initialize ALL variables with SAFE defaults FIRST
-    MAX_SEQUENCE_BATCH = 10;              // Safe default
-    MAX_MINIMIZERS_PER_BATCH = 1000000;   // Safe 1M default
-    auto_scale_memory = true;             // Enable auto-scaling by default
-    max_gpu_memory_usage_fraction = 80;   // Safe 80% usage
-    
-    // Initialize statistics to zero
+    // CRITICAL FIX: Initialize all POD members before any operations
     memset(&stats, 0, sizeof(stats));
-    total_minimizers_capped = 0;
-    total_batches_capped = 0;
     
-    // Initialize taxonomy processor
-    enhanced_stats = EnhancedBuildStats();
-    
-    // Convert classification params to minimizer params
+    // Initialize minimizer params from classification params
     minimizer_params.k = params.k;
     minimizer_params.ell = params.ell;
     minimizer_params.spaces = params.spaces;
-    minimizer_params.xor_mask = 0x3c8bfbb395c60474ULL;  // Kraken2-style XOR mask
+    minimizer_params.xor_mask = 0x3c8bfbb395c60474ULL;
+    
+    // Initialize enhanced stats with zero initialization
+    enhanced_stats = EnhancedBuildStats();
+    memset(&enhanced_stats, 0, sizeof(enhanced_stats));
     
     std::cout << "Initializing GPU Kraken database builder (High Capacity)..." << std::endl;
     std::cout << "Parameters: k=" << minimizer_params.k 
               << ", ell=" << minimizer_params.ell 
               << ", spaces=" << minimizer_params.spaces << std::endl;
     
-    // Create output directory safely
+    // FIXED: Validate string parameters before using them
+    if (output_directory.empty()) {
+        throw std::invalid_argument("Output directory cannot be empty");
+    }
+    
+    if (output_directory.size() > 4096) {
+        throw std::invalid_argument("Output directory path too long");
+    }
+    
+    // Create output directory safely with proper error handling
     try {
-        std::filesystem::create_directories(output_directory);
+        std::error_code ec;
+        std::filesystem::create_directories(output_directory, ec);
+        if (ec) {
+            std::cerr << "Warning: Could not create output directory: " << ec.message() << std::endl;
+        }
     } catch (const std::exception& e) {
         std::cerr << "Warning: Could not create output directory: " << e.what() << std::endl;
     }
@@ -1149,16 +1003,57 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
     std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
     
-    // NOTE: Auto memory scaling will be configured later in enable_auto_memory_scaling()
-    // Don't call check_and_adjust_memory_safe() here - CUDA context not ready yet
+    // CRITICAL FIX: Don't call CUDA functions in constructor
+    // CUDA context might not be ready yet - defer to enable_auto_memory_scaling()
     if (auto_scale_memory) {
         std::cout << "Auto memory scaling will be configured after CUDA initialization" << std::endl;
     }
     
-    std::cout << "DEBUG: About to call validate_memory_settings()" << std::endl;
     // Final validation that all values are sane
     validate_memory_settings();
-    std::cout << "DEBUG: Constructor completed successfully" << std::endl;
+    
+    std::cout << "GPUKrakenDatabaseBuilder constructor completed successfully" << std::endl;
+}
+
+// FIXED: Separate method for CUDA initialization that can be called safely
+bool GPUKrakenDatabaseBuilder::initialize_cuda_context() {
+    std::cout << "Initializing CUDA context..." << std::endl;
+    
+    // Force CUDA runtime initialization
+    cudaError_t init_status = cudaFree(0);
+    if (init_status != cudaSuccess) {
+        std::cerr << "Warning: CUDA runtime initialization failed: " << cudaGetErrorString(init_status) << std::endl;
+        return false;
+    }
+    
+    // Check device count
+    int device_count;
+    cudaError_t cuda_status = cudaGetDeviceCount(&device_count);
+    if (cuda_status != cudaSuccess || device_count == 0) {
+        std::cerr << "Error: No CUDA devices available" << std::endl;
+        return false;
+    }
+    
+    // Set device
+    cuda_status = cudaSetDevice(0);
+    if (cuda_status != cudaSuccess) {
+        std::cerr << "Error: Failed to set CUDA device" << std::endl;
+        return false;
+    }
+    
+    // Now safe to call memory scaling
+    if (auto_scale_memory) {
+        try {
+            check_and_adjust_memory_safe();
+        } catch (const std::exception& e) {
+            std::cerr << "Auto-scaling failed: " << e.what() << std::endl;
+            auto_scale_memory = false;
+            return false;
+        }
+    }
+    
+    std::cout << "CUDA context initialized successfully" << std::endl;
+    return true;
 }
 
 // Destructor - safe with CUDA context validation
@@ -1320,18 +1215,31 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory_safe() {
 }
 
 // Validate memory settings to prevent overflow
+// FIXED: Safer memory validation with proper bounds checking
 void GPUKrakenDatabaseBuilder::validate_memory_settings() {
     // Ensure batch sizes are within reasonable bounds
-    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 10000000) {
+    if (MAX_MINIMIZERS_PER_BATCH <= 0) {
         std::cerr << "ERROR: Invalid minimizer batch size " << MAX_MINIMIZERS_PER_BATCH 
                   << ", using safe default" << std::endl;
         MAX_MINIMIZERS_PER_BATCH = 1000000;
     }
     
-    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 100) {
+    if (MAX_MINIMIZERS_PER_BATCH > 50000000) {  // Cap at 50M
+        std::cerr << "WARNING: Very large minimizer batch size " << MAX_MINIMIZERS_PER_BATCH 
+                  << ", capping at 50M" << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 50000000;
+    }
+    
+    if (MAX_SEQUENCE_BATCH <= 0) {
         std::cerr << "ERROR: Invalid sequence batch size " << MAX_SEQUENCE_BATCH 
                   << ", using safe default" << std::endl;
         MAX_SEQUENCE_BATCH = 10;
+    }
+    
+    if (MAX_SEQUENCE_BATCH > 100) {
+        std::cerr << "WARNING: Very large sequence batch size " << MAX_SEQUENCE_BATCH 
+                  << ", capping at 100" << std::endl;
+        MAX_SEQUENCE_BATCH = 100;
     }
     
     // Validate other memory-related settings
@@ -1369,6 +1277,7 @@ void GPUKrakenDatabaseBuilder::set_minimizer_capacity(int minimizers_per_batch) 
     }
 }
 
+// UPDATED: Enhanced enable_auto_memory_scaling that doesn't call CUDA in constructor
 void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t memory_fraction) {
     // Validate memory_fraction
     if (memory_fraction == 0 || memory_fraction > 100) {
@@ -1380,52 +1289,12 @@ void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t me
     auto_scale_memory = enable;
     max_gpu_memory_usage_fraction = memory_fraction;
     
+    std::cout << "Auto memory scaling " << (enable ? "ENABLED" : "DISABLED") << std::endl;
+    std::cout << "Memory fraction: " << memory_fraction << "%" << std::endl;
+    
+    // Don't initialize CUDA here - it will be done in initialize_cuda_context()
     if (enable) {
-        std::cout << "DEBUG: Initializing CUDA runtime..." << std::endl;
-        
-        // CUDA initialization trick - this forces CUDA runtime to initialize
-        cudaError_t init_status = cudaFree(0);
-        std::cout << "DEBUG: cudaFree(0) initialization returned: " << cudaGetErrorString(init_status) << std::endl;
-        
-        if (init_status != cudaSuccess) {
-            std::cerr << "Warning: CUDA runtime initialization failed, disabling auto-scaling" << std::endl;
-            auto_scale_memory = false;
-            return;
-        }
-        
-        std::cout << "DEBUG: CUDA runtime initialized, checking device count..." << std::endl;
-        
-        int device_count;
-        cudaError_t cuda_status = cudaGetDeviceCount(&device_count);
-        std::cout << "DEBUG: cudaGetDeviceCount returned: " << cudaGetErrorString(cuda_status) << std::endl;
-        
-        if (cuda_status != cudaSuccess || device_count == 0) {
-            std::cerr << "Warning: No CUDA devices available, disabling auto-scaling" << std::endl;
-            auto_scale_memory = false;
-            return;
-        }
-        
-        std::cout << "DEBUG: Found " << device_count << " CUDA devices" << std::endl;
-        
-        // Now cudaSetDevice should work
-        std::cout << "DEBUG: Setting CUDA device 0..." << std::endl;
-        cuda_status = cudaSetDevice(0);
-        std::cout << "DEBUG: cudaSetDevice(0) returned: " << cudaGetErrorString(cuda_status) << std::endl;
-        
-        if (cuda_status != cudaSuccess) {
-            std::cerr << "Warning: Failed to set CUDA device, disabling auto-scaling" << std::endl;
-            auto_scale_memory = false;
-            return;
-        }
-        
-        // Now memory query should work
-        std::cout << "DEBUG: Calling memory scaling logic..." << std::endl;
-        try {
-            check_and_adjust_memory();
-        } catch (const std::exception& e) {
-            std::cerr << "Auto-scaling failed: " << e.what() << std::endl;
-            auto_scale_memory = false;
-        }
+        std::cout << "Note: CUDA context must be initialized before auto-scaling takes effect" << std::endl;
     }
 }
 
@@ -1440,108 +1309,73 @@ void GPUKrakenDatabaseBuilder::set_subsampling_rate(double rate) {
 }
 
 // Debug version of build_database_from_genomes to track malloc error
+// UPDATED: build_database_from_genomes with proper initialization
 bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
     const std::string& genome_library_path,
     const std::string& taxonomy_path) {
     
-    std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES (Debug Mode) ===" << std::endl;
-    std::cout << "Input genome_library_path: '" << genome_library_path << "'" << std::endl;
-    std::cout << "Input taxonomy_path: '" << taxonomy_path << "'" << std::endl;
+    std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES ===" << std::endl;
     
-    // Validate inputs immediately
+    // CRITICAL FIX: Initialize CUDA context first
+    if (!initialize_cuda_context()) {
+        std::cerr << "Failed to initialize CUDA context" << std::endl;
+        return false;
+    }
+    
+    // Validate inputs
     if (genome_library_path.empty()) {
         std::cerr << "ERROR: genome_library_path is empty!" << std::endl;
         return false;
     }
     
     // Check for string corruption
-    std::cout << "DEBUG: Validating genome_library_path string integrity..." << std::endl;
     for (size_t i = 0; i < genome_library_path.size(); i++) {
         if (genome_library_path[i] == '\0') {
             std::cerr << "ERROR: Null character found in genome_library_path at position " << i << std::endl;
             return false;
         }
     }
-    std::cout << "DEBUG: genome_library_path string integrity OK" << std::endl;
     
     auto total_start = std::chrono::high_resolution_clock::now();
-    
-    std::cout << "DEBUG: About to call load_genome_files..." << std::endl;
     
     try {
         if (!load_genome_files(genome_library_path)) {
             std::cerr << "Failed to load genome files" << std::endl;
             return false;
         }
-        std::cout << "DEBUG: load_genome_files completed successfully" << std::endl;
         
-    } catch (const std::bad_alloc& e) {
-        std::cerr << "MALLOC ERROR in load_genome_files: " << e.what() << std::endl;
-        return false;
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR in load_genome_files: " << e.what() << std::endl;
-        return false;
-    }
-    
-    std::cout << "DEBUG: About to load taxonomy data..." << std::endl;
-    
-    if (!taxonomy_path.empty()) {
-        try {
+        if (!taxonomy_path.empty()) {
             if (!load_taxonomy_data(taxonomy_path)) {
                 std::cerr << "Warning: Failed to load taxonomy data" << std::endl;
-            } else {
-                std::cout << "DEBUG: load_taxonomy_data completed successfully" << std::endl;
             }
-        } catch (const std::exception& e) {
-            std::cerr << "ERROR in load_taxonomy_data: " << e.what() << std::endl;
-            // Don't fail here, taxonomy is optional
         }
-    } else {
-        std::cout << "DEBUG: No taxonomy path provided, skipping taxonomy loading" << std::endl;
-    }
-    
-    std::cout << "DEBUG: About to call process_genomes_gpu..." << std::endl;
-    
-    try {
+        
         if (!process_genomes_gpu()) {
             std::cerr << "Failed to process genomes on GPU" << std::endl;
             return false;
         }
-        std::cout << "DEBUG: process_genomes_gpu completed successfully" << std::endl;
         
-    } catch (const std::bad_alloc& e) {
-        std::cerr << "MALLOC ERROR in process_genomes_gpu: " << e.what() << std::endl;
-        return false;
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR in process_genomes_gpu: " << e.what() << std::endl;
-        return false;
-    }
-    
-    std::cout << "DEBUG: About to call save_database..." << std::endl;
-    
-    try {
         if (!save_database()) {
             std::cerr << "Failed to save database" << std::endl;
             return false;
         }
-        std::cout << "DEBUG: save_database completed successfully" << std::endl;
+        
+        auto total_end = std::chrono::high_resolution_clock::now();
+        auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(total_end - total_start);
+        
+        std::cout << "\n=== DATABASE BUILD COMPLETE ===" << std::endl;
+        std::cout << "Total build time: " << total_duration.count() << " seconds" << std::endl;
+        print_build_statistics();
+        
+        return true;
         
     } catch (const std::bad_alloc& e) {
-        std::cerr << "MALLOC ERROR in save_database: " << e.what() << std::endl;
+        std::cerr << "MALLOC ERROR: " << e.what() << std::endl;
         return false;
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in save_database: " << e.what() << std::endl;
+        std::cerr << "ERROR: " << e.what() << std::endl;
         return false;
     }
-    
-    auto total_end = std::chrono::high_resolution_clock::now();
-    auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(total_end - total_start);
-    
-    std::cout << "\n=== DATABASE BUILD COMPLETE ===" << std::endl;
-    std::cout << "Total build time: " << total_duration.count() << " seconds" << std::endl;
-    print_build_statistics();
-    
-    return true;
 }
 
 // Fixed load_genome_files with proper bounds checking and error handling

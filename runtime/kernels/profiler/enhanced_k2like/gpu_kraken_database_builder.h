@@ -81,6 +81,9 @@ public:
                             const ClassificationParams& config = ClassificationParams());
     ~GPUKrakenDatabaseBuilder();
     
+    // FIXED: Separate CUDA initialization from constructor to avoid heap corruption
+    bool initialize_cuda_context();
+    
     // Main pipeline methods (keep all original interfaces)
     bool build_database_from_genomes(
         const std::string& genome_library_path,
@@ -143,6 +146,7 @@ private:
     bool allocate_gpu_memory();
     void free_gpu_memory();
     void check_and_adjust_memory();
+    void check_and_adjust_memory_safe();
     
     bool process_sequence_batch(
         const std::vector<std::string>& sequences,

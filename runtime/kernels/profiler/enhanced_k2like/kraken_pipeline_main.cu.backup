@@ -559,7 +559,6 @@ bool validate_config(const PipelineConfig& config) {
     return true;
 }
 
-// FIXED: Updated build_database_command with proper initialization sequence
 bool build_database_command(const PipelineConfig& config) {
     std::cout << "\n=== BUILDING KRAKEN DATABASE (High Capacity) ===" << std::endl;
     std::cout << "Genome directory: " << config.genome_dir << std::endl;
@@ -579,14 +578,13 @@ bool build_database_command(const PipelineConfig& config) {
         return false;
     }
     
-    // FIXED: Use stat() instead of std::filesystem for initial path validation
-    struct stat path_stat;
-    if (stat(config.genome_dir.c_str(), &path_stat) != 0) {
-        std::cerr << "ERROR: Genome directory/file does not exist: " << config.genome_dir << std::endl;
+    // Check if genome directory exists
+    if (!std::filesystem::exists(config.genome_dir)) {
+        std::cerr << "ERROR: Genome directory does not exist: " << config.genome_dir << std::endl;
         return false;
     }
     
-    // Display capacity settings
+    // NEW: Display capacity settings
     std::cout << "Capacity settings:" << std::endl;
     if (config.auto_memory_scaling) {
         std::cout << "  Auto memory scaling: ENABLED (" << config.memory_fraction << "% of GPU memory)" << std::endl;
@@ -597,17 +595,18 @@ bool build_database_command(const PipelineConfig& config) {
     
     // Create output directory if it doesn't exist
     try {
-        // Create parent directories recursively using mkdir
-        std::string cmd = "mkdir -p \"" + config.output_path + "\"";
-        int result = system(cmd.c_str());
-        if (result != 0) {
-            std::cerr << "Failed to create output directory" << std::endl;
-            return false;
-        }
+        std::filesystem::create_directories(config.output_path);
         std::cout << "Created/verified output directory: " << config.output_path << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to create output directory: " << e.what() << std::endl;
         return false;
+    }
+    
+    // Initialize CUDA runtime early
+    std::cout << "Initializing CUDA runtime..." << std::endl;
+    cudaError_t init_status = cudaFree(0);
+    if (init_status != cudaSuccess) {
+        std::cerr << "WARNING: Early CUDA initialization returned: " << cudaGetErrorString(init_status) << std::endl;
     }
     
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -628,15 +627,7 @@ bool build_database_command(const PipelineConfig& config) {
         
         std::cout << "Database builder created successfully!" << std::endl;
         
-        // FIXED: Call initialize_cuda_context() AFTER creating the builder object
-        std::cout << "Initializing CUDA context..." << std::endl;
-        if (!builder->initialize_cuda_context()) {
-            std::cerr << "ERROR: Failed to initialize CUDA context" << std::endl;
-            return false;
-        }
-        std::cout << "CUDA context initialized successfully!" << std::endl;
-        
-        // FIXED: Configure memory settings AFTER CUDA initialization
+        // Configure memory and capacity settings
         if (config.auto_memory_scaling) {
             std::cout << "Enabling auto memory scaling..." << std::endl;
             builder->enable_auto_memory_scaling(true, config.memory_fraction);
@@ -656,44 +647,37 @@ bool build_database_command(const PipelineConfig& config) {
         std::cout << "Input path: '" << config.genome_dir << "'" << std::endl;
         std::cout << "Taxonomy path: '" << config.taxonomy_dir << "'" << std::endl;
         
-        // Validate string integrity
+        // Debug: Check string integrity before is_concatenated_fna_file
+        std::cout << "DEBUG: Checking genome_dir string integrity..." << std::endl;
+        std::cout << "DEBUG: genome_dir size = " << config.genome_dir.size() << std::endl;
         for (size_t i = 0; i < config.genome_dir.size(); i++) {
             if (config.genome_dir[i] == '\0') {
                 std::cerr << "ERROR: Null character found in genome_dir at position " << i << std::endl;
                 return false;
             }
         }
+        std::cout << "DEBUG: genome_dir string integrity OK" << std::endl;
         
         bool success = false;
         
-        // FIXED: Use safe file type detection
+        std::cout << "DEBUG: About to call is_concatenated_fna_file..." << std::endl;
+        
+        // Check if input is a concatenated FNA file or a directory
         bool is_fna_file = false;
         try {
             is_fna_file = is_concatenated_fna_file(config.genome_dir);
-            std::cout << "File type detection: " << (is_fna_file ? "concatenated FNA file" : "directory") << std::endl;
+            std::cout << "DEBUG: is_concatenated_fna_file returned " << is_fna_file << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "ERROR in file type detection: " << e.what() << std::endl;
-            builder.reset();
+            std::cerr << "ERROR in is_concatenated_fna_file: " << e.what() << std::endl;
             return false;
         }
         
-        // Build database based on input type
         if (is_fna_file) {
-            std::cout << "Processing concatenated FNA file using streaming processor..." << std::endl;
-            try {
-                success = builder->build_database_from_streaming_fna(config.genome_dir, config.taxonomy_dir);
-            } catch (const std::exception& e) {
-                std::cerr << "ERROR during FNA processing: " << e.what() << std::endl;
-                success = false;
-            }
+            std::cout << "Detected concatenated FNA file - using streaming processor" << std::endl;
+            success = builder->build_database_from_streaming_fna(config.genome_dir, config.taxonomy_dir);
         } else {
-            std::cout << "Processing genome directory with individual files..." << std::endl;
-            try {
-                success = builder->build_database_from_genomes(config.genome_dir, config.taxonomy_dir);
-            } catch (const std::exception& e) {
-                std::cerr << "ERROR during genome processing: " << e.what() << std::endl;
-                success = false;
-            }
+            std::cout << "Processing genome directory with individual files" << std::endl;
+            success = builder->build_database_from_genomes(config.genome_dir, config.taxonomy_dir);
         }
         
         if (success) {

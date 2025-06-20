@@ -428,17 +428,29 @@ bool validate_config(const PipelineConfig& config) {
 }
 
 bool build_database_command(const PipelineConfig& config) {
-    // CRITICAL: Copy config values to local variables immediately
-    std::string output_path = config.output_path;
-    std::string genome_dir = config.genome_dir;
-    std::string taxonomy_dir = config.taxonomy_dir;
-    
     std::cout << "\n=== BUILDING KRAKEN DATABASE (High Capacity) ===" << std::endl;
-    std::cout << "Genome directory: " << genome_dir << std::endl;
-    std::cout << "Output directory: " << output_path << std::endl;
+    std::cout << "Genome directory: " << config.genome_dir << std::endl;
+    std::cout << "Output directory: " << config.output_path << std::endl;
     std::cout << "Parameters: k=" << config.classifier_params.k 
               << ", ell=" << config.classifier_params.ell 
               << ", spaces=" << config.classifier_params.spaces << std::endl;
+    
+    // Validate input paths before proceeding
+    if (config.genome_dir.empty()) {
+        std::cerr << "ERROR: Genome directory path is empty!" << std::endl;
+        return false;
+    }
+    
+    if (config.output_path.empty()) {
+        std::cerr << "ERROR: Output path is empty!" << std::endl;
+        return false;
+    }
+    
+    // Check if genome directory exists
+    if (!std::filesystem::exists(config.genome_dir)) {
+        std::cerr << "ERROR: Genome directory does not exist: " << config.genome_dir << std::endl;
+        return false;
+    }
     
     // NEW: Display capacity settings
     std::cout << "Capacity settings:" << std::endl;
@@ -450,17 +462,16 @@ bool build_database_command(const PipelineConfig& config) {
     }
     
     // Create output directory if it doesn't exist
-    if (!output_path.empty()) {
-        try {
-            std::filesystem::create_directories(output_path);
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to create output directory: " << e.what() << std::endl;
-            return false;
-        }
+    try {
+        std::filesystem::create_directories(config.output_path);
+        std::cout << "Created/verified output directory: " << config.output_path << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create output directory: " << e.what() << std::endl;
+        return false;
     }
     
     // Initialize CUDA runtime early
-    std::cout << "DEBUG: Initializing CUDA runtime early..." << std::endl;
+    std::cout << "Initializing CUDA runtime..." << std::endl;
     cudaError_t init_status = cudaFree(0);
     if (init_status != cudaSuccess) {
         std::cerr << "WARNING: Early CUDA initialization returned: " << cudaGetErrorString(init_status) << std::endl;
@@ -469,27 +480,27 @@ bool build_database_command(const PipelineConfig& config) {
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {
-        // Use scoped pointer to ensure cleanup happens in controlled manner
+        std::cout << "Creating GPUKrakenDatabaseBuilder..." << std::endl;
+        
+        // Create the builder with a copy of the classification params to avoid reference issues
+        ClassificationParams params_copy = config.classifier_params;
         std::unique_ptr<GPUKrakenDatabaseBuilder> builder;
         
-        std::cout << "DEBUG: In build_database_command, genome_dir = '" << genome_dir << "'" << std::endl;
-        std::cout << "About to create GPUKrakenDatabaseBuilder..." << std::endl;
-        
         try {
-            builder = std::make_unique<GPUKrakenDatabaseBuilder>(output_path, config.classifier_params);
+            builder = std::make_unique<GPUKrakenDatabaseBuilder>(config.output_path, params_copy);
         } catch (const std::exception& e) {
             std::cerr << "Failed to create database builder: " << e.what() << std::endl;
             return false;
         }
         
-        std::cout << "Constructor completed successfully!" << std::endl;
+        std::cout << "Database builder created successfully!" << std::endl;
         
-        // NEW: Configure memory and capacity settings
+        // Configure memory and capacity settings
         if (config.auto_memory_scaling) {
             std::cout << "Enabling auto memory scaling..." << std::endl;
             builder->enable_auto_memory_scaling(true, config.memory_fraction);
         } else {
-            std::cout << "Disabling auto memory scaling..." << std::endl;
+            std::cout << "Using manual memory settings..." << std::endl;
             builder->enable_auto_memory_scaling(false);
             builder->set_minimizer_capacity(config.minimizer_capacity);
         }
@@ -498,23 +509,21 @@ bool build_database_command(const PipelineConfig& config) {
         if (config.gpu_batch_size > 0) {
             std::cout << "Setting batch size to " << config.gpu_batch_size << std::endl;
             builder->set_batch_size(config.gpu_batch_size);
-            std::cout << "Batch size set successfully!" << std::endl;
         }
         
-        std::cout << "About to call database builder..." << std::endl;
-        std::cout << "genome_dir = '" << genome_dir << "'" << std::endl;
-        std::cout << "taxonomy_dir = '" << taxonomy_dir << "'" << std::endl;
-        std::cout.flush();
+        std::cout << "Configuration complete, starting database build..." << std::endl;
+        std::cout << "Input path: '" << config.genome_dir << "'" << std::endl;
+        std::cout << "Taxonomy path: '" << config.taxonomy_dir << "'" << std::endl;
         
         bool success = false;
         
         // Check if input is a concatenated FNA file or a directory
-        if (is_concatenated_fna_file(genome_dir)) {
+        if (is_concatenated_fna_file(config.genome_dir)) {
             std::cout << "Detected concatenated FNA file - using streaming processor" << std::endl;
-            success = builder->build_database_from_streaming_fna(genome_dir, taxonomy_dir);
+            success = builder->build_database_from_streaming_fna(config.genome_dir, config.taxonomy_dir);
         } else {
             std::cout << "Processing genome directory with individual files" << std::endl;
-            success = builder->build_database_from_genomes(genome_dir, taxonomy_dir);
+            success = builder->build_database_from_genomes(config.genome_dir, config.taxonomy_dir);
         }
         
         if (success) {
@@ -523,10 +532,9 @@ bool build_database_command(const PipelineConfig& config) {
             
             std::cout << "\n✓ Database build completed successfully in " 
                       << duration.count() << " seconds" << std::endl;
-            // Use local copy of path to avoid corruption
-            std::cout << "Database saved to: " << output_path << std::endl;
+            std::cout << "Database saved to: " << config.output_path << std::endl;
             
-            // Explicitly reset builder before returning to ensure controlled cleanup
+            // Explicitly reset builder before returning
             builder.reset();
             return true;
         } else {

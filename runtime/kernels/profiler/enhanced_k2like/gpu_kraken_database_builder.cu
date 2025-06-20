@@ -662,6 +662,82 @@ private:
     }
 };
 
+// Add these helper functions for debugging
+class MemoryDebugHelper {
+public:
+    static void check_heap_integrity(const std::string& location) {
+        std::cout << "DEBUG: Checking heap integrity at " << location << std::endl;
+        
+        try {
+            // Try a small allocation to test heap
+            void* test_ptr = malloc(1024);
+            if (test_ptr) {
+                free(test_ptr);
+                std::cout << "DEBUG: Heap allocation test passed at " << location << std::endl;
+            } else {
+                std::cerr << "WARNING: Heap allocation test failed at " << location << std::endl;
+            }
+        } catch (...) {
+            std::cerr << "ERROR: Exception during heap test at " << location << std::endl;
+        }
+    }
+    
+    static void print_memory_stats(const std::string& location) {
+        std::cout << "DEBUG: Memory stats at " << location << std::endl;
+        
+        // Check virtual memory usage
+        std::ifstream status("/proc/self/status");
+        if (status.is_open()) {
+            std::string line;
+            while (std::getline(status, line)) {
+                if (line.find("VmSize:") == 0 || line.find("VmRSS:") == 0 || 
+                    line.find("VmPeak:") == 0 || line.find("VmHWM:") == 0) {
+                    std::cout << "  " << line << std::endl;
+                }
+            }
+            status.close();
+        }
+        
+        // Check GPU memory if available
+        size_t free_mem, total_mem;
+        cudaError_t cuda_status = cudaMemGetInfo(&free_mem, &total_mem);
+        if (cuda_status == cudaSuccess) {
+            std::cout << "  GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
+                      << (total_mem / 1024 / 1024) << " MB total" << std::endl;
+        }
+    }
+    
+    static bool validate_vector_integrity(const std::vector<std::string>& vec, const std::string& name) {
+        std::cout << "DEBUG: Validating vector '" << name << "' with size " << vec.size() << std::endl;
+        
+        try {
+            if (vec.size() > 1000000) {
+                std::cerr << "WARNING: Vector " << name << " has suspicious size: " << vec.size() << std::endl;
+                return false;
+            }
+            
+            // Check first few and last few elements
+            size_t check_count = std::min(vec.size(), (size_t)10);
+            for (size_t i = 0; i < check_count; i++) {
+                if (vec[i].empty()) {
+                    std::cerr << "WARNING: Empty string at index " << i << " in vector " << name << std::endl;
+                }
+                if (vec[i].size() > 10000) {
+                    std::cerr << "WARNING: Very long string (" << vec[i].size() 
+                              << " chars) at index " << i << " in vector " << name << std::endl;
+                }
+            }
+            
+            std::cout << "DEBUG: Vector " << name << " validation passed" << std::endl;
+            return true;
+            
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR: Exception during vector validation for " << name << ": " << e.what() << std::endl;
+            return false;
+        }
+    }
+};
+
 class GPUKrakenDatabaseBuilder {
 private:
     // Configuration
@@ -1360,33 +1436,98 @@ void GPUKrakenDatabaseBuilder::set_subsampling_rate(double rate) {
     }
 }
 
-// Keep original main pipeline method
+// Debug version of build_database_from_genomes to track malloc error
 bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
     const std::string& genome_library_path,
     const std::string& taxonomy_path) {
     
-    std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES (Kraken2-inspired) ===" << std::endl;
+    std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES (Debug Mode) ===" << std::endl;
     std::cout << "Input genome_library_path: '" << genome_library_path << "'" << std::endl;
-    auto total_start = std::chrono::high_resolution_clock::now();
+    std::cout << "Input taxonomy_path: '" << taxonomy_path << "'" << std::endl;
     
-    if (!load_genome_files(genome_library_path)) {
-        std::cerr << "Failed to load genome files" << std::endl;
+    // Validate inputs immediately
+    if (genome_library_path.empty()) {
+        std::cerr << "ERROR: genome_library_path is empty!" << std::endl;
         return false;
     }
     
-    if (!taxonomy_path.empty()) {
-        if (!load_taxonomy_data(taxonomy_path)) {
-            std::cerr << "Warning: Failed to load taxonomy data" << std::endl;
+    // Check for string corruption
+    std::cout << "DEBUG: Validating genome_library_path string integrity..." << std::endl;
+    for (size_t i = 0; i < genome_library_path.size(); i++) {
+        if (genome_library_path[i] == '\0') {
+            std::cerr << "ERROR: Null character found in genome_library_path at position " << i << std::endl;
+            return false;
         }
     }
+    std::cout << "DEBUG: genome_library_path string integrity OK" << std::endl;
     
-    if (!process_genomes_gpu()) {
-        std::cerr << "Failed to process genomes on GPU" << std::endl;
+    auto total_start = std::chrono::high_resolution_clock::now();
+    
+    std::cout << "DEBUG: About to call load_genome_files..." << std::endl;
+    
+    try {
+        if (!load_genome_files(genome_library_path)) {
+            std::cerr << "Failed to load genome files" << std::endl;
+            return false;
+        }
+        std::cout << "DEBUG: load_genome_files completed successfully" << std::endl;
+        
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "MALLOC ERROR in load_genome_files: " << e.what() << std::endl;
+        return false;
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR in load_genome_files: " << e.what() << std::endl;
         return false;
     }
     
-    if (!save_database()) {
-        std::cerr << "Failed to save database" << std::endl;
+    std::cout << "DEBUG: About to load taxonomy data..." << std::endl;
+    
+    if (!taxonomy_path.empty()) {
+        try {
+            if (!load_taxonomy_data(taxonomy_path)) {
+                std::cerr << "Warning: Failed to load taxonomy data" << std::endl;
+            } else {
+                std::cout << "DEBUG: load_taxonomy_data completed successfully" << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR in load_taxonomy_data: " << e.what() << std::endl;
+            // Don't fail here, taxonomy is optional
+        }
+    } else {
+        std::cout << "DEBUG: No taxonomy path provided, skipping taxonomy loading" << std::endl;
+    }
+    
+    std::cout << "DEBUG: About to call process_genomes_gpu..." << std::endl;
+    
+    try {
+        if (!process_genomes_gpu()) {
+            std::cerr << "Failed to process genomes on GPU" << std::endl;
+            return false;
+        }
+        std::cout << "DEBUG: process_genomes_gpu completed successfully" << std::endl;
+        
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "MALLOC ERROR in process_genomes_gpu: " << e.what() << std::endl;
+        return false;
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR in process_genomes_gpu: " << e.what() << std::endl;
+        return false;
+    }
+    
+    std::cout << "DEBUG: About to call save_database..." << std::endl;
+    
+    try {
+        if (!save_database()) {
+            std::cerr << "Failed to save database" << std::endl;
+            return false;
+        }
+        std::cout << "DEBUG: save_database completed successfully" << std::endl;
+        
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "MALLOC ERROR in save_database: " << e.what() << std::endl;
+        return false;
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR in save_database: " << e.what() << std::endl;
         return false;
     }
     
@@ -1400,14 +1541,25 @@ bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
     return true;
 }
 
-// Keep original file loading logic
+// Fixed load_genome_files with proper bounds checking and error handling
 bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path) {
+    MemoryDebugHelper::check_heap_integrity("start of load_genome_files");
+    MemoryDebugHelper::print_memory_stats("start of load_genome_files");
+    
     std::cout << "Loading genome files from: " << library_path << std::endl;
     
     // Validate the library path
     if (library_path.empty()) {
         std::cerr << "Error: Genome library path is empty!" << std::endl;
         return false;
+    }
+    
+    // Check for string corruption
+    for (size_t i = 0; i < library_path.size(); i++) {
+        if (library_path[i] == '\0') {
+            std::cerr << "Error: Null character found in library path at position " << i << std::endl;
+            return false;
+        }
     }
     
     if (!std::filesystem::exists(library_path)) {
@@ -1420,28 +1572,123 @@ bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path
         return false;
     }
     
-    genome_files = find_genome_files(library_path);
+    std::cout << "Finding genome files..." << std::endl;
+    MemoryDebugHelper::check_heap_integrity("before clearing vectors");
     
-    if (genome_files.empty()) {
-        std::cerr << "No genome files found in " << library_path << std::endl;
+    // Clear existing data first to prevent corruption
+    genome_files.clear();
+    genome_taxon_ids.clear();
+    
+    MemoryDebugHelper::check_heap_integrity("after clearing vectors");
+    
+    try {
+        MemoryDebugHelper::check_heap_integrity("before find_genome_files");
+        
+        // Call find_genome_files with error checking
+        auto found_files = find_genome_files(library_path);
+        
+        MemoryDebugHelper::check_heap_integrity("after find_genome_files");
+        MemoryDebugHelper::validate_vector_integrity(found_files, "found_files");
+        
+        if (found_files.empty()) {
+            std::cerr << "No genome files found in " << library_path << std::endl;
+            return false;
+        }
+        
+        std::cout << "Found " << found_files.size() << " genome files, processing..." << std::endl;
+        
+        // Reserve space to prevent reallocations that could cause heap corruption
+        try {
+            genome_files.reserve(found_files.size());
+            genome_taxon_ids.reserve(found_files.size());
+        } catch (const std::bad_alloc& e) {
+            std::cerr << "Failed to reserve memory for " << found_files.size() << " genome files: " << e.what() << std::endl;
+            return false;
+        }
+        
+        // Process files one by one with error checking
+        size_t processed_count = 0;
+        for (const auto& file : found_files) {
+            try {
+                // Validate file path
+                if (file.empty()) {
+                    std::cerr << "Warning: Empty file path encountered, skipping" << std::endl;
+                    continue;
+                }
+                
+                // Check if file still exists (could have been deleted during processing)
+                if (!std::filesystem::exists(file)) {
+                    std::cerr << "Warning: File no longer exists: " << file << std::endl;
+                    continue;
+                }
+                
+                uint32_t taxon_id = extract_taxon_from_filename(file);
+                
+                // Safely add to vectors
+                genome_files.push_back(file);
+                genome_taxon_ids.push_back(taxon_id);
+                
+                // Update taxon names if not present
+                if (taxon_names.find(taxon_id) == taxon_names.end()) {
+                    std::filesystem::path p(file);
+                    std::string stem = p.stem().string();
+                    
+                    // Validate stem string
+                    if (!stem.empty() && stem.size() < 1000) {  // Reasonable limit
+                        taxon_names[taxon_id] = stem;
+                    } else {
+                        taxon_names[taxon_id] = "taxon_" + std::to_string(taxon_id);
+                    }
+                }
+                
+                processed_count++;
+                
+                // Progress reporting for large datasets
+                if (processed_count % 1000 == 0) {
+                    std::cout << "Processed " << processed_count << " files..." << std::endl;
+                }
+                
+                // Sanity check: make sure vectors stay in sync
+                if (genome_files.size() != genome_taxon_ids.size()) {
+                    std::cerr << "FATAL: Vector size mismatch detected!" << std::endl;
+                    return false;
+                }
+                
+            } catch (const std::exception& e) {
+                std::cerr << "Error processing file " << file << ": " << e.what() << std::endl;
+                // Continue with next file rather than failing completely
+                continue;
+            }
+        }
+        
+        if (genome_files.empty()) {
+            std::cerr << "No valid genome files could be processed" << std::endl;
+            return false;
+        }
+        
+        std::cout << "Successfully loaded " << genome_files.size() << " genome files" << std::endl;
+        stats.total_sequences = genome_files.size();
+        
+        // Final validation
+        if (genome_files.size() != genome_taxon_ids.size()) {
+            std::cerr << "FATAL: Final vector size mismatch!" << std::endl;
+            return false;
+        }
+        
+        MemoryDebugHelper::check_heap_integrity("end of load_genome_files");
+        MemoryDebugHelper::print_memory_stats("end of load_genome_files");
+        
+        return true;
+        
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Memory allocation failed while loading genome files: " << e.what() << std::endl;
+        MemoryDebugHelper::check_heap_integrity("after malloc error");
+        return false;
+    } catch (const std::exception& e) {
+        std::cerr << "Unexpected error while loading genome files: " << e.what() << std::endl;
+        MemoryDebugHelper::check_heap_integrity("after general error");
         return false;
     }
-    
-    genome_taxon_ids.reserve(genome_files.size());
-    for (const auto& file : genome_files) {
-        uint32_t taxon_id = extract_taxon_from_filename(file);
-        genome_taxon_ids.push_back(taxon_id);
-        
-        if (taxon_names.find(taxon_id) == taxon_names.end()) {
-            std::filesystem::path p(file);
-            taxon_names[taxon_id] = p.stem().string();
-        }
-    }
-    
-    std::cout << "Loaded " << genome_files.size() << " genome files" << std::endl;
-    stats.total_sequences = genome_files.size();
-    
-    return true;
 }
 
 // Keep original genome processing but use improved minimizer extraction
@@ -1937,84 +2184,287 @@ void GPUKrakenDatabaseBuilder::free_gpu_memory() {
 std::vector<std::string> GPUKrakenDatabaseBuilder::find_genome_files(const std::string& directory) {
     std::vector<std::string> files;
     
+    // Validate directory parameter first
+    if (directory.empty()) {
+        std::cerr << "Error: Empty directory path provided to find_genome_files" << std::endl;
+        return files;
+    }
+    
+    // Check for invalid characters or corruption
+    for (char c : directory) {
+        if (c == '\0') {
+            std::cerr << "Error: Null character found in directory path" << std::endl;
+            return files;
+        }
+    }
+    
+    std::cout << "Searching for genome files in: '" << directory << "'" << std::endl;
+    
     // Validate directory before attempting to iterate
-    if (directory.empty() || !std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
-        std::cerr << "Error: Invalid directory for find_genome_files: '" << directory << "'" << std::endl;
+    if (!std::filesystem::exists(directory)) {
+        std::cerr << "Error: Directory does not exist: '" << directory << "'" << std::endl;
+        return files;
+    }
+    
+    if (!std::filesystem::is_directory(directory)) {
+        std::cerr << "Error: Path is not a directory: '" << directory << "'" << std::endl;
         return files;
     }
     
     try {
+        // Pre-count files to reserve space and avoid reallocations
+        size_t estimated_file_count = 0;
+        
+        try {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
+                if (entry.is_regular_file()) {
+                    std::string extension = entry.path().extension().string();
+                    if (extension == ".fna" || extension == ".fa" || extension == ".fasta" ||
+                        extension == ".ffn" || extension == ".faa") {
+                        estimated_file_count++;
+                    }
+                }
+                
+                // Safety check to prevent infinite loops or excessive memory usage
+                if (estimated_file_count > 100000) {
+                    std::cout << "Large number of files detected (>" << estimated_file_count << "), proceeding with processing..." << std::endl;
+                    break;
+                }
+            }
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Error during file counting: " << e.what() << std::endl;
+            // Continue with processing, just don't reserve space
+        }
+        
+        std::cout << "Estimated " << estimated_file_count << " genome files to process" << std::endl;
+        
+        // Reserve space to prevent reallocations
+        if (estimated_file_count > 0 && estimated_file_count < 100000) {
+            try {
+                files.reserve(estimated_file_count);
+            } catch (const std::bad_alloc& e) {
+                std::cerr << "Warning: Could not reserve space for files: " << e.what() << std::endl;
+                // Continue without reservation
+            }
+        }
+        
+        // Now actually collect the files
+        int file_count = 0;
         for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
             if (entry.is_regular_file()) {
                 std::string extension = entry.path().extension().string();
                 
                 if (extension == ".fna" || extension == ".fa" || extension == ".fasta" ||
                     extension == ".ffn" || extension == ".faa") {
-                    files.push_back(entry.path().string());
+                    
+                    std::string file_path = entry.path().string();
+                    
+                    // Validate file path before adding
+                    if (!file_path.empty() && file_path.size() < 4096) {  // Reasonable path limit
+                        files.push_back(file_path);
+                        file_count++;
+                        
+                        // Progress reporting for large directories
+                        if (file_count % 1000 == 0) {
+                            std::cout << "Found " << file_count << " genome files..." << std::endl;
+                        }
+                        
+                        // Safety limit to prevent excessive memory usage
+                        if (file_count >= 50000) {
+                            std::cout << "Reached file limit of " << file_count << " files" << std::endl;
+                            break;
+                        }
+                    } else {
+                        std::cerr << "Warning: Skipping invalid file path: " << file_path.substr(0, 100) << "..." << std::endl;
+                    }
                 }
             }
         }
+        
+        std::cout << "Found " << files.size() << " total genome files" << std::endl;
+        
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Filesystem error in find_genome_files: " << e.what() << std::endl;
         std::cerr << "Directory: '" << directory << "'" << std::endl;
         return files;
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Memory allocation error in find_genome_files: " << e.what() << std::endl;
+        return files;
+    } catch (const std::exception& e) {
+        std::cerr << "Unexpected error in find_genome_files: " << e.what() << std::endl;
+        return files;
     }
     
-    std::sort(files.begin(), files.end());
+    try {
+        std::sort(files.begin(), files.end());
+    } catch (const std::exception& e) {
+        std::cerr << "Error sorting files: " << e.what() << std::endl;
+        // Return unsorted files rather than failing
+    }
+    
     return files;
 }
 
 uint32_t GPUKrakenDatabaseBuilder::extract_taxon_from_filename(const std::string& filename) {
-    std::filesystem::path p(filename);
-    std::string stem = p.stem().string();
-    
-    std::regex taxid_pattern(R"(taxid[_-](\d+))");
-    std::smatch match;
-    if (std::regex_search(stem, match, taxid_pattern)) {
-        return std::stoul(match[1].str());
+    // Validate input
+    if (filename.empty()) {
+        std::cerr << "Warning: Empty filename provided to extract_taxon_from_filename" << std::endl;
+        return 1000000;  // Default fallback
     }
     
-    std::regex gcf_pattern(R"(GCF_(\d+\.\d+))");
-    if (std::regex_search(stem, match, gcf_pattern)) {
+    if (filename.size() > 4096) {
+        std::cerr << "Warning: Filename too long: " << filename.substr(0, 100) << "..." << std::endl;
+        return 1000000;  // Default fallback
+    }
+    
+    try {
+        std::filesystem::path p(filename);
+        std::string stem = p.stem().string();
+        
+        if (stem.empty()) {
+            std::cerr << "Warning: Could not extract stem from filename: " << filename << std::endl;
+            return 1000000;
+        }
+        
+        // Try to extract taxid pattern
+        std::regex taxid_pattern(R"(taxid[_-](\d+))");
+        std::smatch match;
+        if (std::regex_search(stem, match, taxid_pattern)) {
+            try {
+                uint32_t taxon_id = std::stoul(match[1].str());
+                if (taxon_id > 0 && taxon_id < UINT32_MAX) {
+                    return taxon_id;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Warning: Invalid taxon ID in filename " << filename << ": " << e.what() << std::endl;
+            }
+        }
+        
+        // Try GCF pattern
+        std::regex gcf_pattern(R"(GCF_(\d+\.\d+))");
+        if (std::regex_search(stem, match, gcf_pattern)) {
+            try {
+                std::hash<std::string> hasher;
+                uint32_t hash_val = hasher(match[1].str()) % 1000000 + 1000000;
+                return hash_val;
+            } catch (const std::exception& e) {
+                std::cerr << "Warning: Error hashing GCF pattern: " << e.what() << std::endl;
+            }
+        }
+        
+        // Fallback: hash the entire stem
         std::hash<std::string> hasher;
-        return hasher(match[1].str()) % 1000000 + 1000000;
+        uint32_t hash_val = hasher(stem) % 1000000 + 2000000;
+        return hash_val;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error processing filename " << filename << ": " << e.what() << std::endl;
+        return 1000000;  // Safe default
     }
-    
-    std::hash<std::string> hasher;
-    return hasher(stem) % 1000000 + 2000000;
 }
 
 std::vector<std::string> GPUKrakenDatabaseBuilder::load_sequences_from_fasta(const std::string& fasta_path) {
     std::vector<std::string> sequences;
-    std::ifstream file(fasta_path);
     
+    // Validate input
+    if (fasta_path.empty()) {
+        std::cerr << "Error: Empty FASTA path" << std::endl;
+        return sequences;
+    }
+    
+    if (!std::filesystem::exists(fasta_path)) {
+        std::cerr << "Error: FASTA file does not exist: " << fasta_path << std::endl;
+        return sequences;
+    }
+    
+    std::ifstream file(fasta_path);
     if (!file.is_open()) {
         std::cerr << "Cannot open FASTA file: " << fasta_path << std::endl;
         return sequences;
     }
     
-    std::string line, current_sequence;
-    bool in_sequence = false;
-    
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
+    try {
+        std::string line, current_sequence;
+        bool in_sequence = false;
+        int line_number = 0;
         
-        if (line[0] == '>') {
-            if (in_sequence && !current_sequence.empty()) {
-                sequences.push_back(current_sequence);
-                current_sequence.clear();
+        // Reserve some initial space
+        current_sequence.reserve(10000);  // Reserve 10KB for typical sequence
+        
+        while (std::getline(file, line)) {
+            line_number++;
+            
+            if (line.empty()) continue;
+            
+            if (line[0] == '>') {
+                // Start of new sequence
+                if (in_sequence && !current_sequence.empty()) {
+                    // Validate sequence before adding
+                    if (current_sequence.size() >= minimizer_params.k && 
+                        current_sequence.size() <= 50000000) {  // Max 50MB per sequence
+                        sequences.push_back(current_sequence);
+                    } else if (current_sequence.size() < minimizer_params.k) {
+                        std::cerr << "Warning: Sequence too short (" << current_sequence.size() 
+                                  << " bp) in " << fasta_path << " at line " << line_number << std::endl;
+                    } else {
+                        std::cerr << "Warning: Sequence too long (" << current_sequence.size() 
+                                  << " bp) in " << fasta_path << " at line " << line_number << std::endl;
+                    }
+                    current_sequence.clear();
+                    current_sequence.reserve(10000);  // Reserve for next sequence
+                }
+                in_sequence = true;
+            } else if (in_sequence) {
+                // Validate line before adding
+                if (line.size() > 100000) {  // Unreasonably long line
+                    std::cerr << "Warning: Very long line (" << line.size() 
+                              << " chars) in " << fasta_path << " at line " << line_number << std::endl;
+                    continue;
+                }
+                
+                // Add line to current sequence
+                try {
+                    current_sequence += line;
+                    
+                    // Check for reasonable sequence length
+                    if (current_sequence.size() > 50000000) {  // 50MB limit
+                        std::cerr << "Warning: Sequence exceeds size limit in " << fasta_path << std::endl;
+                        current_sequence.clear();
+                        in_sequence = false;
+                    }
+                } catch (const std::bad_alloc& e) {
+                    std::cerr << "Memory allocation failed for sequence in " << fasta_path 
+                              << " at line " << line_number << std::endl;
+                    current_sequence.clear();
+                    in_sequence = false;
+                }
             }
-            in_sequence = true;
-        } else if (in_sequence) {
-            current_sequence += line;
+            
+            // Safety check for file processing
+            if (line_number % 100000 == 0) {
+                std::cout << "Processed " << line_number << " lines from " << fasta_path << std::endl;
+            }
         }
-    }
-    
-    if (!current_sequence.empty()) {
-        sequences.push_back(current_sequence);
+        
+        // Handle the last sequence
+        if (in_sequence && !current_sequence.empty()) {
+            if (current_sequence.size() >= minimizer_params.k && 
+                current_sequence.size() <= 50000000) {
+                sequences.push_back(current_sequence);
+            }
+        }
+        
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Memory allocation failed while reading " << fasta_path << ": " << e.what() << std::endl;
+        sequences.clear();  // Clear partial results
+    } catch (const std::exception& e) {
+        std::cerr << "Error reading FASTA file " << fasta_path << ": " << e.what() << std::endl;
+        sequences.clear();  // Clear partial results
     }
     
     file.close();
+    
+    std::cout << "Loaded " << sequences.size() << " sequences from " << fasta_path << std::endl;
     return sequences;
 }
 

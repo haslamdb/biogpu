@@ -917,9 +917,7 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
                 shared_positions[responsible_thread] == pos &&
                 shared_minimizers[responsible_thread] != last_minimizer) {
                 
-                uint32_t current_count = atomicAdd(global_hit_counter, 0);
-                if (current_count >= max_minimizers) break;
-                
+                // FIXED: Atomic add first, then check bounds to prevent overflow
                 uint32_t global_pos = atomicAdd(global_hit_counter, 1);
                 if (global_pos < max_minimizers) {
                     GPUMinimizerHit hit;
@@ -931,6 +929,9 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
                     minimizer_hits[global_pos] = hit;
                     local_count++;
                     last_minimizer = shared_minimizers[responsible_thread];
+                } else {
+                    // We've hit the limit, stop processing
+                    break;
                 }
             }
         }
@@ -1174,6 +1175,8 @@ bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
     const std::string& taxonomy_path) {
     
     std::cout << "\n=== BUILDING KRAKEN DATABASE FROM GENOMES (Kraken2-inspired) ===" << std::endl;
+    std::cout << "DEBUG: genome_library_path = '" << genome_library_path << "'" << std::endl;
+    std::cout << "DEBUG: genome_library_path.length() = " << genome_library_path.length() << std::endl;
     auto total_start = std::chrono::high_resolution_clock::now();
     
     if (!load_genome_files(genome_library_path)) {
@@ -1210,6 +1213,22 @@ bool GPUKrakenDatabaseBuilder::build_database_from_genomes(
 // Keep original file loading logic
 bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path) {
     std::cout << "Loading genome files from: " << library_path << std::endl;
+    
+    // Validate the library path
+    if (library_path.empty()) {
+        std::cerr << "Error: Genome library path is empty!" << std::endl;
+        return false;
+    }
+    
+    if (!std::filesystem::exists(library_path)) {
+        std::cerr << "Error: Genome library path does not exist: " << library_path << std::endl;
+        return false;
+    }
+    
+    if (!std::filesystem::is_directory(library_path)) {
+        std::cerr << "Error: Genome library path is not a directory: " << library_path << std::endl;
+        return false;
+    }
     
     genome_files = find_genome_files(library_path);
     
@@ -1373,6 +1392,14 @@ bool GPUKrakenDatabaseBuilder::extract_minimizers_gpu(
     // Add timing to measure improvement
     auto kernel_start = std::chrono::high_resolution_clock::now();
     
+    // Validate capacity before launching kernel
+    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 100000000) {
+        std::cerr << "ERROR: Invalid minimizer capacity: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+        std::cerr << "Must be between 1 and 100M" << std::endl;
+        cudaFree(d_global_counter);
+        return false;
+    }
+    
     // Launch improved kernel with higher capacity
     int threads_per_block = 256;
     size_t shared_mem_size = threads_per_block * (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(bool));
@@ -1467,10 +1494,21 @@ bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
     std::cout << "GPU Memory: " << (free_memory / 1024 / 1024) << " MB free / " 
               << (total_memory_gpu / 1024 / 1024) << " MB total" << std::endl;
     
+    // Validate parameters before allocation
+    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 1000) {
+        std::cerr << "ERROR: Invalid sequence batch size: " << MAX_SEQUENCE_BATCH << std::endl;
+        return false;
+    }
+    
+    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 100000000) {
+        std::cerr << "ERROR: Invalid minimizer capacity: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+        return false;
+    }
+    
     size_t sequence_memory = size_t(MAX_SEQUENCE_BATCH) * 10000000;
     size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
-    size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
-    size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
+    size_t minimizer_memory = size_t(MAX_MINIMIZERS_PER_BATCH) * sizeof(GPUMinimizerHit);
+    size_t candidate_memory = size_t(MAX_MINIMIZERS_PER_BATCH) * sizeof(LCACandidate);
     
     size_t total_required = sequence_memory + genome_info_memory + 
                            minimizer_memory + candidate_memory;
@@ -1478,10 +1516,13 @@ bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
     std::cout << "Memory requirements:" << std::endl;
     std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
     std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  LCA candidates: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
     std::cout << "  Total required: " << (total_required / 1024 / 1024) << " MB" << std::endl;
     
     if (total_required > free_memory * 0.9) {
         std::cerr << "ERROR: Not enough GPU memory!" << std::endl;
+        std::cerr << "Required: " << (total_required / 1024 / 1024) << " MB" << std::endl;
+        std::cerr << "Available: " << (free_memory * 0.9 / 1024 / 1024) << " MB" << std::endl;
         return false;
     }
     
@@ -1510,15 +1551,27 @@ void GPUKrakenDatabaseBuilder::free_gpu_memory() {
 std::vector<std::string> GPUKrakenDatabaseBuilder::find_genome_files(const std::string& directory) {
     std::vector<std::string> files;
     
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
-        if (entry.is_regular_file()) {
-            std::string extension = entry.path().extension().string();
-            
-            if (extension == ".fna" || extension == ".fa" || extension == ".fasta" ||
-                extension == ".ffn" || extension == ".faa") {
-                files.push_back(entry.path().string());
+    // Validate directory before attempting to iterate
+    if (directory.empty() || !std::filesystem::exists(directory) || !std::filesystem::is_directory(directory)) {
+        std::cerr << "Error: Invalid directory for find_genome_files: '" << directory << "'" << std::endl;
+        return files;
+    }
+    
+    try {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
+            if (entry.is_regular_file()) {
+                std::string extension = entry.path().extension().string();
+                
+                if (extension == ".fna" || extension == ".fa" || extension == ".fasta" ||
+                    extension == ".ffn" || extension == ".faa") {
+                    files.push_back(entry.path().string());
+                }
             }
         }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error in find_genome_files: " << e.what() << std::endl;
+        std::cerr << "Directory: '" << directory << "'" << std::endl;
+        return files;
     }
     
     std::sort(files.begin(), files.end());

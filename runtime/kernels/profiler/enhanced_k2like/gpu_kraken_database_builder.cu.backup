@@ -1029,16 +1029,7 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     : output_directory(output_dir), params(config),
       d_sequence_data(nullptr), d_genome_info(nullptr),
       d_minimizer_hits(nullptr), d_minimizer_counts(nullptr),
-      d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr),
-      MAX_MINIMIZERS_PER_BATCH(1000000),  // Initialize in member init list
-      MAX_SEQUENCE_BATCH(10),              // Initialize in member init list
-      auto_scale_memory(true),             // Initialize in member init list
-      max_gpu_memory_usage_fraction(80),   // Initialize in member init list
-      total_minimizers_capped(0),
-      total_batches_capped(0) {
-    
-    // Initialize statistics first
-    memset(&stats, 0, sizeof(stats));
+      d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr) {
     
     // Convert classification params to minimizer params
     minimizer_params.k = params.k;
@@ -1057,6 +1048,17 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     } catch (const std::exception& e) {
         std::cerr << "Warning: Could not create output directory: " << e.what() << std::endl;
     }
+    
+    // CRITICAL FIX: Set safe defaults BEFORE any auto-scaling
+    MAX_MINIMIZERS_PER_BATCH = 1000000;  // Safe 1M default
+    MAX_SEQUENCE_BATCH = 10;             // Safe 10 sequences
+    auto_scale_memory = true;            // Enable auto-scaling
+    max_gpu_memory_usage_fraction = 80;  // 80% usage
+    
+    // Initialize statistics
+    memset(&stats, 0, sizeof(stats));
+    total_minimizers_capped = 0;
+    total_batches_capped = 0;
     
     std::cout << "Initial safe settings:" << std::endl;
     std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
@@ -1111,14 +1113,11 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
               << (total_mem / 1024 / 1024) << " MB total" << std::endl;
     
-    if (!auto_scale_memory) {
-        return;  // Exit early if auto-scaling is disabled
-    }
-    
-    // CRITICAL FIX: Use simple, safe logic to prevent overflow
-    size_t memory_gb = total_mem / (1024ULL * 1024ULL * 1024ULL);
-    
-    std::cout << "GPU Memory: " << memory_gb << " GB detected" << std::endl;
+    if (auto_scale_memory) {
+        // CRITICAL FIX: Use simple, safe logic to prevent overflow
+        size_t memory_gb = total_mem / (1024ULL * 1024ULL * 1024ULL);
+        
+        std::cout << "GPU Memory: " << memory_gb << " GB detected" << std::endl;
         
         // Safe, conservative settings based on GPU memory size
         if (memory_gb >= 24) {
@@ -1146,46 +1145,26 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     
     // Final validation to prevent any overflow
     if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 10000000) {
-        std::cerr << "ERROR: Invalid minimizer batch size: " << MAX_MINIMIZERS_PER_BATCH << ", using safe default" << std::endl;
+        std::cerr << "ERROR: Invalid minimizer batch size, using safe default" << std::endl;
         MAX_MINIMIZERS_PER_BATCH = 1000000; // Safe 1M default
     }
     
     if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 50) {
-        std::cerr << "ERROR: Invalid sequence batch size: " << MAX_SEQUENCE_BATCH << ", using safe default" << std::endl;
+        std::cerr << "ERROR: Invalid sequence batch size, using safe default" << std::endl;
         MAX_SEQUENCE_BATCH = 10; // Safe default
     }
     
     // Verify we can safely calculate memory requirements
     try {
-        // Use 64-bit arithmetic for safety check and validate no overflow
-        const uint64_t bytes_per_sequence = 3000000ULL; // 3MB per sequence
-        const uint64_t bytes_per_minimizer = 24ULL; // 24 bytes per minimizer
-        
-        // Check for overflow before multiplication
-        if (MAX_SEQUENCE_BATCH > SIZE_MAX / bytes_per_sequence) {
-            throw std::overflow_error("Sequence memory would overflow");
-        }
-        if (MAX_MINIMIZERS_PER_BATCH > SIZE_MAX / bytes_per_minimizer) {
-            throw std::overflow_error("Minimizer memory would overflow");
-        }
-        
-        uint64_t sequence_memory_check = static_cast<uint64_t>(MAX_SEQUENCE_BATCH) * bytes_per_sequence;
-        uint64_t minimizer_memory_check = static_cast<uint64_t>(MAX_MINIMIZERS_PER_BATCH) * bytes_per_minimizer;
-        
-        // Check for addition overflow
-        if (sequence_memory_check > SIZE_MAX - minimizer_memory_check) {
-            throw std::overflow_error("Total memory would overflow");
-        }
-        
+        // Use 64-bit arithmetic for safety check
+        uint64_t sequence_memory_check = static_cast<uint64_t>(MAX_SEQUENCE_BATCH) * 3000000ULL; // 3MB per sequence
+        uint64_t minimizer_memory_check = static_cast<uint64_t>(MAX_MINIMIZERS_PER_BATCH) * 24ULL; // 24 bytes per minimizer
         uint64_t total_check = sequence_memory_check + minimizer_memory_check;
         
-        // Use 70% of available memory as safe limit
-        uint64_t safe_memory_limit = (free_mem * max_gpu_memory_usage_fraction) / 100;
-        
-        if (total_check > safe_memory_limit) {
+        if (total_check > static_cast<uint64_t>(free_mem)) {
             // Scale down if still too large
-            double scale_factor = static_cast<double>(safe_memory_limit) / static_cast<double>(total_check);
-            if (scale_factor < 1.0 && scale_factor > 0.0) {
+            double scale_factor = static_cast<double>(free_mem) * 0.7 / static_cast<double>(total_check);
+            if (scale_factor < 1.0) {
                 MAX_MINIMIZERS_PER_BATCH = static_cast<int>(MAX_MINIMIZERS_PER_BATCH * scale_factor);
                 MAX_SEQUENCE_BATCH = static_cast<int>(MAX_SEQUENCE_BATCH * scale_factor);
                 
@@ -1199,7 +1178,7 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "Error in memory calculation: " << e.what() << ", using ultra-safe defaults" << std::endl;
+        std::cerr << "Error in memory calculation, using ultra-safe defaults" << std::endl;
         MAX_MINIMIZERS_PER_BATCH = 500000;
         MAX_SEQUENCE_BATCH = 5;
     }
@@ -1228,28 +1207,12 @@ void GPUKrakenDatabaseBuilder::set_minimizer_capacity(int minimizers_per_batch) 
 }
 
 void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t memory_fraction) {
-    std::cout << "DEBUG: enable_auto_memory_scaling called with enable=" << enable 
-              << ", memory_fraction=" << memory_fraction << std::endl;
-    
-    // Validate memory_fraction
-    if (memory_fraction == 0 || memory_fraction > 100) {
-        std::cerr << "ERROR: Invalid memory_fraction " << memory_fraction 
-                  << ", must be between 1 and 100" << std::endl;
-        memory_fraction = 80; // Use safe default
-    }
-    
     auto_scale_memory = enable;
     max_gpu_memory_usage_fraction = memory_fraction;
-    
     if (enable) {
         std::cout << "Enabled auto memory scaling (using " << memory_fraction 
                   << "% of GPU memory)" << std::endl;
-        try {
-            check_and_adjust_memory();
-        } catch (const std::exception& e) {
-            std::cerr << "ERROR in check_and_adjust_memory: " << e.what() << std::endl;
-            throw;
-        }
+        check_and_adjust_memory();
     }
 }
 

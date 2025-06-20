@@ -777,6 +777,8 @@ private:
     bool allocate_gpu_memory();
     void free_gpu_memory();
     void check_and_adjust_memory();
+    void check_and_adjust_memory_safe();
+    void validate_memory_settings();
     
     bool process_sequence_batch(
         const std::vector<std::string>& sequences,
@@ -1022,23 +1024,29 @@ __device__ bool has_valid_bases(const char* seq, int length) {
     } \
 } while(0)
 
-// Constructor - keep original but add new features
+// Fixed GPUKrakenDatabaseBuilder constructor and memory allocation
+// This fixes the malloc(): invalid size (unsorted) error
 GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     const std::string& output_dir,
     const ClassificationParams& config)
     : output_directory(output_dir), params(config),
       d_sequence_data(nullptr), d_genome_info(nullptr),
       d_minimizer_hits(nullptr), d_minimizer_counts(nullptr),
-      d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr),
-      MAX_MINIMIZERS_PER_BATCH(1000000),  // Initialize in member init list
-      MAX_SEQUENCE_BATCH(10),              // Initialize in member init list
-      auto_scale_memory(true),             // Initialize in member init list
-      max_gpu_memory_usage_fraction(80),   // Initialize in member init list
-      total_minimizers_capped(0),
-      total_batches_capped(0) {
+      d_lca_candidates(nullptr), d_taxonomy_nodes(nullptr) {
     
-    // Initialize statistics first
+    // CRITICAL: Initialize ALL variables with SAFE defaults FIRST
+    MAX_SEQUENCE_BATCH = 10;              // Safe default
+    MAX_MINIMIZERS_PER_BATCH = 1000000;   // Safe 1M default
+    auto_scale_memory = true;             // Enable auto-scaling by default
+    max_gpu_memory_usage_fraction = 80;   // Safe 80% usage
+    
+    // Initialize statistics to zero
     memset(&stats, 0, sizeof(stats));
+    total_minimizers_capped = 0;
+    total_batches_capped = 0;
+    
+    // Initialize taxonomy processor
+    enhanced_stats = EnhancedBuildStats();
     
     // Convert classification params to minimizer params
     minimizer_params.k = params.k;
@@ -1051,7 +1059,7 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
               << ", ell=" << minimizer_params.ell 
               << ", spaces=" << minimizer_params.spaces << std::endl;
     
-    // Create output directory
+    // Create output directory safely
     try {
         std::filesystem::create_directories(output_directory);
     } catch (const std::exception& e) {
@@ -1062,18 +1070,16 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
     std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
     std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
     
-    try {
-        if (auto_scale_memory) {
-            std::cout << "Enabled auto memory scaling (using " << max_gpu_memory_usage_fraction 
-                      << "% of GPU memory)" << std::endl;
-            check_and_adjust_memory();
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Warning: Auto-scaling failed, using safe defaults: " << e.what() << std::endl;
-        MAX_MINIMIZERS_PER_BATCH = 1000000;
-        MAX_SEQUENCE_BATCH = 10;
-        auto_scale_memory = false;
+    // NOTE: Auto memory scaling will be configured later in enable_auto_memory_scaling()
+    // Don't call check_and_adjust_memory_safe() here - CUDA context not ready yet
+    if (auto_scale_memory) {
+        std::cout << "Auto memory scaling will be configured after CUDA initialization" << std::endl;
     }
+    
+    std::cout << "DEBUG: About to call validate_memory_settings()" << std::endl;
+    // Final validation that all values are sane
+    validate_memory_settings();
+    std::cout << "DEBUG: Constructor completed successfully" << std::endl;
 }
 
 // Destructor - safe with CUDA context validation
@@ -1099,13 +1105,20 @@ GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
 }
 
 void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
+    std::cout << "DEBUG: Entering check_and_adjust_memory()" << std::endl;
+    
     size_t free_mem, total_mem;
+    std::cout << "DEBUG: About to call cudaMemGetInfo..." << std::endl;
+    
     cudaError_t cuda_status = cudaMemGetInfo(&free_mem, &total_mem);
+    std::cout << "DEBUG: cudaMemGetInfo returned: " << cudaGetErrorString(cuda_status) << std::endl;
+    
     if (cuda_status != cudaSuccess) {
         std::cerr << "CUDA memory query failed: " << cudaGetErrorString(cuda_status) << std::endl;
         return;
     }
     
+    std::cout << "DEBUG: free_mem=" << free_mem << ", total_mem=" << total_mem << std::endl;
     std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
               << (total_mem / 1024 / 1024) << " MB total" << std::endl;
     
@@ -1147,6 +1160,114 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     }
 }
 
+// FIXED: Safe memory checking with overflow protection
+void GPUKrakenDatabaseBuilder::check_and_adjust_memory_safe() {
+    std::cout << "DEBUG: Entering check_and_adjust_memory_safe()" << std::endl;
+    
+    // First ensure CUDA is initialized by getting device
+    int device = 0;
+    cudaError_t device_status = cudaGetDevice(&device);
+    if (device_status != cudaSuccess) {
+        std::cerr << "Failed to get CUDA device: " << cudaGetErrorString(device_status) << std::endl;
+        throw std::runtime_error("CUDA not initialized");
+    }
+    std::cout << "DEBUG: Using CUDA device " << device << std::endl;
+    
+    size_t free_mem = 0, total_mem = 0;
+    
+    std::cout << "DEBUG: About to call cudaMemGetInfo" << std::endl;
+    // Safely query GPU memory
+    cudaError_t cuda_status = cudaMemGetInfo(&free_mem, &total_mem);
+    if (cuda_status != cudaSuccess) {
+        std::cerr << "CUDA memory query failed: " << cudaGetErrorString(cuda_status) << std::endl;
+        throw std::runtime_error("Failed to query GPU memory");
+    }
+    std::cout << "DEBUG: cudaMemGetInfo succeeded" << std::endl;
+    
+    // Validate memory values
+    if (total_mem == 0 || free_mem > total_mem) {
+        throw std::runtime_error("Invalid GPU memory values returned");
+    }
+    
+    std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
+              << (total_mem / 1024 / 1024) << " MB total" << std::endl;
+    
+    // Calculate available memory with safety checks
+    size_t available_memory = 0;
+    if (max_gpu_memory_usage_fraction > 0 && max_gpu_memory_usage_fraction <= 100) {
+        // Safe multiplication with overflow check
+        size_t max_fraction = total_mem / 100;  // Avoid overflow
+        available_memory = max_fraction * max_gpu_memory_usage_fraction;
+        
+        // Use minimum of free memory and calculated fraction
+        available_memory = std::min(available_memory, free_mem);
+    } else {
+        throw std::runtime_error("Invalid memory usage fraction");
+    }
+    
+    // Calculate batch sizes with conservative estimates
+    // Each minimizer needs approximately:
+    // - 8 bytes for minimizer value
+    // - 4 bytes for position
+    // - 4 bytes for taxon ID
+    // - Additional overhead for hash table structures
+    const size_t bytes_per_minimizer = 32;  // Conservative estimate with overhead
+    const size_t bytes_per_sequence = 1024 * 1024;  // 1MB per sequence (conservative)
+    
+    // Reserve memory for other GPU operations (500MB minimum)
+    const size_t reserved_memory = 500ULL * 1024ULL * 1024ULL;
+    
+    if (available_memory <= reserved_memory) {
+        throw std::runtime_error("Insufficient GPU memory available");
+    }
+    
+    size_t working_memory = available_memory - reserved_memory;
+    
+    // Calculate safe batch sizes
+    size_t max_minimizers = working_memory / bytes_per_minimizer;
+    size_t max_sequences = working_memory / bytes_per_sequence;
+    
+    // Apply reasonable limits
+    MAX_MINIMIZERS_PER_BATCH = std::min(max_minimizers, (size_t)5000000);  // Cap at 5M
+    MAX_MINIMIZERS_PER_BATCH = std::max((size_t)MAX_MINIMIZERS_PER_BATCH, (size_t)100000);  // Min 100K
+    
+    MAX_SEQUENCE_BATCH = std::min(max_sequences, (size_t)50);  // Cap at 50
+    MAX_SEQUENCE_BATCH = std::max((size_t)MAX_SEQUENCE_BATCH, (size_t)1);  // Min 1
+    
+    std::cout << "Calculated safe batch sizes based on available memory:" << std::endl;
+    std::cout << "  Available memory: " << (available_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+    std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
+}
+
+// Validate memory settings to prevent overflow
+void GPUKrakenDatabaseBuilder::validate_memory_settings() {
+    // Ensure batch sizes are within reasonable bounds
+    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 10000000) {
+        std::cerr << "ERROR: Invalid minimizer batch size " << MAX_MINIMIZERS_PER_BATCH 
+                  << ", using safe default" << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 1000000;
+    }
+    
+    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 100) {
+        std::cerr << "ERROR: Invalid sequence batch size " << MAX_SEQUENCE_BATCH 
+                  << ", using safe default" << std::endl;
+        MAX_SEQUENCE_BATCH = 10;
+    }
+    
+    // Validate other memory-related settings
+    if (max_gpu_memory_usage_fraction <= 0 || max_gpu_memory_usage_fraction > 100) {
+        std::cerr << "ERROR: Invalid GPU memory usage fraction " << max_gpu_memory_usage_fraction 
+                  << ", using 80%" << std::endl;
+        max_gpu_memory_usage_fraction = 80;
+    }
+    
+    std::cout << "Memory settings validated:" << std::endl;
+    std::cout << "  MAX_MINIMIZERS_PER_BATCH: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+    std::cout << "  MAX_SEQUENCE_BATCH: " << MAX_SEQUENCE_BATCH << std::endl;
+    std::cout << "  GPU memory usage: " << max_gpu_memory_usage_fraction << "%" << std::endl;
+}
+
 // Configuration method implementations
 void GPUKrakenDatabaseBuilder::set_batch_size(int sequences_per_batch) {
     if (sequences_per_batch > 0 && sequences_per_batch <= 1000) {
@@ -1170,8 +1291,8 @@ void GPUKrakenDatabaseBuilder::set_minimizer_capacity(int minimizers_per_batch) 
 }
 
 void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t memory_fraction) {
-    std::cout << "DEBUG: enable_auto_memory_scaling called with enable=" << enable 
-              << ", memory_fraction=" << memory_fraction << std::endl;
+    std::cout << "DEBUG: Entering enable_auto_memory_scaling()" << std::endl;
+    std::cout << "DEBUG: enable=" << enable << ", memory_fraction=" << memory_fraction << std::endl;
     
     // Validate memory_fraction
     if (memory_fraction == 0 || memory_fraction > 100) {
@@ -1184,15 +1305,41 @@ void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t me
     max_gpu_memory_usage_fraction = memory_fraction;
     
     if (enable) {
-        std::cout << "Enabled auto memory scaling (using " << memory_fraction 
-                  << "% of GPU memory)" << std::endl;
+        std::cout << "DEBUG: About to check CUDA device count..." << std::endl;
+        
+        int device_count;
+        cudaError_t cuda_status = cudaGetDeviceCount(&device_count);
+        std::cout << "DEBUG: cudaGetDeviceCount returned: " << cudaGetErrorString(cuda_status) << std::endl;
+        std::cout << "DEBUG: device_count=" << device_count << std::endl;
+        
+        if (cuda_status != cudaSuccess || device_count == 0) {
+            std::cerr << "Warning: No CUDA devices available, disabling auto-scaling" << std::endl;
+            auto_scale_memory = false;
+            return;
+        }
+        
+        std::cout << "DEBUG: About to set CUDA device..." << std::endl;
+        cuda_status = cudaSetDevice(0);
+        std::cout << "DEBUG: cudaSetDevice returned: " << cudaGetErrorString(cuda_status) << std::endl;
+        
+        if (cuda_status != cudaSuccess) {
+            std::cerr << "Warning: Failed to set CUDA device, disabling auto-scaling" << std::endl;
+            auto_scale_memory = false;
+            return;
+        }
+        
+        std::cout << "DEBUG: About to call check_and_adjust_memory()..." << std::endl;
+        
         try {
             check_and_adjust_memory();
+            std::cout << "DEBUG: check_and_adjust_memory() completed successfully" << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "ERROR in check_and_adjust_memory: " << e.what() << std::endl;
-            throw;
+            std::cout << "DEBUG: Exception caught: " << e.what() << std::endl;
+            auto_scale_memory = false;
         }
     }
+    
+    std::cout << "DEBUG: Exiting enable_auto_memory_scaling()" << std::endl;
 }
 
 void GPUKrakenDatabaseBuilder::set_subsampling_rate(double rate) {

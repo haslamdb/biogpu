@@ -187,7 +187,6 @@ target_compile_options(gpu_kraken_classifier PRIVATE
 
 target_link_libraries(gpu_kraken_classifier
     gpu_kraken_minimizer_extraction
-    minimizer_extraction
     fastq_processing
     ${ZLIB_LIBRARIES}
     cuda
@@ -228,7 +227,6 @@ target_compile_options(gpu_kraken_database_builder PRIVATE
 target_link_libraries(gpu_kraken_database_builder
     gpu_kraken_classifier
     gpu_kraken_minimizer_extraction
-    minimizer_extraction
     fastq_processing
     ${ZLIB_LIBRARIES}
     cuda
@@ -295,7 +293,6 @@ target_link_libraries(enhanced_kraken_pipeline
     gpu_kraken_classifier
     gpu_kraken_minimizer_extraction
     fastq_processing
-    minimizer_extraction
     ${ZLIB_LIBRARIES}
     cuda
     cudart

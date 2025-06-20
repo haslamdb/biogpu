@@ -459,6 +459,13 @@ bool build_database_command(const PipelineConfig& config) {
         }
     }
     
+    // Initialize CUDA runtime early
+    std::cout << "DEBUG: Initializing CUDA runtime early..." << std::endl;
+    cudaError_t init_status = cudaFree(0);
+    if (init_status != cudaSuccess) {
+        std::cerr << "WARNING: Early CUDA initialization returned: " << cudaGetErrorString(init_status) << std::endl;
+    }
+    
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {

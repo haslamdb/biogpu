@@ -1291,9 +1291,6 @@ void GPUKrakenDatabaseBuilder::set_minimizer_capacity(int minimizers_per_batch) 
 }
 
 void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t memory_fraction) {
-    std::cout << "DEBUG: Entering enable_auto_memory_scaling()" << std::endl;
-    std::cout << "DEBUG: enable=" << enable << ", memory_fraction=" << memory_fraction << std::endl;
-    
     // Validate memory_fraction
     if (memory_fraction == 0 || memory_fraction > 100) {
         std::cerr << "ERROR: Invalid memory_fraction " << memory_fraction 
@@ -1305,12 +1302,23 @@ void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t me
     max_gpu_memory_usage_fraction = memory_fraction;
     
     if (enable) {
-        std::cout << "DEBUG: About to check CUDA device count..." << std::endl;
+        std::cout << "DEBUG: Initializing CUDA runtime..." << std::endl;
+        
+        // CUDA initialization trick - this forces CUDA runtime to initialize
+        cudaError_t init_status = cudaFree(0);
+        std::cout << "DEBUG: cudaFree(0) initialization returned: " << cudaGetErrorString(init_status) << std::endl;
+        
+        if (init_status != cudaSuccess) {
+            std::cerr << "Warning: CUDA runtime initialization failed, disabling auto-scaling" << std::endl;
+            auto_scale_memory = false;
+            return;
+        }
+        
+        std::cout << "DEBUG: CUDA runtime initialized, checking device count..." << std::endl;
         
         int device_count;
         cudaError_t cuda_status = cudaGetDeviceCount(&device_count);
         std::cout << "DEBUG: cudaGetDeviceCount returned: " << cudaGetErrorString(cuda_status) << std::endl;
-        std::cout << "DEBUG: device_count=" << device_count << std::endl;
         
         if (cuda_status != cudaSuccess || device_count == 0) {
             std::cerr << "Warning: No CUDA devices available, disabling auto-scaling" << std::endl;
@@ -1318,9 +1326,12 @@ void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t me
             return;
         }
         
-        std::cout << "DEBUG: About to set CUDA device..." << std::endl;
+        std::cout << "DEBUG: Found " << device_count << " CUDA devices" << std::endl;
+        
+        // Now cudaSetDevice should work
+        std::cout << "DEBUG: Setting CUDA device 0..." << std::endl;
         cuda_status = cudaSetDevice(0);
-        std::cout << "DEBUG: cudaSetDevice returned: " << cudaGetErrorString(cuda_status) << std::endl;
+        std::cout << "DEBUG: cudaSetDevice(0) returned: " << cudaGetErrorString(cuda_status) << std::endl;
         
         if (cuda_status != cudaSuccess) {
             std::cerr << "Warning: Failed to set CUDA device, disabling auto-scaling" << std::endl;
@@ -1328,18 +1339,15 @@ void GPUKrakenDatabaseBuilder::enable_auto_memory_scaling(bool enable, size_t me
             return;
         }
         
-        std::cout << "DEBUG: About to call check_and_adjust_memory()..." << std::endl;
-        
+        // Now memory query should work
+        std::cout << "DEBUG: Calling memory scaling logic..." << std::endl;
         try {
             check_and_adjust_memory();
-            std::cout << "DEBUG: check_and_adjust_memory() completed successfully" << std::endl;
         } catch (const std::exception& e) {
-            std::cout << "DEBUG: Exception caught: " << e.what() << std::endl;
+            std::cerr << "Auto-scaling failed: " << e.what() << std::endl;
             auto_scale_memory = false;
         }
     }
-    
-    std::cout << "DEBUG: Exiting enable_auto_memory_scaling()" << std::endl;
 }
 
 void GPUKrakenDatabaseBuilder::set_subsampling_rate(double rate) {

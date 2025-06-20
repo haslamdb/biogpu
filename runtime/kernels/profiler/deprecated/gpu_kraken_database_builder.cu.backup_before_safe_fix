@@ -5,7 +5,7 @@
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
-#include "gpu_kraken_classifier.cu"
+#include "gpu_kraken_classifier.h"
 #include "gpu_minimizer_extraction.cuh"
 #include "streaming_fna_processor.h"
 #include <cuda_runtime.h>

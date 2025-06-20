@@ -2055,52 +2055,11 @@ bool parse_arguments_debug(int argc, char* argv[], PipelineConfig& config) {
 
 // Replace the original main with a minimal version for debugging
 int main(int argc, char* argv[]) {
-    // First try to isolate the problem - minimal main function
-    std::cout << "MINIMAL DEBUG: Starting program" << std::endl;
+    // Add heap corruption debugging at the very start
     
-    // Install crash handler
-    signal(SIGSEGV, crash_handler);
-    signal(SIGABRT, crash_handler);
-    
-    // Enable heap validation
-    HeapValidator::enable_validation();
-    HeapValidator::validate_heap("main entry");
-    
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
-    
-    HeapValidator::validate_heap("after argc check");
-    
-    std::cout << "MINIMAL DEBUG: Creating config..." << std::endl;
-    PipelineConfig config;
-    
-    HeapValidator::validate_heap("after config creation");
-    
-    std::cout << "MINIMAL DEBUG: Parsing arguments..." << std::endl;
-    
-    // Use the debug version of parse_arguments
-    if (!parse_arguments_debug(argc, argv, config)) {
-        print_usage(argv[0]);
-        return 1;
-    }
-    
-    HeapValidator::validate_heap("after parse_arguments_debug");
-    
-    std::cout << "MINIMAL DEBUG: Arguments parsed, command = " << config.command << std::endl;
-    
-    // Stop here for now to isolate the problem
-    std::cout << "MINIMAL DEBUG: Stopping here to test heap integrity" << std::endl;
-    HeapValidator::validate_heap("before early exit");
-    
-    return 0;  // Exit early to test if the problem is in argument parsing
-}
-
-// Original main function (renamed for backup)
-int main_original(int argc, char* argv[]) {
     std::cout << "GPU-Accelerated Kraken2-Style Taxonomic Classifier (High Capacity)" << std::endl;
     std::cout << "=================================================================" << std::endl;
+    
     
     PipelineConfig config;
     

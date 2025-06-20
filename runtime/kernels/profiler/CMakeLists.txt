@@ -248,7 +248,7 @@ endif()
 
 # Enhanced classification with phylogeny library
 add_library(gpu_enhanced_classification_phylo STATIC
-    enhanced_k2like/phase1_enhanced_classification_cc.cu
+    enhanced_k2like/phase1_enhanced_classification.cu
 )
 
 set_target_properties(gpu_enhanced_classification_phylo PROPERTIES

@@ -5,7 +5,7 @@
 
 # Enhanced K2-like libraries
 add_library(phase1_enhanced_classification STATIC
-    enhanced_k2like/phase1_enhanced_classification_cc.cu
+    enhanced_k2like/phase1_enhanced_classification.cu
 )
 
 set_target_properties(phase1_enhanced_classification PROPERTIES

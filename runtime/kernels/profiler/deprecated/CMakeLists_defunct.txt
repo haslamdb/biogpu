@@ -2,6 +2,7 @@
 # Local CMakeLists.txt for enhanced_k2like directory
 
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+project(enhanced_k2like_classifier LANGUAGES CXX CUDA)
 
 # Find required packages if not already found by parent
 if(NOT TARGET CUDA::cuda)
@@ -15,7 +16,7 @@ find_package(ZLIB REQUIRED)
 
 # Enhanced K2-like classifier library
 add_library(phase1_enhanced_classification STATIC
-    phase1_enhanced_classification_cc.cu
+    phase1_enhanced_classification.cu
 )
 
 set_target_properties(phase1_enhanced_classification PROPERTIES
@@ -44,7 +45,6 @@ target_compile_options(phase1_enhanced_classification PRIVATE
 # Include directories
 target_include_directories(phase1_enhanced_classification PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../k2like_from_scratch
     ${CMAKE_CURRENT_SOURCE_DIR}/../tools
     ${CMAKE_CURRENT_SOURCE_DIR}/../../
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../include
@@ -63,7 +63,8 @@ target_link_libraries(phase1_enhanced_classification
 # Enhanced classifier executable
 add_executable(gpu_kraken_enhanced_pipeline
     kraken_pipeline_main.cu
-    ../k2like_from_scratch/sample_csv_parser.cpp
+    sample_csv_parser.cpp
+    heap_corruption_detective.cpp
 )
 
 set_target_properties(gpu_kraken_enhanced_pipeline PROPERTIES
@@ -75,7 +76,6 @@ set_target_properties(gpu_kraken_enhanced_pipeline PROPERTIES
 
 target_include_directories(gpu_kraken_enhanced_pipeline PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../k2like_from_scratch
     ${CMAKE_CURRENT_SOURCE_DIR}/../tools
     ${CMAKE_CURRENT_SOURCE_DIR}/../../
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../include

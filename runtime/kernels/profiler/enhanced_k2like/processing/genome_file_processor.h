@@ -1,0 +1,206 @@
+// processing/genome_file_processor.h
+// Genome file discovery, validation, and sequence loading
+// Handles multiple input formats and provides clean error handling
+
+#ifndef GENOME_FILE_PROCESSOR_H
+#define GENOME_FILE_PROCESSOR_H
+
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <cstdint>
+
+// Forward declarations
+struct SpeciesTrackingData;
+
+// File processing configuration
+struct FileProcessingConfig {
+    size_t max_file_count = 50000;           // Maximum files to process
+    size_t max_sequence_length = 50000000;   // 50MB per sequence limit
+    size_t max_file_size = 1000000000;       // 1GB per file limit
+    bool validate_sequences = true;          // Validate sequence content
+    bool progress_reporting = true;          // Enable progress reports
+    int progress_interval = 1000;            // Report every N files
+};
+
+// File processing statistics
+struct FileProcessingStats {
+    size_t files_found = 0;
+    size_t files_processed = 0;
+    size_t files_skipped = 0;
+    size_t total_sequences = 0;
+    size_t total_bases = 0;
+    size_t processing_errors = 0;
+    double processing_time = 0.0;
+    double average_file_size = 0.0;
+};
+
+// Individual genome file processor
+class GenomeFileProcessor {
+private:
+    FileProcessingConfig config_;
+    FileProcessingStats stats_;
+    
+public:
+    explicit GenomeFileProcessor(const FileProcessingConfig& config = FileProcessingConfig());
+    
+    // File discovery methods
+    std::vector<std::string> find_genome_files(const std::string& directory);
+    std::vector<std::string> load_file_list(const std::string& file_list_path);
+    bool validate_genome_file(const std::string& file_path);
+    
+    // Sequence loading methods
+    std::vector<std::string> load_sequences_from_fasta(const std::string& fasta_path);
+    bool count_sequences_in_file(const std::string& file_path, size_t& sequence_count, size_t& total_bases);
+    
+    // Taxon extraction and metadata
+    uint32_t extract_taxon_from_filename(const std::string& filename);
+    std::string extract_species_name_from_file(const std::string& file_path);
+    
+    // Batch processing
+    bool process_genome_files_batch(
+        const std::vector<std::string>& file_paths,
+        std::vector<std::string>& all_sequences,
+        std::vector<uint32_t>& sequence_taxon_ids
+    );
+    
+    // Statistics and monitoring
+    const FileProcessingStats& get_statistics() const { return stats_; }
+    void print_processing_summary() const;
+    void reset_statistics();
+    
+private:
+    // Internal validation methods
+    bool validate_path_safety(const std::string& path);
+    bool is_valid_genome_file_extension(const std::string& extension);
+    bool validate_fasta_format(const std::string& file_path);
+    
+    // Internal processing helpers
+    bool process_single_fasta_file(
+        const std::string& file_path,
+        std::vector<std::string>& sequences,
+        std::vector<uint32_t>& taxon_ids,
+        uint32_t default_taxon_id
+    );
+    
+    void update_processing_stats(const std::string& file_path, size_t sequences_added, size_t bases_added);
+};
+
+// Concatenated FNA file processor
+class ConcatenatedFnaProcessor {
+private:
+    std::string fna_file_path_;
+    SpeciesTrackingData species_data_;
+    size_t bytes_processed_;
+    size_t total_file_size_;
+    FileProcessingConfig config_;
+    
+public:
+    explicit ConcatenatedFnaProcessor(const std::string& file_path, 
+                                    const FileProcessingConfig& config = FileProcessingConfig());
+    
+    // Main processing method
+    bool process_fna_file(
+        std::vector<std::string>& genome_files, 
+        std::vector<uint32_t>& genome_taxon_ids,
+        std::unordered_map<uint32_t, std::string>& taxon_names,
+        const std::string& temp_dir = "/tmp/kraken_build"
+    );
+    
+    // Access to species data
+    const SpeciesTrackingData& get_species_data() const { return species_data_; }
+    
+    // Progress monitoring
+    double get_progress_percentage() const;
+    size_t get_bytes_processed() const { return bytes_processed_; }
+    size_t get_total_file_size() const { return total_file_size_; }
+    
+private:
+    // Header parsing structures and methods
+    struct HeaderParseResult {
+        uint32_t species_taxid = 0;
+        std::string species_name;
+        std::string accession;
+        std::string description;
+    };
+    
+    HeaderParseResult parse_fna_header(const std::string& header);
+    std::string extract_species_name_from_description(const std::string& description);
+    
+    // Temporary file creation
+    std::string create_temp_genome_file(
+        const std::string& sequence, 
+        uint32_t species_taxid,
+        const std::string& original_header,
+        const std::string& temp_dir,
+        int genome_index
+    );
+    
+    // Validation helpers
+    bool validate_sequence_content(const std::string& sequence);
+    bool is_reasonable_sequence_length(size_t length);
+};
+
+// Streaming FNA processor for very large files
+class StreamingFnaProcessor {
+private:
+    std::string fna_file_path_;
+    std::string temp_directory_;
+    size_t batch_size_;
+    size_t current_genome_count_;
+    size_t total_bases_processed_;
+    bool processing_active_;
+    
+public:
+    StreamingFnaProcessor(const std::string& fna_path, 
+                         const std::string& temp_dir,
+                         size_t batch_size = 25);
+    ~StreamingFnaProcessor();
+    
+    // Streaming processing methods
+    bool process_next_batch(std::vector<std::string>& batch_files, 
+                           std::vector<uint32_t>& batch_taxons);
+    bool has_more_data() const;
+    void reset_processing();
+    
+    // Statistics
+    size_t get_total_genomes() const { return current_genome_count_; }
+    size_t get_total_bases() const { return total_bases_processed_; }
+    
+private:
+    // Internal streaming state
+    std::ifstream file_stream_;
+    std::string current_buffer_;
+    bool end_of_file_reached_;
+    
+    // Batch processing helpers
+    bool process_batch_from_buffer(std::vector<std::string>& batch_files, 
+                                  std::vector<uint32_t>& batch_taxons);
+    bool read_next_chunk_to_buffer();
+    void cleanup_temp_files();
+};
+
+// Utility functions for file processing
+namespace FileProcessingUtils {
+    // File validation utilities
+    bool is_fasta_file(const std::string& file_path);
+    bool is_compressed_file(const std::string& file_path);
+    size_t estimate_uncompressed_size(const std::string& compressed_file);
+    
+    // Sequence validation utilities
+    bool validate_dna_sequence(const std::string& sequence);
+    bool has_valid_dna_characters(const std::string& sequence);
+    double calculate_gc_content(const std::string& sequence);
+    
+    // File system utilities
+    bool create_safe_directory(const std::string& directory_path);
+    bool cleanup_directory(const std::string& directory_path);
+    std::string generate_temp_filename(const std::string& base_dir, const std::string& prefix, int index);
+    
+    // Progress and monitoring utilities
+    void print_file_processing_progress(size_t current, size_t total, const std::string& current_file);
+    std::string format_file_size(size_t bytes);
+    std::string format_processing_rate(size_t bytes, double seconds);
+}
+
+#endif // GENOME_FILE_PROCESSOR_H

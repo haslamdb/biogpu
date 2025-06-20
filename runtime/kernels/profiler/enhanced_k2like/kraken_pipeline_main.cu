@@ -431,28 +431,32 @@ bool build_database_command(const PipelineConfig& config) {
     
     try {
         std::cout << "DEBUG: In build_database_command, config.genome_dir = '" << config.genome_dir << "'" << std::endl;
+        std::cout << "About to create GPUKrakenDatabaseBuilder..." << std::endl;
+        
         GPUKrakenDatabaseBuilder builder(config.output_path, config.classifier_params);
+        std::cout << "Constructor completed successfully!" << std::endl;
         
         // NEW: Configure memory and capacity settings
         if (config.auto_memory_scaling) {
+            std::cout << "Enabling auto memory scaling..." << std::endl;
             builder.enable_auto_memory_scaling(true, config.memory_fraction);
         } else {
+            std::cout << "Disabling auto memory scaling..." << std::endl;
             builder.enable_auto_memory_scaling(false);
             builder.set_minimizer_capacity(config.minimizer_capacity);
         }
         
         // Set batch size if specified
         if (config.gpu_batch_size > 0) {
+            std::cout << "Setting batch size to " << config.gpu_batch_size << std::endl;
             builder.set_batch_size(config.gpu_batch_size);
         }
         
-        std::string genome_dir_copy = config.genome_dir;
-        std::string taxonomy_dir_copy = config.taxonomy_dir;
-        std::cout << "DEBUG: Before call - genome_dir_copy = '" << genome_dir_copy << "'" << std::endl;
+        std::cout << "About to call build_database_from_genomes with: '" << config.genome_dir << "'" << std::endl;
         
         bool success = builder.build_database_from_genomes(
-            genome_dir_copy,
-            taxonomy_dir_copy
+            config.genome_dir,
+            config.taxonomy_dir
         );
         
         if (!success) {

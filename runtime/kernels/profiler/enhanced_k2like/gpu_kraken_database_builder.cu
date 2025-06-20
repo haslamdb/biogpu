@@ -1055,7 +1055,11 @@ GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
 // UPDATED: Smarter memory management
 void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     size_t free_mem, total_mem;
-    cudaMemGetInfo(&free_mem, &total_mem);
+    cudaError_t cuda_status = cudaMemGetInfo(&free_mem, &total_mem);
+    if (cuda_status != cudaSuccess) {
+        std::cerr << "CUDA memory query failed: " << cudaGetErrorString(cuda_status) << std::endl;
+        return;
+    }
     
     std::cout << "GPU Memory: " << (free_mem / 1024 / 1024) << " MB free / " 
               << (total_mem / 1024 / 1024) << " MB total" << std::endl;

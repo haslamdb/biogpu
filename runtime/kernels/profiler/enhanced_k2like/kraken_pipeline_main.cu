@@ -430,6 +430,7 @@ bool build_database_command(const PipelineConfig& config) {
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {
+        std::cout << "DEBUG: In build_database_command, config.genome_dir = '" << config.genome_dir << "'" << std::endl;
         GPUKrakenDatabaseBuilder builder(config.output_path, config.classifier_params);
         
         // NEW: Configure memory and capacity settings
@@ -445,9 +446,13 @@ bool build_database_command(const PipelineConfig& config) {
             builder.set_batch_size(config.gpu_batch_size);
         }
         
+        std::string genome_dir_copy = config.genome_dir;
+        std::string taxonomy_dir_copy = config.taxonomy_dir;
+        std::cout << "DEBUG: Before call - genome_dir_copy = '" << genome_dir_copy << "'" << std::endl;
+        
         bool success = builder.build_database_from_genomes(
-            config.genome_dir,
-            config.taxonomy_dir
+            genome_dir_copy,
+            taxonomy_dir_copy
         );
         
         if (!success) {

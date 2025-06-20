@@ -23,6 +23,99 @@
 #include <cstdio>      // for fopen()
 #include <cstring>     // for strcasecmp()
 
+// Comprehensive heap corruption debugging
+#include <signal.h>
+#include <execinfo.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+// Signal handler for catching crashes
+void crash_handler(int sig) {
+    void *array[10];
+    size_t size;
+    
+    // Get void*'s for all entries on the stack
+    size = backtrace(array, 10);
+    
+    // Print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
+
+// Memory debugging helper class
+class HeapValidator {
+private:
+    static bool heap_check_enabled;
+    static size_t allocation_count;
+    
+public:
+    static void enable_validation() {
+        heap_check_enabled = true;
+        allocation_count = 0;
+        std::cout << "HEAP DEBUG: Validation enabled" << std::endl;
+    }
+    
+    static bool validate_heap(const std::string& location) {
+        if (!heap_check_enabled) return true;
+        
+        std::cout << "HEAP DEBUG: Checking at " << location << " (alloc count: " << allocation_count << ")" << std::endl;
+        
+        // Try a small allocation and deallocation
+        try {
+            void* test_ptr = malloc(16);
+            if (!test_ptr) {
+                std::cerr << "HEAP ERROR: malloc(16) failed at " << location << std::endl;
+                return false;
+            }
+            
+            // Write some data to ensure it's valid
+            memset(test_ptr, 0xAA, 16);
+            
+            // Free it
+            free(test_ptr);
+            
+            allocation_count++;
+            
+            if (allocation_count % 100 == 0) {
+                std::cout << "HEAP DEBUG: " << allocation_count << " successful heap operations" << std::endl;
+            }
+            
+            return true;
+            
+        } catch (...) {
+            std::cerr << "HEAP ERROR: Exception during heap test at " << location << std::endl;
+            return false;
+        }
+    }
+    
+    static void check_string_safety(const std::string& str, const std::string& name) {
+        std::cout << "STRING DEBUG: Checking '" << name << "' (length: " << str.length() << ")" << std::endl;
+        
+        if (str.length() > 10000) {
+            std::cerr << "STRING WARNING: Very long string '" << name << "': " << str.length() << " chars" << std::endl;
+        }
+        
+        // Check for embedded nulls
+        for (size_t i = 0; i < str.length(); i++) {
+            if (str[i] == '\0') {
+                std::cerr << "STRING ERROR: Embedded null in '" << name << "' at position " << i << std::endl;
+                break;
+            }
+        }
+        
+        // Check string capacity vs size
+        if (str.capacity() > str.size() * 10) {
+            std::cerr << "STRING WARNING: Large capacity waste in '" << name << "': " 
+                      << str.capacity() << " vs " << str.size() << std::endl;
+        }
+    }
+};
+
+bool HeapValidator::heap_check_enabled = false;
+size_t HeapValidator::allocation_count = 0;
+
 // Enhanced classification mode selection
 enum class ClassificationMode {
     STANDARD,           // Original paired-end GPU classifier
@@ -1886,7 +1979,126 @@ bool generate_classification_reports(const PipelineConfig& config) {
     }
 }
 
+// Safe parse_arguments function with heap validation
+bool parse_arguments_debug(int argc, char* argv[], PipelineConfig& config) {
+    HeapValidator::validate_heap("parse_arguments start");
+    
+    if (argc < 2) {
+        return false;
+    }
+    
+    std::cout << "DEBUG: Setting command from argv[1]: " << argv[1] << std::endl;
+    
+    try {
+        config.command = std::string(argv[1]);  // Explicit string construction
+        HeapValidator::validate_heap("after command assignment");
+        HeapValidator::check_string_safety(config.command, "config.command");
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: Exception setting command: " << e.what() << std::endl;
+        return false;
+    }
+    
+    if (config.command != "build" && config.command != "classify" && 
+        config.command != "pipeline" && config.command != "batch") {
+        std::cerr << "Error: Unknown command '" << config.command << "'" << std::endl;
+        return false;
+    }
+    
+    std::cout << "DEBUG: Processing " << (argc - 2) << " additional arguments..." << std::endl;
+    
+    for (int i = 2; i < argc; i++) {
+        std::cout << "DEBUG: Processing arg " << i << ": " << argv[i] << std::endl;
+        HeapValidator::validate_heap("before argument processing");
+        
+        try {
+            std::string arg(argv[i]);  // Explicit string construction
+            HeapValidator::validate_heap("after arg string creation");
+            
+            if (arg == "--genome-dir" && i + 1 < argc) {
+                std::cout << "DEBUG: Setting genome_dir from argv[" << (i+1) << "]: " << argv[i+1] << std::endl;
+                config.genome_dir = std::string(argv[++i]);
+                HeapValidator::validate_heap("after genome_dir assignment");
+                HeapValidator::check_string_safety(config.genome_dir, "config.genome_dir");
+            } else if (arg == "--database" && i + 1 < argc) {
+                config.database_dir = std::string(argv[++i]);
+                HeapValidator::validate_heap("after database_dir assignment");
+                HeapValidator::check_string_safety(config.database_dir, "config.database_dir");
+            } else if (arg == "--reads" && i + 1 < argc) {
+                config.reads_file = std::string(argv[++i]);
+                HeapValidator::validate_heap("after reads_file assignment");
+                HeapValidator::check_string_safety(config.reads_file, "config.reads_file");
+            } else if (arg == "--output" && i + 1 < argc) {
+                config.output_path = std::string(argv[++i]);
+                HeapValidator::validate_heap("after output_path assignment");
+                HeapValidator::check_string_safety(config.output_path, "config.output_path");
+            } else if (arg == "--taxonomy" && i + 1 < argc) {
+                config.taxonomy_dir = std::string(argv[++i]);
+                HeapValidator::validate_heap("after taxonomy_dir assignment");
+                HeapValidator::check_string_safety(config.taxonomy_dir, "config.taxonomy_dir");
+            }
+            // Add other arguments as needed...
+            
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR: Exception processing argument " << i << ": " << e.what() << std::endl;
+            HeapValidator::validate_heap("after argument processing error");
+            return false;
+        }
+        
+        HeapValidator::validate_heap("after argument processing");
+    }
+    
+    std::cout << "DEBUG: Argument parsing completed successfully" << std::endl;
+    HeapValidator::validate_heap("parse_arguments end");
+    
+    return true;
+}
+
+// Replace the original main with a minimal version for debugging
 int main(int argc, char* argv[]) {
+    // First try to isolate the problem - minimal main function
+    std::cout << "MINIMAL DEBUG: Starting program" << std::endl;
+    
+    // Install crash handler
+    signal(SIGSEGV, crash_handler);
+    signal(SIGABRT, crash_handler);
+    
+    // Enable heap validation
+    HeapValidator::enable_validation();
+    HeapValidator::validate_heap("main entry");
+    
+    if (argc < 2) {
+        print_usage(argv[0]);
+        return 1;
+    }
+    
+    HeapValidator::validate_heap("after argc check");
+    
+    std::cout << "MINIMAL DEBUG: Creating config..." << std::endl;
+    PipelineConfig config;
+    
+    HeapValidator::validate_heap("after config creation");
+    
+    std::cout << "MINIMAL DEBUG: Parsing arguments..." << std::endl;
+    
+    // Use the debug version of parse_arguments
+    if (!parse_arguments_debug(argc, argv, config)) {
+        print_usage(argv[0]);
+        return 1;
+    }
+    
+    HeapValidator::validate_heap("after parse_arguments_debug");
+    
+    std::cout << "MINIMAL DEBUG: Arguments parsed, command = " << config.command << std::endl;
+    
+    // Stop here for now to isolate the problem
+    std::cout << "MINIMAL DEBUG: Stopping here to test heap integrity" << std::endl;
+    HeapValidator::validate_heap("before early exit");
+    
+    return 0;  // Exit early to test if the problem is in argument parsing
+}
+
+// Original main function (renamed for backup)
+int main_original(int argc, char* argv[]) {
     std::cout << "GPU-Accelerated Kraken2-Style Taxonomic Classifier (High Capacity)" << std::endl;
     std::cout << "=================================================================" << std::endl;
     

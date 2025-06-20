@@ -1,0 +1,93 @@
+#!/bin/bash
+# Step-by-step debugging plan for heap corruption
+
+echo "=== HEAP CORRUPTION DEBUGGING PLAN ==="
+echo ""
+
+echo "Step 1: Build minimal debug version"
+echo "This will help isolate where the heap corruption occurs"
+echo "Commands:"
+echo "  make clean"
+echo "  make minimal"
+echo "  ./enhanced_kraken_pipeline_minimal build --genome-dir test_data --output test_db"
+echo ""
+
+echo "Step 2: Build with AddressSanitizer (if minimal version works)"
+echo "AddressSanitizer will catch heap corruption at the exact moment it happens"
+echo "Commands:"
+echo "  make debug"
+echo "  ASAN_OPTIONS=abort_on_error=1:fast_unwind_on_malloc=0:detect_leaks=1 \\"
+echo "    ./enhanced_kraken_pipeline_debug build --genome-dir YOUR_GENOME_DIR --output test_db"
+echo ""
+
+echo "Step 3: Build with Valgrind (if ASAN doesn't work with CUDA)"
+echo "Valgrind can catch memory errors but may not work well with CUDA"
+echo "Commands:"
+echo "  make valgrind"
+echo "  valgrind --tool=memcheck --leak-check=full --track-origins=yes \\"
+echo "    ./enhanced_kraken_pipeline_valgrind build --genome-dir YOUR_GENOME_DIR --output test_db"
+echo ""
+
+echo "Step 4: Use GDB to get exact crash location"
+echo "Commands:"
+echo "  gdb ./enhanced_kraken_pipeline_debug"
+echo "  (gdb) set environment ASAN_OPTIONS=abort_on_error=1"
+echo "  (gdb) run build --genome-dir YOUR_GENOME_DIR --output test_db"
+echo "  (gdb) bt  # When it crashes, get backtrace"
+echo ""
+
+echo "Step 5: Check for common issues"
+echo "- Check if genome directory path contains special characters"
+echo "- Verify all files are accessible"
+echo "- Check available memory"
+echo "- Test with a smaller dataset first"
+echo ""
+
+echo "=== IMMEDIATE FIXES TO TRY ==="
+echo ""
+
+echo "Fix 1: Replace main function"
+echo "Replace the main() function in kraken_pipeline_main.cu with the minimal debug version"
+echo ""
+
+echo "Fix 2: Add bounds checking"
+echo "Add the HeapValidator class to catch corruption early"
+echo ""
+
+echo "Fix 3: Use safer string operations"
+echo "Replace all std::string assignments from char* with explicit constructors"
+echo ""
+
+echo "Fix 4: Test with a simple path"
+echo "Try using a simple path without spaces or special characters:"
+echo "  mkdir /tmp/simple_test"
+echo "  cp your_genome_files/* /tmp/simple_test/"
+echo "  ./program build --genome-dir /tmp/simple_test --output /tmp/test_db"
+echo ""
+
+echo "=== MOST LIKELY CAUSES ==="
+echo "1. Buffer overflow in string operations during argument parsing"
+echo "2. Invalid memory access in std::filesystem operations"
+echo "3. CUDA driver/runtime heap corruption"
+echo "4. Template instantiation causing excessive memory allocation"
+echo "5. Stack overflow from deep recursion"
+echo ""
+
+echo "=== COMPILATION FLAGS TO TRY ==="
+echo "Add these flags to help debug:"
+echo "  -fsanitize=address,undefined,leak"
+echo "  -fstack-protector-strong"
+echo "  -D_FORTIFY_SOURCE=2"
+echo "  -fno-omit-frame-pointer"
+echo "  -g3"
+echo ""
+
+echo "=== ENVIRONMENT VARIABLES ==="
+echo "Set these for better debugging:"
+echo "  export MALLOC_CHECK_=2"
+echo "  export ASAN_OPTIONS=abort_on_error=1:fast_unwind_on_malloc=0:detect_leaks=1"
+echo "  export MSAN_OPTIONS=abort_on_error=1"
+echo ""
+
+echo "Run this script and follow the steps in order."
+echo "The heap corruption is happening very early, so we need to isolate it step by step."

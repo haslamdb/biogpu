@@ -5,7 +5,7 @@
 #ifndef GPU_KRAKEN_DATABASE_BUILDER_CUH
 #define GPU_KRAKEN_DATABASE_BUILDER_CUH
 
-#include "gpu_kraken_classifier.cu"
+#include "gpu_kraken_classifier.h"
 #include "gpu_minimizer_extraction.cuh"
 #include "streaming_fna_processor.h"
 #include <cuda_runtime.h>
@@ -30,6 +30,8 @@
 #include <cctype>
 #include <climits>
 #include <stdexcept>
+#include <sys/stat.h>  // For stat()
+#include <sys/types.h> // For stat structures
 
 // Keep all original structures
 struct GPUTaxonomyNode {
@@ -1562,12 +1564,14 @@ bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path
         }
     }
     
-    if (!std::filesystem::exists(library_path)) {
+    // Use stat instead of std::filesystem to check path
+    struct stat path_stat;
+    if (stat(library_path.c_str(), &path_stat) != 0) {
         std::cerr << "Error: Genome library path does not exist: " << library_path << std::endl;
         return false;
     }
     
-    if (!std::filesystem::is_directory(library_path)) {
+    if (!S_ISDIR(path_stat.st_mode)) {
         std::cerr << "Error: Genome library path is not a directory: " << library_path << std::endl;
         return false;
     }
@@ -1617,7 +1621,8 @@ bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path
                 }
                 
                 // Check if file still exists (could have been deleted during processing)
-                if (!std::filesystem::exists(file)) {
+                struct stat file_stat;
+                if (stat(file.c_str(), &file_stat) != 0) {
                     std::cerr << "Warning: File no longer exists: " << file << std::endl;
                     continue;
                 }
@@ -1630,8 +1635,12 @@ bool GPUKrakenDatabaseBuilder::load_genome_files(const std::string& library_path
                 
                 // Update taxon names if not present
                 if (taxon_names.find(taxon_id) == taxon_names.end()) {
-                    std::filesystem::path p(file);
-                    std::string stem = p.stem().string();
+                    // Extract filename without path and extension manually
+                    size_t last_slash = file.find_last_of("/\\");
+                    std::string filename = (last_slash != std::string::npos) ? file.substr(last_slash + 1) : file;
+                    
+                    size_t last_dot = filename.find_last_of('.');
+                    std::string stem = (last_dot != std::string::npos) ? filename.substr(0, last_dot) : filename;
                     
                     // Validate stem string
                     if (!stem.empty() && stem.size() < 1000) {  // Reasonable limit

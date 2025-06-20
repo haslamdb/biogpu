@@ -160,7 +160,7 @@ struct PipelineConfig {
     
     ClassificationParams classifier_params;
     int batch_size = 10000;
-    int gpu_batch_size = 1000;  // GPU batch size for database building
+    int gpu_batch_size = 100;  // GPU batch size for database building
     
     // NEW: Minimizer capacity controls
     int minimizer_capacity = 5000000;     // Default to 5M (up from 1M)
@@ -332,6 +332,23 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
     return true;
 }
 
+// Helper function to determine if path is a concatenated FNA file
+bool is_concatenated_fna_file(const std::string& path) {
+    if (!std::filesystem::exists(path)) {
+        return false;
+    }
+    
+    if (!std::filesystem::is_regular_file(path)) {
+        return false;
+    }
+    
+    // Check file extension
+    std::string ext = std::filesystem::path(path).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    
+    return (ext == ".fna" || ext == ".fasta" || ext == ".fa");
+}
+
 bool validate_config(const PipelineConfig& config) {
     if (config.command == "build" || config.command == "pipeline") {
         if (config.genome_dir.empty()) {
@@ -430,10 +447,15 @@ bool build_database_command(const PipelineConfig& config) {
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {
-        std::cout << "DEBUG: In build_database_command, config.genome_dir = '" << config.genome_dir << "'" << std::endl;
+        // Copy strings before any GPU operations to avoid corruption
+        std::string genome_dir = config.genome_dir;
+        std::string taxonomy_dir = config.taxonomy_dir;
+        std::string output_path = config.output_path;
+        
+        std::cout << "DEBUG: In build_database_command, genome_dir = '" << genome_dir << "'" << std::endl;
         std::cout << "About to create GPUKrakenDatabaseBuilder..." << std::endl;
         
-        GPUKrakenDatabaseBuilder builder(config.output_path, config.classifier_params);
+        GPUKrakenDatabaseBuilder builder(output_path, config.classifier_params);
         std::cout << "Constructor completed successfully!" << std::endl;
         
         // NEW: Configure memory and capacity settings
@@ -450,14 +472,24 @@ bool build_database_command(const PipelineConfig& config) {
         if (config.gpu_batch_size > 0) {
             std::cout << "Setting batch size to " << config.gpu_batch_size << std::endl;
             builder.set_batch_size(config.gpu_batch_size);
+            std::cout << "Batch size set successfully!" << std::endl;
         }
         
-        std::cout << "About to call build_database_from_genomes with: '" << config.genome_dir << "'" << std::endl;
+        std::cout << "About to call database builder..." << std::endl;
+        std::cout << "genome_dir = '" << genome_dir << "'" << std::endl;
+        std::cout << "taxonomy_dir = '" << taxonomy_dir << "'" << std::endl;
+        std::cout.flush();
         
-        bool success = builder.build_database_from_genomes(
-            config.genome_dir,
-            config.taxonomy_dir
-        );
+        bool success;
+        
+        // Check if input is a concatenated FNA file or a directory
+        if (is_concatenated_fna_file(genome_dir)) {
+            std::cout << "Detected concatenated FNA file - using streaming processor" << std::endl;
+            success = builder.build_database_from_streaming_fna(genome_dir, taxonomy_dir);
+        } else {
+            std::cout << "Processing genome directory with individual files" << std::endl;
+            success = builder.build_database_from_genomes(genome_dir, taxonomy_dir);
+        }
         
         if (!success) {
             std::cerr << "Database build failed!" << std::endl;

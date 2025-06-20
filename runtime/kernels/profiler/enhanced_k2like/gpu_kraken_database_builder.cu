@@ -7,6 +7,7 @@
 
 #include "gpu_kraken_classifier.cu"
 #include "gpu_minimizer_extraction.cuh"
+#include "streaming_fna_processor.h"
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -764,6 +765,10 @@ public:
     bool prebuild_compact_taxonomy(const std::string& nodes_path, 
                                   const std::string& names_path,
                                   const std::string& output_path);
+    
+    // NEW: Streaming support for large concatenated FNA files
+    bool build_database_from_streaming_fna(const std::string& fna_file_path,
+                                          const std::string& taxonomy_path = "");
     
 private:
     // GPU processing methods
@@ -2471,6 +2476,118 @@ bool GPUKrakenDatabaseBuilder::save_standard_database() {
     
     // Call the original save_database() method
     return save_database();
+}
+
+// NEW: Streaming support for large concatenated FNA files
+bool GPUKrakenDatabaseBuilder::build_database_from_streaming_fna(
+    const std::string& fna_file_path,
+    const std::string& taxonomy_path) {
+    
+    std::cout << "\n=== BUILDING KRAKEN DATABASE FROM STREAMING FNA ===" << std::endl;
+    std::cout << "FNA file: " << fna_file_path << std::endl;
+    auto total_start = std::chrono::high_resolution_clock::now();
+    
+    // Verify file exists and is readable
+    if (!std::filesystem::exists(fna_file_path)) {
+        std::cerr << "Error: FNA file does not exist: " << fna_file_path << std::endl;
+        return false;
+    }
+    
+    if (!std::filesystem::is_regular_file(fna_file_path)) {
+        std::cerr << "Error: Path is not a regular file: " << fna_file_path << std::endl;
+        return false;
+    }
+    
+    // Load taxonomy if provided
+    if (!taxonomy_path.empty()) {
+        if (!load_taxonomy_data(taxonomy_path)) {
+            std::cerr << "Warning: Failed to load taxonomy data" << std::endl;
+        }
+    }
+    
+    // Create temporary directory for genome files
+    std::string temp_dir = output_directory + "/temp_genomes";
+    
+    try {
+        // Initialize streaming processor with reasonable batch size
+        // Adjust based on available memory - smaller batches for limited memory
+        int batch_size = std::min(MAX_SEQUENCE_BATCH, 25);
+        StreamingFnaProcessor processor(fna_file_path, temp_dir, batch_size);
+        
+        // Clear any existing genome files list
+        genome_files.clear();
+        genome_taxon_ids.clear();
+        
+        // Process file in streaming batches
+        std::vector<std::string> batch_files;
+        std::vector<uint32_t> batch_taxons;
+        int batch_number = 0;
+        
+        while (processor.process_next_batch(batch_files, batch_taxons)) {
+            batch_number++;
+            std::cout << "\nProcessing streaming batch " << batch_number 
+                      << " (" << batch_files.size() << " genomes)" << std::endl;
+            
+            // Update our internal lists (for compatibility with existing code)
+            genome_files = batch_files;
+            genome_taxon_ids = batch_taxons;
+            
+            // Update taxon names if not in taxonomy
+            for (size_t i = 0; i < batch_files.size(); i++) {
+                uint32_t taxon_id = batch_taxons[i];
+                if (taxon_id > 0 && taxon_names.find(taxon_id) == taxon_names.end()) {
+                    std::filesystem::path p(batch_files[i]);
+                    taxon_names[taxon_id] = "taxon_" + std::to_string(taxon_id);
+                }
+            }
+            
+            // Process this batch on GPU
+            if (!process_genomes_gpu()) {
+                std::cerr << "Failed to process batch " << batch_number << " on GPU" << std::endl;
+                std::filesystem::remove_all(temp_dir);
+                return false;
+            }
+            
+            // Clean up temporary files after processing
+            for (const auto& file : batch_files) {
+                std::filesystem::remove(file);
+            }
+            
+            // Update statistics
+            stats.total_sequences += batch_files.size();
+        }
+        
+        // Clean up temp directory
+        std::filesystem::remove_all(temp_dir);
+        
+        std::cout << "\nStreaming processing complete:" << std::endl;
+        std::cout << "  Total genomes processed: " << processor.get_total_genomes() << std::endl;
+        std::cout << "  Total bases processed: " << processor.get_total_bases() << std::endl;
+        std::cout << "  Total batches: " << batch_number << std::endl;
+        
+        // Save the complete database
+        if (!save_database()) {
+            std::cerr << "Failed to save database" << std::endl;
+            return false;
+        }
+        
+        auto total_end = std::chrono::high_resolution_clock::now();
+        auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(total_end - total_start);
+        
+        std::cout << "\n=== DATABASE BUILD COMPLETE ===" << std::endl;
+        std::cout << "Total build time: " << total_duration.count() << " seconds" << std::endl;
+        print_build_statistics();
+        
+        return true;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error during streaming processing: " << e.what() << std::endl;
+        // Clean up on error
+        if (std::filesystem::exists(temp_dir)) {
+            std::filesystem::remove_all(temp_dir);
+        }
+        return false;
+    }
 }
 
 #endif // GPU_KRAKEN_CLASSIFIER_HEADER_ONLY

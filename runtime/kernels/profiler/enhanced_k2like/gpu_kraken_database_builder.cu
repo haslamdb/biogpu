@@ -29,6 +29,7 @@
 #include <sstream>
 #include <cctype>
 #include <climits>
+#include <stdexcept>
 
 // Keep all original structures
 struct GPUTaxonomyNode {
@@ -1042,15 +1043,40 @@ GPUKrakenDatabaseBuilder::GPUKrakenDatabaseBuilder(
               << ", spaces=" << minimizer_params.spaces << std::endl;
     
     // Create output directory
-    std::filesystem::create_directories(output_directory);
+    try {
+        std::filesystem::create_directories(output_directory);
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Could not create output directory: " << e.what() << std::endl;
+    }
     
-    // Enable auto-scaling by default for better memory utilization
-    enable_auto_memory_scaling(true, 80);
+    // CRITICAL FIX: Set safe defaults BEFORE any auto-scaling
+    MAX_MINIMIZERS_PER_BATCH = 1000000;  // Safe 1M default
+    MAX_SEQUENCE_BATCH = 10;             // Safe 10 sequences
+    auto_scale_memory = true;            // Enable auto-scaling
+    max_gpu_memory_usage_fraction = 80;  // 80% usage
     
     // Initialize statistics
     memset(&stats, 0, sizeof(stats));
     total_minimizers_capped = 0;
     total_batches_capped = 0;
+    
+    std::cout << "Initial safe settings:" << std::endl;
+    std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+    std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
+    
+    // Now safely call auto-scaling (will use the safe check_and_adjust_memory)
+    try {
+        if (auto_scale_memory) {
+            std::cout << "Enabled auto memory scaling (using " << max_gpu_memory_usage_fraction 
+                      << "% of GPU memory)" << std::endl;
+            check_and_adjust_memory();
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Auto-scaling failed, using safe defaults: " << e.what() << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 1000000;
+        MAX_SEQUENCE_BATCH = 10;
+        auto_scale_memory = false;
+    }
 }
 
 // Destructor - safe with CUDA context validation
@@ -1075,7 +1101,7 @@ GPUKrakenDatabaseBuilder::~GPUKrakenDatabaseBuilder() {
     }
 }
 
-// UPDATED: Smarter memory management
+// CRITICAL FIX for malloc(): invalid size (unsorted) error
 void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
     size_t free_mem, total_mem;
     cudaError_t cuda_status = cudaMemGetInfo(&free_mem, &total_mem);
@@ -1088,98 +1114,73 @@ void GPUKrakenDatabaseBuilder::check_and_adjust_memory() {
               << (total_mem / 1024 / 1024) << " MB total" << std::endl;
     
     if (auto_scale_memory) {
-        // CRITICAL FIX: Prevent integer overflow in memory calculations
-        size_t safe_total = total_mem;
-        if (max_gpu_memory_usage_fraction > 100) {
-            max_gpu_memory_usage_fraction = 80; // Cap at 80%
+        // CRITICAL FIX: Use simple, safe logic to prevent overflow
+        size_t memory_gb = total_mem / (1024ULL * 1024ULL * 1024ULL);
+        
+        std::cout << "GPU Memory: " << memory_gb << " GB detected" << std::endl;
+        
+        // Safe, conservative settings based on GPU memory size
+        if (memory_gb >= 24) {
+            MAX_MINIMIZERS_PER_BATCH = 3000000;  // 3M for high-end GPUs
+            MAX_SEQUENCE_BATCH = 25;
+            std::cout << "High-end GPU configuration" << std::endl;
+        } else if (memory_gb >= 16) {
+            MAX_MINIMIZERS_PER_BATCH = 2000000;  // 2M for mid-range
+            MAX_SEQUENCE_BATCH = 20;
+            std::cout << "Mid-range GPU configuration" << std::endl;
+        } else if (memory_gb >= 8) {
+            MAX_MINIMIZERS_PER_BATCH = 1000000;  // 1M for lower-end
+            MAX_SEQUENCE_BATCH = 15;
+            std::cout << "Standard GPU configuration" << std::endl;
+        } else {
+            MAX_MINIMIZERS_PER_BATCH = 500000;   // 500K for very limited memory
+            MAX_SEQUENCE_BATCH = 10;
+            std::cout << "Limited memory GPU configuration" << std::endl;
         }
         
-        // Use 64-bit arithmetic to prevent overflow
-        uint64_t usable_memory_64 = (static_cast<uint64_t>(safe_total) * max_gpu_memory_usage_fraction) / 100;
-        
-        // Ensure we don't exceed size_t limits
-        size_t usable_memory = static_cast<size_t>(std::min(usable_memory_64, static_cast<uint64_t>(SIZE_MAX / 2)));
-        
-        // Reserve memory for other allocations (30% buffer instead of aggressive 20%)
-        size_t available_for_minimizers = usable_memory * 50 / 100; // 50% for minimizers
-        size_t available_for_sequences = usable_memory * 20 / 100;  // 20% for sequences
-        
-        // Calculate optimal minimizer capacity with bounds checking
-        size_t memory_per_minimizer = sizeof(GPUMinimizerHit) + sizeof(LCACandidate);
-        
-        // CRITICAL: Check for division by zero and overflow
-        if (memory_per_minimizer == 0) {
-            std::cerr << "ERROR: Invalid memory_per_minimizer calculation" << std::endl;
-            return;
-        }
-        
-        size_t raw_minimizer_capacity = available_for_minimizers / memory_per_minimizer;
-        
-        // Apply strict limits with safe casting
-        int optimal_minimizer_capacity = static_cast<int>(std::min({
-            raw_minimizer_capacity,
-            static_cast<size_t>(10000000),  // Max 10M instead of 50M
-            static_cast<size_t>(INT_MAX / 2) // Ensure we don't overflow int
-        }));
-        optimal_minimizer_capacity = std::max(optimal_minimizer_capacity, 500000); // Min 500K
-        
-        // Calculate sequence batch with similar safety
-        size_t sequence_memory_per_genome = 5000000; // More conservative 5MB per genome
-        size_t raw_sequence_batch = available_for_sequences / sequence_memory_per_genome;
-        int optimal_sequence_batch = static_cast<int>(std::min({
-            raw_sequence_batch,
-            static_cast<size_t>(50),  // Max 50 genomes
-            static_cast<size_t>(INT_MAX / 2)
-        }));
-        optimal_sequence_batch = std::max(optimal_sequence_batch, 5); // Min 5 genomes
-        
-        MAX_MINIMIZERS_PER_BATCH = optimal_minimizer_capacity;
-        MAX_SEQUENCE_BATCH = optimal_sequence_batch;
-        
-        std::cout << "Auto-scaled batch sizes (conservative):" << std::endl;
+        std::cout << "Auto-scaled settings (safe):" << std::endl;
         std::cout << "  Minimizers per batch: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
         std::cout << "  Sequences per batch: " << MAX_SEQUENCE_BATCH << std::endl;
-        std::cout << "  Estimated memory usage: " << (usable_memory / 1024 / 1024) << " MB" << std::endl;
-    } else {
-        // Manual validation of current settings
-        size_t sequence_memory = MAX_SEQUENCE_BATCH * 10000000; 
-        size_t minimizer_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(GPUMinimizerHit);
-        size_t candidate_memory = MAX_MINIMIZERS_PER_BATCH * sizeof(LCACandidate);
-        size_t genome_info_memory = MAX_SEQUENCE_BATCH * sizeof(GPUGenomeInfo);
-        size_t total_needed = sequence_memory + minimizer_memory + candidate_memory + genome_info_memory;
+    }
+    
+    // Final validation to prevent any overflow
+    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 10000000) {
+        std::cerr << "ERROR: Invalid minimizer batch size, using safe default" << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 1000000; // Safe 1M default
+    }
+    
+    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 50) {
+        std::cerr << "ERROR: Invalid sequence batch size, using safe default" << std::endl;
+        MAX_SEQUENCE_BATCH = 10; // Safe default
+    }
+    
+    // Verify we can safely calculate memory requirements
+    try {
+        // Use 64-bit arithmetic for safety check
+        uint64_t sequence_memory_check = static_cast<uint64_t>(MAX_SEQUENCE_BATCH) * 3000000ULL; // 3MB per sequence
+        uint64_t minimizer_memory_check = static_cast<uint64_t>(MAX_MINIMIZERS_PER_BATCH) * 24ULL; // 24 bytes per minimizer
+        uint64_t total_check = sequence_memory_check + minimizer_memory_check;
         
-        std::cout << "Memory requirements (manual settings):" << std::endl;
-        std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
-        std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
-        std::cout << "  LCA candidates: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
-        std::cout << "  Total required: " << (total_needed / 1024 / 1024) << " MB" << std::endl;
-        
-        size_t safe_memory = free_mem * 0.8;
-        
-        if (total_needed > safe_memory) {
-            std::cout << "WARNING: Current settings may exceed available GPU memory!" << std::endl;
-            std::cout << "Consider enabling auto-scaling or reducing batch sizes." << std::endl;
-            
-            // Auto-adjust if memory requirements are too high
-            double scale = (double)safe_memory / total_needed;
-            MAX_MINIMIZERS_PER_BATCH = (int)(MAX_MINIMIZERS_PER_BATCH * scale);
-            MAX_SEQUENCE_BATCH = (int)(MAX_SEQUENCE_BATCH * scale);
-            
-            std::cout << "Auto-adjusted to fit memory:" << std::endl;
-            std::cout << "  Minimizers: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
-            std::cout << "  Sequences: " << MAX_SEQUENCE_BATCH << std::endl;
+        if (total_check > static_cast<uint64_t>(free_mem)) {
+            // Scale down if still too large
+            double scale_factor = static_cast<double>(free_mem) * 0.7 / static_cast<double>(total_check);
+            if (scale_factor < 1.0) {
+                MAX_MINIMIZERS_PER_BATCH = static_cast<int>(MAX_MINIMIZERS_PER_BATCH * scale_factor);
+                MAX_SEQUENCE_BATCH = static_cast<int>(MAX_SEQUENCE_BATCH * scale_factor);
+                
+                // Ensure minimums
+                MAX_MINIMIZERS_PER_BATCH = std::max(MAX_MINIMIZERS_PER_BATCH, 100000);
+                MAX_SEQUENCE_BATCH = std::max(MAX_SEQUENCE_BATCH, 5);
+                
+                std::cout << "Scaled down further for memory safety:" << std::endl;
+                std::cout << "  Minimizers: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+                std::cout << "  Sequences: " << MAX_SEQUENCE_BATCH << std::endl;
+            }
         }
-    }
-    
-    // Validate final settings
-    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 20000000) {
-        std::cerr << "ERROR: Invalid minimizer batch size: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
-        MAX_MINIMIZERS_PER_BATCH = 1000000; // Safe fallback
-    }
-    
-    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 100) {
-        std::cerr << "ERROR: Invalid sequence batch size: " << MAX_SEQUENCE_BATCH << std::endl;
-        MAX_SEQUENCE_BATCH = 10; // Safe fallback
+    } catch (const std::exception& e) {
+        std::cerr << "Error in memory calculation, using ultra-safe defaults" << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 500000;
+        MAX_SEQUENCE_BATCH = 5;
     }
 }
 
@@ -1651,111 +1652,122 @@ bool GPUKrakenDatabaseBuilder::compute_lca_assignments_gpu(
     return true;
 }
 
-// Keep all original utility functions
+// ALSO NEED TO FIX allocate_gpu_memory() to prevent overflow
 bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
-    std::cout << "Allocating GPU memory with strict bounds checking..." << std::endl;
+    std::cout << "Allocating GPU memory with overflow protection..." << std::endl;
     
-    // Validate parameters BEFORE any calculations
-    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 1000) {
-        std::cerr << "ERROR: Invalid sequence batch size: " << MAX_SEQUENCE_BATCH << std::endl;
+    // Validate parameters first
+    if (MAX_SEQUENCE_BATCH <= 0 || MAX_SEQUENCE_BATCH > 100) {
+        std::cerr << "ERROR: Invalid MAX_SEQUENCE_BATCH: " << MAX_SEQUENCE_BATCH << std::endl;
+        MAX_SEQUENCE_BATCH = 10; // Force safe value
+    }
+    
+    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 10000000) {
+        std::cerr << "ERROR: Invalid MAX_MINIMIZERS_PER_BATCH: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+        MAX_MINIMIZERS_PER_BATCH = 1000000; // Force safe value
+    }
+    
+    // Use safe calculations with bounds checking
+    size_t sequence_memory = 0;
+    size_t genome_info_memory = 0;
+    size_t minimizer_memory = 0;
+    size_t candidate_memory = 0;
+    size_t count_memory = 0;
+    
+    try {
+        // Calculate each allocation separately with overflow checking
+        sequence_memory = static_cast<size_t>(MAX_SEQUENCE_BATCH) * 3000000ULL; // 3MB per sequence (conservative)
+        
+        if (sequence_memory / MAX_SEQUENCE_BATCH != 3000000ULL) {
+            throw std::overflow_error("Sequence memory calculation overflow");
+        }
+        
+        genome_info_memory = static_cast<size_t>(MAX_SEQUENCE_BATCH) * sizeof(GPUGenomeInfo);
+        minimizer_memory = static_cast<size_t>(MAX_MINIMIZERS_PER_BATCH) * sizeof(GPUMinimizerHit);
+        candidate_memory = static_cast<size_t>(MAX_MINIMIZERS_PER_BATCH) * sizeof(LCACandidate);
+        count_memory = static_cast<size_t>(MAX_SEQUENCE_BATCH) * sizeof(uint32_t);
+        
+        // Check for overflow in individual calculations
+        if (minimizer_memory / MAX_MINIMIZERS_PER_BATCH != sizeof(GPUMinimizerHit) ||
+            candidate_memory / MAX_MINIMIZERS_PER_BATCH != sizeof(LCACandidate)) {
+            throw std::overflow_error("Minimizer memory calculation overflow");
+        }
+        
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: Memory calculation overflow: " << e.what() << std::endl;
         return false;
     }
     
-    if (MAX_MINIMIZERS_PER_BATCH <= 0 || MAX_MINIMIZERS_PER_BATCH > 50000000) {
-        std::cerr << "ERROR: Invalid minimizer capacity: " << MAX_MINIMIZERS_PER_BATCH << std::endl;
+    // Calculate total with overflow checking
+    size_t total_required = 0;
+    if (sequence_memory > SIZE_MAX - genome_info_memory ||
+        (sequence_memory + genome_info_memory) > SIZE_MAX - minimizer_memory ||
+        (sequence_memory + genome_info_memory + minimizer_memory) > SIZE_MAX - candidate_memory ||
+        (sequence_memory + genome_info_memory + minimizer_memory + candidate_memory) > SIZE_MAX - count_memory) {
+        std::cerr << "ERROR: Total memory calculation would overflow!" << std::endl;
         return false;
     }
     
-    // Use 64-bit arithmetic for all size calculations to prevent overflow
-    uint64_t sequence_memory_64 = static_cast<uint64_t>(MAX_SEQUENCE_BATCH) * 5000000ULL; // 5MB per sequence
-    uint64_t genome_info_memory_64 = static_cast<uint64_t>(MAX_SEQUENCE_BATCH) * sizeof(GPUGenomeInfo);
-    uint64_t minimizer_memory_64 = static_cast<uint64_t>(MAX_MINIMIZERS_PER_BATCH) * sizeof(GPUMinimizerHit);
-    uint64_t candidate_memory_64 = static_cast<uint64_t>(MAX_MINIMIZERS_PER_BATCH) * sizeof(LCACandidate);
-    
-    // Check for overflow in individual allocations
-    if (sequence_memory_64 > SIZE_MAX || 
-        genome_info_memory_64 > SIZE_MAX ||
-        minimizer_memory_64 > SIZE_MAX ||
-        candidate_memory_64 > SIZE_MAX) {
-        std::cerr << "ERROR: Memory calculation overflow detected!" << std::endl;
-        return false;
-    }
-    
-    // Convert back to size_t after overflow check
-    size_t sequence_memory = static_cast<size_t>(sequence_memory_64);
-    size_t genome_info_memory = static_cast<size_t>(genome_info_memory_64);
-    size_t minimizer_memory = static_cast<size_t>(minimizer_memory_64);
-    size_t candidate_memory = static_cast<size_t>(candidate_memory_64);
-    
-    uint64_t total_required_64 = sequence_memory_64 + genome_info_memory_64 + 
-                                minimizer_memory_64 + candidate_memory_64;
-    
-    if (total_required_64 > SIZE_MAX) {
-        std::cerr << "ERROR: Total memory requirement exceeds system limits!" << std::endl;
-        return false;
-    }
-    
-    size_t total_required = static_cast<size_t>(total_required_64);
+    total_required = sequence_memory + genome_info_memory + minimizer_memory + candidate_memory + count_memory;
     
     // Check available GPU memory
     size_t free_memory, total_memory_gpu;
     cudaMemGetInfo(&free_memory, &total_memory_gpu);
     
-    std::cout << "Memory requirements (with overflow protection):" << std::endl;
+    std::cout << "Safe memory requirements:" << std::endl;
     std::cout << "  Sequence data: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Genome info: " << (genome_info_memory / 1024 / 1024) << " MB" << std::endl;
     std::cout << "  Minimizer hits: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
     std::cout << "  LCA candidates: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Count arrays: " << (count_memory / 1024) << " KB" << std::endl;
     std::cout << "  Total required: " << (total_required / 1024 / 1024) << " MB" << std::endl;
     std::cout << "  Available: " << (free_memory / 1024 / 1024) << " MB" << std::endl;
     
-    if (total_required > free_memory * 85 / 100) { // Use only 85% of available
-        std::cerr << "ERROR: Not enough GPU memory!" << std::endl;
+    // Use only 70% of available memory for extra safety
+    if (total_required > (free_memory * 70 / 100)) {
+        std::cerr << "ERROR: Not enough GPU memory (using 70% safety margin)!" << std::endl;
         std::cerr << "Required: " << (total_required / 1024 / 1024) << " MB" << std::endl;
-        std::cerr << "Available: " << (free_memory * 85 / 100 / 1024 / 1024) << " MB" << std::endl;
+        std::cerr << "Available (70%): " << (free_memory * 70 / 100 / 1024 / 1024) << " MB" << std::endl;
         return false;
     }
     
-    // Allocate with error checking
+    // Allocate with immediate error checking and cleanup on failure
     cudaError_t error;
     
-    std::cout << "Allocating sequence memory: " << (sequence_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "Allocating sequence memory..." << std::endl;
     error = cudaMalloc(&d_sequence_data, sequence_memory);
     if (error != cudaSuccess) {
         std::cerr << "Failed to allocate sequence memory: " << cudaGetErrorString(error) << std::endl;
         return false;
     }
     
-    std::cout << "Allocating genome info memory: " << (genome_info_memory / 1024 / 1024) << " MB" << std::endl;
     error = cudaMalloc(&d_genome_info, genome_info_memory);
     if (error != cudaSuccess) {
-        std::cerr << "Failed to allocate genome info memory: " << cudaGetErrorString(error) << std::endl;
+        std::cerr << "Failed to allocate genome info: " << cudaGetErrorString(error) << std::endl;
         cudaFree(d_sequence_data); d_sequence_data = nullptr;
         return false;
     }
     
-    std::cout << "Allocating minimizer memory: " << (minimizer_memory / 1024 / 1024) << " MB" << std::endl;
     error = cudaMalloc(&d_minimizer_hits, minimizer_memory);
     if (error != cudaSuccess) {
-        std::cerr << "Failed to allocate minimizer memory: " << cudaGetErrorString(error) << std::endl;
+        std::cerr << "Failed to allocate minimizer hits: " << cudaGetErrorString(error) << std::endl;
         cudaFree(d_sequence_data); d_sequence_data = nullptr;
         cudaFree(d_genome_info); d_genome_info = nullptr;
         return false;
     }
     
-    std::cout << "Allocating candidate memory: " << (candidate_memory / 1024 / 1024) << " MB" << std::endl;
     error = cudaMalloc(&d_lca_candidates, candidate_memory);
     if (error != cudaSuccess) {
-        std::cerr << "Failed to allocate candidate memory: " << cudaGetErrorString(error) << std::endl;
+        std::cerr << "Failed to allocate LCA candidates: " << cudaGetErrorString(error) << std::endl;
         cudaFree(d_sequence_data); d_sequence_data = nullptr;
         cudaFree(d_genome_info); d_genome_info = nullptr;
         cudaFree(d_minimizer_hits); d_minimizer_hits = nullptr;
         return false;
     }
     
-    std::cout << "Allocating count memory: " << (MAX_SEQUENCE_BATCH * sizeof(uint32_t) / 1024) << " KB" << std::endl;
-    error = cudaMalloc(&d_minimizer_counts, MAX_SEQUENCE_BATCH * sizeof(uint32_t));
+    error = cudaMalloc(&d_minimizer_counts, count_memory);
     if (error != cudaSuccess) {
-        std::cerr << "Failed to allocate count memory: " << cudaGetErrorString(error) << std::endl;
+        std::cerr << "Failed to allocate minimizer counts: " << cudaGetErrorString(error) << std::endl;
         cudaFree(d_sequence_data); d_sequence_data = nullptr;
         cudaFree(d_genome_info); d_genome_info = nullptr;
         cudaFree(d_minimizer_hits); d_minimizer_hits = nullptr;
@@ -1764,7 +1776,7 @@ bool GPUKrakenDatabaseBuilder::allocate_gpu_memory() {
     }
     
     std::cout << "✓ Successfully allocated " << (total_required / 1024 / 1024) 
-              << " MB of GPU memory" << std::endl;
+              << " MB of GPU memory safely" << std::endl;
     
     return true;
 }

@@ -4,7 +4,7 @@
 
 #include "gpu_database_kernels.h"
 #include "../gpu_kraken_types.h"
-#include "../gpu_minimizer_extraction.cuh"
+#include "gpu_minimizer_extraction.cuh"
 #include <cuda_runtime.h>
 #include <cub/cub.cuh>
 #include <thrust/device_vector.h>
@@ -205,7 +205,7 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
                 if (global_pos < max_minimizers) {
                     GPUMinimizerHit hit;
                     hit.minimizer_hash = shared_minimizers[responsible_thread];
-                    hit.taxon_id = genome.taxon_id;
+                    // hit doesn't have taxon_id - stored in genome_info
                     hit.position = pos;
                     hit.genome_id = genome.genome_id;
                     
@@ -256,7 +256,7 @@ __global__ void extract_minimizers_sliding_window_kernel(
             if (global_pos < max_minimizers) {
                 GPUMinimizerHit hit;
                 hit.minimizer_hash = current_minimizer;
-                hit.taxon_id = genome.taxon_id;
+                // hit doesn't have taxon_id - stored in genome_info
                 hit.position = pos;
                 hit.genome_id = genome.genome_id;
                 
@@ -280,7 +280,7 @@ __global__ void convert_hits_to_candidates_kernel(
     LCACandidate& candidate = candidates[idx];
     
     candidate.minimizer_hash = hit.minimizer_hash;
-    candidate.lca_taxon = hit.taxon_id;
+    candidate.lca_taxon = 0;  // TODO: Need to look up taxon_id from genome_info
     candidate.genome_count = 1;  // Will be updated during final merge
     candidate.uniqueness_score = 1.0f;
 }
@@ -314,7 +314,7 @@ __global__ void compute_lca_for_minimizers_kernel(
     LCACandidate& candidate = candidates[idx];
     
     candidate.minimizer_hash = hit.minimizer_hash;
-    candidate.lca_taxon = hit.taxon_id;
+    candidate.lca_taxon = 0;  // TODO: Need to look up taxon_id from genome_info
     candidate.genome_count = 1;
     candidate.uniqueness_score = 1.0f;
     
@@ -348,7 +348,7 @@ __global__ void initialize_gpu_memory_kernel(
     // Initialize hit buffer
     if (idx < hit_count) {
         hit_buffer[idx].minimizer_hash = 0;
-        hit_buffer[idx].taxon_id = 0;
+        hit_buffer[idx].genome_id = 0;
         hit_buffer[idx].position = 0;
         hit_buffer[idx].genome_id = 0;
     }
@@ -520,7 +520,7 @@ bool launch_lca_computation_kernel(
     return true;
 }
 
-bool launch_memory_initialization_kernel(
+bool launch_memory_initialization_kernel_impl(
     char* sequence_buffer,
     size_t sequence_size,
     GPUGenomeInfo* genome_buffer,
@@ -542,7 +542,7 @@ bool launch_memory_initialization_kernel(
     return true;
 }
 
-bool launch_memory_validation_kernel(
+bool launch_memory_validation_kernel_impl(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
     int num_genomes) {
@@ -600,4 +600,49 @@ bool validate_kernel_parameters(const GPUBatchData& batch_data) {
     if (batch_data.max_minimizers <= 0) return false;
     
     return true;
+}
+
+// ===========================
+// Legacy CUDA error-returning wrappers for compatibility
+// ===========================
+
+cudaError_t launch_memory_initialization_kernel(
+    char* d_sequence_buffer,
+    size_t sequence_buffer_size,
+    GPUGenomeInfo* d_genome_info,
+    size_t num_genomes,
+    GPUMinimizerHit* d_minimizer_buffer,
+    size_t num_minimizers,
+    cudaStream_t stream) {
+    
+    bool result = launch_memory_initialization_kernel_impl(
+        d_sequence_buffer,
+        sequence_buffer_size,
+        d_genome_info,
+        num_genomes,
+        d_minimizer_buffer,
+        num_minimizers
+    );
+    
+    return result ? cudaSuccess : cudaErrorUnknown;
+}
+
+cudaError_t launch_memory_validation_kernel(
+    const char* d_sequence_buffer,
+    const GPUGenomeInfo* d_genome_info,
+    int num_genomes,
+    bool* h_validation_result,
+    cudaStream_t stream) {
+    
+    bool result = launch_memory_validation_kernel_impl(
+        d_sequence_buffer,
+        d_genome_info,
+        num_genomes
+    );
+    
+    if (h_validation_result) {
+        *h_validation_result = result;
+    }
+    
+    return cudaSuccess;
 }

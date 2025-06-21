@@ -29,7 +29,7 @@ __global__ void memory_initialization_kernel(
     // Initialize genome info
     if (genome_info && tid < genome_count) {
         genome_info[tid].genome_id = 0;
-        genome_info[tid].sequence_start = 0;
+        genome_info[tid].sequence_offset = 0;
         genome_info[tid].sequence_length = 0;
         genome_info[tid].minimizer_count = 0;
         genome_info[tid].taxon_id = 0;
@@ -56,11 +56,11 @@ __global__ void memory_validation_kernel(
     if (tid >= num_genomes) return;
     
     // Validate genome info structure
-    if (genome_info[tid].sequence_start != UINT32_MAX && 
+    if (genome_info[tid].sequence_offset != UINT32_MAX && 
         genome_info[tid].sequence_length > 0) {
         
         // Check if sequence data pointer is valid
-        uint32_t start = genome_info[tid].sequence_start;
+        uint32_t start = genome_info[tid].sequence_offset;
         uint32_t length = genome_info[tid].sequence_length;
         
         // Basic validation - check for null termination or valid nucleotides

@@ -32,7 +32,7 @@ struct ContributingTaxaArrays;
 // GPU genome information structure
 struct GPUGenomeInfo {
     uint32_t genome_id;
-    uint32_t sequence_start;
+    uint32_t sequence_offset;        // Use this consistently
     uint32_t sequence_length;
     uint32_t minimizer_count;
     uint32_t taxon_id;

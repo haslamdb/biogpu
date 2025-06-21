@@ -4,6 +4,7 @@
         "*.ndjson": "jsonl",
         "*.dbclient-js": "javascript",
         "*.rmd": "markdown",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "__node_handle": "cpp"
     }
 }

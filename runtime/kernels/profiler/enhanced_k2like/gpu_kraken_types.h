@@ -19,9 +19,6 @@
 // Forward Declarations
 // ===========================
 
-struct GPUGenomeInfo;
-struct GPUMinimizerHit;
-struct LCACandidate;
 struct MinimizerParams;
 struct GPUTaxonomyNode;
 struct SpeciesTrackingData;
@@ -31,6 +28,24 @@ struct ContributingTaxaArrays;
 // ===========================
 // CUDA and GPU Types
 // ===========================
+
+// GPU genome information structure
+struct GPUGenomeInfo {
+    uint32_t genome_id;
+    uint32_t sequence_start;
+    uint32_t sequence_length;
+    uint32_t minimizer_count;
+    uint32_t taxon_id;
+};
+
+// GPU minimizer hit structure
+struct GPUMinimizerHit {
+    uint64_t minimizer_hash;
+    uint32_t genome_id;
+    uint32_t position;
+    uint16_t strand;
+    uint16_t reserved;
+};
 
 // CUDA-compatible minimizer parameters
 struct MinimizerParams {
@@ -86,6 +101,32 @@ struct LaunchConfig {
     LaunchConfig() = default;
     LaunchConfig(int blocks, int threads) : blocks_x(blocks), threads_x(threads) {}
     LaunchConfig(int bx, int by, int tx, int ty) : blocks_x(bx), blocks_y(by), threads_x(tx), threads_y(ty) {}
+};
+
+// ===========================
+// Memory Management Types
+// ===========================
+
+// Memory configuration structure
+struct MemoryConfig {
+    size_t max_memory_fraction = 80;        // Percentage of GPU memory to use
+    size_t reserved_memory_mb = 500;        // Reserved memory in MB
+    size_t minimizer_capacity = 5000000;    // Default minimizer capacity
+    size_t sequence_batch_size = 25;        // Default sequence batch size
+    bool enable_memory_pooling = true;      // Enable memory pooling
+    bool auto_scale_enabled = true;         // Enable auto-scaling
+};
+
+// Memory statistics structure
+struct MemoryStats {
+    size_t total_gpu_memory = 0;
+    size_t available_memory = 0;
+    size_t allocated_memory = 0;
+    size_t current_sequence_memory = 0;
+    size_t current_minimizer_memory = 0;
+    size_t current_metadata_memory = 0;
+    size_t peak_usage = 0;
+    double memory_efficiency = 1.0;
 };
 
 // GPU batch processing data

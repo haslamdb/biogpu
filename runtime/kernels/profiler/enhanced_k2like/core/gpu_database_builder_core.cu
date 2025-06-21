@@ -3,6 +3,7 @@
 // Orchestrates all specialized modules and provides unified API
 
 #include "gpu_database_builder_core.h"
+#include "../memory/gpu_memory_manager.h"
 #include "../gpu/gpu_database_kernels.h"
 #include <iostream>
 #include <chrono>

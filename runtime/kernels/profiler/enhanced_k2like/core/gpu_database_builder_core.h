@@ -10,14 +10,14 @@
 #include <memory>
 #include <cstdint>
 
-// Include all module headers
-#include "../memory/gpu_memory_manager.h"
+// Include necessary headers
 #include "../processing/genome_file_processor.h"
 #include "../taxonomy/taxonomy_processor.h"
 #include "../output/database_serializer.h"
 #include "../gpu_kraken_types.h"
 
 // Forward declarations
+class GPUMemoryManager;
 struct ClassificationParams;
 struct GPUBuildStats;
 struct EnhancedBuildStats;

@@ -13,9 +13,11 @@ list(FILTER SOURCES EXCLUDE REGEX ".*main.*")  # Exclude main files
 add_library(biogpu ${SOURCES})
 
 set_property(TARGET biogpu PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET biogpu PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
 target_compile_options(biogpu PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>
+    $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
 )
 
 # Simple test executable

@@ -8,32 +8,13 @@
 #include <memory>
 #include <cstdint>
 
-// Forward declarations
-struct GPUGenomeInfo;
-struct GPUMinimizerHit;
-struct LCACandidate;
+// Include the main types header instead of redefining
+#include "../gpu_kraken_types.h"
 
-// Memory configuration structure
-struct MemoryConfig {
-    size_t max_memory_fraction = 80;        // Percentage of GPU memory to use
-    size_t reserved_memory_mb = 500;        // Reserved memory in MB
-    size_t minimizer_capacity = 5000000;    // Default minimizer capacity
-    size_t sequence_batch_size = 25;        // Default sequence batch size
-    bool enable_memory_pooling = true;      // Enable memory pooling
-    bool auto_scale_enabled = true;         // Enable auto-scaling
-};
-
-// Memory statistics structure
-struct MemoryStats {
-    size_t total_gpu_memory = 0;
-    size_t available_memory = 0;
-    size_t allocated_memory = 0;
-    size_t current_sequence_memory = 0;
-    size_t current_minimizer_memory = 0;
-    size_t current_metadata_memory = 0;
-    size_t peak_usage = 0;
-    double memory_efficiency = 1.0;
-};
+// Note: The following types are already defined in gpu_kraken_types.h:
+// - MemoryConfig (lines 17-24)
+// - MemoryStats (lines 27-36)
+// - GPUGenomeInfo, GPUMinimizerHit, LCACandidate (forward declared at lines 22-24)
 
 // GPU Memory Pool for efficient allocation
 class GPUMemoryPool {
@@ -51,7 +32,7 @@ public:
     void deallocate(void* ptr);
     void reset();
     size_t get_available_space() const;
-    bool is_initialized() const { return initialized_; }
+    bool is_initialized() const;
 };
 
 // Main GPU Memory Manager

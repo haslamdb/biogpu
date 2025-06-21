@@ -19,30 +19,8 @@ extern "C" {
 // GPU Data Structures
 // ===========================
 
-// GPU-optimized genome information
-struct GPUGenomeInfo {
-    uint32_t taxon_id;          // Taxonomy ID for this genome
-    uint32_t sequence_offset;   // Offset in concatenated sequence buffer
-    uint32_t sequence_length;   // Length of this genome's sequence
-    uint32_t genome_id;         // Unique genome identifier
-};
-
-// GPU minimizer hit structure
-struct GPUMinimizerHit {
-    uint64_t minimizer_hash;    // Minimizer hash value
-    uint32_t taxon_id;          // Source taxonomy ID
-    uint32_t position;          // Position in sequence
-    uint32_t genome_id;         // Source genome ID
-    
-    // Default constructor for device code
-    __host__ __device__ GPUMinimizerHit() : 
-        minimizer_hash(0), taxon_id(0), position(0), genome_id(0) {}
-    
-    __host__ __device__ GPUMinimizerHit(uint64_t hash, uint32_t taxon, uint32_t pos, uint32_t genome) :
-        minimizer_hash(hash), taxon_id(taxon), position(pos), genome_id(genome) {}
-};
-
-// LCACandidate and MinimizerParams are defined in gpu_kraken_types.h
+// Note: GPUGenomeInfo, GPUMinimizerHit, LCACandidate and MinimizerParams 
+// are all defined in gpu_kraken_types.h
 
 // GPU taxonomy node structure
 struct GPUTaxonomyNode {

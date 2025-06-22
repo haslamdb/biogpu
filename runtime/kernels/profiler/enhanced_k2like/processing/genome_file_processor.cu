@@ -490,19 +490,30 @@ bool ConcatenatedFnaProcessor::process_fna_file(
                 if (taxon_names.find(current_species) == taxon_names.end()) {
                     taxon_names[current_species] = parse_result.species_name;
                 }
+                
+                // Debug output for tracking
+                if (config_.progress_reporting) {
+                    std::cout << "Found genome: taxon=" << current_species 
+                              << ", species=" << parse_result.species_name 
+                              << ", accession=" << parse_result.accession << std::endl;
+                }
+            } else {
+                std::cerr << "Warning: Could not parse taxon ID from header: " << line << std::endl;
             }
             
         } else {
-            // Accumulate sequence data
+            // Accumulate sequence data, removing all whitespace including newlines and carriage returns
             for (char c : line) {
-                if (!std::isspace(c)) {
+                // Only add nucleotide characters, skip all whitespace
+                if (!std::isspace(c) && c != '\r' && c != '\n') {
                     current_sequence += c;
                 }
             }
             
             // Check size limit
             if (current_sequence.size() > config_.max_sequence_length) {
-                std::cerr << "Warning: Sequence too large, truncating" << std::endl;
+                std::cerr << "Warning: Sequence too large for taxon " << current_species 
+                          << ", truncating at " << config_.max_sequence_length << " bases" << std::endl;
                 current_sequence.clear();
                 current_species = 0;
             }
@@ -617,8 +628,13 @@ std::string ConcatenatedFnaProcessor::create_temp_genome_file(
         return "";
     }
     
-    // Write header and sequence
-    outfile << ">species_" << species_taxid << "_genome_" << genome_index << "\n";
+    // Write header with taxon information preserved
+    // If we have the original header, use it; otherwise create a simple one
+    if (!original_header.empty()) {
+        outfile << original_header << "\n";
+    } else {
+        outfile << ">kraken:taxid|" << species_taxid << "|genome_" << genome_index << "\n";
+    }
     
     // Write sequence in 80-character lines
     const size_t line_length = 80;

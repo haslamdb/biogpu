@@ -4,23 +4,63 @@ project(BioGPU LANGUAGES CXX CUDA)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
+# Find CUDA
 find_package(CUDA REQUIRED)
+if(NOT CUDA_FOUND)
+    message(FATAL_ERROR "CUDA not found. Please install CUDA toolkit.")
+endif()
 
-# Simple build - combine everything into one library
-file(GLOB_RECURSE SOURCES "*.cu" "*.cpp")
-list(FILTER SOURCES EXCLUDE REGEX ".*main.*")  # Exclude main files
+# Check CUDA compute capability
+if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS "11.0")
+    message(WARNING "CUDA version ${CMAKE_CUDA_COMPILER_VERSION} may not support all features")
+endif()
 
-add_library(biogpu ${SOURCES})
+# Organize source files by module
+file(GLOB_RECURSE CORE_SOURCES "core/*.cu" "core/*.cpp")
+file(GLOB_RECURSE MEMORY_SOURCES "memory/*.cu" "memory/*.cpp")
+file(GLOB_RECURSE GPU_SOURCES "gpu/*.cu" "gpu/*.cpp")
+file(GLOB ROOT_SOURCES "*.cu" "*.cpp")
 
+# Exclude main files and test files
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER MEMORY_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER GPU_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*test.*")
+
+# Combine all sources
+set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${ROOT_SOURCES})
+
+# Create main library
+add_library(biogpu ${ALL_SOURCES})
+
+# Set CUDA properties
 set_property(TARGET biogpu PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 set_property(TARGET biogpu PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
+# CUDA compile options
 target_compile_options(biogpu PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>
     $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
     $<$<COMPILE_LANGUAGE:CUDA>:--relocatable-device-code=true>
+    $<$<COMPILE_LANGUAGE:CUDA>:--maxrregcount=32>
 )
+
+# Include directories
+target_include_directories(biogpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Link CUDA libraries
+target_link_libraries(biogpu ${CUDA_LIBRARIES})
 
 # Simple test executable
 add_executable(test_simple test_simple.cu)
 target_link_libraries(test_simple biogpu)
+
+# Core module test
+add_executable(test_core_only test_core_only.cu)
+target_link_libraries(test_core_only biogpu)
+
+# Print configuration info
+message(STATUS "CUDA Version: ${CMAKE_CUDA_COMPILER_VERSION}")
+message(STATUS "CUDA Architectures: 70 75 80")
+message(STATUS "Source files found: ${ALL_SOURCES}")

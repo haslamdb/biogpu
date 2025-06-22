@@ -5,11 +5,134 @@
 #include "gpu_database_builder_core.h"
 #include "../memory/gpu_memory_manager.h"
 #include "../gpu/gpu_database_kernels.h"
+#include <cuda_runtime.h>
+#include <cstring>  // for memset
 #include <iostream>
 #include <chrono>
 #include <iomanip>
 #include <algorithm>
 #include <filesystem>
+
+// ===========================
+// Stub Implementations for Missing Modules
+// ===========================
+
+// Stub GenomeFileProcessor
+class GenomeFileProcessor {
+public:
+    GenomeFileProcessor(const FileProcessingConfig& config) {}
+    
+    std::vector<std::string> find_genome_files(const std::string& path) {
+        std::vector<std::string> files;
+        // TODO: Implement actual file discovery
+        return files;
+    }
+    
+    uint32_t extract_taxon_from_filename(const std::string& filename) {
+        // TODO: Implement taxon extraction
+        return 1; // Default taxon
+    }
+    
+    std::vector<std::string> load_sequences_from_fasta(const std::string& filepath) {
+        std::vector<std::string> sequences;
+        // TODO: Implement FASTA loading
+        return sequences;
+    }
+    
+    FileProcessingStats get_statistics() const {
+        return FileProcessingStats();
+    }
+};
+
+// Stub EnhancedNCBITaxonomyProcessor
+class EnhancedNCBITaxonomyProcessor {
+public:
+    bool load_ncbi_taxonomy(const std::string& nodes_file, const std::string& names_file) {
+        return false; // TODO: Implement
+    }
+    
+    bool load_from_compact_file(const std::string& compact_file) {
+        return false; // TODO: Implement
+    }
+    
+    bool is_loaded() const { return false; }
+    
+    std::unordered_map<uint32_t, uint32_t> get_parent_lookup() const {
+        return std::unordered_map<uint32_t, uint32_t>();
+    }
+    
+    std::unordered_map<uint32_t, std::string> get_name_lookup() const {
+        return std::unordered_map<uint32_t, std::string>();
+    }
+    
+    uint32_t compute_lca_of_species(const std::vector<uint32_t>& species) {
+        return 1; // TODO: Implement
+    }
+    
+    uint8_t calculate_phylogenetic_spread(const std::vector<uint32_t>& species, uint32_t lca) {
+        return 0; // TODO: Implement
+    }
+    
+    uint8_t calculate_distance_to_lca(uint32_t species, uint32_t lca) {
+        return 0; // TODO: Implement
+    }
+};
+
+// Stub Serializers
+class StandardDatabaseSerializer {
+public:
+    StandardDatabaseSerializer(const std::string& output_dir) {}
+    
+    bool save_standard_database(
+        const std::vector<LCACandidate>& candidates,
+        const std::unordered_map<uint32_t, std::string>& taxon_names,
+        const std::unordered_map<uint32_t, uint32_t>& taxon_parents,
+        const GPUBuildStats& stats) {
+        return true; // TODO: Implement
+    }
+};
+
+class EnhancedDatabaseSerializer {
+public:
+    EnhancedDatabaseSerializer(const std::string& output_dir) {}
+    
+    bool save_enhanced_database(
+        const std::vector<PhylogeneticLCACandidate>& candidates,
+        const ContributingTaxaArrays& taxa_arrays,
+        const std::unordered_map<uint32_t, std::string>& taxon_names,
+        const EnhancedBuildStats& stats) {
+        return true; // TODO: Implement
+    }
+};
+
+// Stub Processors
+class ConcatenatedFnaProcessor {
+public:
+    ConcatenatedFnaProcessor(const std::string& fna_file, const FileProcessingConfig& config) {}
+    
+    bool process_fna_file(
+        std::vector<std::string>& genome_files,
+        std::vector<uint32_t>& taxon_ids,
+        std::unordered_map<uint32_t, std::string>& taxon_names,
+        const std::string& temp_dir) {
+        return false; // TODO: Implement
+    }
+    
+    SpeciesTrackingData get_species_data() const {
+        return SpeciesTrackingData();
+    }
+};
+
+class StreamingFnaProcessor {
+public:
+    StreamingFnaProcessor(const std::string& fna_file, const std::string& temp_dir, size_t batch_size) {}
+    
+    bool process_next_batch(std::vector<std::string>& batch_files, std::vector<uint32_t>& batch_taxons) {
+        return false; // TODO: Implement
+    }
+    
+    size_t get_total_genomes() const { return 0; }
+};
 
 // ===========================
 // GPUKrakenDatabaseBuilder Implementation

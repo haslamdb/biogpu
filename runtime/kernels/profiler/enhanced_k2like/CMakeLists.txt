@@ -19,17 +19,21 @@ endif()
 file(GLOB_RECURSE CORE_SOURCES "core/*.cu" "core/*.cpp")
 file(GLOB_RECURSE MEMORY_SOURCES "memory/*.cu" "memory/*.cpp")
 file(GLOB_RECURSE GPU_SOURCES "gpu/*.cu" "gpu/*.cpp")
+file(GLOB_RECURSE TAXONOMY_SOURCES "taxonomy/*.cu" "taxonomy/*.cpp")
+file(GLOB_RECURSE TOOLS_SOURCES "tools/*.cu" "tools/*.cpp")
 file(GLOB ROOT_SOURCES "*.cu" "*.cpp")
 
 # Exclude main files and test files
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER MEMORY_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER GPU_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER TAXONOMY_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER TOOLS_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*test.*")
 
 # Combine all sources
-set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${ROOT_SOURCES})
+set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${TAXONOMY_SOURCES} ${TOOLS_SOURCES} ${ROOT_SOURCES})
 
 # Create main library
 add_library(biogpu ${ALL_SOURCES})
@@ -47,7 +51,10 @@ target_compile_options(biogpu PRIVATE
 )
 
 # Include directories
-target_include_directories(biogpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(biogpu PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+)
 
 # Link CUDA libraries
 target_link_libraries(biogpu ${CUDA_LIBRARIES})
@@ -59,6 +66,10 @@ target_link_libraries(test_simple biogpu)
 # Core module test
 add_executable(test_core_only test_core_only.cu)
 target_link_libraries(test_core_only biogpu)
+
+# Taxonomy module test
+add_executable(test_taxonomy_only test_taxonomy_only.cu)
+target_link_libraries(test_taxonomy_only biogpu)
 
 # Print configuration info
 message(STATUS "CUDA Version: ${CMAKE_CUDA_COMPILER_VERSION}")

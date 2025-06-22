@@ -13,17 +13,8 @@
 #include <cstdint>
 #include "../gpu_kraken_types.h"
 
-// Forward declaration for compact taxonomy
-namespace BioGPU {
-namespace CompactTaxonomy {
-// Dummy placeholder for CompactGPUTaxonomy to avoid incomplete type issues
-class CompactGPUTaxonomy {
-public:
-    CompactGPUTaxonomy() = default;
-    ~CompactGPUTaxonomy() = default;
-};
-}
-}
+// Include the actual compact taxonomy implementation
+#include "../../tools/compact_gpu_taxonomy.h"
 
 // Enhanced NCBI taxonomy processor with phylogenetic capabilities
 class EnhancedNCBITaxonomyProcessor {
@@ -48,7 +39,7 @@ public:
     
     // Phylogenetic computation methods
     uint32_t compute_lca_of_species(const std::vector<uint32_t>& species_list);
-    uint8_t calculate_distance_to_lca(uint32_t taxon, uint32_t lca);
+    uint8_t calculate_distance_to_lca(uint32_t taxon, uint32_t lca) const;
     uint8_t calculate_phylogenetic_spread(const std::vector<uint32_t>& species_list, uint32_t lca);
     
     // Taxonomy information access

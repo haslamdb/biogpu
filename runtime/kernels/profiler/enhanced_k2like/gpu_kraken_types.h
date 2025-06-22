@@ -380,6 +380,54 @@ struct BuildErrorInfo {
 };
 
 // ===========================
+// Database Format Types
+// ===========================
+
+enum class DatabaseFormat {
+    STANDARD_KRAKEN2,
+    ENHANCED_PHYLO,
+    COMPACT_BINARY,
+    CUSTOM_FORMAT
+};
+
+// ===========================
+// File Processing Types
+// ===========================
+
+struct FileProcessingConfig {
+    bool validate_sequences = true;
+    bool skip_invalid_files = true;
+    size_t max_file_size_mb = 10000;
+    bool enable_parallel_loading = true;
+    int num_worker_threads = 4;
+    std::string supported_extensions = ".fna,.fa,.fasta";
+};
+
+struct FileProcessingStats {
+    double processing_time = 0.0;
+    size_t files_processed = 0;
+    size_t total_bytes = 0;
+    size_t sequences_loaded = 0;
+    size_t invalid_files_skipped = 0;
+    
+    void reset() {
+        processing_time = 0.0;
+        files_processed = 0;
+        total_bytes = 0;
+        sequences_loaded = 0;
+        invalid_files_skipped = 0;
+    }
+    
+    void print_summary() const {
+        std::cout << "File Processing Stats:" << std::endl;
+        std::cout << "  Files processed: " << files_processed << std::endl;
+        std::cout << "  Sequences loaded: " << sequences_loaded << std::endl;
+        std::cout << "  Total bytes: " << (total_bytes / 1024 / 1024) << " MB" << std::endl;
+        std::cout << "  Processing time: " << processing_time << "s" << std::endl;
+    }
+};
+
+// ===========================
 // Progress Monitoring Types
 // ===========================
 

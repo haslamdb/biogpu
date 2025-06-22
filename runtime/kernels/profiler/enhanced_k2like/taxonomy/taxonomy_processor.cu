@@ -11,10 +11,7 @@
 #include <set>
 #include <iomanip>
 
-// Include compact taxonomy if available
-#ifdef COMPACT_TAXONOMY_AVAILABLE
-#include "../tools/compact_gpu_taxonomy.h"
-#endif
+// Include compact taxonomy - no conditional compilation needed
 
 // SpeciesTrackingData, PhylogeneticLCACandidate, and ContributingTaxaArrays
 // implementations are already defined as inline in gpu_kraken_types.h
@@ -32,8 +29,8 @@ EnhancedNCBITaxonomyProcessor::~EnhancedNCBITaxonomyProcessor() = default;
 bool EnhancedNCBITaxonomyProcessor::load_ncbi_taxonomy(const std::string& nodes_dmp_path, const std::string& names_dmp_path) {
     std::cout << "Loading NCBI taxonomy from DMP files..." << std::endl;
     
-#ifdef COMPACT_TAXONOMY_AVAILABLE
-    compact_taxonomy = std::make_unique<BioGPU::CompactTaxonomy::CompactGPUTaxonomy>(false);
+    // Use the actual constructor (enable_cache parameter)
+    compact_taxonomy = std::make_unique<BioGPU::CompactTaxonomy::CompactGPUTaxonomy>(true);
     
     if (!compact_taxonomy->build_from_ncbi_files(nodes_dmp_path, names_dmp_path)) {
         std::cerr << "Failed to build compact taxonomy from NCBI files" << std::endl;
@@ -44,13 +41,6 @@ bool EnhancedNCBITaxonomyProcessor::load_ncbi_taxonomy(const std::string& nodes_
         std::cerr << "Failed to extract lookup tables from compact taxonomy" << std::endl;
         return false;
     }
-#else
-    // Fallback to direct parsing
-    if (!parse_nodes_dmp(nodes_dmp_path) || !parse_names_dmp(names_dmp_path)) {
-        return false;
-    }
-    build_depth_lookup();
-#endif
     
     taxonomy_loaded = true;
     std::cout << "NCBI taxonomy loaded successfully" << std::endl;
@@ -62,8 +52,7 @@ bool EnhancedNCBITaxonomyProcessor::load_ncbi_taxonomy(const std::string& nodes_
 bool EnhancedNCBITaxonomyProcessor::load_from_compact_file(const std::string& compact_taxonomy_path) {
     std::cout << "Loading from pre-built compact taxonomy: " << compact_taxonomy_path << std::endl;
     
-#ifdef COMPACT_TAXONOMY_AVAILABLE
-    compact_taxonomy = std::make_unique<BioGPU::CompactTaxonomy::CompactGPUTaxonomy>(false);
+    compact_taxonomy = std::make_unique<BioGPU::CompactTaxonomy::CompactGPUTaxonomy>(true);
     
     if (!compact_taxonomy->load_compact_taxonomy(compact_taxonomy_path)) {
         std::cerr << "Failed to load compact taxonomy file" << std::endl;
@@ -78,10 +67,6 @@ bool EnhancedNCBITaxonomyProcessor::load_from_compact_file(const std::string& co
     taxonomy_loaded = true;
     std::cout << "Compact taxonomy loaded successfully" << std::endl;
     return true;
-#else
-    std::cerr << "Compact taxonomy not available in this build" << std::endl;
-    return false;
-#endif
 }
 
 uint32_t EnhancedNCBITaxonomyProcessor::compute_lca_of_species(const std::vector<uint32_t>& species_list) {
@@ -103,7 +88,7 @@ uint32_t EnhancedNCBITaxonomyProcessor::compute_lca_of_species(const std::vector
     return current_lca;
 }
 
-uint8_t EnhancedNCBITaxonomyProcessor::calculate_distance_to_lca(uint32_t taxon, uint32_t lca) {
+uint8_t EnhancedNCBITaxonomyProcessor::calculate_distance_to_lca(uint32_t taxon, uint32_t lca) const {
     if (!taxonomy_loaded || taxon == lca) {
         return 0;
     }
@@ -186,11 +171,7 @@ bool EnhancedNCBITaxonomyProcessor::is_loaded() const {
 }
 
 BioGPU::CompactTaxonomy::CompactGPUTaxonomy* EnhancedNCBITaxonomyProcessor::get_compact_taxonomy() {
-#ifdef COMPACT_TAXONOMY_AVAILABLE
     return compact_taxonomy.get();
-#else
-    return nullptr;
-#endif
 }
 
 size_t EnhancedNCBITaxonomyProcessor::get_taxonomy_size() const {
@@ -217,7 +198,6 @@ void EnhancedNCBITaxonomyProcessor::print_taxonomy_statistics() const {
 
 // Private methods
 bool EnhancedNCBITaxonomyProcessor::extract_host_lookup_tables() {
-#ifdef COMPACT_TAXONOMY_AVAILABLE
     if (!compact_taxonomy) {
         return false;
     }
@@ -230,9 +210,6 @@ bool EnhancedNCBITaxonomyProcessor::extract_host_lookup_tables() {
     
     std::cout << "Extracted host lookup tables from compact taxonomy" << std::endl;
     return true;
-#else
-    return false;
-#endif
 }
 
 uint32_t EnhancedNCBITaxonomyProcessor::find_lca_pair(uint32_t taxon1, uint32_t taxon2) {
@@ -483,6 +460,49 @@ bool SimpleTaxonomyProcessor::load_ncbi_files(const std::string& nodes_dmp_path,
     return taxonomy_loaded;
 }
 
+bool SimpleTaxonomyProcessor::load_taxonomy_tsv(const std::string& taxonomy_tsv_path) {
+    std::cout << "Loading taxonomy from TSV: " << taxonomy_tsv_path << std::endl;
+    
+    std::ifstream file(taxonomy_tsv_path);
+    if (!file.is_open()) {
+        std::cerr << "Cannot open taxonomy TSV: " << taxonomy_tsv_path << std::endl;
+        return false;
+    }
+    
+    std::string line;
+    std::getline(file, line); // Skip header
+    
+    int taxa_loaded = 0;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string taxon_str, parent_str, name, rank;
+        
+        if (std::getline(iss, taxon_str, '\t') &&
+            std::getline(iss, parent_str, '\t') &&
+            std::getline(iss, name, '\t') &&
+            std::getline(iss, rank, '\t')) {
+            
+            try {
+                uint32_t taxon_id = std::stoul(taxon_str);
+                uint32_t parent_id = std::stoul(parent_str);
+                
+                taxon_parents[taxon_id] = parent_id;
+                taxon_names[taxon_id] = name;
+                taxon_ranks[taxon_id] = rank;
+                taxa_loaded++;
+            } catch (const std::exception&) {
+                continue;
+            }
+        }
+    }
+    
+    file.close();
+    taxonomy_loaded = taxa_loaded > 0;
+    std::cout << "Loaded " << taxa_loaded << " taxa from TSV" << std::endl;
+    
+    return taxonomy_loaded;
+}
+
 uint32_t SimpleTaxonomyProcessor::compute_simple_lca(uint32_t taxon1, uint32_t taxon2) {
     return LCAAlgorithms::compute_lca_pair(taxon1, taxon2, taxon_parents);
 }
@@ -653,5 +673,142 @@ namespace LCAAlgorithms {
         
         path.push_back(1); // Add root
         return path;
+    }
+    
+    uint32_t compute_lca_with_depths(const std::vector<uint32_t>& taxa,
+                                    const std::unordered_map<uint32_t, uint32_t>& parents,
+                                    const std::unordered_map<uint32_t, uint8_t>& depths) {
+        if (taxa.empty()) return 1;
+        if (taxa.size() == 1) return taxa[0];
+        
+        // Use regular LCA computation - depth optimization can be added later
+        return compute_lca_multiple(taxa, parents);
+    }
+    
+    uint32_t find_common_ancestor_from_paths(const std::vector<std::vector<uint32_t>>& paths) {
+        if (paths.empty()) return 1;
+        if (paths.size() == 1) return paths[0].empty() ? 1 : paths[0][0];
+        
+        // Find the first common element across all paths
+        std::set<uint32_t> candidates(paths[0].begin(), paths[0].end());
+        
+        for (size_t i = 1; i < paths.size(); i++) {
+            std::set<uint32_t> current_path(paths[i].begin(), paths[i].end());
+            std::set<uint32_t> intersection;
+            
+            std::set_intersection(candidates.begin(), candidates.end(),
+                                current_path.begin(), current_path.end(),
+                                std::inserter(intersection, intersection.begin()));
+            
+            candidates = intersection;
+            if (candidates.empty()) break;
+        }
+        
+        return candidates.empty() ? 1 : *candidates.begin();
+    }
+}
+
+// ADD missing PhylogeneticUtils implementations:
+namespace PhylogeneticUtils {
+    
+    uint8_t calculate_taxonomic_distance(uint32_t taxon1, uint32_t taxon2, 
+                                        const std::unordered_map<uint32_t, uint32_t>& parents) {
+        if (taxon1 == taxon2) return 0;
+        
+        std::vector<uint32_t> path1 = LCAAlgorithms::get_path_to_root(taxon1, parents);
+        std::vector<uint32_t> path2 = LCAAlgorithms::get_path_to_root(taxon2, parents);
+        
+        uint32_t lca = LCAAlgorithms::compute_lca_pair(taxon1, taxon2, parents);
+        
+        uint8_t distance1 = 0, distance2 = 0;
+        for (uint32_t taxon : path1) {
+            if (taxon == lca) break;
+            distance1++;
+        }
+        
+        for (uint32_t taxon : path2) {
+            if (taxon == lca) break;
+            distance2++;
+        }
+        
+        return distance1 + distance2;
+    }
+    
+    double calculate_phylogenetic_diversity(const std::vector<uint32_t>& species_list,
+                                           const EnhancedNCBITaxonomyProcessor& taxonomy) {
+        if (species_list.size() <= 1) return 0.0;
+        
+        // Simple diversity metric based on pairwise distances
+        double total_distance = 0.0;
+        int pairs = 0;
+        
+        for (size_t i = 0; i < species_list.size(); i++) {
+            for (size_t j = i + 1; j < species_list.size(); j++) {
+                uint32_t lca = const_cast<EnhancedNCBITaxonomyProcessor&>(taxonomy)
+                    .compute_lca_of_species({species_list[i], species_list[j]});
+                
+                uint8_t dist1 = taxonomy.calculate_distance_to_lca(species_list[i], lca);
+                uint8_t dist2 = taxonomy.calculate_distance_to_lca(species_list[j], lca);
+                
+                total_distance += (dist1 + dist2);
+                pairs++;
+            }
+        }
+        
+        return pairs > 0 ? total_distance / pairs : 0.0;
+    }
+    
+    uint8_t calculate_taxonomic_spread(const std::vector<uint32_t>& taxa_list, uint32_t lca,
+                                      const std::unordered_map<uint32_t, uint32_t>& parents) {
+        if (taxa_list.empty()) return 0;
+        
+        std::vector<uint8_t> distances;
+        for (uint32_t taxon : taxa_list) {
+            uint8_t distance = 0;
+            uint32_t current = taxon;
+            
+            while (current != lca && current != 1 && distance < 50) {
+                auto parent_it = parents.find(current);
+                if (parent_it == parents.end()) break;
+                current = parent_it->second;
+                distance++;
+            }
+            
+            distances.push_back(distance);
+        }
+        
+        if (distances.empty()) return 0;
+        
+        uint8_t max_dist = *std::max_element(distances.begin(), distances.end());
+        uint8_t min_dist = *std::min_element(distances.begin(), distances.end());
+        
+        return max_dist - min_dist;
+    }
+    
+    std::vector<uint32_t> extract_species_from_candidates(const std::vector<PhylogeneticLCACandidate>& candidates) {
+        std::set<uint32_t> unique_species;
+        
+        for (const auto& candidate : candidates) {
+            for (uint32_t species : candidate.contributing_species) {
+                unique_species.insert(species);
+            }
+        }
+        
+        return std::vector<uint32_t>(unique_species.begin(), unique_species.end());
+    }
+    
+    std::unordered_map<uint32_t, uint16_t> count_genomes_per_species(const std::vector<PhylogeneticLCACandidate>& candidates) {
+        std::unordered_map<uint32_t, uint16_t> species_counts;
+        
+        for (const auto& candidate : candidates) {
+            for (size_t i = 0; i < candidate.contributing_species.size(); i++) {
+                uint32_t species = candidate.contributing_species[i];
+                uint16_t count = (i < candidate.genome_counts_per_species.size()) ? 
+                                candidate.genome_counts_per_species[i] : 1;
+                species_counts[species] += count;
+            }
+        }
+        
+        return species_counts;
     }
 }

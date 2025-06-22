@@ -14,6 +14,11 @@
 #include <cctype>
 #include <sys/stat.h>
 #include <cstdio>
+#include <cstring>
+#include <climits>
+#include <unistd.h>
+#include <set>
+#include <iomanip>
 
 // ===========================
 // GenomeFileProcessor Implementation
@@ -30,69 +35,38 @@ std::vector<std::string> GenomeFileProcessor::find_genome_files(const std::strin
     std::cout << "Finding genome files in: " << directory << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // Validate directory parameter first
     if (!validate_path_safety(directory)) {
         std::cerr << "Error: Invalid directory path provided" << std::endl;
         return files;
     }
     
-    // Use system find command for safety and performance
-    std::string find_command = "find \"" + directory + "\" -type f \\( "
-                              "-name \"*.fna\" -o -name \"*.fa\" -o -name \"*.fasta\" "
-                              "-o -name \"*.ffn\" -o -name \"*.faa\" \\) 2>/dev/null | head -" + 
-                              std::to_string(config_.max_file_count);
-    
-    FILE* pipe = popen(find_command.c_str(), "r");
-    if (!pipe) {
-        std::cerr << "Error: Failed to execute find command" << std::endl;
+    try {
+        // Use filesystem::recursive_directory_iterator instead of popen
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
+            if (entry.is_regular_file()) {
+                std::string file_path = entry.path().string();
+                
+                if (validate_genome_file(file_path)) {
+                    files.emplace_back(file_path);
+                    stats_.files_found++;
+                    
+                    if (config_.progress_reporting && stats_.files_found % config_.progress_interval == 0) {
+                        std::cout << "Found " << stats_.files_found << " genome files..." << std::endl;
+                    }
+                }
+                
+                if (files.size() >= config_.max_file_count) {
+                    std::cout << "Reached file limit of " << config_.max_file_count << std::endl;
+                    break;
+                }
+            }
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
         return files;
     }
     
-    files.reserve(std::min(config_.max_file_count, size_t(10000)));
-    
-    char path_buffer[5000];
-    while (fgets(path_buffer, sizeof(path_buffer), pipe)) {
-        // Remove newline
-        size_t len = strlen(path_buffer);
-        if (len > 0 && path_buffer[len-1] == '\n') {
-            path_buffer[len-1] = '\0';
-            len--;
-        }
-        
-        // Validate path length and content
-        if (len == 0 || len > 4000) continue;
-        
-        try {
-            std::string file_path(path_buffer);
-            if (validate_genome_file(file_path)) {
-                files.emplace_back(file_path);
-                stats_.files_found++;
-                
-                // Progress reporting
-                if (config_.progress_reporting && stats_.files_found % config_.progress_interval == 0) {
-                    std::cout << "Found " << stats_.files_found << " genome files..." << std::endl;
-                }
-            }
-            
-            // Safety limit
-            if (files.size() >= config_.max_file_count) {
-                std::cout << "Reached file limit of " << config_.max_file_count << std::endl;
-                break;
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Error processing file path: " << e.what() << std::endl;
-            continue;
-        }
-    }
-    
-    pclose(pipe);
-    
-    // Sort files for consistent processing order
-    try {
-        std::sort(files.begin(), files.end());
-    } catch (const std::exception& e) {
-        std::cerr << "Warning: Failed to sort files: " << e.what() << std::endl;
-    }
+    std::sort(files.begin(), files.end());
     
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration<double>(end_time - start_time).count();
@@ -247,7 +221,7 @@ std::vector<std::string> GenomeFileProcessor::load_sequences_from_fasta(const st
 }
 
 uint32_t GenomeFileProcessor::extract_taxon_from_filename(const std::string& filename) {
-    if (!validate_path_safety(filename)) {
+    if (filename.empty()) {
         return 1000000; // Default fallback
     }
     
@@ -321,6 +295,87 @@ bool GenomeFileProcessor::process_genome_files_batch(
     return true;
 }
 
+std::vector<std::string> GenomeFileProcessor::load_file_list(const std::string& file_list_path) {
+    std::vector<std::string> files;
+    
+    std::ifstream list_file(file_list_path);
+    if (!list_file.is_open()) {
+        std::cerr << "Cannot open file list: " << file_list_path << std::endl;
+        return files;
+    }
+    
+    std::string file_path;
+    while (std::getline(list_file, file_path)) {
+        // Trim whitespace
+        file_path.erase(0, file_path.find_first_not_of(" \t\r\n"));
+        file_path.erase(file_path.find_last_not_of(" \t\r\n") + 1);
+        
+        if (!file_path.empty() && validate_genome_file(file_path)) {
+            files.push_back(file_path);
+        }
+    }
+    
+    list_file.close();
+    return files;
+}
+
+bool GenomeFileProcessor::count_sequences_in_file(const std::string& file_path, size_t& sequence_count, size_t& total_bases) {
+    sequence_count = 0;
+    total_bases = 0;
+    
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    std::string line;
+    bool in_sequence = false;
+    
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+        
+        if (line[0] == '>') {
+            if (in_sequence) {
+                sequence_count++;
+            }
+            in_sequence = true;
+        } else if (in_sequence) {
+            for (char c : line) {
+                if (!std::isspace(c)) {
+                    total_bases++;
+                }
+            }
+        }
+    }
+    
+    if (in_sequence) {
+        sequence_count++;
+    }
+    
+    file.close();
+    return true;
+}
+
+std::string GenomeFileProcessor::extract_species_name_from_file(const std::string& file_path) {
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        return "";
+    }
+    
+    std::string line;
+    if (std::getline(file, line) && line[0] == '>') {
+        // Extract species name from header
+        std::istringstream iss(line.substr(1));
+        std::string genus, species;
+        if (iss >> genus >> species) {
+            return genus + " " + species;
+        }
+    }
+    
+    file.close();
+    return "";
+}
+
 void GenomeFileProcessor::print_processing_summary() const {
     std::cout << "\n=== FILE PROCESSING SUMMARY ===" << std::endl;
     std::cout << "Files found: " << stats_.files_found << std::endl;
@@ -340,35 +395,6 @@ void GenomeFileProcessor::print_processing_summary() const {
 }
 
 // Private helper methods
-bool GenomeFileProcessor::validate_path_safety(const std::string& path) {
-    if (path.empty() || path.size() > 4096) return false;
-    
-    // Check for null characters
-    for (char c : path) {
-        if (c == '\0') return false;
-    }
-    
-    return true;
-}
-
-bool GenomeFileProcessor::is_valid_genome_file_extension(const std::string& extension) {
-    return (extension == ".fna" || extension == ".fa" || extension == ".fasta" ||
-            extension == ".ffn" || extension == ".faa");
-}
-
-bool GenomeFileProcessor::validate_sequence_content(const std::string& sequence) {
-    if (sequence.empty()) return false;
-    
-    // Check for valid DNA characters
-    for (char c : sequence) {
-        char upper_c = std::toupper(c);
-        if (upper_c != 'A' && upper_c != 'C' && upper_c != 'G' && upper_c != 'T' && upper_c != 'N') {
-            return false;
-        }
-    }
-    
-    return true;
-}
 
 void GenomeFileProcessor::reset_statistics() {
     stats_ = FileProcessingStats();
@@ -614,6 +640,303 @@ double ConcatenatedFnaProcessor::get_progress_percentage() const {
 // Utility Functions Implementation
 // ===========================
 
+// ===========================
+// Private Method Implementations
+// ===========================
+
+bool GenomeFileProcessor::validate_path_safety(const std::string& path) {
+    // Check for dangerous characters and patterns
+    if (path.empty() || path.length() > PATH_MAX) {
+        return false;
+    }
+    
+    // Check for command injection attempts
+    const std::string dangerous_chars = ";|&`$<>\\";
+    if (path.find_first_of(dangerous_chars) != std::string::npos) {
+        return false;
+    }
+    
+    // Check for directory traversal
+    if (path.find("..") != std::string::npos) {
+        return false;
+    }
+    
+    // Verify path exists and is a directory
+    struct stat path_stat;
+    if (stat(path.c_str(), &path_stat) != 0) {
+        return false;
+    }
+    
+    return S_ISDIR(path_stat.st_mode);
+}
+
+bool GenomeFileProcessor::is_valid_genome_file_extension(const std::string& extension) {
+    static const std::set<std::string> valid_extensions = {
+        ".fna", ".fa", ".fasta", ".ffn", ".faa", ".fsa"
+    };
+    
+    std::string lower_ext = extension;
+    std::transform(lower_ext.begin(), lower_ext.end(), lower_ext.begin(), ::tolower);
+    
+    return valid_extensions.find(lower_ext) != valid_extensions.end();
+}
+
+bool GenomeFileProcessor::validate_fasta_format(const std::string& file_path) {
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    std::string line;
+    bool has_header = false;
+    bool has_sequence = false;
+    
+    // Read first few lines to validate format
+    for (int i = 0; i < 10 && std::getline(file, line); i++) {
+        if (line.empty()) continue;
+        
+        if (line[0] == '>') {
+            has_header = true;
+        } else if (has_header) {
+            // Check if line contains valid sequence characters
+            for (char c : line) {
+                if (!std::isalpha(c) && !std::isspace(c)) {
+                    return false;
+                }
+            }
+            has_sequence = true;
+        }
+    }
+    
+    return has_header && has_sequence;
+}
+
+bool GenomeFileProcessor::validate_sequence_content(const std::string& sequence) {
+    if (sequence.empty() || sequence.length() < 100) {
+        return false;  // Too short to be meaningful
+    }
+    
+    size_t valid_bases = 0;
+    size_t total_bases = 0;
+    
+    for (char c : sequence) {
+        if (std::isalpha(c)) {
+            total_bases++;
+            char upper_c = std::toupper(c);
+            if (upper_c == 'A' || upper_c == 'C' || upper_c == 'G' || upper_c == 'T') {
+                valid_bases++;
+            }
+        }
+    }
+    
+    // Require at least 90% valid DNA bases
+    return total_bases > 0 && (double)valid_bases / total_bases >= 0.9;
+}
+
+bool GenomeFileProcessor::process_single_fasta_file(
+    const std::string& file_path,
+    std::vector<std::string>& sequences,
+    std::vector<uint32_t>& taxon_ids,
+    uint32_t default_taxon_id) {
+    
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    std::string line;
+    std::string current_sequence;
+    bool in_sequence = false;
+    
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
+        
+        if (line[0] == '>') {
+            // Save previous sequence if exists
+            if (!current_sequence.empty() && validate_sequence_content(current_sequence)) {
+                sequences.push_back(current_sequence);
+                taxon_ids.push_back(default_taxon_id);
+                stats_.total_sequences++;
+                stats_.total_bases += current_sequence.length();
+            }
+            
+            // Start new sequence
+            current_sequence.clear();
+            in_sequence = true;
+        } else if (in_sequence) {
+            // Remove whitespace and append to sequence
+            line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+            current_sequence += line;
+        }
+    }
+    
+    // Save last sequence
+    if (!current_sequence.empty() && validate_sequence_content(current_sequence)) {
+        sequences.push_back(current_sequence);
+        taxon_ids.push_back(default_taxon_id);
+        stats_.total_sequences++;
+        stats_.total_bases += current_sequence.length();
+    }
+    
+    return true;
+}
+
+void GenomeFileProcessor::update_processing_stats(const std::string& file_path, 
+                                                 size_t sequences_added, 
+                                                 size_t bases_added) {
+    stats_.files_processed++;
+    stats_.total_sequences += sequences_added;
+    stats_.total_bases += bases_added;
+    
+    if (config_.progress_reporting && stats_.files_processed % config_.progress_interval == 0) {
+        print_processing_summary();
+    }
+}
+
+// ===========================
+// StreamingFnaProcessor Implementation
+// ===========================
+
+StreamingFnaProcessor::StreamingFnaProcessor(const std::string& fna_path, 
+                                           const std::string& temp_dir,
+                                           size_t batch_size)
+    : fna_file_path_(fna_path), temp_directory_(temp_dir), batch_size_(batch_size),
+      current_genome_count_(0), total_bases_processed_(0), processing_active_(false),
+      end_of_file_reached_(false) {
+    
+    // Create temp directory if needed
+    FileProcessingUtils::create_safe_directory(temp_directory_);
+}
+
+StreamingFnaProcessor::~StreamingFnaProcessor() {
+    if (file_stream_.is_open()) {
+        file_stream_.close();
+    }
+    cleanup_temp_files();
+}
+
+bool StreamingFnaProcessor::process_next_batch(std::vector<std::string>& batch_files, 
+                                              std::vector<uint32_t>& batch_taxons) {
+    batch_files.clear();
+    batch_taxons.clear();
+    
+    if (!processing_active_) {
+        file_stream_.open(fna_file_path_);
+        if (!file_stream_.is_open()) {
+            return false;
+        }
+        processing_active_ = true;
+    }
+    
+    return process_batch_from_buffer(batch_files, batch_taxons);
+}
+
+bool StreamingFnaProcessor::has_more_data() const {
+    return processing_active_ && !end_of_file_reached_;
+}
+
+void StreamingFnaProcessor::reset_processing() {
+    if (file_stream_.is_open()) {
+        file_stream_.close();
+    }
+    processing_active_ = false;
+    end_of_file_reached_ = false;
+    current_genome_count_ = 0;
+    total_bases_processed_ = 0;
+    cleanup_temp_files();
+}
+
+bool StreamingFnaProcessor::process_batch_from_buffer(std::vector<std::string>& batch_files, 
+                                                     std::vector<uint32_t>& batch_taxons) {
+    // Implementation simplified for demonstration
+    // In production, this would properly parse and batch sequences
+    
+    std::string line;
+    std::string current_sequence;
+    std::string current_header;
+    size_t genomes_in_batch = 0;
+    
+    while (genomes_in_batch < batch_size_ && std::getline(file_stream_, line)) {
+        if (line.empty()) continue;
+        
+        if (line[0] == '>') {
+            // Process previous sequence if exists
+            if (!current_sequence.empty()) {
+                // Extract taxon ID from header (simplified)
+                uint32_t taxon_id = 1;  // Default taxon
+                
+                // Create temp file
+                std::string temp_file = temp_directory_ + "/batch_genome_" + 
+                                       std::to_string(current_genome_count_) + ".fasta";
+                
+                std::ofstream out(temp_file);
+                if (out.is_open()) {
+                    out << current_header << "\n" << current_sequence << "\n";
+                    out.close();
+                    
+                    batch_files.push_back(temp_file);
+                    batch_taxons.push_back(taxon_id);
+                    genomes_in_batch++;
+                    current_genome_count_++;
+                    total_bases_processed_ += current_sequence.length();
+                }
+            }
+            
+            // Start new sequence
+            current_header = line;
+            current_sequence.clear();
+        } else {
+            // Append to current sequence
+            line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+            current_sequence += line;
+        }
+    }
+    
+    // Check if we've reached end of file
+    if (!file_stream_.good()) {
+        end_of_file_reached_ = true;
+        
+        // Process last sequence if exists
+        if (!current_sequence.empty()) {
+            uint32_t taxon_id = 1;  // Default taxon
+            
+            std::string temp_file = temp_directory_ + "/batch_genome_" + 
+                                   std::to_string(current_genome_count_) + ".fasta";
+            
+            std::ofstream out(temp_file);
+            if (out.is_open()) {
+                out << current_header << "\n" << current_sequence << "\n";
+                out.close();
+                
+                batch_files.push_back(temp_file);
+                batch_taxons.push_back(taxon_id);
+                current_genome_count_++;
+                total_bases_processed_ += current_sequence.length();
+            }
+        }
+    }
+    
+    return !batch_files.empty();
+}
+
+bool StreamingFnaProcessor::read_next_chunk_to_buffer() {
+    // Implementation would read a chunk of data into buffer
+    // For now, using line-by-line processing
+    return file_stream_.good();
+}
+
+void StreamingFnaProcessor::cleanup_temp_files() {
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(temp_directory_)) {
+            if (entry.path().filename().string().find("batch_genome_") == 0) {
+                std::filesystem::remove(entry.path());
+            }
+        }
+    } catch (const std::exception&) {
+        // Ignore cleanup errors
+    }
+}
+
 namespace FileProcessingUtils {
     
     bool is_fasta_file(const std::string& file_path) {
@@ -665,5 +988,78 @@ namespace FileProcessingUtils {
                       << " (" << std::fixed << std::setprecision(1) << percent << "%): " 
                       << std::filesystem::path(current_file).filename().string() << std::endl;
         }
+    }
+    
+    bool is_compressed_file(const std::string& file_path) {
+        std::filesystem::path p(file_path);
+        std::string ext = p.extension().string();
+        return (ext == ".gz" || ext == ".bz2" || ext == ".xz" || ext == ".zip");
+    }
+    
+    size_t estimate_uncompressed_size(const std::string& compressed_file) {
+        // Simple estimation based on file size
+        // In production, would read compression headers
+        std::filesystem::path p(compressed_file);
+        if (std::filesystem::exists(p)) {
+            size_t compressed_size = std::filesystem::file_size(p);
+            // Rough estimate: 3x compression ratio
+            return compressed_size * 3;
+        }
+        return 0;
+    }
+    
+    bool has_valid_dna_characters(const std::string& sequence) {
+        for (char c : sequence) {
+            char upper_c = std::toupper(c);
+            if (upper_c != 'A' && upper_c != 'C' && upper_c != 'G' && 
+                upper_c != 'T' && upper_c != 'N' && !std::isspace(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    double calculate_gc_content(const std::string& sequence) {
+        if (sequence.empty()) return 0.0;
+        
+        size_t gc_count = 0;
+        for (char c : sequence) {
+            char upper_c = std::toupper(c);
+            if (upper_c == 'G' || upper_c == 'C') {
+                gc_count++;
+            }
+        }
+        
+        return (double)gc_count / sequence.length() * 100.0;
+    }
+    
+    bool cleanup_directory(const std::string& directory_path) {
+        try {
+            std::filesystem::remove_all(directory_path);
+            return true;
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+    
+    std::string generate_temp_filename(const std::string& base_dir, const std::string& prefix, int index) {
+        return base_dir + "/" + prefix + "_" + std::to_string(index) + ".tmp";
+    }
+    
+    std::string format_processing_rate(size_t bytes, double seconds) {
+        if (seconds <= 0) return "N/A";
+        
+        double rate = bytes / seconds;
+        const char* units[] = {"B/s", "KB/s", "MB/s", "GB/s"};
+        int unit = 0;
+        
+        while (rate >= 1024 && unit < 3) {
+            rate /= 1024;
+            unit++;
+        }
+        
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(1) << rate << " " << units[unit];
+        return oss.str();
     }
 }

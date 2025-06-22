@@ -401,6 +401,13 @@ struct FileProcessingConfig {
     bool enable_parallel_loading = true;
     int num_worker_threads = 4;
     std::string supported_extensions = ".fna,.fa,.fasta";
+    
+    // Additional fields used in implementation
+    size_t max_file_count = 10000;
+    bool progress_reporting = false;
+    size_t progress_interval = 100;
+    size_t max_file_size = 10000000000ULL;  // 10GB
+    size_t max_sequence_length = 100000000;  // 100MB
 };
 
 struct FileProcessingStats {
@@ -410,12 +417,26 @@ struct FileProcessingStats {
     size_t sequences_loaded = 0;
     size_t invalid_files_skipped = 0;
     
+    // Additional fields used in implementation
+    size_t files_found = 0;
+    size_t files_skipped = 0;
+    size_t total_sequences = 0;
+    size_t total_bases = 0;
+    size_t processing_errors = 0;
+    double average_file_size = 0.0;
+    
     void reset() {
         processing_time = 0.0;
         files_processed = 0;
         total_bytes = 0;
         sequences_loaded = 0;
         invalid_files_skipped = 0;
+        files_found = 0;
+        files_skipped = 0;
+        total_sequences = 0;
+        total_bases = 0;
+        processing_errors = 0;
+        average_file_size = 0.0;
     }
     
     void print_summary() const {
@@ -424,6 +445,7 @@ struct FileProcessingStats {
         std::cout << "  Sequences loaded: " << sequences_loaded << std::endl;
         std::cout << "  Total bytes: " << (total_bytes / 1024 / 1024) << " MB" << std::endl;
         std::cout << "  Processing time: " << processing_time << "s" << std::endl;
+        std::cout << "  Invalid files skipped: " << invalid_files_skipped << std::endl;
     }
 };
 

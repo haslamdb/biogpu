@@ -20,6 +20,7 @@ file(GLOB_RECURSE CORE_SOURCES "core/*.cu" "core/*.cpp")
 file(GLOB_RECURSE MEMORY_SOURCES "memory/*.cu" "memory/*.cpp")
 file(GLOB_RECURSE GPU_SOURCES "gpu/*.cu" "gpu/*.cpp")
 file(GLOB_RECURSE TAXONOMY_SOURCES "taxonomy/*.cu" "taxonomy/*.cpp")
+file(GLOB_RECURSE PROCESSING_SOURCES "processing/*.cu" "processing/*.cpp")
 file(GLOB_RECURSE TOOLS_SOURCES "tools/*.cu" "tools/*.cpp")
 file(GLOB ROOT_SOURCES "*.cu" "*.cpp")
 
@@ -28,12 +29,13 @@ list(FILTER CORE_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER MEMORY_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER GPU_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER TAXONOMY_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER PROCESSING_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER TOOLS_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*test.*")
 
 # Combine all sources
-set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${TAXONOMY_SOURCES} ${TOOLS_SOURCES} ${ROOT_SOURCES})
+set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${TAXONOMY_SOURCES} ${PROCESSING_SOURCES} ${TOOLS_SOURCES} ${ROOT_SOURCES})
 
 # Create main library
 add_library(biogpu ${ALL_SOURCES})

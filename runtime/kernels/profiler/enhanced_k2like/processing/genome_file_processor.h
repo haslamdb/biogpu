@@ -12,27 +12,7 @@
 #include <fstream>
 #include "../gpu_kraken_types.h"
 
-// File processing configuration
-struct FileProcessingConfig {
-    size_t max_file_count = 50000;           // Maximum files to process
-    size_t max_sequence_length = 50000000;   // 50MB per sequence limit
-    size_t max_file_size = 1000000000;       // 1GB per file limit
-    bool validate_sequences = true;          // Validate sequence content
-    bool progress_reporting = true;          // Enable progress reports
-    int progress_interval = 1000;            // Report every N files
-};
-
-// File processing statistics
-struct FileProcessingStats {
-    size_t files_found = 0;
-    size_t files_processed = 0;
-    size_t files_skipped = 0;
-    size_t total_sequences = 0;
-    size_t total_bases = 0;
-    size_t processing_errors = 0;
-    double processing_time = 0.0;
-    double average_file_size = 0.0;
-};
+// Note: FileProcessingConfig and FileProcessingStats are defined in gpu_kraken_types.h
 
 // Individual genome file processor
 class GenomeFileProcessor {

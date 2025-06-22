@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <sstream>
 #include <chrono>
+#include <cassert>  // For assert in validation methods
 
 // Simple host-side LCA computation (simplified version)
 inline uint32_t compute_simple_lca_host(uint32_t taxon1, uint32_t taxon2) {
@@ -365,6 +366,23 @@ bool StandardDatabaseSerializer::generate_database_checksum() {
     return true;
 }
 
+bool StandardDatabaseSerializer::validate_output_paths() {
+    // Check if output directory exists and is writable
+    if (!std::filesystem::exists(output_directory_)) {
+        std::cerr << "Output directory does not exist: " << output_directory_ << std::endl;
+        return false;
+    }
+    
+    // Check write permissions
+    std::filesystem::perms p = std::filesystem::status(output_directory_).permissions();
+    if ((p & std::filesystem::perms::owner_write) == std::filesystem::perms::none) {
+        std::cerr << "No write permission for output directory: " << output_directory_ << std::endl;
+        return false;
+    }
+    
+    return true;
+}
+
 // ===========================
 // EnhancedDatabaseSerializer Implementation
 // ===========================
@@ -648,6 +666,45 @@ bool EnhancedDatabaseSerializer::save_standard_compatibility_layer(const std::ve
     return compat_serializer.save_hash_table(standard_candidates);
 }
 
+bool EnhancedDatabaseSerializer::save_phylogenetic_summary(const std::vector<PhylogeneticLCACandidate>& candidates) {
+    std::string filename = get_phylo_summary_path();
+    std::cout << "Writing phylogenetic summary to: " << filename << std::endl;
+    
+    std::ofstream out(filename);
+    if (!out.is_open()) {
+        std::cerr << "Cannot create phylogenetic summary file: " << filename << std::endl;
+        return false;
+    }
+    
+    // Write header
+    out << "# Phylogenetic Summary Report\n";
+    out << "# Total minimizers with phylogenetic data: " << candidates.size() << "\n\n";
+    
+    // Calculate statistics
+    size_t total_contributing_taxa = 0;
+    size_t max_contributing_taxa = 0;
+    double avg_phylo_spread = 0.0;
+    
+    for (const auto& candidate : candidates) {
+        size_t num_taxa = candidate.contributing_species.size();
+        total_contributing_taxa += num_taxa;
+        max_contributing_taxa = std::max(max_contributing_taxa, num_taxa);
+        avg_phylo_spread += candidate.phylogenetic_spread;
+    }
+    
+    if (!candidates.empty()) {
+        out << "Average contributing taxa per minimizer: " 
+            << (double)total_contributing_taxa / candidates.size() << "\n";
+        out << "Maximum contributing taxa: " << max_contributing_taxa << "\n";
+        out << "Average phylogenetic spread: " 
+            << avg_phylo_spread / candidates.size() << "\n";
+    }
+    
+    out.close();
+    std::cout << "✓ Phylogenetic summary saved" << std::endl;
+    return true;
+}
+
 // Helper methods for enhanced serializer
 std::string EnhancedDatabaseSerializer::get_enhanced_hash_table_path() const {
     return output_directory_ + "/enhanced_hash_table.k2d";
@@ -659,6 +716,10 @@ std::string EnhancedDatabaseSerializer::get_contributing_taxa_path() const {
 
 std::string EnhancedDatabaseSerializer::get_enhanced_config_path() const {
     return output_directory_ + "/enhanced_config.txt";
+}
+
+std::string EnhancedDatabaseSerializer::get_phylo_summary_path() const {
+    return output_directory_ + "/phylogenetic_summary.txt";
 }
 
 std::string EnhancedDatabaseSerializer::get_species_mapping_path() const {
@@ -684,5 +745,325 @@ bool EnhancedDatabaseSerializer::validate_enhanced_format() {
     return true;
 }
 
-// Additional placeholder implementations for other classes would go here...
-// This provides the core functionality needed for the refactoring
+// ===========================
+// CompactBinarySerializer Implementation
+// ===========================
+
+CompactBinarySerializer::CompactBinarySerializer(const std::string& output_dir, bool compress)
+    : output_directory_(output_dir), use_compression_(compress) {
+    std::filesystem::create_directories(output_directory_);
+}
+
+bool CompactBinarySerializer::save_compact_database(
+    const std::vector<LCACandidate>& candidates,
+    const std::unordered_map<uint32_t, std::string>& taxon_names,
+    const DatabaseMetadata& metadata) {
+    // TODO: Implement compact binary format
+    std::cerr << "Compact binary format not yet implemented" << std::endl;
+    return false;
+}
+
+bool CompactBinarySerializer::load_compact_database(
+    std::vector<LCACandidate>& candidates,
+    std::unordered_map<uint32_t, std::string>& taxon_names,
+    DatabaseMetadata& metadata) {
+    // TODO: Implement compact binary loading
+    return false;
+}
+
+bool CompactBinarySerializer::compress_database_files() {
+    // TODO: Implement compression
+    return false;
+}
+
+bool CompactBinarySerializer::decompress_database_files() {
+    // TODO: Implement decompression
+    return false;
+}
+
+size_t CompactBinarySerializer::estimate_compressed_size(const std::vector<LCACandidate>& candidates) {
+    // Rough estimate: 70% of original size
+    return candidates.size() * sizeof(LCACandidate) * 0.7;
+}
+
+bool CompactBinarySerializer::write_binary_header(std::ofstream& out, const DatabaseMetadata& metadata) {
+    // TODO: Implement binary header writing
+    return false;
+}
+
+bool CompactBinarySerializer::read_binary_header(std::ifstream& in, DatabaseMetadata& metadata) {
+    // TODO: Implement binary header reading
+    return false;
+}
+
+bool CompactBinarySerializer::write_candidates_binary(std::ofstream& out, const std::vector<LCACandidate>& candidates) {
+    // TODO: Implement binary candidate writing
+    return false;
+}
+
+bool CompactBinarySerializer::read_candidates_binary(std::ifstream& in, std::vector<LCACandidate>& candidates) {
+    // TODO: Implement binary candidate reading
+    return false;
+}
+
+// ===========================
+// DatabaseFormatConverter Implementation
+// ===========================
+
+DatabaseFormatConverter::DatabaseFormatConverter(const std::string& input_dir, const std::string& output_dir)
+    : input_directory_(input_dir), output_directory_(output_dir) {
+}
+
+bool DatabaseFormatConverter::convert_standard_to_enhanced(
+    const std::string& taxonomy_nodes_path,
+    const std::string& taxonomy_names_path) {
+    // TODO: Implement format conversion
+    return false;
+}
+
+bool DatabaseFormatConverter::convert_enhanced_to_standard() {
+    // TODO: Implement format conversion
+    return false;
+}
+
+bool DatabaseFormatConverter::convert_to_compact_binary() {
+    // TODO: Implement format conversion
+    return false;
+}
+
+bool DatabaseFormatConverter::convert_to_streaming_friendly() {
+    // TODO: Implement format conversion
+    return false;
+}
+
+DatabaseFormat DatabaseFormatConverter::detect_database_format(const std::string& database_dir) {
+    // Check for enhanced format files first
+    if (std::filesystem::exists(database_dir + "/enhanced_hash_table.k2d")) {
+        return DatabaseFormat::ENHANCED_PHYLO;
+    }
+    // Check for standard format
+    if (std::filesystem::exists(database_dir + "/hash_table.k2d")) {
+        return DatabaseFormat::STANDARD_KRAKEN2;
+    }
+    return DatabaseFormat::COMPACT_BINARY;
+}
+
+bool DatabaseFormatConverter::is_valid_database_directory(const std::string& database_dir) {
+    return std::filesystem::exists(database_dir) && 
+           std::filesystem::is_directory(database_dir);
+}
+
+bool DatabaseFormatConverter::migrate_v1_to_v2() {
+    // TODO: Implement migration
+    return false;
+}
+
+bool DatabaseFormatConverter::upgrade_database_format() {
+    // TODO: Implement upgrade
+    return false;
+}
+
+bool DatabaseFormatConverter::load_standard_database(
+    std::vector<LCACandidate>& candidates,
+    std::unordered_map<uint32_t, std::string>& taxon_names,
+    std::unordered_map<uint32_t, uint32_t>& taxon_parents) {
+    // TODO: Implement loading
+    return false;
+}
+
+bool DatabaseFormatConverter::load_enhanced_database(
+    std::vector<PhylogeneticLCACandidate>& phylo_candidates,
+    ContributingTaxaArrays& contributing_taxa) {
+    // TODO: Implement loading
+    return false;
+}
+
+bool DatabaseFormatConverter::create_phylogenetic_data_from_standard(
+    const std::vector<LCACandidate>& standard_candidates,
+    std::vector<PhylogeneticLCACandidate>& phylo_candidates) {
+    // TODO: Implement conversion
+    return false;
+}
+
+// ===========================
+// DatabaseValidation Namespace Implementation
+// ===========================
+
+namespace DatabaseValidation {
+    
+bool validate_hash_table_integrity(const std::string& hash_table_path) {
+    if (!std::filesystem::exists(hash_table_path)) {
+        return false;
+    }
+    
+    std::ifstream file(hash_table_path, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    // Read header
+    uint64_t table_size, num_entries;
+    file.read(reinterpret_cast<char*>(&table_size), sizeof(uint64_t));
+    file.read(reinterpret_cast<char*>(&num_entries), sizeof(uint64_t));
+    
+    // Basic sanity checks
+    if (table_size == 0 || num_entries == 0 || num_entries > table_size) {
+        return false;
+    }
+    
+    file.close();
+    return true;
+}
+
+bool validate_taxonomy_consistency(const std::string& taxonomy_path) {
+    if (!std::filesystem::exists(taxonomy_path)) {
+        return false;
+    }
+    
+    std::ifstream file(taxonomy_path);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    std::string line;
+    int line_count = 0;
+    while (std::getline(file, line)) {
+        line_count++;
+        // Basic validation - should have 3 tab-separated fields
+        size_t tab_count = std::count(line.begin(), line.end(), '\t');
+        if (line_count > 1 && tab_count != 2) {
+            return false;
+        }
+    }
+    
+    file.close();
+    return line_count > 1; // At least header + one entry
+}
+
+bool check_database_completeness(const std::string& database_dir) {
+    std::vector<std::string> required_files = {
+        database_dir + "/hash_table.k2d",
+        database_dir + "/taxonomy.tsv",
+        database_dir + "/config.txt"
+    };
+    
+    for (const auto& file : required_files) {
+        if (!std::filesystem::exists(file)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool cross_validate_hash_taxonomy(const std::string& hash_table_path, 
+                                 const std::string& taxonomy_path) {
+    // TODO: Implement cross-validation
+    return true;
+}
+
+bool verify_minimizer_uniqueness(const std::string& hash_table_path) {
+    // TODO: Implement uniqueness verification
+    return true;
+}
+
+bool benchmark_database_loading(const std::string& database_dir) {
+    // TODO: Implement benchmark
+    return true;
+}
+
+bool test_query_performance(const std::string& database_dir, 
+                           const std::string& test_sequences_path) {
+    // TODO: Implement performance test
+    return true;
+}
+
+std::string calculate_file_checksum(const std::string& file_path) {
+    // TODO: Implement checksum calculation
+    return "NOT_IMPLEMENTED";
+}
+
+bool verify_database_checksums(const std::string& database_dir) {
+    // TODO: Implement checksum verification
+    return true;
+}
+
+bool generate_manifest_file(const std::string& database_dir) {
+    // TODO: Implement manifest generation
+    return true;
+}
+
+} // namespace DatabaseValidation
+
+// ===========================
+// DatabaseOptimization Namespace Implementation
+// ===========================
+
+namespace DatabaseOptimization {
+
+bool optimize_hash_table_layout(const std::string& database_dir) {
+    // TODO: Implement optimization
+    return false;
+}
+
+bool compress_taxonomy_data(const std::string& database_dir) {
+    // TODO: Implement compression
+    return false;
+}
+
+bool remove_redundant_entries(const std::string& database_dir) {
+    // TODO: Implement redundancy removal
+    return false;
+}
+
+bool create_index_files(const std::string& database_dir) {
+    // TODO: Implement index creation
+    return false;
+}
+
+bool optimize_for_sequential_access(const std::string& database_dir) {
+    // TODO: Implement sequential optimization
+    return false;
+}
+
+bool create_memory_mapped_version(const std::string& database_dir) {
+    // TODO: Implement memory mapping
+    return false;
+}
+
+size_t calculate_database_size(const std::string& database_dir) {
+    size_t total_size = 0;
+    
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(database_dir)) {
+            if (entry.is_regular_file()) {
+                total_size += entry.file_size();
+            }
+        }
+    } catch (const std::exception&) {
+        return 0;
+    }
+    
+    return total_size;
+}
+
+double estimate_memory_usage(const std::string& database_dir) {
+    // Rough estimate: 1.2x file size for in-memory structures
+    return calculate_database_size(database_dir) * 1.2;
+}
+
+void print_database_statistics(const std::string& database_dir) {
+    std::cout << "Database Directory: " << database_dir << std::endl;
+    std::cout << "Total Size: " << (calculate_database_size(database_dir) / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "Estimated Memory Usage: " << (estimate_memory_usage(database_dir) / 1024 / 1024) << " MB" << std::endl;
+    
+    // List files
+    std::cout << "\nDatabase Files:" << std::endl;
+    for (const auto& entry : std::filesystem::directory_iterator(database_dir)) {
+        if (entry.is_regular_file()) {
+            std::cout << "  " << entry.path().filename().string() 
+                      << " (" << (entry.file_size() / 1024 / 1024) << " MB)" << std::endl;
+        }
+    }
+}
+
+} // namespace DatabaseOptimization

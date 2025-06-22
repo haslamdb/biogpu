@@ -1,4 +1,4 @@
-#include "gpu_database_kernels.h"
+#include "gpu/gpu_database_kernels.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
 
@@ -41,9 +41,10 @@ __global__ void extract_minimizers_sliding_window_kernel(
         uint32_t pos = atomicAdd(global_hit_counter, 1);
         if (pos < max_minimizers) {
             minimizer_hits[pos].minimizer_hash = minimizer;
-            minimizer_hits[pos].taxon_id = genome.taxon_id;
-            minimizer_hits[pos].position = 0;
             minimizer_hits[pos].genome_id = genome.genome_id;
+            minimizer_hits[pos].position = 0;
+            minimizer_hits[pos].strand = 0;  // 0 for forward strand
+            minimizer_hits[pos].taxon_id = static_cast<uint16_t>(genome.taxon_id);
         }
     }
 }
@@ -100,7 +101,7 @@ bool launch_lca_computation_kernel(
     // Simple conversion for now
     for (int i = 0; i < num_hits; i++) {
         candidates[i].minimizer_hash = hits[i].minimizer_hash;
-        candidates[i].lca_taxon = hits[i].taxon_id;
+        candidates[i].lca_taxon = static_cast<uint32_t>(hits[i].taxon_id);
         candidates[i].genome_count = 1;
         candidates[i].uniqueness_score = 1.0f;
     }

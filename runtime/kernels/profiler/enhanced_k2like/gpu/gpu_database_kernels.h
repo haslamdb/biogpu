@@ -37,12 +37,15 @@ struct GPUTaxonomyNode {
 // GPU Compact Hash Table structure
 struct GPUCompactHashTable {
     uint32_t* hash_cells;
+    uint32_t table_size;
     uint32_t hash_mask;
     uint32_t lca_bits;
+    uint32_t hash_bits;
     uint32_t max_taxon_id;
     
     __host__ __device__ GPUCompactHashTable() : 
-        hash_cells(nullptr), hash_mask(0), lca_bits(0), max_taxon_id(0) {}
+        hash_cells(nullptr), table_size(0), hash_mask(0), 
+        lca_bits(0), hash_bits(0), max_taxon_id(0) {}
 };
 
 // ===========================

@@ -40,12 +40,12 @@ struct GPUGenomeInfo {
 
 // GPU minimizer hit structure
 struct GPUMinimizerHit {
-    uint64_t minimizer_hash;
-    uint32_t genome_id;
-    uint32_t position;
-    uint16_t strand;
-    uint16_t reserved;
-};
+    uint64_t minimizer_hash;  // 8 bytes
+    uint32_t genome_id;       // 4 bytes
+    uint32_t position;        // 4 bytes
+    uint16_t strand;          // 2 bytes
+    uint16_t taxon_id;        // 2 bytes
+}; // Total: 20 bytes
 
 // CUDA-compatible minimizer parameters
 struct MinimizerParams {
@@ -236,6 +236,9 @@ struct ClassificationParams {
     int num_threads = 1;                // Number of CPU threads
     bool quick_mode = false;            // Quick classification mode
     bool paired_end_processing = false; // Handle paired-end reads
+    bool use_paired_end_bonus = true;   // Apply paired-end concordance bonus
+    float paired_concordance_weight = 2.0f; // Weight for paired concordance
+    float min_pair_concordance = 0.5f;  // Minimum concordance for bonus
     
     ClassificationParams() = default;
     ClassificationParams(uint32_t k_val, uint32_t ell_val, uint32_t spaces_val) 

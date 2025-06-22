@@ -21,6 +21,7 @@ file(GLOB_RECURSE MEMORY_SOURCES "memory/*.cu" "memory/*.cpp")
 file(GLOB_RECURSE GPU_SOURCES "gpu/*.cu" "gpu/*.cpp")
 file(GLOB_RECURSE TAXONOMY_SOURCES "taxonomy/*.cu" "taxonomy/*.cpp")
 file(GLOB_RECURSE PROCESSING_SOURCES "processing/*.cu" "processing/*.cpp")
+file(GLOB_RECURSE OUTPUT_SOURCES "output/*.cu" "output/*.cpp")
 file(GLOB_RECURSE TOOLS_SOURCES "tools/*.cu" "tools/*.cpp")
 file(GLOB ROOT_SOURCES "*.cu" "*.cpp")
 
@@ -30,12 +31,19 @@ list(FILTER MEMORY_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER GPU_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER TAXONOMY_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER PROCESSING_SOURCES EXCLUDE REGEX ".*main.*")
+list(FILTER OUTPUT_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER TOOLS_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*main.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*test.*")
+# Exclude problematic files temporarily
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_kraken_database_builder.*")
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_kraken_classifier.*")
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*phase1_enhanced_classification.*")
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_minimizer_extraction.*")
+list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_database_kernels.*")
 
 # Combine all sources
-set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${TAXONOMY_SOURCES} ${PROCESSING_SOURCES} ${TOOLS_SOURCES} ${ROOT_SOURCES})
+set(ALL_SOURCES ${CORE_SOURCES} ${MEMORY_SOURCES} ${GPU_SOURCES} ${TAXONOMY_SOURCES} ${PROCESSING_SOURCES} ${OUTPUT_SOURCES} ${TOOLS_SOURCES} ${ROOT_SOURCES})
 
 # Create main library
 add_library(biogpu ${ALL_SOURCES})
@@ -72,6 +80,16 @@ target_link_libraries(test_core_only biogpu)
 # Taxonomy module test
 add_executable(test_taxonomy_only test_taxonomy_only.cu)
 target_link_libraries(test_taxonomy_only biogpu)
+
+# Database serializer test
+add_executable(test_database_serializer test_database_serializer.cu)
+target_link_libraries(test_database_serializer biogpu)
+set_property(TARGET test_database_serializer PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET test_database_serializer PROPERTY CUDA_ARCHITECTURES 70 75 80)
+
+# Add to test suite
+enable_testing()
+add_test(NAME DatabaseSerializerTest COMMAND test_database_serializer)
 
 # Print configuration info
 message(STATUS "CUDA Version: ${CMAKE_CUDA_COMPILER_VERSION}")

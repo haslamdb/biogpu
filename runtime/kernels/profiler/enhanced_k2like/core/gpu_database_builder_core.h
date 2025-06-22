@@ -27,28 +27,6 @@ struct ClassificationParams;
 struct GPUBuildStats;
 struct EnhancedBuildStats;
 
-// ADD missing enum definitions that are referenced:
-enum class DatabaseFormat {
-    STANDARD_KRAKEN2,
-    ENHANCED_PHYLO,
-    COMPACT_BINARY
-};
-
-// ADD missing struct definitions:
-struct FileProcessingConfig {
-    bool validate_sequences = true;
-    bool skip_invalid_files = true;
-    size_t max_file_size_mb = 10000;
-    bool enable_parallel_loading = true;
-    int num_worker_threads = 4;
-};
-
-// ADD missing stats struct:
-struct FileProcessingStats {
-    double processing_time = 0.0;
-    size_t files_processed = 0;
-    size_t total_bytes = 0;
-};
 
 // Configuration for the entire database building process
 struct DatabaseBuildConfig {

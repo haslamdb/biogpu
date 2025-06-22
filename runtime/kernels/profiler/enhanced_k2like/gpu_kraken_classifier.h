@@ -12,6 +12,8 @@
 #include <string>
 #include <cstdint>
 #include <unordered_map>
+#include "gpu_kraken_types.h"
+#include "gpu/gpu_database_kernels.h"
 
 // Forward declarations and structures
 struct PairedRead {
@@ -25,26 +27,28 @@ struct PairedRead {
         : read1(r1), read2(r2), read_id(id), is_paired(!r2.empty()) {}
 };
 
-struct GPUCompactHashTable {
-    uint32_t* hash_cells;
-    uint32_t table_size;
-    uint32_t hash_mask;
-    uint32_t lca_bits;
-    uint32_t hash_bits;
-};
+// GPUCompactHashTable is now defined in gpu/gpu_database_kernels.h
+// struct GPUCompactHashTable {
+//     uint32_t* hash_cells;
+//     uint32_t table_size;
+//     uint32_t hash_mask;
+//     uint32_t lca_bits;
+//     uint32_t hash_bits;
+// };
 
-struct ClassificationParams {
-    int k = 35;
-    int ell = 31;
-    int spaces = 7;
-    float confidence_threshold = 0.0f;
-    bool use_spaced_seeds = true;
-    int max_ambiguous_bases = 5;
-    bool use_paired_end_bonus = true;
-    float paired_concordance_weight = 2.0f;
-    float min_pair_concordance = 0.5f;
-    bool require_both_reads_classified = false;
-};
+// ClassificationParams is now defined in gpu_kraken_types.h
+// struct ClassificationParams {
+//     int k = 35;
+//     int ell = 31;
+//     int spaces = 7;
+//     float confidence_threshold = 0.0f;
+//     bool use_spaced_seeds = true;
+//     int max_ambiguous_bases = 5;
+//     bool use_paired_end_bonus = true;
+//     float paired_concordance_weight = 2.0f;
+//     float min_pair_concordance = 0.5f;
+//     bool require_both_reads_classified = false;
+// };
 
 struct PairedReadClassification {
     uint32_t taxon_id;

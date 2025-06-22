@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <cstdint>
 #include <memory>
+#include "../gpu_kraken_types.h"
 
 // Forward declarations
 struct LCACandidate;
@@ -19,13 +20,7 @@ struct StreamlinedMinimizerMetadata;
 struct GPUBuildStats;
 struct EnhancedBuildStats;
 
-// Database format specifications
-enum class DatabaseFormat {
-    STANDARD_KRAKEN2,    // Standard Kraken2 format
-    ENHANCED_PHYLO,      // Enhanced format with phylogenetic data
-    COMPACT_BINARY,      // Compact binary format
-    STREAMING_FRIENDLY   // Optimized for streaming access
-};
+// DatabaseFormat is defined in gpu_kraken_types.h
 
 // Database metadata structure
 struct DatabaseMetadata {

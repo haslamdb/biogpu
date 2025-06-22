@@ -41,7 +41,7 @@ __global__ void memory_initialization_kernel(
         minimizer_hits[tid].genome_id = 0;
         minimizer_hits[tid].position = 0;
         minimizer_hits[tid].strand = 0;
-        minimizer_hits[tid].reserved = 0;
+        minimizer_hits[tid].taxon_id = 0;
     }
 }
 

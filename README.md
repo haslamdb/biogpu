@@ -364,7 +364,7 @@ pipeline FluoroquinoloneResistance {
 - [ ] ✅ **COMPLETED**: Simplified data structure and index building
 - [ ] ✅ **COMPLETED**: Working draft: `./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5`
 - [ ] ✅ **COMPLETED**: Fixed k-mer matching phase
-- [ ] ✅ **COMPLETED**: Mapping phase optimization (67% success rate achieved)
+- [ ] ✅ **COMPLETED**: Mapping phase optimization 
 - [ ] Implement mutation confidence scoring system
 
 ### 8. Build Microbial Genome Database

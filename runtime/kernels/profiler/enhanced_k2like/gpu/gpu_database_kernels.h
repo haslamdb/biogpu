@@ -243,6 +243,13 @@ bool launch_lca_computation_kernel(
     const uint32_t* parent_lookup = nullptr,
     uint32_t max_taxon_id = 0);
 
+// Minimizer classification function
+bool classify_minimizers_by_frequency(
+    GPUMinimizerHit* d_minimizer_hits,
+    int num_hits,
+    uint32_t canonical_threshold = 50,
+    uint32_t redundant_threshold = 80);
+
 // Utility functions
 LaunchConfig calculate_optimal_launch_config(int num_elements, int threads_per_block = 256, size_t shared_memory = 0);
 bool check_kernel_execution_errors(const char* kernel_name);

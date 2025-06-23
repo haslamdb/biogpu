@@ -43,9 +43,69 @@ struct GPUMinimizerHit {
     uint64_t minimizer_hash;  // 8 bytes
     uint32_t genome_id;       // 4 bytes
     uint32_t position;        // 4 bytes
-    uint16_t strand;          // 2 bytes
+    uint16_t strand;          // 2 bytes - bits 0-1: strand (0=forward, 1=reverse)
+                              //          bits 2-3: classification (0=unique, 1=canonical, 2=redundant)
+                              //          bits 4-15: reserved for future use
     uint16_t taxon_id;        // 2 bytes
 }; // Total: 20 bytes
+
+// Strand and classification flag constants
+namespace MinimizerFlags {
+    // Strand flags (bits 0-1)
+    constexpr uint16_t STRAND_MASK = 0x0003;
+    constexpr uint16_t STRAND_FORWARD = 0x0000;
+    constexpr uint16_t STRAND_REVERSE = 0x0001;
+    
+    // Classification flags (bits 2-3)
+    constexpr uint16_t CLASSIFICATION_MASK = 0x000C;
+    constexpr uint16_t CLASSIFICATION_SHIFT = 2;
+    constexpr uint16_t CLASSIFICATION_UNIQUE = 0x0000;      // Unique to one species
+    constexpr uint16_t CLASSIFICATION_CANONICAL = 0x0004;   // Canonical for species (most common)
+    constexpr uint16_t CLASSIFICATION_REDUNDANT = 0x0008;   // Redundant within species
+    
+    // Helper functions
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t get_strand(uint16_t flags) {
+        return flags & STRAND_MASK;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t get_classification(uint16_t flags) {
+        return (flags & CLASSIFICATION_MASK) >> CLASSIFICATION_SHIFT;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t set_classification(uint16_t flags, uint16_t classification) {
+        return (flags & ~CLASSIFICATION_MASK) | ((classification << CLASSIFICATION_SHIFT) & CLASSIFICATION_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool is_unique(uint16_t flags) {
+        return get_classification(flags) == 0;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool is_canonical(uint16_t flags) {
+        return get_classification(flags) == 1;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool is_redundant(uint16_t flags) {
+        return get_classification(flags) == 2;
+    }
+}
 
 // CUDA-compatible minimizer parameters
 struct MinimizerParams {

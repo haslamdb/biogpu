@@ -43,7 +43,7 @@ __global__ void extract_minimizers_sliding_window_kernel(
             minimizer_hits[pos].minimizer_hash = minimizer;
             minimizer_hits[pos].genome_id = genome.genome_id;
             minimizer_hits[pos].position = 0;
-            minimizer_hits[pos].strand = 0;  // 0 for forward strand
+            minimizer_hits[pos].strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
             minimizer_hits[pos].taxon_id = static_cast<uint16_t>(genome.taxon_id);
         }
     }

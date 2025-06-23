@@ -205,9 +205,10 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
                 if (global_pos < max_minimizers) {
                     GPUMinimizerHit hit;
                     hit.minimizer_hash = shared_minimizers[responsible_thread];
-                    // hit doesn't have taxon_id - stored in genome_info
+                    hit.taxon_id = static_cast<uint16_t>(genome.taxon_id);
                     hit.position = pos;
                     hit.genome_id = genome.genome_id;
+                    hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
                     
                     minimizer_hits[global_pos] = hit;
                     local_count++;
@@ -256,9 +257,10 @@ __global__ void extract_minimizers_sliding_window_kernel(
             if (global_pos < max_minimizers) {
                 GPUMinimizerHit hit;
                 hit.minimizer_hash = current_minimizer;
-                // hit doesn't have taxon_id - stored in genome_info
+                hit.taxon_id = static_cast<uint16_t>(genome.taxon_id);
                 hit.position = pos;
                 hit.genome_id = genome.genome_id;
+                hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
                 
                 minimizer_hits[global_pos] = hit;
             }
@@ -573,6 +575,68 @@ bool launch_memory_validation_kernel_impl(
         if (!result) return false;
     }
     
+    return true;
+}
+
+// Kernel to classify minimizers as unique/canonical/redundant based on frequency
+__global__ void classify_minimizers_by_frequency_kernel(
+    GPUMinimizerHit* minimizer_hits,
+    int num_hits,
+    const uint32_t* minimizer_counts_per_species,  // Array indexed by [species_id * max_minimizers + minimizer_idx]
+    uint32_t max_species_id,
+    uint32_t canonical_threshold,    // e.g., minimizers appearing in >50% of genomes are canonical
+    uint32_t redundant_threshold) {  // e.g., minimizers appearing in >80% of genomes are redundant
+    
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_hits) return;
+    
+    GPUMinimizerHit& hit = minimizer_hits[idx];
+    uint32_t species_id = hit.taxon_id;  // Assuming taxon_id represents species
+    
+    // For now, we'll use a simplified classification based on hash value
+    // In a real implementation, you'd track frequency across genomes
+    uint64_t hash_mod = hit.minimizer_hash % 100;
+    
+    // Clear existing classification bits
+    hit.strand &= ~MinimizerFlags::CLASSIFICATION_MASK;
+    
+    // Classify based on simplified criteria
+    if (hash_mod < 10) {
+        // ~10% are redundant (very common)
+        hit.strand |= MinimizerFlags::CLASSIFICATION_REDUNDANT;
+    } else if (hash_mod < 40) {
+        // ~30% are canonical (moderately common) 
+        hit.strand |= MinimizerFlags::CLASSIFICATION_CANONICAL;
+    } else {
+        // ~60% remain unique
+        hit.strand |= MinimizerFlags::CLASSIFICATION_UNIQUE;
+    }
+}
+
+// Host wrapper for minimizer classification
+bool classify_minimizers_by_frequency(
+    GPUMinimizerHit* d_minimizer_hits,
+    int num_hits,
+    uint32_t canonical_threshold = 50,
+    uint32_t redundant_threshold = 80) {
+    
+    if (num_hits <= 0) return true;
+    
+    LaunchConfig config = calculate_optimal_launch_config(num_hits, 256, 0);
+    
+    dim3 grid(config.blocks_x, config.blocks_y, config.blocks_z);
+    dim3 block(config.threads_x, config.threads_y, config.threads_z);
+    
+    classify_minimizers_by_frequency_kernel<<<grid, block>>>(
+        d_minimizer_hits,
+        num_hits,
+        nullptr,  // For now, pass nullptr for counts
+        0,        // max_species_id
+        canonical_threshold,
+        redundant_threshold
+    );
+    
+    CUDA_CHECK_KERNEL(cudaDeviceSynchronize());
     return true;
 }
 

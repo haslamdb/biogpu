@@ -50,7 +50,7 @@ add_library(biogpu ${ALL_SOURCES})
 
 # Set CUDA properties
 set_property(TARGET biogpu PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET biogpu PROPERTY CUDA_ARCHITECTURES 70 75 80)
+set_property(TARGET biogpu PROPERTY CUDA_ARCHITECTURES 61 70 75 80 89)
 
 # CUDA compile options
 target_compile_options(biogpu PRIVATE

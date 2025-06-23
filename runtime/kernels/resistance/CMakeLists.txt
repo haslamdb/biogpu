@@ -47,7 +47,7 @@ add_library(bloom_filter STATIC
 
 set_target_properties(bloom_filter PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_ARCHITECTURES "61;70;75;80;86;"
 )
 
 # Enhanced HDF5 alignment writer library

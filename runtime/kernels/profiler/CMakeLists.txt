@@ -282,7 +282,7 @@ add_executable(enhanced_kraken_pipeline
 
 set_target_properties(enhanced_kraken_pipeline PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
+    CUDA_ARCHITECTURES "61;70;75;80;86;89"
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/enhanced_k2like
 )

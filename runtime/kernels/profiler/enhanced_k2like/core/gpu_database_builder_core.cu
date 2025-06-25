@@ -6,6 +6,7 @@
 #include "../memory/gpu_memory_manager.h"
 #include "../gpu/gpu_database_kernels.h"
 #include "../processing/minimizer_feature_extractor.h"
+#include "../processing/feature_exporter.h"
 #include <cuda_runtime.h>
 #include <cstring>  // for memset
 #include <iostream>
@@ -1311,4 +1312,76 @@ DatabaseBuildConfig GPUKrakenDatabaseBuilder::create_enhanced_phylo_config() {
     config.memory_config.minimizer_capacity = 15000000;
     config.output_format = DatabaseFormat::ENHANCED_PHYLO;
     return config;
+}
+
+// Feature export method for ML training
+bool GPUKrakenDatabaseBuilder::export_features_for_training(
+    const FeatureExportConfig& export_config) {
+    
+    std::cout << "\n=== EXPORTING FEATURES FOR ML TRAINING ===" << std::endl;
+    
+    // Check if we have processed data
+    if (all_lca_candidates_.empty()) {
+        std::cerr << "No minimizer data available. Build database first." << std::endl;
+        return false;
+    }
+    
+    // Create feature exporter
+    FeatureExporter exporter(export_config);
+    
+    // Convert LCA candidates to minimizer hits for export
+    std::vector<GPUMinimizerHit> minimizer_hits;
+    minimizer_hits.reserve(all_lca_candidates_.size());
+    
+    for (const auto& candidate : all_lca_candidates_) {
+        GPUMinimizerHit hit;
+        hit.minimizer_hash = candidate.minimizer_hash;
+        hit.taxon_id = candidate.lca_taxon;
+        hit.genome_id = 0; // Would need to track this
+        hit.position = 0; // Would need to track this
+        
+        // Encode features if available from minimizer_stats_
+        auto stats_it = minimizer_stats_.find(candidate.minimizer_hash);
+        if (stats_it != minimizer_stats_.end()) {
+            const auto& stats = stats_it->second;
+            
+            // Encode GC content category (0-7)
+            uint8_t gc_category = static_cast<uint8_t>(
+                std::min(7, static_cast<int>(stats.get_average_gc_content() / 12.5f))
+            );
+            
+            // Encode complexity score (0-7)
+            uint8_t complexity_score = static_cast<uint8_t>(
+                std::min(7, static_cast<int>(stats.get_average_complexity() * 8))
+            );
+            
+            // Build feature flags
+            hit.feature_flags = gc_category | (complexity_score << 3);
+            
+            // Add contamination flag if high risk
+            if (stats.get_contamination_risk_ratio() > 0.5f) {
+                hit.feature_flags |= (1 << 7);
+            }
+            
+            // Encode uniqueness as ML weight
+            hit.ml_weight = static_cast<uint16_t>(candidate.uniqueness_score * 65535);
+        }
+        
+        minimizer_hits.push_back(hit);
+    }
+    
+    // Export features
+    bool success = exporter.export_training_features(
+        minimizer_hits, 
+        *feature_extractor_,
+        taxon_names_
+    );
+    
+    if (success) {
+        std::cout << "Feature export completed successfully!" << std::endl;
+        std::cout << "Exported " << exporter.get_total_features_exported() 
+                  << " unique minimizer features" << std::endl;
+    }
+    
+    return success;
 }

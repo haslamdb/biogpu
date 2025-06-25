@@ -22,6 +22,8 @@ class EnhancedDatabaseSerializer;
 class ConcatenatedFnaProcessor;
 class StreamingFnaProcessor;
 class MinimizerFeatureExtractor;
+class FeatureExporter;
+struct FeatureExportConfig;
 
 // Forward declarations
 class GPUMemoryManager;
@@ -186,6 +188,9 @@ public:
     bool validate_configuration() const;
     bool test_gpu_functionality();
     bool validate_database_output();
+    
+    // Feature export for ML training
+    bool export_features_for_training(const FeatureExportConfig& export_config);
     
     // Utility methods
     static DatabaseBuildConfig create_default_config();

@@ -20,6 +20,7 @@ struct GPUGenomeInfo;
 struct GPUMinimizerHit;
 struct GPUTaxonomyNode;
 class ConcatenatedFnaProcessor;
+struct FeatureExportConfig;
 
 // Main database builder class declaration
 class GPUKrakenDatabaseBuilder {
@@ -140,6 +141,9 @@ public:
     // NEW: Streaming support for large concatenated FNA files
     bool build_database_from_streaming_fna(const std::string& fna_file_path,
                                           const std::string& taxonomy_path = "");
+    
+    // Feature export for ML training
+    bool export_features_for_training(const FeatureExportConfig& export_config);
     
 private:
     // GPU processing methods

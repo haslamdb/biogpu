@@ -9,6 +9,8 @@
 #include "gpu_kraken_classifier.h"
 #include "gpu_minimizer_extraction.cuh"
 #include "streaming_fna_processor.h"
+#include "processing/feature_exporter.h"
+#include "processing/minimizer_feature_extractor.h"
 #include <cuda_runtime.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -3368,5 +3370,59 @@ bool GPUKrakenDatabaseBuilder::build_database_from_streaming_fna(
 }
 
 #endif // GPU_KRAKEN_CLASSIFIER_HEADER_ONLY
+
+// Feature export implementation
+bool GPUKrakenDatabaseBuilder::export_features_for_training(const FeatureExportConfig& export_config) {
+    std::cout << "\n=== EXPORTING FEATURES FOR ML TRAINING ===" << std::endl;
+    
+    if (all_lca_candidates.empty()) {
+        std::cerr << "No minimizer data available. Build database first." << std::endl;
+        return false;
+    }
+    
+    // Create feature exporter
+    FeatureExporter exporter(export_config);
+    
+    // Convert LCA candidates to minimizer hits
+    std::vector<GPUMinimizerHit> minimizer_hits;
+    minimizer_hits.reserve(all_lca_candidates.size());
+    
+    // Group candidates by minimizer hash to get position and genome info
+    std::unordered_map<uint64_t, std::vector<GPUMinimizerHit>> hash_to_hits;
+    
+    for (const auto& candidate : all_lca_candidates) {
+        GPUMinimizerHit hit;
+        hit.minimizer_hash = candidate.minimizer_hash;
+        hit.taxon_id = candidate.lca_taxon;
+        hit.genome_id = 0; // Would need genome tracking
+        hit.position = 0; // Would need position tracking
+        
+        // Encode basic features
+        hit.feature_flags = 0;
+        
+        // Encode uniqueness score as ML weight
+        hit.ml_weight = static_cast<uint16_t>(candidate.uniqueness_score * 65535);
+        
+        minimizer_hits.push_back(hit);
+    }
+    
+    // Create a minimal feature extractor (if not available)
+    MinimizerFeatureExtractor feature_extractor;
+    
+    // Export features
+    bool success = exporter.export_training_features(
+        minimizer_hits, 
+        feature_extractor,
+        taxon_names
+    );
+    
+    if (success) {
+        std::cout << "Feature export completed successfully!" << std::endl;
+        std::cout << "Exported " << exporter.get_total_features_exported() 
+                  << " unique minimizer features" << std::endl;
+    }
+    
+    return success;
+}
 
 #endif // GPU_KRAKEN_DATABASE_BUILDER_CUH

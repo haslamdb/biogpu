@@ -12,6 +12,7 @@
 #include "fast_enhanced_classifier.h"              // The fast enhanced classifier
 #include "phase1_enhanced_classifier_with_phylo.h" // The phylo-aware classifier
 #include "ncbi_taxonomy_loader.h"                  // NCBI taxonomy support
+#include "processing/feature_exporter.h"           // Feature export for ML training
 
 #include <iostream>
 #include <string>
@@ -224,6 +225,11 @@ void print_usage(const char* program_name) {
     std::cout << "  --reports-include-unclassified Include unclassified reads in reports" << std::endl;
     std::cout << "  --reports-sample-name <name>   Custom sample name (default: auto-detect)" << std::endl;
     
+    std::cout << "\nFeature Export Options (for ML training):" << std::endl;
+    std::cout << "  --export-features              Export minimizer features for ML training" << std::endl;
+    std::cout << "  --export-format <fmt>          Export format: tsv|hdf5|binary (default: tsv)" << std::endl;
+    std::cout << "  --feature-output-dir <dir>     Directory for feature export files" << std::endl;
+    
     std::cout << "\nEnhanced Classification Examples:" << std::endl;
     std::cout << "  # Fast enhanced mode with compact taxonomy" << std::endl;
     std::cout << "  " << program_name << " classify --database ./db --reads sample.fastq.gz \\" << std::endl;
@@ -295,6 +301,11 @@ struct PipelineConfig {
     std::string taxonomy_names_path;                      // For phylo enhanced mode
     bool enable_enhanced_features = false;               // Enable enhanced classification
     FastEnhancedParams::PhyloQualityLevel phylo_quality = FastEnhancedParams::BALANCED;
+    
+    // Feature export options
+    bool export_features = false;
+    std::string feature_export_format = "tsv";
+    std::string feature_output_dir = "";
 };
 
 bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
@@ -420,6 +431,19 @@ bool parse_arguments(int argc, char* argv[], PipelineConfig& config) {
             } else if (quality == "accurate") {
                 config.phylo_quality = FastEnhancedParams::HIGH_ACCURACY;
             }
+        // Feature export options
+        } else if (arg == "--export-features") {
+            config.export_features = true;
+        } else if (arg == "--export-format" && i + 1 < argc) {
+            config.feature_export_format = argv[++i];
+            if (config.feature_export_format != "tsv" && 
+                config.feature_export_format != "hdf5" && 
+                config.feature_export_format != "binary") {
+                std::cerr << "Invalid export format. Use: tsv, hdf5, or binary" << std::endl;
+                return false;
+            }
+        } else if (arg == "--feature-output-dir" && i + 1 < argc) {
+            config.feature_output_dir = argv[++i];
         } else {
             std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
         }
@@ -703,6 +727,32 @@ bool build_database_command(const PipelineConfig& config) {
             std::cout << "\n✓ Database build completed successfully in " 
                       << duration.count() << " seconds" << std::endl;
             std::cout << "Database saved to: " << config.output_path << std::endl;
+            
+            // Export features if requested
+            if (config.export_features) {
+                std::cout << "\nExporting features for ML training..." << std::endl;
+                
+                // Set up feature export configuration
+                FeatureExportConfig export_config;
+                export_config.output_directory = config.feature_output_dir.empty() ? 
+                    config.output_path + "/features" : config.feature_output_dir;
+                
+                // Set export formats
+                export_config.export_tsv = (config.feature_export_format == "tsv");
+                export_config.export_hdf5 = (config.feature_export_format == "hdf5");
+                export_config.export_binary = (config.feature_export_format == "binary");
+                
+                // Create output directory
+                std::string mkdir_cmd = "mkdir -p \"" + export_config.output_directory + "\"";
+                system(mkdir_cmd.c_str());
+                
+                // Export features
+                if (builder->export_features_for_training(export_config)) {
+                    std::cout << "✓ Features exported to: " << export_config.output_directory << std::endl;
+                } else {
+                    std::cerr << "Warning: Feature export failed" << std::endl;
+                }
+            }
             
             // Explicitly reset builder before returning
             builder.reset();

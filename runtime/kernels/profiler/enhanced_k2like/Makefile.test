@@ -1,0 +1,30 @@
+# Makefile for enhanced database build test
+NVCC = nvcc
+CUDA_FLAGS = -std=c++17 -O3 -arch=sm_70 -lineinfo
+INCLUDES = -I. -I/usr/local/cuda/include
+LIBS = -lcuda -lcudart -lz
+
+# Source files
+TEST_SOURCES = test_enhanced_database_build.cu
+TEST_TARGET = test_enhanced_database_build
+
+# Build test
+test: $(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_SOURCES)
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) $(TEST_SOURCES) -o $(TEST_TARGET) $(LIBS)
+
+# Run test with reference genomes
+run-test: $(TEST_TARGET)
+	./$(TEST_TARGET) --genome-dir data/type_strain_reference_genomes --output-dir test_output --max-genomes 5
+
+# Run quick test
+quick-test: $(TEST_TARGET)
+	./$(TEST_TARGET) --genome-dir data/type_strain_reference_genomes --output-dir test_output_quick --max-genomes 2
+
+# Clean
+clean:
+	rm -f $(TEST_TARGET)
+	rm -rf test_output test_output_quick test_output_old test_output_new
+
+.PHONY: test run-test quick-test clean

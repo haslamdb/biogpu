@@ -24,7 +24,7 @@ struct EnhancedBuildStats;
 
 // Database metadata structure
 struct DatabaseMetadata {
-    uint64_t version = 2;
+    uint64_t version = 3;  // Version 3 includes ML features
     uint32_t k_value = 31;
     uint32_t ell_value = 31;
     uint32_t spaces_value = 7;
@@ -39,6 +39,11 @@ struct DatabaseMetadata {
     uint64_t species_count = 0;
     uint64_t genome_count = 0;
     
+    // ML-specific statistics
+    uint64_t minimizers_with_ml_weights = 0;
+    uint64_t contamination_markers = 0;
+    float average_ml_confidence = 0.0f;
+    
     // Timing information
     double build_time = 0.0;
     double processing_rate = 0.0;
@@ -47,6 +52,9 @@ struct DatabaseMetadata {
     std::string hash_table_file;
     std::string taxonomy_file;
     std::string config_file;
+    std::string ml_weights_file;
+    std::string feature_stats_file;
+    std::string contamination_list_file;
     std::string checksum_hash;
 };
 
@@ -118,12 +126,19 @@ public:
     bool save_species_mapping(const std::unordered_map<uint32_t, std::string>& species_names,
                              const std::unordered_map<uint32_t, uint16_t>& genome_counts);
     
+    // ML-specific components (Version 3)
+    bool save_ml_weight_lookup(const std::vector<StreamlinedMinimizerMetadata>& metadata);
+    bool save_feature_statistics(const std::vector<StreamlinedMinimizerMetadata>& metadata);
+    bool save_contamination_markers(const std::vector<StreamlinedMinimizerMetadata>& metadata);
+    
     // Backward compatibility
     bool save_standard_compatibility_layer(const std::vector<PhylogeneticLCACandidate>& phylo_candidates);
+    bool check_version_compatibility(uint64_t file_version);
     
     // Format validation
     bool validate_enhanced_format();
     bool check_phylogenetic_data_integrity();
+    bool validate_ml_features();
     
 private:
     // File path helpers
@@ -132,6 +147,9 @@ private:
     std::string get_enhanced_config_path() const;
     std::string get_phylo_summary_path() const;
     std::string get_species_mapping_path() const;
+    std::string get_ml_weights_path() const;
+    std::string get_feature_stats_path() const;
+    std::string get_contamination_markers_path() const;
     
     // Validation helpers
     bool validate_streamlined_metadata(const std::vector<StreamlinedMinimizerMetadata>& metadata);

@@ -419,6 +419,11 @@ bool EnhancedDatabaseSerializer::save_enhanced_database(
     std::vector<StreamlinedMinimizerMetadata> streamlined_metadata;
     streamlined_metadata.reserve(phylo_candidates.size());
     
+    // Track ML statistics
+    uint64_t ml_weight_count = 0;
+    uint64_t contamination_count = 0;
+    double total_ml_confidence = 0.0;
+    
     for (const auto& phylo_candidate : phylo_candidates) {
         StreamlinedMinimizerMetadata metadata;
         metadata.minimizer_hash = phylo_candidate.minimizer_hash;
@@ -428,10 +433,37 @@ bool EnhancedDatabaseSerializer::save_enhanced_database(
         metadata.max_phylogenetic_distance = phylo_candidate.max_phylogenetic_distance;
         metadata.num_contributing_taxa = phylo_candidate.contributing_species.size();
         metadata.contributing_taxa_offset = 0; // Will be set when saving arrays
+        
+        // Set ML fields (would be populated from actual ML model)
+        // For now, use uniqueness score as a proxy for ML confidence
+        metadata.set_ml_confidence(phylo_candidate.uniqueness_score);
+        if (phylo_candidate.uniqueness_score > 0.0f) {
+            ml_weight_count++;
+            total_ml_confidence += phylo_candidate.uniqueness_score;
+        }
+        
+        // Set feature flags (would be populated from feature extractor)
+        metadata.feature_flags = 0;
+        // Example: encode some basic features
+        uint8_t gc_category = 4; // Medium GC content as default
+        metadata.feature_flags = MinimizerFlags::set_gc_content_category(metadata.feature_flags, gc_category);
+        
+        // Check for contamination (example heuristic)
+        if (phylo_candidate.contributing_species.size() > 10) {
+            metadata.feature_flags = MinimizerFlags::set_contamination_risk(metadata.feature_flags, true);
+            contamination_count++;
+        }
+        
         metadata.reserved = 0;
         
         streamlined_metadata.push_back(metadata);
     }
+    
+    // Update ML statistics in metadata
+    metadata_.minimizers_with_ml_weights = ml_weight_count;
+    metadata_.contamination_markers = contamination_count;
+    metadata_.average_ml_confidence = ml_weight_count > 0 ? 
+        static_cast<float>(total_ml_confidence / ml_weight_count) : 0.0f;
     
     // Save components
     if (!save_streamlined_hash_table(streamlined_metadata)) {
@@ -468,6 +500,22 @@ bool EnhancedDatabaseSerializer::save_enhanced_database(
         return false;
     }
     
+    // Save ML-specific components (Version 3)
+    if (!save_ml_weight_lookup(streamlined_metadata)) {
+        std::cerr << "Failed to save ML weight lookup table" << std::endl;
+        return false;
+    }
+    
+    if (!save_feature_statistics(streamlined_metadata)) {
+        std::cerr << "Failed to save feature statistics" << std::endl;
+        return false;
+    }
+    
+    if (!save_contamination_markers(streamlined_metadata)) {
+        std::cerr << "Failed to save contamination markers" << std::endl;
+        return false;
+    }
+    
     // Save backward compatibility layer
     if (!save_standard_compatibility_layer(phylo_candidates)) {
         std::cerr << "Warning: Failed to save standard compatibility layer" << std::endl;
@@ -476,6 +524,10 @@ bool EnhancedDatabaseSerializer::save_enhanced_database(
     // Validation
     if (!validate_enhanced_format()) {
         std::cerr << "Warning: Enhanced format validation failed" << std::endl;
+    }
+    
+    if (!validate_ml_features()) {
+        std::cerr << "Warning: ML feature validation failed" << std::endl;
     }
     
     auto end_time = std::chrono::high_resolution_clock::now();
@@ -487,6 +539,9 @@ bool EnhancedDatabaseSerializer::save_enhanced_database(
     std::cout << "Contributing taxa: " << get_contributing_taxa_path() << std::endl;
     std::cout << "Enhanced config: " << get_enhanced_config_path() << std::endl;
     std::cout << "Species mapping: " << get_species_mapping_path() << std::endl;
+    std::cout << "ML weights: " << get_ml_weights_path() << std::endl;
+    std::cout << "Feature statistics: " << get_feature_stats_path() << std::endl;
+    std::cout << "Contamination markers: " << get_contamination_markers_path() << std::endl;
     
     return true;
 }
@@ -502,7 +557,7 @@ bool EnhancedDatabaseSerializer::save_streamlined_hash_table(const std::vector<S
     }
     
     // Write header
-    uint64_t version = 2;  // Enhanced version
+    uint64_t version = 3;  // Version 3 with ML features
     uint64_t num_entries = metadata.size();
     uint64_t metadata_size = sizeof(StreamlinedMinimizerMetadata);
     
@@ -1067,3 +1122,192 @@ void print_database_statistics(const std::string& database_dir) {
 }
 
 } // namespace DatabaseOptimization
+
+// ===========================
+// ML-specific save methods
+// ===========================
+
+bool EnhancedDatabaseSerializer::save_ml_weight_lookup(const std::vector<StreamlinedMinimizerMetadata>& metadata) {
+    std::string filename = get_ml_weights_path();
+    std::cout << "Writing ML weight lookup table to: " << filename << std::endl;
+    
+    std::ofstream out(filename, std::ios::binary);
+    if (!out.is_open()) {
+        std::cerr << "Cannot create ML weights file: " << filename << std::endl;
+        return false;
+    }
+    
+    // Write header
+    uint64_t version = 1;
+    uint64_t num_entries = 0;
+    
+    // Count entries with ML weights
+    for (const auto& entry : metadata) {
+        if (entry.ml_weight > 0) num_entries++;
+    }
+    
+    out.write(reinterpret_cast<const char*>(&version), sizeof(uint64_t));
+    out.write(reinterpret_cast<const char*>(&num_entries), sizeof(uint64_t));
+    
+    // Write ML weight entries
+    for (const auto& entry : metadata) {
+        if (entry.ml_weight > 0) {
+            out.write(reinterpret_cast<const char*>(&entry.minimizer_hash), sizeof(uint64_t));
+            out.write(reinterpret_cast<const char*>(&entry.ml_weight), sizeof(uint16_t));
+        }
+    }
+    
+    out.close();
+    std::cout << "✓ ML weight lookup saved: " << num_entries << " entries" << std::endl;
+    return true;
+}
+
+bool EnhancedDatabaseSerializer::save_feature_statistics(const std::vector<StreamlinedMinimizerMetadata>& metadata) {
+    std::string filename = get_feature_stats_path();
+    std::cout << "Writing feature statistics to: " << filename << std::endl;
+    
+    std::ofstream out(filename);
+    if (!out.is_open()) {
+        std::cerr << "Cannot create feature stats file: " << filename << std::endl;
+        return false;
+    }
+    
+    // Calculate feature statistics
+    std::vector<uint64_t> gc_distribution(8, 0);
+    std::vector<uint64_t> complexity_distribution(8, 0);
+    uint64_t position_bias_count = 0;
+    uint64_t contamination_risk_count = 0;
+    
+    for (const auto& entry : metadata) {
+        uint8_t gc_cat = MinimizerFlags::get_gc_content_category(entry.feature_flags);
+        uint8_t complexity = MinimizerFlags::get_complexity_score(entry.feature_flags);
+        
+        if (gc_cat < 8) gc_distribution[gc_cat]++;
+        if (complexity < 8) complexity_distribution[complexity]++;
+        
+        if (MinimizerFlags::has_position_bias(entry.feature_flags)) position_bias_count++;
+        if (MinimizerFlags::has_contamination_risk(entry.feature_flags)) contamination_risk_count++;
+    }
+    
+    // Write statistics in JSON format
+    out << "{\n";
+    out << "  \"total_minimizers\": " << metadata.size() << ",\n";
+    out << "  \"minimizers_with_ml_weights\": " << metadata_.minimizers_with_ml_weights << ",\n";
+    out << "  \"average_ml_confidence\": " << metadata_.average_ml_confidence << ",\n";
+    out << "  \"contamination_markers\": " << contamination_risk_count << ",\n";
+    out << "  \"gc_distribution\": [";
+    for (size_t i = 0; i < gc_distribution.size(); i++) {
+        out << gc_distribution[i];
+        if (i < gc_distribution.size() - 1) out << ", ";
+    }
+    out << "],\n";
+    out << "  \"complexity_distribution\": [";
+    for (size_t i = 0; i < complexity_distribution.size(); i++) {
+        out << complexity_distribution[i];
+        if (i < complexity_distribution.size() - 1) out << ", ";
+    }
+    out << "],\n";
+    out << "  \"position_bias_count\": " << position_bias_count << "\n";
+    out << "}\n";
+    
+    out.close();
+    std::cout << "✓ Feature statistics saved" << std::endl;
+    return true;
+}
+
+bool EnhancedDatabaseSerializer::save_contamination_markers(const std::vector<StreamlinedMinimizerMetadata>& metadata) {
+    std::string filename = get_contamination_markers_path();
+    std::cout << "Writing contamination markers to: " << filename << std::endl;
+    
+    std::ofstream out(filename, std::ios::binary);
+    if (!out.is_open()) {
+        std::cerr << "Cannot create contamination markers file: " << filename << std::endl;
+        return false;
+    }
+    
+    // Write header
+    uint64_t version = 1;
+    uint64_t num_contaminated = 0;
+    
+    // Count contaminated minimizers
+    for (const auto& entry : metadata) {
+        if (MinimizerFlags::has_contamination_risk(entry.feature_flags)) {
+            num_contaminated++;
+        }
+    }
+    
+    out.write(reinterpret_cast<const char*>(&version), sizeof(uint64_t));
+    out.write(reinterpret_cast<const char*>(&num_contaminated), sizeof(uint64_t));
+    
+    // Write contaminated minimizer hashes
+    for (const auto& entry : metadata) {
+        if (MinimizerFlags::has_contamination_risk(entry.feature_flags)) {
+            out.write(reinterpret_cast<const char*>(&entry.minimizer_hash), sizeof(uint64_t));
+            // Write contamination confidence (using phylogenetic spread as proxy)
+            float contamination_score = entry.phylogenetic_spread / 255.0f;
+            out.write(reinterpret_cast<const char*>(&contamination_score), sizeof(float));
+        }
+    }
+    
+    out.close();
+    std::cout << "✓ Contamination markers saved: " << num_contaminated << " entries" << std::endl;
+    return true;
+}
+
+// Backward compatibility check
+bool EnhancedDatabaseSerializer::check_version_compatibility(uint64_t file_version) {
+    if (file_version > metadata_.version) {
+        std::cerr << "Database version " << file_version << " is newer than supported version " 
+                  << metadata_.version << std::endl;
+        return false;
+    }
+    
+    if (file_version < 2) {
+        std::cerr << "Database version " << file_version << " is too old. Minimum supported version is 2." << std::endl;
+        return false;
+    }
+    
+    return true;
+}
+
+// ML feature validation
+bool EnhancedDatabaseSerializer::validate_ml_features() {
+    std::cout << "Validating ML features..." << std::endl;
+    
+    // Check ML weights file
+    std::string ml_weights_file = get_ml_weights_path();
+    if (!std::filesystem::exists(ml_weights_file)) {
+        std::cerr << "ML weights file missing: " << ml_weights_file << std::endl;
+        return false;
+    }
+    
+    // Check feature stats file
+    std::string feature_stats_file = get_feature_stats_path();
+    if (!std::filesystem::exists(feature_stats_file)) {
+        std::cerr << "Feature statistics file missing: " << feature_stats_file << std::endl;
+        return false;
+    }
+    
+    // Check contamination markers file
+    std::string contamination_file = get_contamination_markers_path();
+    if (!std::filesystem::exists(contamination_file)) {
+        std::cerr << "Contamination markers file missing: " << contamination_file << std::endl;
+        return false;
+    }
+    
+    std::cout << "✓ ML features validated successfully" << std::endl;
+    return true;
+}
+
+// File path helper implementations
+std::string EnhancedDatabaseSerializer::get_ml_weights_path() const {
+    return output_directory_ + "/ml_weights.bin";
+}
+
+std::string EnhancedDatabaseSerializer::get_feature_stats_path() const {
+    return output_directory_ + "/feature_statistics.json";
+}
+
+std::string EnhancedDatabaseSerializer::get_contamination_markers_path() const {
+    return output_directory_ + "/contamination_markers.bin";
+}

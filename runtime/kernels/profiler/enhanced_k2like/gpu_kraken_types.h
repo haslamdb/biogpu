@@ -471,14 +471,28 @@ struct StreamlinedMinimizerMetadata {
     uint32_t total_genome_count;             // 4 bytes
     uint32_t contributing_taxa_offset;       // 4 bytes - offset into external array
     uint16_t num_contributing_taxa;          // 2 bytes
+    uint16_t ml_weight;                      // 2 bytes - ML confidence score (0-65535)
+    uint16_t feature_flags;                  // 2 bytes - encoded features (GC, complexity, etc.)
     uint8_t phylogenetic_spread;             // 1 byte
     uint8_t max_phylogenetic_distance;       // 1 byte
-    uint32_t reserved;                       // 4 bytes - for future use, total = 28 bytes
+    uint16_t reserved;                       // 2 bytes - for future use, total = 32 bytes
     
     StreamlinedMinimizerMetadata() : 
         minimizer_hash(0), lca_taxon(0), total_genome_count(0),
         contributing_taxa_offset(0), num_contributing_taxa(0),
+        ml_weight(0), feature_flags(0),
         phylogenetic_spread(0), max_phylogenetic_distance(0), reserved(0) {}
+        
+    // Helper methods for ML fields
+    float get_ml_confidence() const {
+        return ml_weight / 65535.0f;
+    }
+    
+    void set_ml_confidence(float confidence) {
+        ml_weight = static_cast<uint16_t>(confidence * 65535.0f);
+    }
+    
+    // Use the MinimizerFlags namespace helpers for feature_flags
 };
 
 // ===========================

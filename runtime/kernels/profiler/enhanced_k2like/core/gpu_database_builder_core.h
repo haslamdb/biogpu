@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <cstdint>
+#include <unordered_set>
 
 // Include necessary headers
 #include "../gpu_kraken_types.h"
@@ -20,12 +21,35 @@ class StandardDatabaseSerializer;
 class EnhancedDatabaseSerializer;
 class ConcatenatedFnaProcessor;
 class StreamingFnaProcessor;
+class MinimizerFeatureExtractor;
 
 // Forward declarations
 class GPUMemoryManager;
 struct ClassificationParams;
 struct GPUBuildStats;
 struct EnhancedBuildStats;
+
+// Structure to track statistics for each unique minimizer
+struct MinimizerStatistics {
+    uint32_t occurrence_count = 0;                    // Total number of occurrences
+    std::vector<uint32_t> taxon_occurrences;         // List of taxons where this minimizer appears
+    std::unordered_set<uint64_t> neighbor_minimizers; // Set of neighboring minimizer hashes
+    float average_position_in_genome = 0.0f;         // Average relative position (0.0-1.0)
+    float gc_content_sum = 0.0f;                     // Sum of GC content percentages
+    float complexity_sum = 0.0f;                     // Sum of complexity scores
+    uint32_t clustered_count = 0;                    // Number of times found in clusters
+    uint32_t contamination_risk_count = 0;           // Number of times flagged as contamination risk
+    
+    // Methods for updating statistics
+    void add_occurrence(uint32_t taxon_id, float position, uint8_t gc_category, 
+                       uint8_t complexity_score, bool is_clustered, bool is_contamination);
+    void add_neighbor(uint64_t neighbor_hash);
+    float get_average_gc_content() const;
+    float get_average_complexity() const;
+    float get_clustering_ratio() const;
+    float get_contamination_risk_ratio() const;
+    size_t get_taxonomic_diversity() const;
+};
 
 
 // Configuration for the entire database building process
@@ -77,6 +101,7 @@ private:
     std::unique_ptr<EnhancedNCBITaxonomyProcessor> taxonomy_processor_;
     std::unique_ptr<StandardDatabaseSerializer> standard_serializer_;
     std::unique_ptr<EnhancedDatabaseSerializer> enhanced_serializer_;
+    std::unique_ptr<MinimizerFeatureExtractor> feature_extractor_;
     
     // Build state
     bool initialized_;
@@ -92,6 +117,9 @@ private:
     std::vector<PhylogeneticLCACandidate> phylogenetic_candidates_;
     ContributingTaxaArrays contributing_taxa_arrays_;
     SpeciesTrackingData species_tracking_;
+    
+    // Minimizer statistics tracking
+    std::unordered_map<uint64_t, MinimizerStatistics> minimizer_stats_;
     
     // Statistics
     GPUBuildStats build_stats_;
@@ -189,6 +217,10 @@ private:
                                const std::vector<uint32_t>& taxon_ids);
     bool compute_lca_assignments();
     bool merge_and_deduplicate_candidates();
+    
+    // Minimizer statistics collection
+    void collect_minimizer_statistics(const std::vector<GPUMinimizerHit>& minimizer_hits,
+                                    const std::vector<uint32_t>& genome_lengths);
     
     // Module coordination
     bool coordinate_memory_allocation();

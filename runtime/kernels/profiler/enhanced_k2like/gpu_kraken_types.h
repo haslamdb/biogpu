@@ -47,7 +47,9 @@ struct GPUMinimizerHit {
                               //          bits 2-3: classification (0=unique, 1=canonical, 2=redundant)
                               //          bits 4-15: reserved for future use
     uint16_t taxon_id;        // 2 bytes
-}; // Total: 20 bytes
+    uint16_t ml_weight;       // 2 bytes - ML confidence score (1.0 scaled to uint16_t)
+    uint16_t feature_flags;   // 2 bytes - encoded features
+}; // Total: 24 bytes
 
 // Strand and classification flag constants
 namespace MinimizerFlags {
@@ -104,6 +106,111 @@ namespace MinimizerFlags {
     #endif
     inline bool is_redundant(uint16_t flags) {
         return get_classification(flags) == 2;
+    }
+    
+    // Feature flags for ml_weight and feature_flags fields
+    // For feature_flags field:
+    // Bits 0-2: GC content category (0-7 representing GC% ranges)
+    constexpr uint16_t GC_CONTENT_MASK = 0x0007;
+    constexpr uint16_t GC_CONTENT_SHIFT = 0;
+    
+    // Bits 3-5: Sequence complexity score (0-7)
+    constexpr uint16_t COMPLEXITY_MASK = 0x0038;
+    constexpr uint16_t COMPLEXITY_SHIFT = 3;
+    
+    // Bit 6: Position bias indicator (clustered=1, uniform=0)
+    constexpr uint16_t POSITION_BIAS_MASK = 0x0040;
+    constexpr uint16_t POSITION_BIAS_CLUSTERED = 0x0040;
+    constexpr uint16_t POSITION_BIAS_UNIFORM = 0x0000;
+    
+    // Bit 7: Contamination risk flag
+    constexpr uint16_t CONTAMINATION_RISK_MASK = 0x0080;
+    constexpr uint16_t CONTAMINATION_RISK_FLAG = 0x0080;
+    
+    // Bits 8-15: Reserved for future use
+    constexpr uint16_t RESERVED_MASK = 0xFF00;
+    
+    // Helper functions for feature flags
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t get_gc_content_category(uint16_t feature_flags) {
+        return (feature_flags & GC_CONTENT_MASK) >> GC_CONTENT_SHIFT;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t set_gc_content_category(uint16_t feature_flags, uint16_t category) {
+        return (feature_flags & ~GC_CONTENT_MASK) | ((category << GC_CONTENT_SHIFT) & GC_CONTENT_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t get_complexity_score(uint16_t feature_flags) {
+        return (feature_flags & COMPLEXITY_MASK) >> COMPLEXITY_SHIFT;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t set_complexity_score(uint16_t feature_flags, uint16_t score) {
+        return (feature_flags & ~COMPLEXITY_MASK) | ((score << COMPLEXITY_SHIFT) & COMPLEXITY_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool has_position_bias(uint16_t feature_flags) {
+        return (feature_flags & POSITION_BIAS_MASK) != 0;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t set_position_bias(uint16_t feature_flags, bool clustered) {
+        if (clustered) {
+            return feature_flags | POSITION_BIAS_CLUSTERED;
+        } else {
+            return feature_flags & ~POSITION_BIAS_MASK;
+        }
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool has_contamination_risk(uint16_t feature_flags) {
+        return (feature_flags & CONTAMINATION_RISK_MASK) != 0;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t set_contamination_risk(uint16_t feature_flags, bool risk) {
+        if (risk) {
+            return feature_flags | CONTAMINATION_RISK_FLAG;
+        } else {
+            return feature_flags & ~CONTAMINATION_RISK_MASK;
+        }
+    }
+    
+    // ML weight conversion helpers (for ml_weight field)
+    // Convert float confidence (0.0-1.0) to uint16_t (0-65535)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t float_to_ml_weight(float confidence) {
+        if (confidence <= 0.0f) return 0;
+        if (confidence >= 1.0f) return 65535;
+        return static_cast<uint16_t>(confidence * 65535.0f);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline float ml_weight_to_float(uint16_t weight) {
+        return static_cast<float>(weight) / 65535.0f;
     }
 }
 

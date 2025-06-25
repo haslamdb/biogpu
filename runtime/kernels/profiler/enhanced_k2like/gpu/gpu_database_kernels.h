@@ -11,6 +11,9 @@
 // Include common types
 #include "../gpu_kraken_types.h"
 
+// Forward declarations
+struct ContaminationConfig;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -291,6 +294,14 @@ bool compute_lca_assignments_gpu_wrapper(
     int num_hits,
     LCACandidate* d_candidates,
     int* num_candidates
+);
+
+// Contamination detection integration
+bool launch_minimizer_extraction_with_contamination_check(
+    const GPUBatchData& batch_data,
+    const MinimizerParams& params,
+    uint32_t* total_hits_output,
+    const ContaminationConfig& contamination_config
 );
 
 // ===========================

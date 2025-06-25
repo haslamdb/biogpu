@@ -5,6 +5,7 @@
 #include "gpu_database_builder_core.h"
 #include "../memory/gpu_memory_manager.h"
 #include "../gpu/gpu_database_kernels.h"
+#include "../processing/minimizer_feature_extractor.h"
 #include <cuda_runtime.h>
 #include <cstring>  // for memset
 #include <iostream>
@@ -12,6 +13,56 @@
 #include <iomanip>
 #include <algorithm>
 #include <filesystem>
+
+// ===========================
+// MinimizerStatistics Method Implementations
+// ===========================
+
+void MinimizerStatistics::add_occurrence(uint32_t taxon_id, float position, 
+                                        uint8_t gc_category, uint8_t complexity_score,
+                                        bool is_clustered, bool is_contamination) {
+    occurrence_count++;
+    taxon_occurrences.push_back(taxon_id);
+    
+    // Update running averages
+    average_position_in_genome = (average_position_in_genome * (occurrence_count - 1) + position) / occurrence_count;
+    
+    // Convert gc_category (0-7) to percentage (0-100)
+    float gc_percent = (gc_category * 100.0f) / 7.0f;
+    gc_content_sum += gc_percent;
+    
+    // Convert complexity_score (0-7) to normalized value (0-1)
+    float complexity_normalized = complexity_score / 7.0f;
+    complexity_sum += complexity_normalized;
+    
+    if (is_clustered) clustered_count++;
+    if (is_contamination) contamination_risk_count++;
+}
+
+void MinimizerStatistics::add_neighbor(uint64_t neighbor_hash) {
+    neighbor_minimizers.insert(neighbor_hash);
+}
+
+float MinimizerStatistics::get_average_gc_content() const {
+    return occurrence_count > 0 ? gc_content_sum / occurrence_count : 0.0f;
+}
+
+float MinimizerStatistics::get_average_complexity() const {
+    return occurrence_count > 0 ? complexity_sum / occurrence_count : 0.0f;
+}
+
+float MinimizerStatistics::get_clustering_ratio() const {
+    return occurrence_count > 0 ? static_cast<float>(clustered_count) / occurrence_count : 0.0f;
+}
+
+float MinimizerStatistics::get_contamination_risk_ratio() const {
+    return occurrence_count > 0 ? static_cast<float>(contamination_risk_count) / occurrence_count : 0.0f;
+}
+
+size_t MinimizerStatistics::get_taxonomic_diversity() const {
+    std::unordered_set<uint32_t> unique_taxons(taxon_occurrences.begin(), taxon_occurrences.end());
+    return unique_taxons.size();
+}
 
 // ===========================
 // Stub Implementations for Missing Modules
@@ -470,6 +521,19 @@ bool GPUKrakenDatabaseBuilder::initialize_all_modules() {
         return false;
     }
     
+    // Initialize feature extractor
+    try {
+        size_t max_minimizers = config_.memory_config.minimizer_capacity;
+        size_t max_genomes = config_.memory_config.sequence_batch_size * 100; // Estimate
+        feature_extractor_ = std::make_unique<MinimizerFeatureExtractor>(max_minimizers, max_genomes);
+        std::cout << "Feature extractor initialized with capacity for " 
+                  << max_minimizers << " minimizers" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to initialize feature extractor: " << e.what() << std::endl;
+        // Non-fatal - continue without feature extraction
+        feature_extractor_.reset();
+    }
+    
     modules_initialized_ = true;
     record_timing_checkpoint("module_initialization_end");
     
@@ -735,6 +799,53 @@ bool GPUKrakenDatabaseBuilder::process_genomes_with_gpu() {
         }
     }
     
+    // Run second pass of feature extraction after all batches are processed
+    if (feature_extractor_ && !all_lca_candidates_.empty()) {
+        std::cout << "Running second pass of feature extraction..." << std::endl;
+        
+        // Prepare minimizer hits for second pass
+        // Note: This is a simplified approach - in production, we'd maintain GPU memory across batches
+        std::vector<GPUMinimizerHit> all_minimizer_hits;
+        // Convert LCA candidates back to minimizer hits (simplified)
+        for (const auto& candidate : all_lca_candidates_) {
+            GPUMinimizerHit hit;
+            hit.minimizer_hash = candidate.minimizer_hash;
+            hit.taxon_id = static_cast<uint16_t>(candidate.lca_taxon);
+            hit.ml_weight = MinimizerFlags::float_to_ml_weight(candidate.uniqueness_score);
+            // Other fields would be preserved in a real implementation
+            all_minimizer_hits.push_back(hit);
+        }
+        
+        // Allocate GPU memory for all hits
+        GPUMinimizerHit* d_all_hits = nullptr;
+        cudaMalloc(&d_all_hits, all_minimizer_hits.size() * sizeof(GPUMinimizerHit));
+        cudaMemcpy(d_all_hits, all_minimizer_hits.data(), 
+                   all_minimizer_hits.size() * sizeof(GPUMinimizerHit), cudaMemcpyHostToDevice);
+        
+        // Run second pass
+        if (feature_extractor_->process_second_pass(d_all_hits, all_minimizer_hits.size())) {
+            // Copy updated hits back
+            cudaMemcpy(all_minimizer_hits.data(), d_all_hits, 
+                       all_minimizer_hits.size() * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+            
+            // Update ML weights in candidates
+            for (size_t i = 0; i < all_lca_candidates_.size() && i < all_minimizer_hits.size(); i++) {
+                all_lca_candidates_[i].uniqueness_score = 
+                    MinimizerFlags::ml_weight_to_float(all_minimizer_hits[i].ml_weight);
+            }
+            
+            std::cout << "✓ Feature extraction second pass completed" << std::endl;
+        }
+        
+        cudaFree(d_all_hits);
+        
+        // Export feature statistics if requested
+        if (config_.enable_debug_mode && !config_.debug_output_dir.empty()) {
+            feature_extractor_->export_feature_statistics(
+                config_.debug_output_dir + "/minimizer_features.tsv");
+        }
+    }
+    
     auto end_time = std::chrono::high_resolution_clock::now();
     build_stats_.sequence_processing_time = 
         std::chrono::duration<double>(end_time - start_time).count();
@@ -763,24 +874,140 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
         return false;
     }
     
-    // The actual GPU processing would be implemented here
-    // using the kernels from gpu_database_kernels.cu
+    // Prepare batch data for GPU processing
+    GPUBatchData batch_data;
+    batch_data.d_sequence_data = d_sequence_data;
+    batch_data.d_genome_info = d_genome_info;
+    batch_data.d_minimizer_hits = d_minimizer_hits;
+    batch_data.d_global_counter = memory_manager_->get_global_counter();
+    batch_data.d_lca_candidates = d_lca_candidates;
+    batch_data.max_genomes = sequences.size();
+    batch_data.max_minimizers = memory_manager_->get_minimizer_capacity();
     
-    // For now, create dummy candidates to maintain the pipeline
+    // Prepare genome information
+    std::vector<GPUGenomeInfo> genome_info;
+    std::vector<uint32_t> genome_lengths;
+    size_t sequence_offset = 0;
+    
     for (size_t i = 0; i < sequences.size(); i++) {
-        LCACandidate candidate;
-        candidate.minimizer_hash = i + 1000000; // Dummy hash
-        candidate.lca_taxon = taxon_ids[i];
-        candidate.genome_count = 1;
-        candidate.uniqueness_score = 1.0f;
+        GPUGenomeInfo info;
+        info.genome_id = i;
+        info.sequence_offset = sequence_offset;
+        info.sequence_length = sequences[i].length();
+        info.minimizer_count = 0;
+        info.taxon_id = taxon_ids[i];
         
-        all_lca_candidates_.push_back(candidate);
+        genome_info.push_back(info);
+        genome_lengths.push_back(sequences[i].length());
+        sequence_offset += sequences[i].length() + 1; // +1 for null terminator
     }
     
-    build_stats_.valid_minimizers_extracted += sequences.size();
-    build_stats_.lca_assignments += sequences.size();
+    // Copy sequences to GPU
+    std::string concatenated_sequences;
+    for (const auto& seq : sequences) {
+        concatenated_sequences += seq + '\0';
+    }
+    
+    cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(), 
+               concatenated_sequences.length(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_genome_info, genome_info.data(), 
+               genome_info.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
+    
+    // Launch minimizer extraction kernel
+    uint32_t total_hits = 0;
+    if (!launch_minimizer_extraction_kernel(batch_data, minimizer_params_, &total_hits)) {
+        std::cerr << "Failed to launch minimizer extraction kernel" << std::endl;
+        return false;
+    }
+    
+    // Copy minimizer hits back to host
+    std::vector<GPUMinimizerHit> minimizer_hits(total_hits);
+    if (total_hits > 0) {
+        cudaMemcpy(minimizer_hits.data(), d_minimizer_hits, 
+                   total_hits * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+        
+        // Collect statistics for the extracted minimizers
+        collect_minimizer_statistics(minimizer_hits, genome_lengths);
+        
+        // Use two-pass feature extraction if available
+        if (feature_extractor_) {
+            // First pass: collect statistics
+            if (!feature_extractor_->process_first_pass(d_minimizer_hits, total_hits, taxon_ids)) {
+                std::cerr << "Failed to process first pass of feature extraction" << std::endl;
+            }
+            
+            // Note: Second pass will be called after all batches are processed
+        }
+        
+        // Convert minimizer hits to LCA candidates (simplified for now)
+        for (const auto& hit : minimizer_hits) {
+            LCACandidate candidate;
+            candidate.minimizer_hash = hit.minimizer_hash;
+            candidate.lca_taxon = hit.taxon_id;
+            candidate.genome_count = 1;
+            candidate.uniqueness_score = MinimizerFlags::ml_weight_to_float(hit.ml_weight);
+            
+            all_lca_candidates_.push_back(candidate);
+        }
+    }
+    
+    build_stats_.valid_minimizers_extracted += total_hits;
+    build_stats_.lca_assignments += total_hits;
     
     return true;
+}
+
+void GPUKrakenDatabaseBuilder::collect_minimizer_statistics(
+    const std::vector<GPUMinimizerHit>& minimizer_hits,
+    const std::vector<uint32_t>& genome_lengths) {
+    
+    // Sort hits by genome_id and position to facilitate neighbor detection
+    std::vector<GPUMinimizerHit> sorted_hits = minimizer_hits;
+    std::sort(sorted_hits.begin(), sorted_hits.end(), 
+              [](const GPUMinimizerHit& a, const GPUMinimizerHit& b) {
+                  if (a.genome_id != b.genome_id) return a.genome_id < b.genome_id;
+                  return a.position < b.position;
+              });
+    
+    // Process each hit and update statistics
+    for (size_t i = 0; i < sorted_hits.size(); i++) {
+        const GPUMinimizerHit& hit = sorted_hits[i];
+        
+        // Calculate relative position in genome (0.0 to 1.0)
+        float relative_position = 0.5f; // Default to middle
+        if (hit.genome_id < genome_lengths.size() && genome_lengths[hit.genome_id] > 0) {
+            relative_position = static_cast<float>(hit.position) / genome_lengths[hit.genome_id];
+        }
+        
+        // Extract features from feature_flags
+        uint8_t gc_category = MinimizerFlags::get_gc_content_category(hit.feature_flags);
+        uint8_t complexity_score = MinimizerFlags::get_complexity_score(hit.feature_flags);
+        bool is_clustered = MinimizerFlags::has_position_bias(hit.feature_flags);
+        bool is_contamination = MinimizerFlags::has_contamination_risk(hit.feature_flags);
+        
+        // Update or create statistics for this minimizer
+        auto& stats = minimizer_stats_[hit.minimizer_hash];
+        stats.add_occurrence(hit.taxon_id, relative_position, gc_category, 
+                           complexity_score, is_clustered, is_contamination);
+        
+        // Track neighboring minimizers (within same genome)
+        const int neighbor_window = 5; // Look for neighbors within +/- 5 positions
+        
+        // Look backward for neighbors
+        for (int j = i - 1; j >= 0 && sorted_hits[j].genome_id == hit.genome_id; j--) {
+            if (i - j > neighbor_window) break;
+            stats.add_neighbor(sorted_hits[j].minimizer_hash);
+        }
+        
+        // Look forward for neighbors
+        for (size_t j = i + 1; j < sorted_hits.size() && sorted_hits[j].genome_id == hit.genome_id; j++) {
+            if (j - i > neighbor_window) break;
+            stats.add_neighbor(sorted_hits[j].minimizer_hash);
+        }
+    }
+    
+    // Update build statistics
+    build_stats_.unique_minimizers = minimizer_stats_.size();
 }
 
 bool GPUKrakenDatabaseBuilder::enhance_with_phylogenetic_data() {

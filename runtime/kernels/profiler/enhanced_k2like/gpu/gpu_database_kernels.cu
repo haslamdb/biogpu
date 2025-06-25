@@ -5,6 +5,7 @@
 #include "gpu_database_kernels.h"
 #include "../gpu_kraken_types.h"
 #include "gpu_minimizer_extraction.cuh"
+#include "../processing/contamination_detector.h"
 #include <cuda_runtime.h>
 #include <cub/cub.cuh>
 #include <thrust/device_vector.h>
@@ -112,6 +113,95 @@ __device__ void atomic_add_safe_device(uint32_t* address, uint32_t value) {
 }
 
 // ===========================
+// Feature Calculation Device Functions
+// ===========================
+
+__device__ uint8_t calculate_gc_category(const char* sequence, int k) {
+    // Calculate GC content percentage and map to 3-bit category (0-7)
+    int gc_count = 0;
+    int valid_bases = 0;
+    
+    for (int i = 0; i < k; i++) {
+        char c = sequence[i];
+        // Convert to uppercase if needed
+        if (c >= 'a' && c <= 'z') c = c - 'a' + 'A';
+        
+        if (c == 'G' || c == 'C') {
+            gc_count++;
+            valid_bases++;
+        } else if (c == 'A' || c == 'T') {
+            valid_bases++;
+        }
+    }
+    
+    if (valid_bases == 0) return 0;
+    
+    // Calculate percentage and map to category
+    float gc_percent = (float)gc_count / valid_bases * 100.0f;
+    
+    // Map GC% to 3-bit category (0-7)
+    // 0: 0-20%, 1: 20-30%, 2: 30-40%, 3: 40-50%
+    // 4: 50-60%, 5: 60-70%, 6: 70-80%, 7: 80-100%
+    if (gc_percent < 20.0f) return 0;
+    else if (gc_percent < 30.0f) return 1;
+    else if (gc_percent < 40.0f) return 2;
+    else if (gc_percent < 50.0f) return 3;
+    else if (gc_percent < 60.0f) return 4;
+    else if (gc_percent < 70.0f) return 5;
+    else if (gc_percent < 80.0f) return 6;
+    else return 7;
+}
+
+__device__ uint8_t calculate_sequence_complexity(const char* sequence, int k) {
+    // Calculate sequence complexity using Shannon entropy approximation
+    // Count frequency of each nucleotide
+    int counts[4] = {0, 0, 0, 0}; // A, C, G, T
+    int total = 0;
+    
+    for (int i = 0; i < k; i++) {
+        char c = sequence[i];
+        // Convert to uppercase if needed
+        if (c >= 'a' && c <= 'z') c = c - 'a' + 'A';
+        
+        switch (c) {
+            case 'A': counts[0]++; total++; break;
+            case 'C': counts[1]++; total++; break;
+            case 'G': counts[2]++; total++; break;
+            case 'T': counts[3]++; total++; break;
+        }
+    }
+    
+    if (total == 0) return 0;
+    
+    // Calculate Shannon entropy
+    float entropy = 0.0f;
+    for (int i = 0; i < 4; i++) {
+        if (counts[i] > 0) {
+            float p = (float)counts[i] / total;
+            entropy -= p * log2f(p);
+        }
+    }
+    
+    // Map entropy to 3-bit score (0-7)
+    // Max entropy for 4 symbols is 2.0
+    // 0: very low complexity, 7: high complexity
+    float normalized_entropy = entropy / 2.0f;
+    uint8_t complexity_score = (uint8_t)(normalized_entropy * 7.0f + 0.5f);
+    
+    return min(complexity_score, (uint8_t)7);
+}
+
+__device__ bool check_position_clustering(uint32_t current_pos, uint32_t last_pos, int window_size) {
+    // Simple clustering check: are minimizers within window_size of each other?
+    // Note: This is a simplified version. In practice, you might want to track
+    // multiple positions in shared memory for better clustering detection
+    if (last_pos == UINT32_MAX) return false;
+    
+    int distance = abs((int)current_pos - (int)last_pos);
+    return distance <= window_size;
+}
+
+// ===========================
 // CUDA Kernel Implementations
 // ===========================
 
@@ -189,7 +279,9 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
     // Thread 0 processes results in order to maintain deduplication
     if (thread_id == 0) {
         uint64_t last_minimizer = UINT64_MAX;
+        uint32_t last_position = UINT32_MAX;
         uint32_t local_count = 0;
+        const int clustering_window = 100;  // Window size for position clustering detection
         
         // Process all positions in order
         for (uint32_t pos = 0; pos < total_kmers; pos++) {
@@ -210,9 +302,37 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
                     hit.genome_id = genome.genome_id;
                     hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
                     
+                    // Initialize ML weight to maximum (1.0 scaled to uint16_t)
+                    hit.ml_weight = 65535;
+                    
+                    // Calculate features for the k-mer at this position
+                    const char* kmer_seq = sequence + pos;
+                    
+                    // Calculate GC content category
+                    uint8_t gc_category = calculate_gc_category(kmer_seq, params.k);
+                    
+                    // Calculate sequence complexity
+                    uint8_t complexity_score = calculate_sequence_complexity(kmer_seq, params.k);
+                    
+                    // Check for position clustering
+                    bool is_clustered = check_position_clustering(pos, last_position, clustering_window);
+                    
+                    // Encode features into feature_flags
+                    uint16_t feature_flags = 0;
+                    feature_flags = MinimizerFlags::set_gc_content_category(feature_flags, gc_category);
+                    feature_flags = MinimizerFlags::set_complexity_score(feature_flags, complexity_score);
+                    feature_flags = MinimizerFlags::set_position_bias(feature_flags, is_clustered);
+                    
+                    // Note: Contamination risk flag would typically be set based on 
+                    // comparison with known contaminant databases, not implemented here
+                    feature_flags = MinimizerFlags::set_contamination_risk(feature_flags, false);
+                    
+                    hit.feature_flags = feature_flags;
+                    
                     minimizer_hits[global_pos] = hit;
                     local_count++;
                     last_minimizer = shared_minimizers[responsible_thread];
+                    last_position = pos;
                 } else {
                     // Hit the limit, stop processing
                     break;
@@ -243,7 +363,9 @@ __global__ void extract_minimizers_sliding_window_kernel(
     if (seq_length < params.k) return;
     
     uint64_t prev_minimizer = UINT64_MAX;
+    uint32_t prev_position = UINT32_MAX;
     uint32_t total_kmers = seq_length - params.k + 1;
+    const int clustering_window = 100;  // Window size for position clustering detection
     
     for (uint32_t pos = 0; pos < total_kmers; pos++) {
         uint64_t current_minimizer = extract_minimizer_sliding_window(
@@ -262,7 +384,32 @@ __global__ void extract_minimizers_sliding_window_kernel(
                 hit.genome_id = genome.genome_id;
                 hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
                 
+                // Initialize ML weight to maximum (1.0 scaled to uint16_t)
+                hit.ml_weight = 65535;
+                
+                // Calculate features for the k-mer at this position
+                const char* kmer_seq = sequence + pos;
+                
+                // Calculate GC content category
+                uint8_t gc_category = calculate_gc_category(kmer_seq, params.k);
+                
+                // Calculate sequence complexity
+                uint8_t complexity_score = calculate_sequence_complexity(kmer_seq, params.k);
+                
+                // Check for position clustering
+                bool is_clustered = check_position_clustering(pos, prev_position, clustering_window);
+                
+                // Encode features into feature_flags
+                uint16_t feature_flags = 0;
+                feature_flags = MinimizerFlags::set_gc_content_category(feature_flags, gc_category);
+                feature_flags = MinimizerFlags::set_complexity_score(feature_flags, complexity_score);
+                feature_flags = MinimizerFlags::set_position_bias(feature_flags, is_clustered);
+                feature_flags = MinimizerFlags::set_contamination_risk(feature_flags, false);
+                
+                hit.feature_flags = feature_flags;
+                
                 minimizer_hits[global_pos] = hit;
+                prev_position = pos;
             }
             
             prev_minimizer = current_minimizer;
@@ -709,4 +856,58 @@ cudaError_t launch_memory_validation_kernel(
     }
     
     return cudaSuccess;
+}
+
+// ===========================
+// Contamination Detection Integration
+// ===========================
+
+bool launch_minimizer_extraction_with_contamination_check(
+    const GPUBatchData& batch_data,
+    const MinimizerParams& params,
+    uint32_t* total_hits_output,
+    const ContaminationConfig& contamination_config) {
+    
+    // First, extract minimizers as usual
+    if (!launch_minimizer_extraction_kernel(batch_data, params, total_hits_output)) {
+        return false;
+    }
+    
+    // If no hits, nothing to check
+    if (*total_hits_output == 0) {
+        return true;
+    }
+    
+    // Apply contamination detection
+    ContaminationDetector detector(contamination_config);
+    
+    // Load contamination database if path is provided
+    if (!contamination_config.contamination_db_path.empty()) {
+        if (!detector.load_contamination_database(contamination_config.contamination_db_path)) {
+            std::cerr << "Warning: Failed to load contamination database, using built-in patterns only" << std::endl;
+        }
+    }
+    
+    // Mark contamination in the extracted minimizers
+    if (!detector.mark_contamination_in_batch(
+            batch_data.d_minimizer_hits, 
+            *total_hits_output, 
+            ContaminationRiskLevel::LOW_RISK)) {
+        std::cerr << "Warning: Contamination detection failed" << std::endl;
+        // Non-fatal - continue with unmarked minimizers
+    }
+    
+    // Get statistics
+    const auto& stats = detector.get_statistics();
+    std::cout << "Contamination detection complete:" << std::endl;
+    std::cout << "  Human contamination: " << stats.human_contamination_count << std::endl;
+    std::cout << "  Adapter contamination: " << stats.adapter_contamination_count << std::endl;
+    std::cout << "  Low complexity: " << stats.low_complexity_count << std::endl;
+    
+    // Export contamination report if in debug mode
+    if (contamination_config.contamination_db_path.find("debug") != std::string::npos) {
+        detector.export_contamination_report("contamination_report.txt");
+    }
+    
+    return true;
 }

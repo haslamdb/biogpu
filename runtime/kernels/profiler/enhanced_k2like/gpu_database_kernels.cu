@@ -45,6 +45,8 @@ __global__ void extract_minimizers_sliding_window_kernel(
             minimizer_hits[pos].position = 0;
             minimizer_hits[pos].strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
             minimizer_hits[pos].taxon_id = static_cast<uint16_t>(genome.taxon_id);
+            minimizer_hits[pos].ml_weight = 65535;  // Initialize to 1.0
+            minimizer_hits[pos].feature_flags = 0;  // Initialize to default
         }
     }
 }

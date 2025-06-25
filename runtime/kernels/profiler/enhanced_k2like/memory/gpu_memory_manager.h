@@ -93,6 +93,10 @@ public:
     bool scale_for_workload(size_t estimated_minimizers, size_t estimated_sequences);
     void suggest_optimal_configuration() const;
     
+    // Additional methods for accessing internal state
+    uint32_t* get_global_counter() const { return d_minimizer_counts_; }
+    size_t get_minimizer_capacity() const { return config_.minimizer_capacity; }
+    
 private:
     // Internal methods
     bool query_gpu_memory_info();

@@ -12,7 +12,7 @@
 #include "../gpu_kraken_types.h"
 
 // Statistics collected for each unique minimizer
-struct MinimizerStatistics {
+struct MinimizerFeatureStats {
     uint64_t total_occurrences = 0;
     uint32_t unique_taxa = 0;
     std::unordered_map<uint32_t, uint32_t> taxon_occurrences;
@@ -21,7 +21,7 @@ struct MinimizerStatistics {
     float average_position = 0.0f;
     
     // For GPU transfer
-    MinimizerStatistics() = default;
+    MinimizerFeatureStats() = default;
 };
 
 // Feature extraction statistics
@@ -44,10 +44,10 @@ private:
     size_t max_genomes_;
     
     // Statistics storage
-    std::unordered_map<uint64_t, MinimizerStatistics> minimizer_stats_map_;
+    std::unordered_map<uint64_t, MinimizerFeatureStats> minimizer_stats_map_;
     
     // GPU memory for second pass
-    MinimizerStatistics* d_statistics_;
+    MinimizerFeatureStats* d_statistics_;
     uint64_t* d_unique_minimizers_;
     size_t num_unique_minimizers_;
     
@@ -88,7 +88,7 @@ public:
     void export_feature_statistics(const std::string& output_file) const;
     
     // Access to collected data
-    const std::unordered_map<uint64_t, MinimizerStatistics>& get_minimizer_stats() const {
+    const std::unordered_map<uint64_t, MinimizerFeatureStats>& get_minimizer_stats() const {
         return minimizer_stats_map_;
     }
     

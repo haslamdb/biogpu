@@ -87,6 +87,7 @@ struct DatabaseBuildConfig {
     // Debugging and validation
     bool enable_memory_validation = false;
     bool enable_intermediate_saves = false;
+    bool enable_debug_mode = false;
     std::string debug_output_dir;
 };
 

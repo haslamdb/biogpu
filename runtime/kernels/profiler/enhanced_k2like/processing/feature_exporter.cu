@@ -17,6 +17,7 @@
 #include <cmath>
 #include <sstream>
 #include <chrono>
+#include <numeric>
 
 #ifdef USE_HDF5
 #include <H5Cpp.h>
@@ -150,7 +151,7 @@ __global__ void compute_cooccurrence_kernel(
 // ===========================
 
 FeatureExporter::FeatureExporter(const FeatureExportConfig& config)
-    : config_(config), total_minimizers_exported_(0), export_start_time_(0) {
+    : config_(config), total_minimizers_exported_(0) {
     
     std::cout << "Initializing Feature Exporter with configuration:" << std::endl;
     std::cout << "  Output directory: " << config_.output_directory << std::endl;

@@ -64,7 +64,7 @@ __device__ uint8_t calculate_conservation_category(float conservation_score) {
 
 __global__ void compute_minimizer_features_kernel(
     GPUMinimizerHit* minimizer_hits,
-    const MinimizerStatistics* statistics,
+    const MinimizerFeatureStats* statistics,
     const uint64_t* unique_minimizers,
     int num_hits,
     int num_unique_minimizers,
@@ -93,7 +93,7 @@ __global__ void compute_minimizer_features_kernel(
     }
     
     if (stats_idx >= 0) {
-        const MinimizerStatistics& stats = statistics[stats_idx];
+        const MinimizerFeatureStats& stats = statistics[stats_idx];
         
         // Calculate uniqueness score (inverse frequency)
         float frequency = (float)stats.total_occurrences / total_genomes;
@@ -166,7 +166,7 @@ MinimizerFeatureExtractor::MinimizerFeatureExtractor(size_t max_minimizers, size
       num_unique_minimizers_(0), total_genomes_processed_(0) {
     
     // Pre-allocate statistics storage
-    cudaMalloc(&d_statistics_, max_minimizers * sizeof(MinimizerStatistics));
+    cudaMalloc(&d_statistics_, max_minimizers * sizeof(MinimizerFeatureStats));
     cudaMalloc(&d_unique_minimizers_, max_minimizers * sizeof(uint64_t));
     
     // Initialize contamination patterns
@@ -220,7 +220,7 @@ bool MinimizerFeatureExtractor::process_second_pass(
     
     // Convert statistics map to arrays for GPU
     std::vector<uint64_t> unique_minimizers;
-    std::vector<MinimizerStatistics> statistics;
+    std::vector<MinimizerFeatureStats> statistics;
     
     for (const auto& [hash, stats] : minimizer_stats_map_) {
         unique_minimizers.push_back(hash);
@@ -236,7 +236,7 @@ bool MinimizerFeatureExtractor::process_second_pass(
     cudaMemcpy(d_unique_minimizers_, unique_minimizers.data(), 
                num_unique_minimizers_ * sizeof(uint64_t), cudaMemcpyHostToDevice);
     cudaMemcpy(d_statistics_, statistics.data(), 
-               num_unique_minimizers_ * sizeof(MinimizerStatistics), cudaMemcpyHostToDevice);
+               num_unique_minimizers_ * sizeof(MinimizerFeatureStats), cudaMemcpyHostToDevice);
     
     // Launch feature computation kernel
     int block_size = 256;

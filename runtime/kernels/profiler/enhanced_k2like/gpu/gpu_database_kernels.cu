@@ -764,8 +764,8 @@ __global__ void classify_minimizers_by_frequency_kernel(
 bool classify_minimizers_by_frequency(
     GPUMinimizerHit* d_minimizer_hits,
     int num_hits,
-    uint32_t canonical_threshold = 50,
-    uint32_t redundant_threshold = 80) {
+    uint32_t canonical_threshold,
+    uint32_t redundant_threshold) {
     
     if (num_hits <= 0) return true;
     

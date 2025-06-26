@@ -564,9 +564,39 @@ bool launch_minimizer_extraction_kernel(
         0     // no shared memory needed
     );
     
+    // Debug logging
+    std::cout << "Launching minimizer extraction kernel with:" << std::endl;
+    std::cout << "  Sequences: " << batch_data.max_genomes << std::endl;
+    std::cout << "  Grid: " << launch_config.blocks_x << " x " << launch_config.blocks_y << " x " << launch_config.blocks_z << std::endl;
+    std::cout << "  Block: " << launch_config.threads_x << " x " << launch_config.threads_y << " x " << launch_config.threads_z << std::endl;
+    std::cout << "  Max minimizers: " << batch_data.max_minimizers << std::endl;
+    
+    // Check for null pointers
+    if (!batch_data.d_sequence_data || !batch_data.d_genome_info || 
+        !batch_data.d_minimizer_hits || !batch_data.d_global_counter) {
+        std::cerr << "Error: Null device pointers detected!" << std::endl;
+        std::cerr << "  d_sequence_data: " << batch_data.d_sequence_data << std::endl;
+        std::cerr << "  d_genome_info: " << batch_data.d_genome_info << std::endl;
+        std::cerr << "  d_minimizer_hits: " << batch_data.d_minimizer_hits << std::endl;
+        std::cerr << "  d_global_counter: " << batch_data.d_global_counter << std::endl;
+        return false;
+    }
+    
+    // Validate parameters
+    std::cout << "  Minimizer params: k=" << params.k << ", ell=" << params.ell 
+              << ", spaces=" << params.spaces << std::endl;
+    
+    // Clear any previous errors
+    cudaGetLastError();
+    
     // Launch the kernel
     dim3 grid(launch_config.blocks_x, launch_config.blocks_y, launch_config.blocks_z);
     dim3 block(launch_config.threads_x, launch_config.threads_y, launch_config.threads_z);
+    
+    std::cout << "Launching kernel extract_minimizers_sliding_window_kernel" << std::endl;
+    std::cout << "  Grid: " << grid.x << "," << grid.y << "," << grid.z << std::endl;
+    std::cout << "  Block: " << block.x << "," << block.y << "," << block.z << std::endl;
+    
     extract_minimizers_sliding_window_kernel<<<
         grid,
         block,
@@ -581,6 +611,12 @@ bool launch_minimizer_extraction_kernel(
         params,
         batch_data.max_minimizers
     );
+    
+    cudaError_t launch_err = cudaGetLastError();
+    if (launch_err != cudaSuccess) {
+        std::cerr << "Kernel launch failed immediately: " << cudaGetErrorString(launch_err) << std::endl;
+        return false;
+    }
     
     CUDA_CHECK_KERNEL(cudaDeviceSynchronize());
     

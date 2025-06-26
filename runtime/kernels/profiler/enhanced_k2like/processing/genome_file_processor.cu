@@ -36,15 +36,37 @@ std::vector<std::string> GenomeFileProcessor::find_genome_files(const std::strin
     auto start_time = std::chrono::high_resolution_clock::now();
     
     if (!validate_path_safety(directory)) {
-        std::cerr << "Error: Invalid directory path provided" << std::endl;
+        std::cerr << "Error: Invalid directory path provided: " << directory << std::endl;
+        std::cerr << "Path length: " << directory.length() << std::endl;
+        // Check specific validation issues
+        if (directory.empty()) {
+            std::cerr << "  - Path is empty" << std::endl;
+        }
+        if (directory.length() > PATH_MAX) {
+            std::cerr << "  - Path too long (>" << PATH_MAX << ")" << std::endl;
+        }
+        const std::string dangerous_chars = ";|&`$<>\\";
+        if (directory.find_first_of(dangerous_chars) != std::string::npos) {
+            std::cerr << "  - Path contains dangerous characters" << std::endl;
+        }
+        if (directory.find("..") != std::string::npos) {
+            std::cerr << "  - Path contains directory traversal" << std::endl;
+        }
         return files;
     }
     
     try {
         // Use filesystem::recursive_directory_iterator instead of popen
+        int files_checked = 0;
         for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
             if (entry.is_regular_file()) {
                 std::string file_path = entry.path().string();
+                files_checked++;
+                
+                if (files_checked <= 3) {  // Debug first few files
+                    std::cout << "Checking file: " << entry.path().filename().string() 
+                              << " (ext: " << entry.path().extension().string() << ")" << std::endl;
+                }
                 
                 if (validate_genome_file(file_path)) {
                     files.emplace_back(file_path);
@@ -53,6 +75,8 @@ std::vector<std::string> GenomeFileProcessor::find_genome_files(const std::strin
                     if (config_.progress_reporting && stats_.files_found % config_.progress_interval == 0) {
                         std::cout << "Found " << stats_.files_found << " genome files..." << std::endl;
                     }
+                } else if (files_checked <= 3) {
+                    std::cout << "  - File validation failed for: " << entry.path().filename().string() << std::endl;
                 }
                 
                 if (files.size() >= config_.max_file_count) {
@@ -80,19 +104,22 @@ std::vector<std::string> GenomeFileProcessor::find_genome_files(const std::strin
 bool GenomeFileProcessor::validate_genome_file(const std::string& file_path) {
     // Basic path validation
     if (!validate_path_safety(file_path)) {
+        std::cerr << "validate_genome_file: Path safety check failed for: " << file_path << std::endl;
         return false;
     }
     
     // Check if file exists and is readable
     struct stat file_stat;
     if (stat(file_path.c_str(), &file_stat) != 0) {
+        std::cerr << "validate_genome_file: Cannot stat file: " << file_path << std::endl;
         return false;
     }
     
     // Check file size
     if (file_stat.st_size > config_.max_file_size) {
         if (config_.progress_reporting) {
-            std::cerr << "Warning: File too large, skipping: " << file_path << std::endl;
+            std::cerr << "Warning: File too large, skipping: " << file_path 
+                      << " (size: " << file_stat.st_size << " > max: " << config_.max_file_size << ")" << std::endl;
         }
         return false;
     }
@@ -100,9 +127,12 @@ bool GenomeFileProcessor::validate_genome_file(const std::string& file_path) {
     // Check file extension
     std::filesystem::path p(file_path);
     if (!is_valid_genome_file_extension(p.extension().string())) {
+        std::cerr << "validate_genome_file: Invalid extension: " << p.extension().string() 
+                  << " for file: " << file_path << std::endl;
         return false;
     }
     
+    std::cerr << "validate_genome_file: All checks passed for: " << file_path << std::endl;
     return true;
 }
 
@@ -677,13 +707,10 @@ bool GenomeFileProcessor::validate_path_safety(const std::string& path) {
         return false;
     }
     
-    // Verify path exists and is a directory
-    struct stat path_stat;
-    if (stat(path.c_str(), &path_stat) != 0) {
-        return false;
-    }
-    
-    return S_ISDIR(path_stat.st_mode);
+    // Path validation successful - don't check if it exists here
+    // That's done separately in validate_genome_file for files
+    // and in find_genome_files for directories
+    return true;
 }
 
 bool GenomeFileProcessor::is_valid_genome_file_extension(const std::string& extension) {

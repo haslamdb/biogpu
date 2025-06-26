@@ -7,6 +7,10 @@
 #include "../gpu/gpu_database_kernels.h"
 #include "../processing/minimizer_feature_extractor.h"
 #include "../processing/feature_exporter.h"
+#include "../processing/genome_file_processor.h"
+#include "../taxonomy/taxonomy_processor.h"
+#include "../output/database_serializer.h"
+#include "../processing/contamination_detector.h"
 #include <cuda_runtime.h>
 #include <cstring>  // for memset
 #include <iostream>
@@ -65,126 +69,6 @@ size_t MinimizerStatistics::get_taxonomic_diversity() const {
     return unique_taxons.size();
 }
 
-// ===========================
-// Stub Implementations for Missing Modules
-// ===========================
-
-// Stub GenomeFileProcessor
-class GenomeFileProcessor {
-public:
-    GenomeFileProcessor(const FileProcessingConfig& config) {}
-    
-    std::vector<std::string> find_genome_files(const std::string& path) {
-        std::vector<std::string> files;
-        // TODO: Implement actual file discovery
-        return files;
-    }
-    
-    uint32_t extract_taxon_from_filename(const std::string& filename) {
-        // TODO: Implement taxon extraction
-        return 1; // Default taxon
-    }
-    
-    std::vector<std::string> load_sequences_from_fasta(const std::string& filepath) {
-        std::vector<std::string> sequences;
-        // TODO: Implement FASTA loading
-        return sequences;
-    }
-    
-    FileProcessingStats get_statistics() const {
-        return FileProcessingStats();
-    }
-};
-
-// Stub EnhancedNCBITaxonomyProcessor
-class EnhancedNCBITaxonomyProcessor {
-public:
-    bool load_ncbi_taxonomy(const std::string& nodes_file, const std::string& names_file) {
-        return false; // TODO: Implement
-    }
-    
-    bool load_from_compact_file(const std::string& compact_file) {
-        return false; // TODO: Implement
-    }
-    
-    bool is_loaded() const { return false; }
-    
-    std::unordered_map<uint32_t, uint32_t> get_parent_lookup() const {
-        return std::unordered_map<uint32_t, uint32_t>();
-    }
-    
-    std::unordered_map<uint32_t, std::string> get_name_lookup() const {
-        return std::unordered_map<uint32_t, std::string>();
-    }
-    
-    uint32_t compute_lca_of_species(const std::vector<uint32_t>& species) {
-        return 1; // TODO: Implement
-    }
-    
-    uint8_t calculate_phylogenetic_spread(const std::vector<uint32_t>& species, uint32_t lca) {
-        return 0; // TODO: Implement
-    }
-    
-    uint8_t calculate_distance_to_lca(uint32_t species, uint32_t lca) {
-        return 0; // TODO: Implement
-    }
-};
-
-// Stub Serializers
-class StandardDatabaseSerializer {
-public:
-    StandardDatabaseSerializer(const std::string& output_dir) {}
-    
-    bool save_standard_database(
-        const std::vector<LCACandidate>& candidates,
-        const std::unordered_map<uint32_t, std::string>& taxon_names,
-        const std::unordered_map<uint32_t, uint32_t>& taxon_parents,
-        const GPUBuildStats& stats) {
-        return true; // TODO: Implement
-    }
-};
-
-class EnhancedDatabaseSerializer {
-public:
-    EnhancedDatabaseSerializer(const std::string& output_dir) {}
-    
-    bool save_enhanced_database(
-        const std::vector<PhylogeneticLCACandidate>& candidates,
-        const ContributingTaxaArrays& taxa_arrays,
-        const std::unordered_map<uint32_t, std::string>& taxon_names,
-        const EnhancedBuildStats& stats) {
-        return true; // TODO: Implement
-    }
-};
-
-// Stub Processors
-class ConcatenatedFnaProcessor {
-public:
-    ConcatenatedFnaProcessor(const std::string& fna_file, const FileProcessingConfig& config) {}
-    
-    bool process_fna_file(
-        std::vector<std::string>& genome_files,
-        std::vector<uint32_t>& taxon_ids,
-        std::unordered_map<uint32_t, std::string>& taxon_names,
-        const std::string& temp_dir) {
-        return false; // TODO: Implement
-    }
-    
-    SpeciesTrackingData get_species_data() const {
-        return SpeciesTrackingData();
-    }
-};
-
-class StreamingFnaProcessor {
-public:
-    StreamingFnaProcessor(const std::string& fna_file, const std::string& temp_dir, size_t batch_size) {}
-    
-    bool process_next_batch(std::vector<std::string>& batch_files, std::vector<uint32_t>& batch_taxons) {
-        return false; // TODO: Implement
-    }
-    
-    size_t get_total_genomes() const { return 0; }
-};
 
 // ===========================
 // GPUKrakenDatabaseBuilder Implementation
@@ -781,12 +665,17 @@ bool GPUKrakenDatabaseBuilder::process_genomes_with_gpu() {
         
         for (size_t i = batch_start; i < batch_end; i++) {
             auto sequences = file_processor_->load_sequences_from_fasta(genome_files_[i]);
+            if (sequences.size() > 1) {
+                std::cout << "  File " << i << " contains " << sequences.size() << " sequences" << std::endl;
+            }
             for (const auto& seq : sequences) {
                 batch_sequences.push_back(seq);
                 batch_taxon_ids.push_back(genome_taxon_ids_[i]);
                 build_stats_.total_bases += seq.length();
             }
         }
+        
+        std::cout << "  Total sequences in batch: " << batch_sequences.size() << std::endl;
         
         // Process this batch
         if (!process_sequence_batch(batch_sequences, batch_taxon_ids)) {
@@ -913,6 +802,10 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
                concatenated_sequences.length(), cudaMemcpyHostToDevice);
     cudaMemcpy(d_genome_info, genome_info.data(), 
                genome_info.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
+    
+    // Reset global counter before kernel launch
+    uint32_t zero = 0;
+    cudaMemcpy(batch_data.d_global_counter, &zero, sizeof(uint32_t), cudaMemcpyHostToDevice);
     
     // Launch minimizer extraction kernel
     uint32_t total_hits = 0;

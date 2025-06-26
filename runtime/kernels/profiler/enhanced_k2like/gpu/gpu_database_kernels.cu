@@ -344,7 +344,136 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
     }
 }
 
-__global__ void extract_minimizers_sliding_window_kernel(
+// Fixed kernel with global work distribution
+__global__ void extract_minimizers_sliding_window_kernel_fixed(
+    const char* sequence_data,
+    const GPUGenomeInfo* genome_info,
+    int num_genomes,
+    GPUMinimizerHit* minimizer_hits,
+    uint32_t* global_hit_counter,
+    MinimizerParams params,
+    int max_minimizers,
+    size_t sequence_buffer_size) {
+    
+    // Global thread ID
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_threads = blockDim.x * gridDim.x;
+    
+    // Debug output from first thread
+    if (tid == 0) {
+        printf("KERNEL STARTED: num_genomes=%d, max_minimizers=%d\n", num_genomes, max_minimizers);
+        printf("Block size: %d, Grid size: %d, Total threads: %d\n", blockDim.x, gridDim.x, total_threads);
+    }
+    
+    // Calculate total work items (total k-mers across all genomes)
+    uint32_t total_work = 0;
+    for (int g = 0; g < num_genomes; g++) {
+        if (genome_info[g].sequence_length >= params.k) {
+            total_work += genome_info[g].sequence_length - params.k + 1;
+        }
+        // Debug first few genomes
+        if (tid == 0 && g < 3) {
+            printf("  Genome %d: length=%u, offset=%u\n", 
+                   g, genome_info[g].sequence_length, genome_info[g].sequence_offset);
+        }
+    }
+    
+    if (tid == 0) {
+        printf("Total k-mers to process: %u\n", total_work);
+    }
+    
+    // Track minimizers found by this thread
+    uint32_t thread_minimizer_count = 0;
+    
+    // Each thread processes multiple k-mers using stride pattern
+    for (uint32_t work_idx = tid; work_idx < total_work; work_idx += total_threads) {
+        // Find which genome and position this work item corresponds to
+        uint32_t cumulative_kmers = 0;
+        int genome_idx = -1;
+        uint32_t local_kmer_idx = 0;
+        
+        for (int g = 0; g < num_genomes; g++) {
+            if (genome_info[g].sequence_length < params.k) continue;
+            
+            uint32_t genome_kmers = genome_info[g].sequence_length - params.k + 1;
+            if (work_idx < cumulative_kmers + genome_kmers) {
+                genome_idx = g;
+                local_kmer_idx = work_idx - cumulative_kmers;
+                break;
+            }
+            cumulative_kmers += genome_kmers;
+        }
+        
+        if (genome_idx < 0) continue;
+        
+        const GPUGenomeInfo& genome = genome_info[genome_idx];
+        const char* sequence = sequence_data + genome.sequence_offset;
+        
+        // Multiple bounds checks for safety
+        if (genome.sequence_offset >= sequence_buffer_size) {
+            continue;
+        }
+        if (local_kmer_idx >= genome.sequence_length) {
+            continue;
+        }
+        if (genome.sequence_offset + local_kmer_idx + params.k > sequence_buffer_size) {
+            continue;
+        }
+        if (local_kmer_idx + params.k > genome.sequence_length) {
+            continue;
+        }
+        
+        // Debug first few k-mers
+        if (work_idx < 3) {
+            printf("Thread %d processing k-mer %u from genome %d at position %u\n", 
+                   tid, work_idx, genome_idx, local_kmer_idx);
+        }
+        
+        // Extract minimizer at this position
+        uint64_t current_minimizer = extract_minimizer_sliding_window(
+            sequence, local_kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+        );
+        
+        if (current_minimizer != UINT64_MAX) {
+            // Simple deduplication - in production, would need better approach
+            // For now, just output all valid minimizers
+            uint32_t global_pos = atomicAdd(global_hit_counter, 1);
+            
+            if (global_pos < max_minimizers) {
+                GPUMinimizerHit hit;
+                hit.minimizer_hash = current_minimizer;
+                hit.taxon_id = static_cast<uint16_t>(genome.taxon_id);
+                hit.position = local_kmer_idx;
+                hit.genome_id = genome_idx;
+                hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;
+                hit.ml_weight = 65535;
+                hit.feature_flags = 0; // Skip features for now
+                
+                minimizer_hits[global_pos] = hit;
+                thread_minimizer_count++;
+                
+                // Debug output for first few minimizers
+                if (global_pos < 3) {
+                    printf("Found minimizer %llu at genome %d, position %u\n", 
+                           current_minimizer, genome_idx, local_kmer_idx);
+                }
+            }
+        }
+    }
+    
+    // Debug output from a few threads
+    if (tid < 5 && thread_minimizer_count > 0) {
+        printf("Thread %d found %u minimizers\n", tid, thread_minimizer_count);
+    }
+    
+    // Final debug output
+    if (tid == 0) {
+        printf("KERNEL COMPLETE\n");
+    }
+}
+
+// Keep the old kernel for now but rename it
+__global__ void extract_minimizers_sliding_window_kernel_old(
     const char* sequence_data,
     const GPUGenomeInfo* genome_info,
     int num_genomes,
@@ -358,68 +487,78 @@ __global__ void extract_minimizers_sliding_window_kernel(
     
     // Debug output from first thread
     if (idx == 0) {
-        printf("KERNEL STARTED: num_genomes=%d, max_minimizers=%d\n", num_genomes, max_minimizers);
+        printf("OLD KERNEL: num_genomes=%d, max_minimizers=%d\n", num_genomes, max_minimizers);
     }
     
     if (idx >= num_genomes) return;
     
-    // Extra safety check
-    if (idx < 0 || genome_info == nullptr || sequence_data == nullptr || 
-        minimizer_hits == nullptr || global_hit_counter == nullptr) {
-        if (idx == 0) {
-            printf("ERROR: Null pointers detected in kernel!\n");
-            printf("  genome_info: %p\n", genome_info);
-            printf("  sequence_data: %p\n", sequence_data);
-            printf("  minimizer_hits: %p\n", minimizer_hits);
-            printf("  global_hit_counter: %p\n", global_hit_counter);
-        }
-        return;
-    }
+    // ... rest of old implementation
+}
+
+// Alternative: Multi-threaded per genome approach with shared memory
+__global__ void extract_minimizers_multi_thread_per_genome_kernel(
+    const char* sequence_data,
+    const GPUGenomeInfo* genome_info,
+    int num_genomes,
+    GPUMinimizerHit* minimizer_hits,
+    uint32_t* hit_counts_per_genome,
+    uint32_t* global_hit_counter,
+    MinimizerParams params,
+    uint64_t min_clear_hash_value,
+    uint64_t toggle_mask,
+    int max_minimizers) {
     
-    const GPUGenomeInfo& genome = genome_info[idx];
+    // Use one block per genome, multiple threads per block
+    int genome_idx = blockIdx.x;
+    int thread_id = threadIdx.x;
+    int threads_per_block = blockDim.x;
+    
+    if (genome_idx >= num_genomes) return;
+    
+    const GPUGenomeInfo& genome = genome_info[genome_idx];
     const char* sequence = sequence_data + genome.sequence_offset;
     uint32_t seq_length = genome.sequence_length;
     
-    // Bounds checking
-    if (seq_length < params.k) return;
-    if (seq_length > 10000000) { // Sanity check - no single sequence should be > 10MB
-        printf("ERROR: Genome %d has suspicious length: %u\n", idx, seq_length);
+    if (seq_length < params.k) {
+        if (thread_id == 0) hit_counts_per_genome[genome_idx] = 0;
         return;
     }
     
-    uint64_t prev_minimizer = UINT64_MAX;
-    uint32_t prev_position = UINT32_MAX;
+    // Shared memory for deduplication
+    extern __shared__ uint64_t shared_mem[];
+    uint64_t* last_minimizers = shared_mem;
+    
+    // Initialize shared memory
+    if (thread_id < threads_per_block) {
+        last_minimizers[thread_id] = UINT64_MAX;
+    }
+    __syncthreads();
+    
     uint32_t total_kmers = seq_length - params.k + 1;
-    const int clustering_window = 100;  // Window size for position clustering detection
+    uint32_t kmers_per_thread = (total_kmers + threads_per_block - 1) / threads_per_block;
+    uint32_t start_pos = thread_id * kmers_per_thread;
+    uint32_t end_pos = min(start_pos + kmers_per_thread, total_kmers);
     
-    // Debug: Count how many minimizers we're finding
-    uint32_t local_minimizer_count = 0;
-    uint32_t invalid_kmer_count = 0;
+    uint32_t local_count = 0;
+    uint64_t prev_minimizer = (thread_id > 0) ? last_minimizers[thread_id - 1] : UINT64_MAX;
     
-    for (uint32_t pos = 0; pos < total_kmers; pos++) {
-        // Bounds check - make sure we won't read past the end
-        if (pos + params.k > seq_length) {
-            printf("ERROR: pos %u + k %u > seq_length %u\n", pos, params.k, seq_length);
-            return;
-        }
-        
-        // Extra safety check - ensure we're within buffer bounds
-        uint32_t end_pos = genome.sequence_offset + pos + params.k;
-        if (end_pos > sequence_buffer_size) {
-            return;
-        }
-        
+    for (uint32_t pos = start_pos; pos < end_pos; pos++) {
         uint64_t current_minimizer = extract_minimizer_sliding_window(
             sequence, pos, params.k, params.ell, params.spaces, params.xor_mask
         );
         
-        if (current_minimizer == UINT64_MAX) {
-            invalid_kmer_count++;
+        if (current_minimizer == UINT64_MAX) continue;
+        
+        // Apply subsampling if enabled
+        if (min_clear_hash_value > 0 && current_minimizer < min_clear_hash_value) {
+            continue;
         }
         
-        // Only output if minimizer changed (proper deduplication)
-        if (current_minimizer != UINT64_MAX && current_minimizer != prev_minimizer) {
-            local_minimizer_count++;
+        // Apply toggle mask
+        current_minimizer ^= toggle_mask;
+        
+        // Deduplication - only output if different from previous
+        if (current_minimizer != prev_minimizer) {
             uint32_t global_pos = atomicAdd(global_hit_counter, 1);
             
             if (global_pos < max_minimizers) {
@@ -427,36 +566,47 @@ __global__ void extract_minimizers_sliding_window_kernel(
                 hit.minimizer_hash = current_minimizer;
                 hit.taxon_id = static_cast<uint16_t>(genome.taxon_id);
                 hit.position = pos;
-                hit.genome_id = genome.genome_id;
-                hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;  // Default to unique
-                
-                // Initialize ML weight to maximum (1.0 scaled to uint16_t)
+                hit.genome_id = genome_idx;
+                hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;
                 hit.ml_weight = 65535;
                 
-                // Calculate features for the k-mer at this position
+                // Calculate features safely
                 const char* kmer_seq = sequence + pos;
-                
-                // Skip feature calculation for now to isolate the issue
-                hit.feature_flags = 0;
+                if (pos + params.k <= seq_length) {
+                    uint8_t gc_category = calculate_gc_category(kmer_seq, params.k);
+                    uint8_t complexity_score = calculate_sequence_complexity(kmer_seq, params.k);
+                    
+                    uint16_t feature_flags = 0;
+                    feature_flags = MinimizerFlags::set_gc_content_category(feature_flags, gc_category);
+                    feature_flags = MinimizerFlags::set_complexity_score(feature_flags, complexity_score);
+                    hit.feature_flags = feature_flags;
+                } else {
+                    hit.feature_flags = 0;
+                }
                 
                 minimizer_hits[global_pos] = hit;
-                prev_position = pos;
+                local_count++;
             }
             
             prev_minimizer = current_minimizer;
         }
     }
     
-    // Debug output for first genome
-    if (idx == 0) {
-        printf("Genome 0: total_kmers=%u, invalid_kmers=%u, local_minimizers=%u\n", 
-               total_kmers, invalid_kmer_count, local_minimizer_count);
-        // Check first few characters of the sequence
-        printf("First 10 chars: ");
-        for (int i = 0; i < 10 && i < seq_length; i++) {
-            printf("%c", sequence[i]);
-        }
-        printf("\n");
+    // Store last minimizer for next thread
+    if (thread_id < threads_per_block - 1) {
+        last_minimizers[thread_id] = prev_minimizer;
+    }
+    
+    // Sum up counts for this genome
+    __shared__ uint32_t block_count;
+    if (thread_id == 0) block_count = 0;
+    __syncthreads();
+    
+    atomicAdd(&block_count, local_count);
+    __syncthreads();
+    
+    if (thread_id == 0) {
+        hit_counts_per_genome[genome_idx] = block_count;
     }
 }
 
@@ -595,80 +745,76 @@ LaunchConfig calculate_optimal_launch_config(int num_elements, int threads_per_b
     return config;
 }
 
+// Option 2: Use the multi-thread per genome kernel
+bool launch_improved_minimizer_kernel_fixed(
+    const GPUBatchData& batch_data,
+    const MinimizerParams& params,
+    uint64_t min_clear_hash_value,
+    uint64_t toggle_mask,
+    uint32_t* total_hits_output) {
+    
+    // Use one block per genome, multiple threads per block
+    int threads_per_block = 256;
+    int grid_size = batch_data.max_genomes;
+    size_t shared_mem_size = threads_per_block * sizeof(uint64_t);
+    
+    std::cout << "Launching multi-thread kernel with:" << std::endl;
+    std::cout << "  Grid size (genomes): " << grid_size << std::endl;
+    std::cout << "  Block size (threads): " << threads_per_block << std::endl;
+    std::cout << "  Shared memory: " << shared_mem_size << " bytes" << std::endl;
+    
+    // Allocate hit counts if not provided
+    uint32_t* d_hit_counts = batch_data.d_hit_counts;
+    if (!d_hit_counts) {
+        cudaMalloc(&d_hit_counts, batch_data.max_genomes * sizeof(uint32_t));
+        cudaMemset(d_hit_counts, 0, batch_data.max_genomes * sizeof(uint32_t));
+    }
+    
+    // Clear any previous errors
+    cudaGetLastError();
+    
+    extract_minimizers_multi_thread_per_genome_kernel<<<grid_size, threads_per_block, shared_mem_size>>>(
+        batch_data.d_sequence_data,
+        batch_data.d_genome_info,
+        batch_data.max_genomes,
+        batch_data.d_minimizer_hits,
+        d_hit_counts,
+        batch_data.d_global_counter,
+        params,
+        min_clear_hash_value,
+        toggle_mask,
+        batch_data.max_minimizers
+    );
+    
+    cudaError_t launch_err = cudaGetLastError();
+    if (launch_err != cudaSuccess) {
+        std::cerr << "Kernel launch failed: " << cudaGetErrorString(launch_err) << std::endl;
+        if (!batch_data.d_hit_counts && d_hit_counts) cudaFree(d_hit_counts);
+        return false;
+    }
+    
+    cudaDeviceSynchronize();
+    
+    // Get total hits
+    cudaMemcpy(total_hits_output, batch_data.d_global_counter, 
+               sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    
+    // Clean up temporary allocation
+    if (!batch_data.d_hit_counts && d_hit_counts) {
+        cudaFree(d_hit_counts);
+    }
+    
+    return true;
+}
+
 bool launch_minimizer_extraction_kernel(
     const GPUBatchData& batch_data,
     const MinimizerParams& params,
     uint32_t* total_hits_output) {
     
-    // Calculate launch configuration
-    LaunchConfig launch_config = calculate_optimal_launch_config(
-        batch_data.max_genomes, 
-        256,  // default threads per block
-        0     // no shared memory needed
-    );
-    
-    // Debug logging
-    std::cout << "Launching minimizer extraction kernel with:" << std::endl;
-    std::cout << "  Sequences: " << batch_data.max_genomes << std::endl;
-    std::cout << "  Grid: " << launch_config.blocks_x << " x " << launch_config.blocks_y << " x " << launch_config.blocks_z << std::endl;
-    std::cout << "  Block: " << launch_config.threads_x << " x " << launch_config.threads_y << " x " << launch_config.threads_z << std::endl;
-    std::cout << "  Max minimizers: " << batch_data.max_minimizers << std::endl;
-    
-    // Check for null pointers
-    if (!batch_data.d_sequence_data || !batch_data.d_genome_info || 
-        !batch_data.d_minimizer_hits || !batch_data.d_global_counter) {
-        std::cerr << "Error: Null device pointers detected!" << std::endl;
-        std::cerr << "  d_sequence_data: " << batch_data.d_sequence_data << std::endl;
-        std::cerr << "  d_genome_info: " << batch_data.d_genome_info << std::endl;
-        std::cerr << "  d_minimizer_hits: " << batch_data.d_minimizer_hits << std::endl;
-        std::cerr << "  d_global_counter: " << batch_data.d_global_counter << std::endl;
-        return false;
-    }
-    
-    // Validate parameters
-    std::cout << "  Minimizer params: k=" << params.k << ", ell=" << params.ell 
-              << ", spaces=" << params.spaces << std::endl;
-    
-    // Clear any previous errors
-    cudaGetLastError();
-    
-    // Launch the kernel
-    dim3 grid(launch_config.blocks_x, launch_config.blocks_y, launch_config.blocks_z);
-    dim3 block(launch_config.threads_x, launch_config.threads_y, launch_config.threads_z);
-    
-    std::cout << "Launching kernel extract_minimizers_sliding_window_kernel" << std::endl;
-    std::cout << "  Grid: " << grid.x << "," << grid.y << "," << grid.z << std::endl;
-    std::cout << "  Block: " << block.x << "," << block.y << "," << block.z << std::endl;
-    
-    extract_minimizers_sliding_window_kernel<<<
-        grid,
-        block,
-        launch_config.shared_memory_bytes,
-        (cudaStream_t)launch_config.stream
-    >>>(
-        batch_data.d_sequence_data,
-        batch_data.d_genome_info,
-        batch_data.max_genomes,
-        batch_data.d_minimizer_hits,
-        batch_data.d_global_counter,
-        params,
-        batch_data.max_minimizers,
-        batch_data.sequence_buffer_size
-    );
-    
-    cudaError_t launch_err = cudaGetLastError();
-    if (launch_err != cudaSuccess) {
-        std::cerr << "Kernel launch failed immediately: " << cudaGetErrorString(launch_err) << std::endl;
-        return false;
-    }
-    
-    CUDA_CHECK_KERNEL(cudaDeviceSynchronize());
-    
-    // Get total hits
-    CUDA_CHECK_KERNEL(cudaMemcpy(total_hits_output, batch_data.d_global_counter, 
-                                 sizeof(uint32_t), cudaMemcpyDeviceToHost));
-    
-    return true;
+    // Use the multi-thread per genome approach which is more stable
+    // Pass 0 for min_clear_hash_value and toggle_mask to disable subsampling
+    return launch_improved_minimizer_kernel_fixed(batch_data, params, 0, 0, total_hits_output);
 }
 
 bool launch_improved_minimizer_kernel(

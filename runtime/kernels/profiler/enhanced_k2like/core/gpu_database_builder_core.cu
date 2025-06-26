@@ -650,10 +650,16 @@ bool GPUKrakenDatabaseBuilder::process_genomes_with_gpu() {
         return false;
     }
     
+    // Initialize accumulation variables for batch processing
+    accumulated_genome_info_.clear();
+    accumulated_sequence_length_ = 0;
+    accumulated_sequences_.clear();
+    
     // Process in batches
     size_t batch_size = config_.memory_config.sequence_batch_size;
     
     for (size_t batch_start = 0; batch_start < genome_files_.size(); batch_start += batch_size) {
+        size_t buffer_limit = memory_manager_->get_sequence_buffer_size() * 0.9;  // 90% of buffer size
         size_t batch_end = std::min(batch_start + batch_size, genome_files_.size());
         
         std::cout << "Processing batch " << (batch_start / batch_size + 1) 
@@ -686,6 +692,43 @@ bool GPUKrakenDatabaseBuilder::process_genomes_with_gpu() {
         if (config_.enable_progress_reporting) {
             double progress = (double)batch_end / genome_files_.size() * 100.0;
             update_build_progress("Genome Processing", progress);
+        }
+        
+        // Check if buffer is getting full
+        if (accumulated_sequence_length_ > buffer_limit) {
+            std::cout << "Buffer 90% full at " << accumulated_sequence_length_ << " bytes, processing accumulated sequences..." << std::endl;
+            if (!process_accumulated_sequences()) {
+                std::cerr << "Failed to process accumulated sequences" << std::endl;
+                return false;
+            }
+            std::cout << "✓ Intermediate processing completed, continuing with more genomes..." << std::endl;
+            std::cout << "Cleared accumulation buffers for next batch" << std::endl;
+        }
+    }
+    
+    // Now process all accumulated data on GPU
+    std::cout << "\nProcessing all accumulated genomes on GPU..." << std::endl;
+    std::cout << "Total genomes: " << accumulated_genome_info_.size() << std::endl;
+    std::cout << "Total sequence data: " << accumulated_sequences_.length() << " bytes" << std::endl;
+    std::cout << "Accumulated sequence length: " << accumulated_sequence_length_ << " bytes" << std::endl;
+    
+    // Debug: Print first 3 genome info entries
+    std::cout << "\nFirst 3 genome info entries:" << std::endl;
+    for (size_t i = 0; i < std::min(size_t(3), accumulated_genome_info_.size()); i++) {
+        const auto& info = accumulated_genome_info_[i];
+        std::cout << "  Genome " << i << ": id=" << info.genome_id 
+                  << ", offset=" << info.sequence_offset 
+                  << ", length=" << info.sequence_length 
+                  << ", taxon=" << info.taxon_id << std::endl;
+    }
+    
+    // Process any remaining accumulated sequences
+    if (!accumulated_genome_info_.empty()) {
+        std::cout << "\nProcessing final " << accumulated_genome_info_.size() 
+                  << " sequences (" << accumulated_sequence_length_ << " bytes)" << std::endl;
+        if (!process_accumulated_sequences()) {
+            std::cerr << "Failed to process final batch" << std::endl;
+            return false;
         }
     }
     
@@ -775,51 +818,48 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     batch_data.max_minimizers = memory_manager_->get_minimizer_capacity();
     batch_data.sequence_buffer_size = memory_manager_->get_sequence_buffer_size();
     
-    // Prepare genome information
-    std::vector<GPUGenomeInfo> genome_info;
+    // Prepare genome information and accumulate across batches
     std::vector<uint32_t> genome_lengths;
-    size_t sequence_offset = 0;
+    size_t sequence_offset = accumulated_sequence_length_;
     
     for (size_t i = 0; i < sequences.size(); i++) {
         GPUGenomeInfo info;
-        info.genome_id = i;  // Use batch-local genome ID
-        info.sequence_offset = sequence_offset;  // Offset within this batch
+        info.genome_id = accumulated_genome_info_.size();  // Use accumulated count as genome_id
+        info.sequence_offset = sequence_offset;  // Offset in accumulated buffer
         info.sequence_length = sequences[i].length();
         info.minimizer_count = 0;
         info.taxon_id = taxon_ids[i];
         
         if (i < 3 || i >= sequences.size() - 3) { // Debug first and last few
-            std::cout << "  Genome " << i << ": offset=" << info.sequence_offset 
+            std::cout << "  Genome " << info.genome_id << ": offset=" << info.sequence_offset 
                       << ", length=" << info.sequence_length 
                       << ", taxon=" << info.taxon_id << std::endl;
         }
         
-        genome_info.push_back(info);
+        accumulated_genome_info_.push_back(info);
         genome_lengths.push_back(sequences[i].length());
         sequence_offset += sequences[i].length() + 1; // +1 for null terminator
+        accumulated_sequence_length_ += sequences[i].length() + 1;
     }
     
-    // Copy sequences to GPU
-    std::string concatenated_sequences;
+    // Append sequences to accumulated buffer
     for (const auto& seq : sequences) {
-        concatenated_sequences += seq + '\0';
+        accumulated_sequences_ += seq + '\0';
     }
     
-    std::cout << "Copying sequence data to GPU:" << std::endl;
-    std::cout << "  Number of sequences: " << sequences.size() << std::endl;
-    std::cout << "  Total concatenated length: " << concatenated_sequences.length() << " bytes" << std::endl;
-    std::cout << "  Sequence buffer size: " << memory_manager_->get_sequence_buffer_size() << " bytes" << std::endl;
+    // Just accumulate data in this method, GPU operations moved to after batch loop
+    std::cout << "  Batch accumulated. Total sequences so far: " << accumulated_genome_info_.size() << std::endl;
+    std::cout << "  Total accumulated length: " << accumulated_sequences_.length() << " bytes" << std::endl;
+    std::cout << "  accumulated_sequence_length_: " << accumulated_sequence_length_ << " bytes" << std::endl;
     
     // Check if we're exceeding buffer size
-    if (concatenated_sequences.length() > memory_manager_->get_sequence_buffer_size()) {
-        std::cerr << "ERROR: Concatenated sequences exceed buffer size!" << std::endl;
+    if (accumulated_sequences_.length() > memory_manager_->get_sequence_buffer_size()) {
+        std::cerr << "ERROR: Accumulated sequences exceed buffer size!" << std::endl;
         return false;
     }
     
-    cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(), 
-               concatenated_sequences.length(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_genome_info, genome_info.data(), 
-               genome_info.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
+    // Return early - GPU processing will happen after all batches are accumulated
+    return true;
     
     // Reset global counter before kernel launch
     uint32_t zero = 0;
@@ -922,6 +962,114 @@ void GPUKrakenDatabaseBuilder::collect_minimizer_statistics(
     
     // Update build statistics
     build_stats_.unique_minimizers = minimizer_stats_.size();
+}
+
+bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
+    std::cout << "Processing " << accumulated_genome_info_.size() << " accumulated sequences..." << std::endl;
+    
+    // Debug: Show first few genome info entries
+    for (size_t i = 0; i < std::min(size_t(3), accumulated_genome_info_.size()); i++) {
+        std::cout << "  Genome " << i << ": offset=" << accumulated_genome_info_[i].sequence_offset 
+                  << ", length=" << accumulated_genome_info_[i].sequence_length 
+                  << ", taxon=" << accumulated_genome_info_[i].taxon_id << std::endl;
+    }
+    
+    // Copy GPU buffers
+    char* d_sequence_data = memory_manager_->get_sequence_buffer();
+    GPUGenomeInfo* d_genome_info = memory_manager_->get_genome_info_buffer();
+    GPUMinimizerHit* d_minimizer_hits = memory_manager_->get_minimizer_buffer();
+    LCACandidate* d_lca_candidates = memory_manager_->get_candidate_buffer();
+    
+    // Copy accumulated data to GPU
+    cudaMemcpy(d_sequence_data, accumulated_sequences_.data(), accumulated_sequences_.length(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_genome_info, accumulated_genome_info_.data(), 
+               accumulated_genome_info_.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
+    
+    // Launch minimizer extraction kernel with improved work distribution
+    uint32_t total_hits_extracted = 0;
+    if (!launch_improved_minimizer_kernel_fixed(
+            d_sequence_data,
+            d_genome_info,
+            accumulated_genome_info_.size(),
+            d_minimizer_hits,
+            memory_manager_->get_minimizer_capacity(),
+            minimizer_params_,
+            &total_hits_extracted)) {
+        std::cerr << "Minimizer extraction kernel failed" << std::endl;
+        return false;
+    }
+    
+    std::cout << "Minimizers extracted: " << total_hits_extracted << std::endl;
+    build_stats_.valid_minimizers_extracted += total_hits_extracted;
+    
+    if (total_hits_extracted > 0) {
+        // Process minimizers with feature extraction
+        if (feature_extractor_) {
+            std::cout << "Running feature extraction on minimizers..." << std::endl;
+            
+            // Create taxon IDs vector from genome info
+            std::vector<uint32_t> genome_taxon_ids;
+            for (const auto& info : accumulated_genome_info_) {
+                genome_taxon_ids.push_back(info.taxon_id);
+            }
+            
+            if (!feature_extractor_->process_first_pass(
+                    d_minimizer_hits, total_hits_extracted, genome_taxon_ids)) {
+                std::cerr << "Feature extraction failed" << std::endl;
+                return false;
+            }
+            std::cout << "✓ Feature extraction completed" << std::endl;
+        }
+        
+        // Copy minimizer hits back to host
+        std::vector<GPUMinimizerHit> minimizer_hits(total_hits_extracted);
+        cudaMemcpy(minimizer_hits.data(), d_minimizer_hits, 
+                   total_hits_extracted * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+        
+        // Collect statistics
+        std::vector<uint32_t> genome_lengths;
+        for (const auto& info : accumulated_genome_info_) {
+            genome_lengths.push_back(info.sequence_length);
+        }
+        collect_minimizer_statistics(minimizer_hits, genome_lengths);
+        
+        // Convert to LCA candidates
+        std::cout << "Computing LCA assignments for " << total_hits_extracted << " minimizers..." << std::endl;
+        
+        size_t new_candidates_start = all_lca_candidates_.size();
+        for (const auto& hit : minimizer_hits) {
+            LCACandidate candidate;
+            candidate.minimizer_hash = hit.minimizer_hash;
+            candidate.lca_taxon = hit.taxon_id;
+            candidate.genome_count = 1;
+            candidate.uniqueness_score = MinimizerFlags::ml_weight_to_float(hit.ml_weight);
+            all_lca_candidates_.push_back(candidate);
+        }
+        
+        // Merge and deduplicate new candidates
+        if (new_candidates_start > 0) {
+            std::sort(all_lca_candidates_.begin() + new_candidates_start, all_lca_candidates_.end(),
+                     [](const LCACandidate& a, const LCACandidate& b) {
+                         return a.minimizer_hash < b.minimizer_hash;
+                     });
+            
+            std::inplace_merge(all_lca_candidates_.begin(),
+                              all_lca_candidates_.begin() + new_candidates_start,
+                              all_lca_candidates_.end(),
+                              [](const LCACandidate& a, const LCACandidate& b) {
+                                  return a.minimizer_hash < b.minimizer_hash;
+                              });
+        }
+        
+        std::cout << "✓ LCA assignment completed. Total candidates: " << all_lca_candidates_.size() << std::endl;
+    }
+    
+    // Clear accumulation variables after processing
+    accumulated_genome_info_.clear();
+    accumulated_sequence_length_ = 0;
+    accumulated_sequences_.clear();
+    
+    return true;
 }
 
 bool GPUKrakenDatabaseBuilder::enhance_with_phylogenetic_data() {

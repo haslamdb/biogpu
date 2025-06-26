@@ -117,6 +117,11 @@ private:
     std::unordered_map<uint32_t, std::string> taxon_names_;
     std::unordered_map<uint32_t, uint32_t> taxon_parents_;
     std::vector<LCACandidate> all_lca_candidates_;
+    
+    // Batch accumulation variables for proper memory management
+    std::vector<GPUGenomeInfo> accumulated_genome_info_;
+    size_t accumulated_sequence_length_;
+    std::string accumulated_sequences_;
     std::vector<PhylogeneticLCACandidate> phylogenetic_candidates_;
     ContributingTaxaArrays contributing_taxa_arrays_;
     SpeciesTrackingData species_tracking_;
@@ -221,6 +226,7 @@ private:
     bool process_sequence_batches();
     bool process_sequence_batch(const std::vector<std::string>& sequences, 
                                const std::vector<uint32_t>& taxon_ids);
+    bool process_accumulated_sequences();
     bool compute_lca_assignments();
     bool merge_and_deduplicate_candidates();
     

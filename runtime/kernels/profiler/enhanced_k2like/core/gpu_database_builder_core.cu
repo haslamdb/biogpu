@@ -985,15 +985,27 @@ bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
     cudaMemcpy(d_genome_info, accumulated_genome_info_.data(), 
                accumulated_genome_info_.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
     
+    // Prepare batch data for kernel
+    GPUBatchData batch_data;
+    batch_data.d_sequence_data = d_sequence_data;
+    batch_data.d_genome_info = d_genome_info;
+    batch_data.d_minimizer_hits = d_minimizer_hits;
+    batch_data.d_lca_candidates = d_lca_candidates;
+    batch_data.sequence_buffer_size = accumulated_sequences_.length();
+    batch_data.max_genomes = accumulated_genome_info_.size();
+    batch_data.max_minimizers = memory_manager_->get_minimizer_capacity();
+    
+    // Get hit counter from memory manager
+    uint32_t* d_hit_counter = memory_manager_->get_global_counter();
+    batch_data.d_global_counter = d_hit_counter;
+    
     // Launch minimizer extraction kernel with improved work distribution
     uint32_t total_hits_extracted = 0;
-    if (!launch_improved_minimizer_kernel_fixed(
-            d_sequence_data,
-            d_genome_info,
-            accumulated_genome_info_.size(),
-            d_minimizer_hits,
-            memory_manager_->get_minimizer_capacity(),
+    if (!launch_improved_minimizer_kernel(
+            batch_data,
             minimizer_params_,
+            0,  // min_clear_hash_value
+            config_.toggle_mask,
             &total_hits_extracted)) {
         std::cerr << "Minimizer extraction kernel failed" << std::endl;
         return false;

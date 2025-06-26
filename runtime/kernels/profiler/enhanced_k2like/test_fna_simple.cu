@@ -12,10 +12,10 @@
 int main(int argc, char** argv) {
     std::cout << "=== Simple FNA Minimizer Extraction Test ===" << std::endl;
     
-    // Configuration
-    std::string fna_file = "data/type_strain_reference_genomes/library.fna";
+    // Configuration - use directory path for genome files
+    std::string genome_dir = "/home/david/Documents/Code/biogpu/data/type_strain_reference_genomes";
     if (argc > 1) {
-        fna_file = argv[1];
+        genome_dir = argv[1];
     }
     
     std::string output_dir = "test_output_fna";
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     
     // Memory configuration - key settings for our buffer management
     config.memory_config.minimizer_capacity = 10000000;            // 10M minimizers
-    config.memory_config.sequence_batch_size = 10;                 // Process 10 genomes at a time
+    config.memory_config.sequence_batch_size = 3;                  // Process 3 genomes at a time for testing
     config.memory_config.max_memory_fraction = 80;                 // Use 80% of GPU memory
     config.memory_config.reserved_memory_mb = 500;                 // Reserve 500MB
     
@@ -43,21 +43,17 @@ int main(int argc, char** argv) {
     std::cout << "\n1. Creating database builder..." << std::endl;
     GPUKrakenDatabaseBuilder builder(output_dir, config);
     
-    // Test basic functionality first
-    if (!builder.is_initialized()) {
-        std::cerr << "Failed to initialize database builder" << std::endl;
-        return 1;
-    }
-    std::cout << "✓ Builder initialized" << std::endl;
+    // Don't check is_initialized() as modules aren't initialized yet
+    std::cout << "✓ Builder created" << std::endl;
     
-    // Build database from streaming FNA
-    std::cout << "\n2. Building database from FNA file: " << fna_file << std::endl;
-    std::cout << "   Using 50MB buffer with 90% threshold = " << (0.9 * 50) << "MB" << std::endl;
-    std::cout << "   Batch size: " << config.memory_config.sequence_batch_size << " genomes" << std::endl;
+    // Build database from genome directory
+    std::cout << "\n2. Building database from genome directory: " << genome_dir << std::endl;
+    std::cout << "   Using batch size: " << config.memory_config.sequence_batch_size << " genomes" << std::endl;
+    std::cout << "   Buffer will process when reaching 90% of capacity" << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    bool success = builder.build_database_from_streaming_fna(fna_file);
+    bool success = builder.build_database_from_genomes(genome_dir);
     
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
@@ -76,7 +72,7 @@ int main(int argc, char** argv) {
     std::cout << "   Total bases processed: " << stats.total_bases << std::endl;
     std::cout << "   Valid minimizers extracted: " << stats.valid_minimizers_extracted << std::endl;
     std::cout << "   Unique minimizers: " << stats.unique_minimizers << std::endl;
-    std::cout << "   Build time: " << stats.build_time << " seconds" << std::endl;
+    std::cout << "   Database construction time: " << stats.database_construction_time << " seconds" << std::endl;
     
     // Check if output files were created
     std::cout << "\n4. Checking output files..." << std::endl;

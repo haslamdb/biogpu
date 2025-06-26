@@ -2152,7 +2152,7 @@ The hybrid database builder supports various input formats:
    - Check coverage breadth metrics
    - Consider adjusting min_abundance threshold
 
-## 🚀 GPU-Accelerated Kraken2-Style Taxonomic Classifier (NEW - December 15, 2025)
+## 🚀 GPU-Accelerated Kraken2-Style Taxonomic Classifier 
 
 ### Overview
 
@@ -2356,7 +2356,7 @@ struct GPUMinimizerHit {
 };
 ```
 
-### New Classification Features (December 2025)
+### New Classification Features 
 
 #### Gzip-Compressed Input Support
 
@@ -2558,6 +2558,114 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
    - Parallel sample processing on multiple GPUs
    - Real-time monitoring dashboard
    - Integration with LIMS systems
+
+## Enhanced K2-like Database Builder Status
+
+### Current Implementation Status (As of June 25th 2025)
+
+#### ✅ Completed Components:
+
+1. **Modular Architecture**:
+   - Core database builder (`core/gpu_database_builder_core.h/cu`)
+   - Memory management (`memory/gpu_memory_manager.h/cu`)
+   - GPU kernels (`gpu/gpu_database_kernels.h/cu`)
+   - File processing (`processing/genome_file_processor.h/cu`)
+   - Taxonomy processing (`taxonomy/taxonomy_processor.h/cu`)
+   - Database serialization (`output/database_serializer.h/cu`)
+
+2. **Genome Import**:
+   - **Two methods available**:
+     - `build_database_from_genomes()`: Processes a directory of individual FNA files
+     - `build_database_from_streaming_fna()`: Processes a single large concatenated FNA file
+   - Successfully loads and validates FNA files
+   - Handles multi-sequence FASTA files correctly
+   - Implements batch processing with configurable batch sizes
+
+3. **Buffer Management**:
+   - Implemented accumulation strategy to handle multiple batches
+   - Added 90% buffer threshold checking
+   - Created `process_accumulated_sequences()` helper function
+   - Proper memory cleanup after processing
+   - Successfully prevents buffer overflow
+
+#### 🚧 In Progress:
+
+1. **Minimizer Extraction**:
+   - Multi-threaded kernel implementation complete (`extract_minimizers_multi_thread_per_genome_kernel`)
+   - Proper work distribution across GPU threads
+   - Shared memory deduplication implemented
+   - **Issue**: Currently extracting 0 minimizers - debugging in progress
+   - Kernel launches successfully without crashes
+
+2. **Feature Extraction**:
+   - `MinimizerFeatureExtractor` class implemented
+   - Two-pass processing structure in place
+   - GC content and sequence complexity calculation ready
+   - Waiting for successful minimizer extraction to test
+
+3. **Database Building**:
+   - Pipeline structure complete
+   - LCA assignment logic implemented
+   - Database serialization ready
+   - Blocked by minimizer extraction issue
+
+#### 🔧 Technical Details:
+
+**Current Testing Results**:
+- Successfully processes 27 genome files from test directory
+- Accumulates sequences across batches (tested with 3-10 genomes per batch)
+- Buffer management correctly detects when approaching capacity
+- GPU memory allocation working correctly
+- Kernel execution completes without errors
+
+**Key Parameters**:
+- K-mer size: 31
+- L-mer size: 31
+- Spaces: 7
+- Default batch size: 10 genomes
+- Buffer size: Based on GPU memory (typically 50-100MB)
+
+**Known Issues**:
+1. Zero minimizers being extracted despite correct kernel execution
+2. Need to verify minimizer extraction algorithm implementation
+3. Buffer size calculation needs adjustment for larger genome sets
+
+#### 📝 Next Steps:
+
+1. **Debug Minimizer Extraction**:
+   - Verify the Kraken2-style minimizer extraction algorithm
+   - Check canonical k-mer computation
+   - Validate MurmurHash3 implementation
+   - Test with simplified single-genome input
+
+2. **Complete Feature Extraction Testing**:
+   - Once minimizers are extracted, test feature calculation
+   - Verify ML weight assignment
+   - Test contamination detection
+
+3. **Finalize Database Build**:
+   - Test full pipeline with small dataset
+   - Verify database output format
+   - Compare with standard Kraken2 database
+
+4. **Performance Optimization**:
+   - Profile GPU kernel performance
+   - Optimize memory transfers
+   - Implement overlapped processing for large datasets
+
+#### 📚 Two Methods for Processing FNA Files:
+
+1. **build_database_from_genomes(genome_library_path)**
+   - **Input**: A directory path containing multiple individual FNA files
+   - **Processing**: Loads all FNA files from the directory into memory
+   - **Use case**: When you have a collection of separate genome files (like your `/home/david/Documents/Code/biogpu/data/type_strain_reference_genomes/` directory with 27 individual .fna files)
+   - **Memory usage**: Loads multiple files and processes them in batches
+
+2. **build_database_from_streaming_fna(fna_file_path)**
+   - **Input**: A single large FNA file containing multiple genomes
+   - **Processing**: Streams through the file, processing genomes as it encounters them
+   - **Use case**: When you have one large concatenated FNA file with multiple genomes separated by headers (>)
+   - **Memory usage**: More memory-efficient for very large files
 
 2. **Summary Statistics Output**:
    - Generate TSV file with aggregated classification results

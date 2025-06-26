@@ -773,6 +773,7 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     batch_data.d_lca_candidates = d_lca_candidates;
     batch_data.max_genomes = sequences.size();
     batch_data.max_minimizers = memory_manager_->get_minimizer_capacity();
+    batch_data.sequence_buffer_size = memory_manager_->get_sequence_buffer_size();
     
     // Prepare genome information
     std::vector<GPUGenomeInfo> genome_info;
@@ -830,6 +831,8 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
         std::cerr << "Failed to launch minimizer extraction kernel" << std::endl;
         return false;
     }
+    
+    std::cout << "  Extracted " << total_hits << " minimizers from batch" << std::endl;
     
     // Copy minimizer hits back to host
     std::vector<GPUMinimizerHit> minimizer_hits(total_hits);

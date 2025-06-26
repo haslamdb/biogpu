@@ -351,14 +351,28 @@ __global__ void extract_minimizers_sliding_window_kernel(
     GPUMinimizerHit* minimizer_hits,
     uint32_t* global_hit_counter,
     MinimizerParams params,
-    int max_minimizers) {
+    int max_minimizers,
+    size_t sequence_buffer_size) {
     
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    // Debug output from first thread
+    if (idx == 0) {
+        printf("KERNEL STARTED: num_genomes=%d, max_minimizers=%d\n", num_genomes, max_minimizers);
+    }
+    
     if (idx >= num_genomes) return;
     
     // Extra safety check
-    if (idx < 0 || genome_info == nullptr || sequence_data == nullptr) {
-        printf("ERROR: Invalid pointers or index: idx=%d\n", idx);
+    if (idx < 0 || genome_info == nullptr || sequence_data == nullptr || 
+        minimizer_hits == nullptr || global_hit_counter == nullptr) {
+        if (idx == 0) {
+            printf("ERROR: Null pointers detected in kernel!\n");
+            printf("  genome_info: %p\n", genome_info);
+            printf("  sequence_data: %p\n", sequence_data);
+            printf("  minimizer_hits: %p\n", minimizer_hits);
+            printf("  global_hit_counter: %p\n", global_hit_counter);
+        }
         return;
     }
     
@@ -378,11 +392,9 @@ __global__ void extract_minimizers_sliding_window_kernel(
     uint32_t total_kmers = seq_length - params.k + 1;
     const int clustering_window = 100;  // Window size for position clustering detection
     
-    // Add debug for first thread
-    if (idx == 0 && blockIdx.x == 0 && threadIdx.x == 0) {
-        printf("Kernel: num_genomes=%d, Processing genome 0: offset=%u, length=%u, total_kmers=%u\n", 
-               num_genomes, genome.sequence_offset, seq_length, total_kmers);
-    }
+    // Debug: Count how many minimizers we're finding
+    uint32_t local_minimizer_count = 0;
+    uint32_t invalid_kmer_count = 0;
     
     for (uint32_t pos = 0; pos < total_kmers; pos++) {
         // Bounds check - make sure we won't read past the end
@@ -391,13 +403,23 @@ __global__ void extract_minimizers_sliding_window_kernel(
             return;
         }
         
+        // Extra safety check - ensure we're within buffer bounds
+        uint32_t end_pos = genome.sequence_offset + pos + params.k;
+        if (end_pos > sequence_buffer_size) {
+            return;
+        }
         
         uint64_t current_minimizer = extract_minimizer_sliding_window(
             sequence, pos, params.k, params.ell, params.spaces, params.xor_mask
         );
         
+        if (current_minimizer == UINT64_MAX) {
+            invalid_kmer_count++;
+        }
+        
         // Only output if minimizer changed (proper deduplication)
         if (current_minimizer != UINT64_MAX && current_minimizer != prev_minimizer) {
+            local_minimizer_count++;
             uint32_t global_pos = atomicAdd(global_hit_counter, 1);
             
             if (global_pos < max_minimizers) {
@@ -414,23 +436,8 @@ __global__ void extract_minimizers_sliding_window_kernel(
                 // Calculate features for the k-mer at this position
                 const char* kmer_seq = sequence + pos;
                 
-                // Calculate GC content category
-                uint8_t gc_category = calculate_gc_category(kmer_seq, params.k);
-                
-                // Calculate sequence complexity
-                uint8_t complexity_score = calculate_sequence_complexity(kmer_seq, params.k);
-                
-                // Check for position clustering
-                bool is_clustered = check_position_clustering(pos, prev_position, clustering_window);
-                
-                // Encode features into feature_flags
-                uint16_t feature_flags = 0;
-                feature_flags = MinimizerFlags::set_gc_content_category(feature_flags, gc_category);
-                feature_flags = MinimizerFlags::set_complexity_score(feature_flags, complexity_score);
-                feature_flags = MinimizerFlags::set_position_bias(feature_flags, is_clustered);
-                feature_flags = MinimizerFlags::set_contamination_risk(feature_flags, false);
-                
-                hit.feature_flags = feature_flags;
+                // Skip feature calculation for now to isolate the issue
+                hit.feature_flags = 0;
                 
                 minimizer_hits[global_pos] = hit;
                 prev_position = pos;
@@ -438,6 +445,18 @@ __global__ void extract_minimizers_sliding_window_kernel(
             
             prev_minimizer = current_minimizer;
         }
+    }
+    
+    // Debug output for first genome
+    if (idx == 0) {
+        printf("Genome 0: total_kmers=%u, invalid_kmers=%u, local_minimizers=%u\n", 
+               total_kmers, invalid_kmer_count, local_minimizer_count);
+        // Check first few characters of the sequence
+        printf("First 10 chars: ");
+        for (int i = 0; i < 10 && i < seq_length; i++) {
+            printf("%c", sequence[i]);
+        }
+        printf("\n");
     }
 }
 
@@ -633,7 +652,8 @@ bool launch_minimizer_extraction_kernel(
         batch_data.d_minimizer_hits,
         batch_data.d_global_counter,
         params,
-        batch_data.max_minimizers
+        batch_data.max_minimizers,
+        batch_data.sequence_buffer_size
     );
     
     cudaError_t launch_err = cudaGetLastError();

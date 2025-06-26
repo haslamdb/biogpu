@@ -781,11 +781,17 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     
     for (size_t i = 0; i < sequences.size(); i++) {
         GPUGenomeInfo info;
-        info.genome_id = i;
-        info.sequence_offset = sequence_offset;
+        info.genome_id = i;  // Use batch-local genome ID
+        info.sequence_offset = sequence_offset;  // Offset within this batch
         info.sequence_length = sequences[i].length();
         info.minimizer_count = 0;
         info.taxon_id = taxon_ids[i];
+        
+        if (i < 3 || i >= sequences.size() - 3) { // Debug first and last few
+            std::cout << "  Genome " << i << ": offset=" << info.sequence_offset 
+                      << ", length=" << info.sequence_length 
+                      << ", taxon=" << info.taxon_id << std::endl;
+        }
         
         genome_info.push_back(info);
         genome_lengths.push_back(sequences[i].length());
@@ -796,6 +802,17 @@ bool GPUKrakenDatabaseBuilder::process_sequence_batch(
     std::string concatenated_sequences;
     for (const auto& seq : sequences) {
         concatenated_sequences += seq + '\0';
+    }
+    
+    std::cout << "Copying sequence data to GPU:" << std::endl;
+    std::cout << "  Number of sequences: " << sequences.size() << std::endl;
+    std::cout << "  Total concatenated length: " << concatenated_sequences.length() << " bytes" << std::endl;
+    std::cout << "  Sequence buffer size: " << memory_manager_->get_sequence_buffer_size() << " bytes" << std::endl;
+    
+    // Check if we're exceeding buffer size
+    if (concatenated_sequences.length() > memory_manager_->get_sequence_buffer_size()) {
+        std::cerr << "ERROR: Concatenated sequences exceed buffer size!" << std::endl;
+        return false;
     }
     
     cudaMemcpy(d_sequence_data, concatenated_sequences.c_str(), 

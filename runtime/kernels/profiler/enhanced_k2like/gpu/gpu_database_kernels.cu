@@ -356,18 +356,42 @@ __global__ void extract_minimizers_sliding_window_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_genomes) return;
     
+    // Extra safety check
+    if (idx < 0 || genome_info == nullptr || sequence_data == nullptr) {
+        printf("ERROR: Invalid pointers or index: idx=%d\n", idx);
+        return;
+    }
+    
     const GPUGenomeInfo& genome = genome_info[idx];
     const char* sequence = sequence_data + genome.sequence_offset;
     uint32_t seq_length = genome.sequence_length;
     
+    // Bounds checking
     if (seq_length < params.k) return;
+    if (seq_length > 10000000) { // Sanity check - no single sequence should be > 10MB
+        printf("ERROR: Genome %d has suspicious length: %u\n", idx, seq_length);
+        return;
+    }
     
     uint64_t prev_minimizer = UINT64_MAX;
     uint32_t prev_position = UINT32_MAX;
     uint32_t total_kmers = seq_length - params.k + 1;
     const int clustering_window = 100;  // Window size for position clustering detection
     
+    // Add debug for first thread
+    if (idx == 0 && blockIdx.x == 0 && threadIdx.x == 0) {
+        printf("Kernel: num_genomes=%d, Processing genome 0: offset=%u, length=%u, total_kmers=%u\n", 
+               num_genomes, genome.sequence_offset, seq_length, total_kmers);
+    }
+    
     for (uint32_t pos = 0; pos < total_kmers; pos++) {
+        // Bounds check - make sure we won't read past the end
+        if (pos + params.k > seq_length) {
+            printf("ERROR: pos %u + k %u > seq_length %u\n", pos, params.k, seq_length);
+            return;
+        }
+        
+        
         uint64_t current_minimizer = extract_minimizer_sliding_window(
             sequence, pos, params.k, params.ell, params.spaces, params.xor_mask
         );

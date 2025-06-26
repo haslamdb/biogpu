@@ -53,6 +53,9 @@ private:
     LCACandidate* d_lca_candidates_;
     uint32_t* d_minimizer_counts_;
     
+    // Buffer sizes
+    size_t sequence_buffer_size_;
+    
     // Statistics
     MemoryStats stats_;
     
@@ -96,6 +99,7 @@ public:
     // Additional methods for accessing internal state
     uint32_t* get_global_counter() const { return d_minimizer_counts_; }
     size_t get_minimizer_capacity() const { return config_.minimizer_capacity; }
+    size_t get_sequence_buffer_size() const { return sequence_buffer_size_; }
     
 private:
     // Internal methods

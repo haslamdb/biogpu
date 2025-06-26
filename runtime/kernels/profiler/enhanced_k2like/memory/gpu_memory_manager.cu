@@ -226,7 +226,7 @@ bool GPUMemoryPool::is_initialized() const {
 GPUMemoryManager::GPUMemoryManager(const MemoryConfig& config)
     : config_(config), initialized_(false), allocations_active_(false), total_allocated_(0),
       d_sequence_data_(nullptr), d_genome_info_(nullptr), d_minimizer_hits_(nullptr),
-      d_lca_candidates_(nullptr), d_minimizer_counts_(nullptr) {
+      d_lca_candidates_(nullptr), d_minimizer_counts_(nullptr), sequence_buffer_size_(0) {
     
     // Initialize statistics
     memset(&stats_, 0, sizeof(stats_));
@@ -332,9 +332,11 @@ bool GPUMemoryManager::allocate_sequence_memory(size_t max_sequences, size_t max
         std::cout << "  Total length: " << (max_total_length / 1024 / 1024) << " MB" << std::endl;
         
         // Allocate sequence data buffer
+        sequence_buffer_size_ = max_total_length;
         cudaError_t error = cudaMalloc(&d_sequence_data_, max_total_length);
         if (error != cudaSuccess) {
             std::cerr << "Failed to allocate sequence data: " << cudaGetErrorString(error) << std::endl;
+            sequence_buffer_size_ = 0;
             return false;
         }
         
@@ -451,6 +453,7 @@ void GPUMemoryManager::free_all_allocations() {
         if (d_sequence_data_) {
             cudaFree(d_sequence_data_);
             d_sequence_data_ = nullptr;
+            sequence_buffer_size_ = 0;
         }
         
         if (d_genome_info_) {

@@ -254,6 +254,9 @@ bool test_streaming_minimizer_extraction(const TestConfig& config) {
                   << rate << " MB/s" << std::endl;
     }
     
+    // Print cleaning statistics
+    streaming_processor.print_cleaning_statistics();
+    
     // Analyze all collected minimizers
     print_minimizer_stats(all_minimizers);
     

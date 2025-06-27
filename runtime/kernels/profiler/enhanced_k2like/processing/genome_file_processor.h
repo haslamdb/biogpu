@@ -165,6 +165,11 @@ private:
     size_t sequences_too_large_;
     size_t sequences_with_invalid_taxon_;
     
+    // Additional statistics
+    size_t sequences_with_invalid_bases_;
+    size_t total_bases_cleaned_;
+    size_t total_valid_bases_;
+    
 public:
     StreamingFnaProcessor(const std::string& fna_path, 
                          const std::string& temp_dir,
@@ -182,6 +187,7 @@ public:
     size_t get_total_bases() const { return total_bases_processed_; }
     size_t get_sequences_too_large() const { return sequences_too_large_; }
     size_t get_sequences_with_invalid_taxon() const { return sequences_with_invalid_taxon_; }
+    void print_cleaning_statistics() const;
     
 private:
     // Enhanced internal methods
@@ -194,6 +200,11 @@ private:
                                   const std::string& sequence,
                                   uint32_t taxon_id,
                                   std::string& temp_file_path);
+    
+    // Sequence cleaning methods
+    std::string clean_sequence_for_minimizers(const std::string& sequence);
+    bool has_sufficient_valid_bases(const std::string& sequence, float min_valid_fraction = 0.5);
+    size_t count_valid_bases(const std::string& sequence);
 };
 
 // Utility functions for file processing

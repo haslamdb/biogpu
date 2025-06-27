@@ -162,7 +162,7 @@ std::vector<std::string> GenomeFileProcessor::load_sequences_from_fasta(const st
         size_t file_sequences = 0;
         size_t file_bases = 0;
         
-        current_sequence.reserve(50000); // Reserve space for typical sequence
+        current_sequence.reserve(5000000); // Reserve 5MB for typical bacterial genome
         
         while (std::getline(file, line)) {
             line_number++;
@@ -182,14 +182,14 @@ std::vector<std::string> GenomeFileProcessor::load_sequences_from_fasta(const st
                         }
                     }
                     current_sequence.clear();
-                    current_sequence.reserve(50000);
+                    current_sequence.reserve(5000000); // Reserve 5MB for next sequence
                 }
                 in_sequence = true;
             } else if (in_sequence) {
-                // Validate line length
-                if (line.size() > 100000) {
-                    std::cerr << "Warning: Very long line in " << fasta_path 
-                              << " at line " << line_number << std::endl;
+                // Validate line length - increased to handle full genomes on single line
+                if (line.size() > 50000000) {  // 50MB should handle most genomes
+                    std::cerr << "Warning: Extremely long line in " << fasta_path 
+                              << " at line " << line_number << " (length: " << line.size() << ")" << std::endl;
                     continue;
                 }
                 
@@ -847,7 +847,8 @@ StreamingFnaProcessor::StreamingFnaProcessor(const std::string& fna_path,
     : fna_file_path_(fna_path), temp_directory_(temp_dir), batch_size_(batch_size),
       current_genome_count_(0), total_bases_processed_(0), processing_active_(false),
       end_of_file_reached_(false), total_genomes_read_(0), sequences_too_large_(0),
-      sequences_with_invalid_taxon_(0) {
+      sequences_with_invalid_taxon_(0), sequences_with_invalid_bases_(0),
+      total_bases_cleaned_(0), total_valid_bases_(0) {
     
     // Pre-allocate read buffer
     read_buffer_.resize(BUFFER_SIZE);
@@ -905,6 +906,9 @@ void StreamingFnaProcessor::reset_processing() {
     total_genomes_read_ = 0;
     sequences_too_large_ = 0;
     sequences_with_invalid_taxon_ = 0;
+    sequences_with_invalid_bases_ = 0;
+    total_bases_cleaned_ = 0;
+    total_valid_bases_ = 0;
     incomplete_state_.clear();
     cleanup_temp_files();
 }
@@ -1055,6 +1059,26 @@ void StreamingFnaProcessor::cleanup_temp_files() {
 uint32_t StreamingFnaProcessor::parse_taxon_from_header(const std::string& header) {
     // Try multiple header formats
     
+    // NEW Format: >Something|taxid|... where taxid is between first and second pipes
+    size_t first_pipe = header.find('|');
+    if (first_pipe != std::string::npos) {
+        size_t second_pipe = header.find('|', first_pipe + 1);
+        if (second_pipe != std::string::npos) {
+            // Extract the content between first and second pipes
+            std::string taxid_str = header.substr(first_pipe + 1, second_pipe - first_pipe - 1);
+            
+            // Check if it's a valid number
+            try {
+                uint32_t taxid = std::stoul(taxid_str);
+                if (taxid > 0 && taxid < 10000000) {  // Reasonable taxon ID range
+                    return taxid;
+                }
+            } catch (...) {
+                // Not a number, continue to other formats
+            }
+        }
+    }
+    
     // Format 1: >kraken:taxid|12345|...
     size_t taxid_pos = header.find("taxid|");
     if (taxid_pos != std::string::npos) {
@@ -1111,6 +1135,41 @@ bool StreamingFnaProcessor::write_genome_to_temp_file(const std::string& header,
                                                       const std::string& sequence,
                                                       uint32_t taxon_id,
                                                       std::string& temp_file_path) {
+    // Clean the sequence first
+    std::string cleaned_sequence = clean_sequence_for_minimizers(sequence);
+    
+    // Update statistics
+    if (sequence != cleaned_sequence) {
+        sequences_with_invalid_bases_++;
+    }
+    
+    // Log cleaning statistics for debugging
+    if (sequence.length() != cleaned_sequence.length()) {
+        std::cout << "Cleaned sequence for taxon " << taxon_id 
+                  << ": " << sequence.length() << " -> " << cleaned_sequence.length() << " bases" << std::endl;
+    }
+    
+    // Count valid bases after cleaning
+    size_t valid_bases = count_valid_bases(cleaned_sequence);
+    float valid_fraction = (float)valid_bases / cleaned_sequence.length();
+    
+    // Update statistics
+    total_bases_cleaned_ += cleaned_sequence.length();
+    total_valid_bases_ += valid_bases;
+    
+    // Skip if too few valid bases
+    if (valid_fraction < 0.5) {
+        std::cerr << "Warning: Sequence for taxon " << taxon_id 
+                  << " has only " << (valid_fraction * 100) << "% valid bases after cleaning, skipping" << std::endl;
+        return false;
+    }
+    
+    // For sequences with 50-80% valid bases, log a warning but process
+    if (valid_fraction < 0.8) {
+        std::cout << "Notice: Sequence for taxon " << taxon_id 
+                  << " has " << (valid_fraction * 100) << "% valid bases" << std::endl;
+    }
+    
     // Generate unique filename
     temp_file_path = temp_directory_ + "/streaming_genome_" + 
                      std::to_string(taxon_id) + "_" +
@@ -1125,11 +1184,67 @@ bool StreamingFnaProcessor::write_genome_to_temp_file(const std::string& header,
     // Write header
     out << header << "\n";
     
-    // Write entire sequence on a single line for k-mer extraction
-    out << sequence << "\n";
+    // Write cleaned sequence on a single line for k-mer extraction
+    out << cleaned_sequence << "\n";
     
     out.close();
     return true;
+}
+
+// Sequence cleaning methods implementation
+std::string StreamingFnaProcessor::clean_sequence_for_minimizers(const std::string& sequence) {
+    std::string cleaned;
+    cleaned.reserve(sequence.length());
+    
+    for (char c : sequence) {
+        char upper_c = std::toupper(c);
+        // Convert masked/unknown bases to 'N'
+        if (upper_c == 'X' || upper_c == '*' || upper_c == '-' || upper_c == '.') {
+            cleaned += 'N';
+        } else if (upper_c == 'A' || upper_c == 'C' || upper_c == 'G' || 
+                  upper_c == 'T' || upper_c == 'N') {
+            cleaned += upper_c;  // Normalize to uppercase
+        }
+        // Skip any other characters (numbers, etc.)
+    }
+    
+    return cleaned;
+}
+
+size_t StreamingFnaProcessor::count_valid_bases(const std::string& sequence) {
+    size_t valid_count = 0;
+    for (char c : sequence) {
+        char upper_c = std::toupper(c);
+        if (upper_c == 'A' || upper_c == 'C' || upper_c == 'G' || upper_c == 'T') {
+            valid_count++;
+        }
+    }
+    return valid_count;
+}
+
+bool StreamingFnaProcessor::has_sufficient_valid_bases(const std::string& sequence, float min_valid_fraction) {
+    size_t valid_count = count_valid_bases(sequence);
+    float valid_fraction = (float)valid_count / sequence.length();
+    
+    if (valid_fraction < min_valid_fraction) {
+        std::cout << "Sequence has only " << (valid_fraction * 100) << "% valid bases" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void StreamingFnaProcessor::print_cleaning_statistics() const {
+    std::cout << "\n=== Sequence Cleaning Statistics ===" << std::endl;
+    std::cout << "Total genomes processed: " << total_genomes_read_ << std::endl;
+    std::cout << "Sequences with invalid bases (cleaned): " << sequences_with_invalid_bases_ << std::endl;
+    std::cout << "Total bases processed: " << total_bases_processed_ << std::endl;
+    std::cout << "Total bases after cleaning: " << total_bases_cleaned_ << std::endl;
+    std::cout << "Total valid bases: " << total_valid_bases_ << std::endl;
+    if (total_bases_cleaned_ > 0) {
+        float valid_percentage = (float)total_valid_bases_ / total_bases_cleaned_ * 100.0f;
+        std::cout << "Overall valid base percentage: " << std::fixed << std::setprecision(1) 
+                  << valid_percentage << "%" << std::endl;
+    }
 }
 
 namespace FileProcessingUtils {

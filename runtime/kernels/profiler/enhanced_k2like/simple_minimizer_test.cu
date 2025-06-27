@@ -34,7 +34,7 @@ __global__ void simple_minimizer_kernel(
     // Each thread processes one position
     if (tid < seq_length - k + 1) {
         uint64_t minimizer = extract_minimizer_sliding_window(
-            sequence, tid, k, ell, 0, xor_mask
+            sequence, tid, k, ell, 0, xor_mask, seq_length
         );
         
         if (minimizer != UINT64_MAX) {

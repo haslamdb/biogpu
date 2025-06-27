@@ -252,7 +252,7 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
     // Process assigned k-mers
     for (uint32_t kmer_idx = start_kmer; kmer_idx < end_kmer; kmer_idx++) {
         uint64_t minimizer = extract_minimizer_sliding_window(
-            sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+            sequence, kmer_idx, params.k, params.ell, params.spaces, params.xor_mask, seq_length
         );
         
         if (minimizer != UINT64_MAX) {
@@ -431,7 +431,7 @@ __global__ void extract_minimizers_sliding_window_kernel_fixed(
         
         // Extract minimizer at this position
         uint64_t current_minimizer = extract_minimizer_sliding_window(
-            sequence, local_kmer_idx, params.k, params.ell, params.spaces, params.xor_mask
+            sequence, local_kmer_idx, params.k, params.ell, params.spaces, params.xor_mask, genome.sequence_length
         );
         
         if (current_minimizer != UINT64_MAX) {
@@ -544,7 +544,7 @@ __global__ void extract_minimizers_multi_thread_per_genome_kernel(
     
     for (uint32_t pos = start_pos; pos < end_pos; pos++) {
         uint64_t current_minimizer = extract_minimizer_sliding_window(
-            sequence, pos, params.k, params.ell, params.spaces, params.xor_mask
+            sequence, pos, params.k, params.ell, params.spaces, params.xor_mask, seq_length
         );
         
         if (current_minimizer == UINT64_MAX) continue;

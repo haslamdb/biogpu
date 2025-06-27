@@ -48,8 +48,13 @@ __device__ inline uint64_t canonical_kmer(uint64_t kmer, int k) {
     return (kmer < rev_comp) ? kmer : rev_comp;
 }
 
-// Extract k-mer from sequence at given position
-__device__ inline uint64_t extract_kmer(const char* sequence, int pos, int k) {
+// Extract k-mer from sequence at given position with bounds checking
+__device__ inline uint64_t extract_kmer(const char* sequence, int pos, int k, int seq_length) {
+    // Bounds check
+    if (pos < 0 || pos + k > seq_length) {
+        return UINT64_MAX;  // Invalid position
+    }
+    
     uint64_t kmer = 0;
     for (int i = 0; i < k; i++) {
         uint64_t base = encode_base(sequence[pos + i]);
@@ -59,17 +64,28 @@ __device__ inline uint64_t extract_kmer(const char* sequence, int pos, int k) {
     return kmer;
 }
 
-// Kraken2-style minimizer extraction
+// Kraken2-style minimizer extraction with proper bounds checking
 __device__ inline uint64_t extract_minimizer_sliding_window(
     const char* sequence, 
     uint32_t kmer_pos,
     uint32_t k, 
     uint32_t ell, 
     uint32_t spaces, 
-    uint64_t xor_mask
+    uint64_t xor_mask,
+    uint32_t seq_length  // Add sequence length parameter
 ) {
-    // Extract the k-mer
-    uint64_t kmer = extract_kmer(sequence, kmer_pos, k);
+    // Validate parameters
+    if (k < ell || ell == 0) {
+        return UINT64_MAX;  // Invalid parameters
+    }
+    
+    // Check if we have enough sequence for a k-mer at this position
+    if (kmer_pos + k > seq_length) {
+        return UINT64_MAX;  // Not enough sequence
+    }
+    
+    // Extract the k-mer with bounds checking
+    uint64_t kmer = extract_kmer(sequence, kmer_pos, k, seq_length);
     if (kmer == UINT64_MAX) return UINT64_MAX;
     
     // Get canonical form
@@ -79,7 +95,12 @@ __device__ inline uint64_t extract_minimizer_sliding_window(
     uint64_t min_hash = UINT64_MAX;
     
     // Slide window of size ell across the k-mer
-    for (uint32_t i = 0; i <= k - ell; i++) {
+    // Ensure we don't exceed the k-mer bounds
+    uint32_t max_window_start = (k >= ell) ? (k - ell) : 0;
+    
+    for (uint32_t i = 0; i <= max_window_start; i++) {
+        // Extract l-mer from the canonical k-mer
+        // Shift right by appropriate amount to get the l-mer starting at position i
         uint64_t lmer = (canon_kmer >> (2 * (k - ell - i))) & ((1ULL << (2 * ell)) - 1);
         
         // Apply MurmurHash3 and XOR mask
@@ -91,6 +112,34 @@ __device__ inline uint64_t extract_minimizer_sliding_window(
     }
     
     return min_hash;
+}
+
+// Alternative version that takes sequence bounds into account
+__device__ inline uint64_t extract_minimizer_safe(
+    const char* sequence,
+    uint32_t seq_start,     // Start position in global sequence buffer
+    uint32_t seq_length,    // Length of this specific sequence
+    uint32_t kmer_pos,      // Position within the sequence
+    uint32_t k,
+    uint32_t ell,
+    uint32_t spaces,
+    uint64_t xor_mask
+) {
+    // Ensure we're within bounds of this sequence
+    if (kmer_pos >= seq_length || kmer_pos + k > seq_length) {
+        return UINT64_MAX;
+    }
+    
+    // Call the main function with proper bounds
+    return extract_minimizer_sliding_window(
+        sequence + seq_start,  // Offset to start of this sequence
+        kmer_pos,
+        k,
+        ell,
+        spaces,
+        xor_mask,
+        seq_length
+    );
 }
 
 #endif // GPU_MINIMIZER_EXTRACTION_CUH

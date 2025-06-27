@@ -268,7 +268,7 @@ __global__ void test_minimizer_kernel(const char* sequence, int length, uint64_t
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         // Extract one test minimizer
         if (length >= 31) {
-            *result = extract_minimizer_sliding_window(sequence, 0, 31, 31, 7, 0x3c8bfbb395c60474ULL);
+            *result = extract_minimizer_sliding_window(sequence, 0, 31, 31, 7, 0x3c8bfbb395c60474ULL, length);
         } else {
             *result = 0;
         }

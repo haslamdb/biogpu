@@ -3,9 +3,9 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
-**Last Updated**: June 15 2025  
-**Pipeline Version**: 0.11.0  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, and batch CSV processing
+**Last Updated**: June 26 2025  
+**Pipeline Version**: 0.12.0  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, and enhanced K2-like database builder with fixed bounds checking
 
 ---
 
@@ -2717,3 +2717,89 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
 5. **Bracken Integration**: Abundance estimation at species level
 
 *This is a living document. Update with each significant change.*
+
+
+---
+
+## 🆕 Enhanced K2-like Database Builder (v0.12.0 - June 26, 2025)
+
+### Overview
+
+The enhanced K2-like database builder provides improved GPU-accelerated minimizer extraction with proper bounds checking and streaming support for large genome datasets.
+
+**Location**: `runtime/kernels/profiler/enhanced_k2like/`
+
+### Key Improvements
+
+1. **Fixed Bounds Checking in Minimizer Extraction**:
+   - Added sequence length parameter to `extract_minimizer_sliding_window` to prevent out-of-bounds memory access
+   - Updated all kernel calls to pass sequence length
+   - Prevents illegal memory access errors when processing genomes with invalid characters
+
+2. **Enhanced Streaming FNA Processor**:
+   - Fixed taxon ID parsing to handle format: `>Accession < /dev/null | taxon_id|description`
+   - Increased line length limit from 100KB to 50MB to handle full genome sequences on single lines
+   - Added sequence cleaning to convert invalid characters (x, *, -, .) to N
+   - Skip sequences with <50% valid bases after cleaning
+
+3. **Improved Memory Management**:
+   - Better buffer allocation for large sequences (5MB initial reserve)
+   - Proper handling of very large concatenated FNA files
+   - Efficient batch processing with configurable batch sizes
+
+### Usage
+
+#### Building the Enhanced K2-like Database Builder
+
+```bash
+cd runtime/kernels/profiler/enhanced_k2like
+make -f Makefile
+```
+
+#### Testing with Minimal Streaming (Recommended for Testing)
+
+```bash
+# Build minimal test
+make -f Makefile.minimal_streaming
+
+# Run test with reference genomes
+./test_minimal_streaming /path/to/ref_genomes.fna
+```
+
+#### Key Components
+
+- **StreamingFnaProcessor**: Handles large concatenated FNA files with proper buffering
+- **gpu_minimizer_extraction.cuh**: Fixed minimizer extraction with bounds checking
+- **test_minimal_streaming.cu**: Minimal test program without unimplemented components
+
+### Test Results (June 26, 2025)
+
+Successfully processed 47 genomes from ref_genomes.fna:
+- Total minimizers extracted: ~99 million
+- No GPU memory errors
+- Correct taxon ID parsing (287, 216816, 1282, etc.)
+- Proper handling of sequences with invalid characters
+
+### Known Issues Resolved
+
+1. ✅ Fixed: Illegal memory access in GPU kernel
+2. ✅ Fixed: "Warning: Very long line" preventing genome loading
+3. ✅ Fixed: Incorrect taxon ID parsing from headers
+4. ✅ Fixed: Handling of sequences with 'x' characters
+
+### Next Steps
+
+1. **Complete Feature Implementation**:
+   - Implement contamination detection
+   - Complete taxonomy processor
+   - Add ML weight calculation
+
+2. **Performance Optimization**:
+   - Profile GPU kernel performance
+   - Optimize memory transfers
+   - Implement overlapped processing
+
+3. **Database Building**:
+   - Test full pipeline with complete genome dataset
+   - Verify database output format
+   - Compare with standard Kraken2 database

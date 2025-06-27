@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <set>
 #include <iomanip>
+#include <functional>
 
 // ===========================
 // GenomeFileProcessor Implementation
@@ -845,10 +846,17 @@ StreamingFnaProcessor::StreamingFnaProcessor(const std::string& fna_path,
                                            size_t batch_size)
     : fna_file_path_(fna_path), temp_directory_(temp_dir), batch_size_(batch_size),
       current_genome_count_(0), total_bases_processed_(0), processing_active_(false),
-      end_of_file_reached_(false) {
+      end_of_file_reached_(false), total_genomes_read_(0), sequences_too_large_(0),
+      sequences_with_invalid_taxon_(0) {
+    
+    // Pre-allocate read buffer
+    read_buffer_.resize(BUFFER_SIZE);
     
     // Create temp directory if needed
     FileProcessingUtils::create_safe_directory(temp_directory_);
+    
+    // Reserve space for incomplete sequence
+    incomplete_state_.sequence.reserve(MAX_SEQUENCE_SIZE);
 }
 
 StreamingFnaProcessor::~StreamingFnaProcessor() {
@@ -864,11 +872,19 @@ bool StreamingFnaProcessor::process_next_batch(std::vector<std::string>& batch_f
     batch_taxons.clear();
     
     if (!processing_active_) {
-        file_stream_.open(fna_file_path_);
+        file_stream_.open(fna_file_path_, std::ios::binary);
         if (!file_stream_.is_open()) {
             return false;
         }
         processing_active_ = true;
+        
+        // Get file size for progress tracking
+        file_stream_.seekg(0, std::ios::end);
+        size_t file_size = file_stream_.tellg();
+        file_stream_.seekg(0, std::ios::beg);
+        
+        std::cout << "Starting streaming processing of " << (file_size / (1024*1024)) 
+                  << " MB FNA file" << std::endl;
     }
     
     return process_batch_from_buffer(batch_files, batch_taxons);
@@ -886,52 +902,94 @@ void StreamingFnaProcessor::reset_processing() {
     end_of_file_reached_ = false;
     current_genome_count_ = 0;
     total_bases_processed_ = 0;
+    total_genomes_read_ = 0;
+    sequences_too_large_ = 0;
+    sequences_with_invalid_taxon_ = 0;
+    incomplete_state_.clear();
     cleanup_temp_files();
 }
 
 bool StreamingFnaProcessor::process_batch_from_buffer(std::vector<std::string>& batch_files, 
                                                      std::vector<uint32_t>& batch_taxons) {
-    // Implementation simplified for demonstration
-    // In production, this would properly parse and batch sequences
-    
+    size_t genomes_in_batch = 0;
     std::string line;
     std::string current_sequence;
     std::string current_header;
-    size_t genomes_in_batch = 0;
+    uint32_t current_taxon = 0;
     
+    // Restore incomplete sequence from previous batch if exists
+    if (!incomplete_state_.empty()) {
+        current_sequence = std::move(incomplete_state_.sequence);
+        current_header = std::move(incomplete_state_.header);
+        current_taxon = incomplete_state_.taxon_id;
+        incomplete_state_.clear();
+    }
+    
+    // Process lines until we have enough genomes for this batch
     while (genomes_in_batch < batch_size_ && std::getline(file_stream_, line)) {
+        // Remove trailing whitespace including \r\n
+        while (!line.empty() && std::isspace(line.back())) {
+            line.pop_back();
+        }
+        
         if (line.empty()) continue;
         
         if (line[0] == '>') {
             // Process previous sequence if exists
-            if (!current_sequence.empty()) {
-                // Extract taxon ID from header (simplified)
-                uint32_t taxon_id = 1;  // Default taxon
-                
-                // Create temp file
-                std::string temp_file = temp_directory_ + "/batch_genome_" + 
-                                       std::to_string(current_genome_count_) + ".fasta";
-                
-                std::ofstream out(temp_file);
-                if (out.is_open()) {
-                    out << current_header << "\n" << current_sequence << "\n";
-                    out.close();
-                    
-                    batch_files.push_back(temp_file);
-                    batch_taxons.push_back(taxon_id);
-                    genomes_in_batch++;
-                    current_genome_count_++;
-                    total_bases_processed_ += current_sequence.length();
+            if (!current_sequence.empty() && current_taxon > 0) {
+                // Check sequence size
+                if (current_sequence.length() > MAX_SEQUENCE_SIZE) {
+                    std::cerr << "Warning: Sequence too large (" << current_sequence.length() 
+                              << " bp) for taxon " << current_taxon << ", skipping" << std::endl;
+                    sequences_too_large_++;
+                } else if (current_sequence.length() >= 1000) {  // Minimum sequence length
+                    std::string temp_file;
+                    if (write_genome_to_temp_file(current_header, current_sequence, 
+                                                  current_taxon, temp_file)) {
+                        batch_files.push_back(temp_file);
+                        batch_taxons.push_back(current_taxon);
+                        genomes_in_batch++;
+                        current_genome_count_++;
+                        total_bases_processed_ += current_sequence.length();
+                        
+                        if (genomes_in_batch >= batch_size_) {
+                            // Save new header for next batch
+                            incomplete_state_.header = line;
+                            incomplete_state_.taxon_id = parse_taxon_from_header(line);
+                            incomplete_state_.sequence.clear();
+                            return true;
+                        }
+                    }
                 }
             }
             
             // Start new sequence
             current_header = line;
+            current_taxon = parse_taxon_from_header(line);
+            if (current_taxon == 0) {
+                sequences_with_invalid_taxon_++;
+            }
             current_sequence.clear();
+            
+            // Reserve space to reduce reallocations
+            if (current_sequence.capacity() < 5000000) {
+                current_sequence.reserve(5000000);
+            }
+            
         } else {
-            // Append to current sequence
-            line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
-            current_sequence += line;
+            // Append to current sequence, removing all whitespace
+            for (char c : line) {
+                if (!std::isspace(c)) {
+                    current_sequence += c;
+                }
+            }
+            
+            // Check if sequence is getting too large
+            if (current_sequence.length() > MAX_SEQUENCE_SIZE) {
+                std::cerr << "Warning: Sequence exceeding size limit during read" << std::endl;
+                current_sequence.clear();
+                current_taxon = 0;
+            }
         }
     }
     
@@ -940,22 +998,36 @@ bool StreamingFnaProcessor::process_batch_from_buffer(std::vector<std::string>& 
         end_of_file_reached_ = true;
         
         // Process last sequence if exists
-        if (!current_sequence.empty()) {
-            uint32_t taxon_id = 1;  // Default taxon
-            
-            std::string temp_file = temp_directory_ + "/batch_genome_" + 
-                                   std::to_string(current_genome_count_) + ".fasta";
-            
-            std::ofstream out(temp_file);
-            if (out.is_open()) {
-                out << current_header << "\n" << current_sequence << "\n";
-                out.close();
-                
-                batch_files.push_back(temp_file);
-                batch_taxons.push_back(taxon_id);
-                current_genome_count_++;
-                total_bases_processed_ += current_sequence.length();
+        if (!current_sequence.empty() && current_taxon > 0 && current_sequence.length() >= 1000) {
+            if (current_sequence.length() <= MAX_SEQUENCE_SIZE) {
+                std::string temp_file;
+                if (write_genome_to_temp_file(current_header, current_sequence, 
+                                              current_taxon, temp_file)) {
+                    batch_files.push_back(temp_file);
+                    batch_taxons.push_back(current_taxon);
+                    current_genome_count_++;
+                    total_bases_processed_ += current_sequence.length();
+                }
             }
+        }
+    } else if (!current_sequence.empty()) {
+        // Save incomplete sequence for next batch
+        incomplete_state_.sequence = std::move(current_sequence);
+        incomplete_state_.header = std::move(current_header);
+        incomplete_state_.taxon_id = current_taxon;
+    }
+    
+    // Print batch statistics
+    if (!batch_files.empty()) {
+        std::cout << "Batch prepared: " << batch_files.size() << " genomes, "
+                  << "Total processed: " << current_genome_count_ << " genomes, "
+                  << (total_bases_processed_ / (1024*1024)) << " MB" << std::endl;
+        
+        if (sequences_too_large_ > 0) {
+            std::cout << "  Sequences too large: " << sequences_too_large_ << std::endl;
+        }
+        if (sequences_with_invalid_taxon_ > 0) {
+            std::cout << "  Sequences with invalid taxon: " << sequences_with_invalid_taxon_ << std::endl;
         }
     }
     
@@ -963,7 +1035,7 @@ bool StreamingFnaProcessor::process_batch_from_buffer(std::vector<std::string>& 
 }
 
 bool StreamingFnaProcessor::read_next_chunk_to_buffer() {
-    // Implementation would read a chunk of data into buffer
+    // This method could be implemented for even more efficient reading
     // For now, using line-by-line processing
     return file_stream_.good();
 }
@@ -971,13 +1043,93 @@ bool StreamingFnaProcessor::read_next_chunk_to_buffer() {
 void StreamingFnaProcessor::cleanup_temp_files() {
     try {
         for (const auto& entry : std::filesystem::directory_iterator(temp_directory_)) {
-            if (entry.path().filename().string().find("batch_genome_") == 0) {
+            if (entry.path().filename().string().find("streaming_genome_") == 0) {
                 std::filesystem::remove(entry.path());
             }
         }
     } catch (const std::exception&) {
         // Ignore cleanup errors
     }
+}
+
+uint32_t StreamingFnaProcessor::parse_taxon_from_header(const std::string& header) {
+    // Try multiple header formats
+    
+    // Format 1: >kraken:taxid|12345|...
+    size_t taxid_pos = header.find("taxid|");
+    if (taxid_pos != std::string::npos) {
+        size_t start = taxid_pos + 6;
+        size_t end = header.find_first_of("|: \t", start);
+        if (end == std::string::npos) end = header.length();
+        
+        try {
+            return std::stoul(header.substr(start, end - start));
+        } catch (...) {}
+    }
+    
+    // Format 2: >kraken:taxid:12345 ...
+    taxid_pos = header.find("taxid:");
+    if (taxid_pos != std::string::npos) {
+        size_t start = taxid_pos + 6;
+        size_t end = header.find_first_of(" \t", start);
+        if (end == std::string::npos) end = header.length();
+        
+        try {
+            return std::stoul(header.substr(start, end - start));
+        } catch (...) {}
+    }
+    
+    // Format 3: >12345 ... (just the taxid)
+    if (header.length() > 1 && std::isdigit(header[1])) {
+        size_t end = 1;
+        while (end < header.length() && std::isdigit(header[end])) {
+            end++;
+        }
+        
+        try {
+            return std::stoul(header.substr(1, end - 1));
+        } catch (...) {}
+    }
+    
+    // Fallback: Generate hash-based ID
+    std::hash<std::string> hasher;
+    uint32_t hash_id = (hasher(header) % 1000000) + 1000000;
+    
+    // Log warning for debugging
+    static int warnings_shown = 0;
+    if (warnings_shown < 10) {
+        std::cerr << "Warning: Could not parse taxon ID from header: " 
+                  << header.substr(0, std::min(size_t(50), header.length())) 
+                  << "... (using hash: " << hash_id << ")" << std::endl;
+        warnings_shown++;
+    }
+    
+    return hash_id;
+}
+
+bool StreamingFnaProcessor::write_genome_to_temp_file(const std::string& header,
+                                                      const std::string& sequence,
+                                                      uint32_t taxon_id,
+                                                      std::string& temp_file_path) {
+    // Generate unique filename
+    temp_file_path = temp_directory_ + "/streaming_genome_" + 
+                     std::to_string(taxon_id) + "_" +
+                     std::to_string(current_genome_count_) + ".fasta";
+    
+    std::ofstream out(temp_file_path, std::ios::binary);
+    if (!out.is_open()) {
+        std::cerr << "Failed to create temp file: " << temp_file_path << std::endl;
+        return false;
+    }
+    
+    // Write header
+    out << header << "\n";
+    
+    // Write entire sequence on a single line for k-mer extraction
+    out << sequence << "\n";
+    
+    out.close();
+    return true;
 }
 
 namespace FileProcessingUtils {

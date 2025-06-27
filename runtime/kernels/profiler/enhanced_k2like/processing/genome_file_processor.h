@@ -131,6 +131,40 @@ private:
     size_t total_bases_processed_;
     bool processing_active_;
     
+    // Enhanced members for better streaming
+    std::ifstream file_stream_;
+    std::string current_buffer_;
+    bool end_of_file_reached_;
+    
+    // Chunking configuration
+    static constexpr size_t BUFFER_SIZE = 64 * 1024 * 1024;  // 64MB read buffer
+    static constexpr size_t MAX_SEQUENCE_SIZE = 50 * 1024 * 1024;  // 50MB max per genome
+    
+    // State management for incomplete sequences
+    struct IncompleteSequence {
+        std::string header;
+        std::string sequence;
+        uint32_t taxon_id;
+        
+        void clear() {
+            header.clear();
+            sequence.clear();
+            taxon_id = 0;
+        }
+        
+        bool empty() const {
+            return header.empty() && sequence.empty();
+        }
+    };
+    
+    IncompleteSequence incomplete_state_;
+    std::vector<char> read_buffer_;
+    
+    // Statistics
+    size_t total_genomes_read_;
+    size_t sequences_too_large_;
+    size_t sequences_with_invalid_taxon_;
+    
 public:
     StreamingFnaProcessor(const std::string& fna_path, 
                          const std::string& temp_dir,
@@ -146,18 +180,20 @@ public:
     // Statistics
     size_t get_total_genomes() const { return current_genome_count_; }
     size_t get_total_bases() const { return total_bases_processed_; }
+    size_t get_sequences_too_large() const { return sequences_too_large_; }
+    size_t get_sequences_with_invalid_taxon() const { return sequences_with_invalid_taxon_; }
     
 private:
-    // Internal streaming state
-    std::ifstream file_stream_;
-    std::string current_buffer_;
-    bool end_of_file_reached_;
-    
-    // Batch processing helpers
+    // Enhanced internal methods
     bool process_batch_from_buffer(std::vector<std::string>& batch_files, 
                                   std::vector<uint32_t>& batch_taxons);
     bool read_next_chunk_to_buffer();
     void cleanup_temp_files();
+    uint32_t parse_taxon_from_header(const std::string& header);
+    bool write_genome_to_temp_file(const std::string& header,
+                                  const std::string& sequence,
+                                  uint32_t taxon_id,
+                                  std::string& temp_file_path);
 };
 
 // Utility functions for file processing

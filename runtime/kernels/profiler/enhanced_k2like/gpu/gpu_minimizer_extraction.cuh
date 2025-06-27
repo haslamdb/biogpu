@@ -60,7 +60,7 @@ __device__ inline uint64_t extract_kmer(const char* sequence, int pos, int k) {
 }
 
 // Kraken2-style minimizer extraction
-__device__ uint64_t extract_minimizer_sliding_window(
+__device__ inline uint64_t extract_minimizer_sliding_window(
     const char* sequence, 
     uint32_t kmer_pos,
     uint32_t k, 

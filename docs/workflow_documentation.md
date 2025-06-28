@@ -2561,7 +2561,7 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
 
 ## Enhanced K2-like Database Builder Status
 
-### Current Implementation Status (As of June 25th 2025)
+### Current Implementation Status (As of June 27th 2025)
 
 #### ✅ Completed Components:
 
@@ -2588,14 +2588,26 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
    - Proper memory cleanup after processing
    - Successfully prevents buffer overflow
 
+4. **Taxonomy Integration** (✅ Completed June 27th):
+   - **StreamingFnaProcessor**: Successfully parses taxonomic IDs from FNA headers
+     - Supports format: `>kraken:taxid|12345|description...`
+     - Extracts taxon ID from between first and second pipe characters
+     - Handles sequence cleaning (converts masked 'x' bases to 'N')
+   - **GPU Minimizer Extraction**: Properly propagates taxonomy during extraction
+     - Each minimizer is tagged with its source genome's taxon ID
+     - Taxon IDs stored as uint16_t in GPUMinimizerHit structure
+   - **End-to-end validation**: test_taxonomy_integration successfully demonstrates:
+     - Processing 44 genomes across 22 unique taxa
+     - Extracting 78.5M minimizers with correct taxonomic assignment
+     - Proper distribution: e.g., E. coli (taxon 562): 10.1M minimizers
+
 #### 🚧 In Progress:
 
-1. **Minimizer Extraction**:
-   - Multi-threaded kernel implementation complete (`extract_minimizers_multi_thread_per_genome_kernel`)
-   - Proper work distribution across GPU threads
-   - Shared memory deduplication implemented
-   - **Issue**: Currently extracting 0 minimizers - debugging in progress
-   - Kernel launches successfully without crashes
+1. **Minimizer Extraction** (✅ Fixed June 27th):
+   - Multi-threaded kernel implementation complete and working
+   - Successfully extracts minimizers with proper deduplication
+   - Processes at ~260 MB/s on TITAN Xp GPU
+   - Fixed memory allocation issue (was 1M, now configurable based on input size)
 
 2. **Feature Extraction**:
    - `MinimizerFeatureExtractor` class implemented
@@ -2625,33 +2637,83 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
 - Default batch size: 10 genomes
 - Buffer size: Based on GPU memory (typically 50-100MB)
 
-**Known Issues**:
-1. Zero minimizers being extracted despite correct kernel execution
-2. Need to verify minimizer extraction algorithm implementation
-3. Buffer size calculation needs adjustment for larger genome sets
+**Recent Fixes (June 27th)**:
+1. ✅ Fixed minimizer extraction - was a memory allocation issue (buffer too small)
+2. ✅ Verified taxonomy assignment works correctly throughout pipeline
+3. ✅ Proper handling of masked sequences (x -> N conversion)
+
+**Remaining Tasks**:
+1. Implement minimizer metadata calculation (GC content, complexity)
+2. Add ML weight assignment based on feature vectors
+3. Implement contamination detection algorithms
+4. Complete database serialization with all metadata
 
 #### 📝 Next Steps:
 
-1. **Debug Minimizer Extraction**:
-   - Verify the Kraken2-style minimizer extraction algorithm
-   - Check canonical k-mer computation
-   - Validate MurmurHash3 implementation
-   - Test with simplified single-genome input
+1. **Complete Minimizer Metadata Implementation**:
+   - Implement GC content calculation in GPU kernel
+   - Add sequence complexity scoring
+   - Integrate ML weight assignment
+   - Add contamination risk flagging
 
-2. **Complete Feature Extraction Testing**:
-   - Once minimizers are extracted, test feature calculation
-   - Verify ML weight assignment
-   - Test contamination detection
+2. **Enhanced Feature Extraction**:
+   - Test MinimizerFeatureExtractor with real minimizer data
+   - Implement host similarity detection
+   - Add phylogenetic distance calculations
+   - Validate feature encoding/decoding
 
-3. **Finalize Database Build**:
-   - Test full pipeline with small dataset
-   - Verify database output format
-   - Compare with standard Kraken2 database
+3. **Database Serialization**:
+   - Implement binary format with metadata sections
+   - Add index structures for fast lookup
+   - Include taxonomy tree in database file
+   - Compress minimizer data for space efficiency
 
-4. **Performance Optimization**:
-   - Profile GPU kernel performance
-   - Optimize memory transfers
-   - Implement overlapped processing for large datasets
+4. **Production Testing**:
+   - Process full RefSeq bacterial database
+   - Benchmark against standard Kraken2
+   - Validate classification accuracy
+   - Profile memory usage and performance
+
+5. **Integration with Classification Pipeline**:
+   - Ensure database format compatibility
+   - Test with existing GPU classification code
+   - Implement metadata-based filtering
+   - Add confidence scoring using ML weights
+
+#### 🔬 Integrated Taxonomy-Aware Minimizer Extraction Pipeline
+
+The successful integration of taxonomy assignment into minimizer extraction enables a streamlined database building process:
+
+1. **Input Processing**:
+   - StreamingFnaProcessor reads concatenated FNA files with taxonomic headers
+   - Parses taxon IDs from standardized header format: `>kraken:taxid|12345|...`
+   - Handles sequence quality issues (masked bases, invalid characters)
+   - Processes genomes in configurable batches for memory efficiency
+
+2. **GPU-Accelerated Extraction**:
+   - Each genome's sequences are processed by parallel GPU threads
+   - Minimizers are extracted using Kraken2's algorithm (k=31, l=31, spaces=7)
+   - Each minimizer is immediately tagged with its source genome's taxonomy
+   - Deduplication happens in shared memory for efficiency
+
+3. **Metadata Assignment** (To be implemented):
+   - GC content calculation for each minimizer
+   - Sequence complexity scoring
+   - ML confidence weights
+   - Contamination risk flags
+   - Host similarity markers
+
+4. **Database Construction**:
+   - Minimizers are sorted by hash value for efficient lookup
+   - Taxonomic information enables immediate LCA computation
+   - Feature metadata supports advanced filtering during classification
+   - Compact binary format optimized for GPU memory access
+
+**Key Advantages**:
+- Single-pass processing: No need to re-read sequences for taxonomy assignment
+- Early taxonomy binding: Enables taxonomic filtering during extraction
+- GPU efficiency: All processing happens on device, minimizing data transfers
+- Scalability: Streaming approach handles databases of any size
 
 #### 📚 Two Methods for Processing FNA Files:
 

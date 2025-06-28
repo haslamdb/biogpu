@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <chrono>
 #include <cuda_runtime.h>
+#include <cstddef>
 
 #include "core/gpu_database_builder_core.h"
 #include "processing/genome_file_processor.h"
@@ -117,7 +118,7 @@ int main(int argc, char** argv) {
     // Step 3: Initialize GPU memory
     std::cout << "\n3. Initializing GPU memory..." << std::endl;
     MemoryConfig mem_config;
-    mem_config.minimizer_capacity = 1000000; // 1M minimizers
+    mem_config.minimizer_capacity = 100000000; // 100M minimizers to handle all
     mem_config.sequence_batch_size = 50;
     
     GPUMemoryManager memory_manager(mem_config);
@@ -236,6 +237,15 @@ int main(int argc, char** argv) {
     
     std::cout << "✓ Extracted " << total_hits << " minimizers in " << duration << " seconds" << std::endl;
     
+    // Debug: Verify the minimizer buffer has data
+    std::cout << "\nDEBUG: Checking minimizer buffer..." << std::endl;
+    GPUMinimizerHit test_hits[10];
+    cudaMemcpy(test_hits, d_minimizers, 10 * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 10; i++) {
+        std::cout << "  Buffer[" << i << "]: hash=" << std::hex << test_hits[i].minimizer_hash << std::dec
+                  << ", taxon=" << test_hits[i].taxon_id << std::endl;
+    }
+    
     // Step 7: Copy results back and analyze
     std::cout << "\n7. Analyzing results..." << std::endl;
     
@@ -260,8 +270,16 @@ int main(int argc, char** argv) {
                   << "hash=" << std::hex << hit.minimizer_hash << std::dec
                   << ", genome_id=" << hit.genome_id
                   << ", taxon_id=" << hit.taxon_id
-                  << ", position=" << hit.position << std::endl;
+                  << ", position=" << hit.position 
+                  << ", strand=" << hit.strand
+                  << ", ml_weight=" << hit.ml_weight
+                  << ", feature_flags=" << hit.feature_flags << std::endl;
     }
+    
+    // Debug: Check memory alignment
+    std::cout << "\nDEBUG: GPUMinimizerHit structure info:" << std::endl;
+    std::cout << "  sizeof(GPUMinimizerHit) = " << sizeof(GPUMinimizerHit) << " bytes" << std::endl;
+    std::cout << "  offsetof(taxon_id) = " << offsetof(GPUMinimizerHit, taxon_id) << std::endl;
     
     // Step 8: Test phylogenetic calculations
     std::cout << "\n8. Testing phylogenetic calculations..." << std::endl;

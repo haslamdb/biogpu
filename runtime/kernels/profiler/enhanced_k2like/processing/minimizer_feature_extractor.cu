@@ -105,7 +105,7 @@ __global__ void compute_minimizer_features_kernel(
         uint8_t conservation_cat = calculate_conservation_category(conservation);
         
         // Update feature flags
-        uint16_t new_flags = hit.feature_flags;
+        uint32_t new_flags = hit.feature_flags;
         
         // Clear conservation bits (8-10) and set new value
         new_flags &= ~(0x7 << 8);

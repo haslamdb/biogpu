@@ -1,0 +1,40 @@
+cmake_minimum_required(VERSION 3.18)
+project(EnhancedK2Like LANGUAGES CXX CUDA)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
+
+# Find packages
+find_package(CUDA REQUIRED)
+find_package(Threads REQUIRED)
+
+# Include directories
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/memory
+    ${CMAKE_CURRENT_SOURCE_DIR}/processing
+    ${CMAKE_CURRENT_SOURCE_DIR}/gpu
+    ${CMAKE_CURRENT_SOURCE_DIR}/taxonomy
+    ${CMAKE_CURRENT_SOURCE_DIR}/output
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
+
+# Main executable - simple version
+add_executable(kraken_gpu_builder_simple kraken_pipeline_main.cu)
+
+# CUDA compilation flags
+target_compile_options(kraken_gpu_builder_simple PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --gpu-architecture=sm_60
+        --extended-lambda
+        --expt-relaxed-constexpr
+    >
+)
+
+# Link libraries
+target_link_libraries(kraken_gpu_builder_simple
+    ${CUDA_LIBRARIES}
+    Threads::Threads
+    stdc++fs  # For filesystem support
+)

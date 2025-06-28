@@ -391,7 +391,7 @@ EnhancedDatabaseSerializer::EnhancedDatabaseSerializer(const std::string& output
     : output_directory_(output_dir) {
     
     metadata_ = DatabaseMetadata();
-    metadata_.version = 2; // Enhanced version
+    metadata_.version = 4; // Enhanced version with 32-bit feature flags
     
     try {
         std::filesystem::create_directories(output_directory_);
@@ -557,7 +557,7 @@ bool EnhancedDatabaseSerializer::save_streamlined_hash_table(const std::vector<S
     }
     
     // Write header
-    uint64_t version = 3;  // Version 3 with ML features
+    uint64_t version = 4;  // Version 4 with expanded feature flags (32-bit)
     uint64_t num_entries = metadata.size();
     uint64_t metadata_size = sizeof(StreamlinedMinimizerMetadata);
     
@@ -1264,6 +1264,7 @@ bool EnhancedDatabaseSerializer::check_version_compatibility(uint64_t file_versi
     
     if (file_version < 2) {
         std::cerr << "Database version " << file_version << " is too old. Minimum supported version is 2." << std::endl;
+        std::cerr << "Note: Version 4 is required for 32-bit feature flags support." << std::endl;
         return false;
     }
     

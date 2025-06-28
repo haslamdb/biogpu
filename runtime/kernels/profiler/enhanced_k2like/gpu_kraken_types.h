@@ -48,128 +48,128 @@ struct GPUMinimizerHit {
                               //          bits 4-15: reserved for future use
     uint16_t taxon_id;        // 2 bytes
     uint16_t ml_weight;       // 2 bytes - ML confidence score (1.0 scaled to uint16_t)
-    uint16_t feature_flags;   // 2 bytes - encoded features
-}; // Total: 24 bytes
+    uint32_t feature_flags;   // 4 bytes - encoded features
+}; // Total: 26 bytes
 
 // Strand and classification flag constants
 namespace MinimizerFlags {
     // Strand flags (bits 0-1)
-    constexpr uint16_t STRAND_MASK = 0x0003;
-    constexpr uint16_t STRAND_FORWARD = 0x0000;
-    constexpr uint16_t STRAND_REVERSE = 0x0001;
+    constexpr uint32_t STRAND_MASK = 0x0003;
+    constexpr uint32_t STRAND_FORWARD = 0x0000;
+    constexpr uint32_t STRAND_REVERSE = 0x0001;
     
     // Classification flags (bits 2-3)
-    constexpr uint16_t CLASSIFICATION_MASK = 0x000C;
-    constexpr uint16_t CLASSIFICATION_SHIFT = 2;
-    constexpr uint16_t CLASSIFICATION_UNIQUE = 0x0000;      // Unique to one species
-    constexpr uint16_t CLASSIFICATION_CANONICAL = 0x0004;   // Canonical for species (most common)
-    constexpr uint16_t CLASSIFICATION_REDUNDANT = 0x0008;   // Redundant within species
+    constexpr uint32_t CLASSIFICATION_MASK = 0x000C;
+    constexpr uint32_t CLASSIFICATION_SHIFT = 2;
+    constexpr uint32_t CLASSIFICATION_UNIQUE = 0x0000;      // Unique to one species
+    constexpr uint32_t CLASSIFICATION_CANONICAL = 0x0004;   // Canonical for species (most common)
+    constexpr uint32_t CLASSIFICATION_REDUNDANT = 0x0008;   // Redundant within species
     
     // Helper functions
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t get_strand(uint16_t flags) {
+    inline uint32_t get_strand(uint32_t flags) {
         return flags & STRAND_MASK;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t get_classification(uint16_t flags) {
+    inline uint32_t get_classification(uint32_t flags) {
         return (flags & CLASSIFICATION_MASK) >> CLASSIFICATION_SHIFT;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t set_classification(uint16_t flags, uint16_t classification) {
+    inline uint32_t set_classification(uint32_t flags, uint32_t classification) {
         return (flags & ~CLASSIFICATION_MASK) | ((classification << CLASSIFICATION_SHIFT) & CLASSIFICATION_MASK);
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline bool is_unique(uint16_t flags) {
+    inline bool is_unique(uint32_t flags) {
         return get_classification(flags) == 0;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline bool is_canonical(uint16_t flags) {
+    inline bool is_canonical(uint32_t flags) {
         return get_classification(flags) == 1;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline bool is_redundant(uint16_t flags) {
+    inline bool is_redundant(uint32_t flags) {
         return get_classification(flags) == 2;
     }
     
     // Feature flags for ml_weight and feature_flags fields
     // For feature_flags field:
     // Bits 0-2: GC content category (0-7 representing GC% ranges)
-    constexpr uint16_t GC_CONTENT_MASK = 0x0007;
-    constexpr uint16_t GC_CONTENT_SHIFT = 0;
+    constexpr uint32_t GC_CONTENT_MASK = 0x0007;
+    constexpr uint32_t GC_CONTENT_SHIFT = 0;
     
     // Bits 3-5: Sequence complexity score (0-7)
-    constexpr uint16_t COMPLEXITY_MASK = 0x0038;
-    constexpr uint16_t COMPLEXITY_SHIFT = 3;
+    constexpr uint32_t COMPLEXITY_MASK = 0x0038;
+    constexpr uint32_t COMPLEXITY_SHIFT = 3;
     
     // Bit 6: Position bias indicator (clustered=1, uniform=0)
-    constexpr uint16_t POSITION_BIAS_MASK = 0x0040;
-    constexpr uint16_t POSITION_BIAS_CLUSTERED = 0x0040;
-    constexpr uint16_t POSITION_BIAS_UNIFORM = 0x0000;
+    constexpr uint32_t POSITION_BIAS_MASK = 0x0040;
+    constexpr uint32_t POSITION_BIAS_CLUSTERED = 0x0040;
+    constexpr uint32_t POSITION_BIAS_UNIFORM = 0x0000;
     
     // Bit 7: Contamination risk flag
-    constexpr uint16_t CONTAMINATION_RISK_MASK = 0x0080;
-    constexpr uint16_t CONTAMINATION_RISK_FLAG = 0x0080;
+    constexpr uint32_t CONTAMINATION_RISK_MASK = 0x0080;
+    constexpr uint32_t CONTAMINATION_RISK_FLAG = 0x0080;
     
-    // Bits 8-15: Reserved for future use
-    constexpr uint16_t RESERVED_MASK = 0xFF00;
+    // Bits 8-12: Reserved for future use
+    constexpr uint32_t RESERVED_8_12_MASK = 0x1F00;
     
     // Helper functions for feature flags
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t get_gc_content_category(uint16_t feature_flags) {
+    inline uint32_t get_gc_content_category(uint32_t feature_flags) {
         return (feature_flags & GC_CONTENT_MASK) >> GC_CONTENT_SHIFT;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t set_gc_content_category(uint16_t feature_flags, uint16_t category) {
+    inline uint32_t set_gc_content_category(uint32_t feature_flags, uint32_t category) {
         return (feature_flags & ~GC_CONTENT_MASK) | ((category << GC_CONTENT_SHIFT) & GC_CONTENT_MASK);
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t get_complexity_score(uint16_t feature_flags) {
+    inline uint32_t get_complexity_score(uint32_t feature_flags) {
         return (feature_flags & COMPLEXITY_MASK) >> COMPLEXITY_SHIFT;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t set_complexity_score(uint16_t feature_flags, uint16_t score) {
+    inline uint32_t set_complexity_score(uint32_t feature_flags, uint32_t score) {
         return (feature_flags & ~COMPLEXITY_MASK) | ((score << COMPLEXITY_SHIFT) & COMPLEXITY_MASK);
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline bool has_position_bias(uint16_t feature_flags) {
+    inline bool has_position_bias(uint32_t feature_flags) {
         return (feature_flags & POSITION_BIAS_MASK) != 0;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t set_position_bias(uint16_t feature_flags, bool clustered) {
+    inline uint32_t set_position_bias(uint32_t feature_flags, bool clustered) {
         if (clustered) {
             return feature_flags | POSITION_BIAS_CLUSTERED;
         } else {
@@ -180,19 +180,98 @@ namespace MinimizerFlags {
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline bool has_contamination_risk(uint16_t feature_flags) {
+    inline bool has_contamination_risk(uint32_t feature_flags) {
         return (feature_flags & CONTAMINATION_RISK_MASK) != 0;
     }
     
     #ifdef __CUDACC__
     __host__ __device__
     #endif
-    inline uint16_t set_contamination_risk(uint16_t feature_flags, bool risk) {
+    inline uint32_t set_contamination_risk(uint32_t feature_flags, bool risk) {
         if (risk) {
             return feature_flags | CONTAMINATION_RISK_FLAG;
         } else {
             return feature_flags & ~CONTAMINATION_RISK_MASK;
         }
+    }
+    
+    // Bits 13-15: Co-occurrence score (0-7)
+    constexpr uint32_t COOCCURRENCE_MASK = 0xE000;
+    constexpr uint32_t COOCCURRENCE_SHIFT = 13;
+    
+    // Bits 16-18: Taxonomic ambiguity level (0-7)
+    constexpr uint32_t TAXONOMIC_AMBIGUITY_MASK = 0x70000;
+    constexpr uint32_t TAXONOMIC_AMBIGUITY_SHIFT = 16;
+    
+    // Bits 19-21: Context complexity score (0-7)
+    constexpr uint32_t CONTEXT_COMPLEXITY_MASK = 0x380000;
+    constexpr uint32_t CONTEXT_COMPLEXITY_SHIFT = 19;
+    
+    // Bits 22-23: Read coherence level (0-3)
+    constexpr uint32_t READ_COHERENCE_MASK = 0xC00000;
+    constexpr uint32_t READ_COHERENCE_SHIFT = 22;
+    
+    // Bits 24-31: Reserved for future use
+    constexpr uint32_t RESERVED_24_31_MASK = 0xFF000000;
+    
+    // Co-occurrence score functions (bits 13-15)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_cooccurrence_score(uint32_t flags, uint8_t score) {
+        return (flags & ~COOCCURRENCE_MASK) | ((static_cast<uint32_t>(score) << COOCCURRENCE_SHIFT) & COOCCURRENCE_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_cooccurrence_score(uint32_t flags) {
+        return static_cast<uint8_t>((flags & COOCCURRENCE_MASK) >> COOCCURRENCE_SHIFT);
+    }
+    
+    // Taxonomic ambiguity functions (bits 16-18)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_taxonomic_ambiguity(uint32_t flags, uint8_t level) {
+        return (flags & ~TAXONOMIC_AMBIGUITY_MASK) | ((static_cast<uint32_t>(level) << TAXONOMIC_AMBIGUITY_SHIFT) & TAXONOMIC_AMBIGUITY_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_taxonomic_ambiguity(uint32_t flags) {
+        return static_cast<uint8_t>((flags & TAXONOMIC_AMBIGUITY_MASK) >> TAXONOMIC_AMBIGUITY_SHIFT);
+    }
+    
+    // Context complexity functions (bits 19-21)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_context_complexity(uint32_t flags, uint8_t score) {
+        return (flags & ~CONTEXT_COMPLEXITY_MASK) | ((static_cast<uint32_t>(score) << CONTEXT_COMPLEXITY_SHIFT) & CONTEXT_COMPLEXITY_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_context_complexity(uint32_t flags) {
+        return static_cast<uint8_t>((flags & CONTEXT_COMPLEXITY_MASK) >> CONTEXT_COMPLEXITY_SHIFT);
+    }
+    
+    // Read coherence functions (bits 22-23)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_read_coherence(uint32_t flags, uint8_t level) {
+        return (flags & ~READ_COHERENCE_MASK) | ((static_cast<uint32_t>(level) << READ_COHERENCE_SHIFT) & READ_COHERENCE_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_read_coherence(uint32_t flags) {
+        return static_cast<uint8_t>((flags & READ_COHERENCE_MASK) >> READ_COHERENCE_SHIFT);
     }
     
     // ML weight conversion helpers (for ml_weight field)
@@ -464,7 +543,7 @@ struct EnhancedBuildStats : public GPUBuildStats {
 // Database Format Definitions
 // ===========================
 
-// Streamlined minimizer metadata (28 bytes per minimizer)
+// Streamlined minimizer metadata (30 bytes per minimizer)
 struct StreamlinedMinimizerMetadata {
     uint64_t minimizer_hash;                 // 8 bytes
     uint32_t lca_taxon;                      // 4 bytes - backward compatibility
@@ -472,10 +551,10 @@ struct StreamlinedMinimizerMetadata {
     uint32_t contributing_taxa_offset;       // 4 bytes - offset into external array
     uint16_t num_contributing_taxa;          // 2 bytes
     uint16_t ml_weight;                      // 2 bytes - ML confidence score (0-65535)
-    uint16_t feature_flags;                  // 2 bytes - encoded features (GC, complexity, etc.)
+    uint32_t feature_flags;                  // 4 bytes - encoded features (GC, complexity, etc.)
     uint8_t phylogenetic_spread;             // 1 byte
     uint8_t max_phylogenetic_distance;       // 1 byte
-    uint16_t reserved;                       // 2 bytes - for future use, total = 32 bytes
+    // No padding needed - structure is naturally aligned to 32 bytes
     
     StreamlinedMinimizerMetadata() : 
         minimizer_hash(0), lca_taxon(0), total_genome_count(0),

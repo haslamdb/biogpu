@@ -1,0 +1,26 @@
+# enhanced_k2like/Makefile.test_taxonomy
+NVCC = nvcc
+CXXFLAGS = -std=c++17 -O3
+NVCCFLAGS = -arch=sm_61 -std=c++17 -O3
+INCLUDES = -I. -I../
+
+test_taxonomy: test_taxonomy_integration.cu
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -o test_taxonomy_integration \
+		test_taxonomy_integration.cu \
+		core/gpu_database_builder_core.cu \
+		processing/genome_file_processor.cu \
+		taxonomy/taxonomy_processor.cu \
+		memory/gpu_memory_manager.cu \
+		gpu/gpu_database_kernels.cu \
+		processing/minimizer_feature_extractor.cu \
+		processing/contamination_detector.cu \
+		processing/feature_exporter.cu \
+		output/database_serializer.cu \
+		../tools/compact_gpu_taxonomy.cu \
+		-lcudart -lstdc++fs
+
+clean:
+	rm -f test_taxonomy_integration
+
+run: test_taxonomy
+	./test_taxonomy_integration

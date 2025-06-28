@@ -318,7 +318,7 @@ __global__ void extract_minimizers_kraken2_improved_kernel(
                     bool is_clustered = check_position_clustering(pos, last_position, clustering_window);
                     
                     // Encode features into feature_flags
-                    uint16_t feature_flags = 0;
+                    uint32_t feature_flags = 0;
                     feature_flags = MinimizerFlags::set_gc_content_category(feature_flags, gc_category);
                     feature_flags = MinimizerFlags::set_complexity_score(feature_flags, complexity_score);
                     feature_flags = MinimizerFlags::set_position_bias(feature_flags, is_clustered);
@@ -588,7 +588,7 @@ __global__ void extract_minimizers_multi_thread_per_genome_kernel(
                     uint8_t gc_category = calculate_gc_category(kmer_seq, params.k);
                     uint8_t complexity_score = calculate_sequence_complexity(kmer_seq, params.k);
                     
-                    uint16_t feature_flags = 0;
+                    uint32_t feature_flags = 0;
                     feature_flags = MinimizerFlags::set_gc_content_category(feature_flags, gc_category);
                     feature_flags = MinimizerFlags::set_complexity_score(feature_flags, complexity_score);
                     hit.feature_flags = feature_flags;

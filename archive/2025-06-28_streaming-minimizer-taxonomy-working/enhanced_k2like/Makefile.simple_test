@@ -1,0 +1,30 @@
+# Makefile for simple enhanced database test
+NVCC = nvcc
+CUDA_FLAGS = -std=c++17 -O3 -arch=sm_70 -lineinfo
+INCLUDES = -I. -I/usr/local/cuda/include
+LIBS = -lcuda -lcudart
+
+# Source files
+TEST_SOURCES = test_enhanced_database_simple.cu
+TEST_TARGET = test_enhanced_database_simple
+
+# Build test
+test: $(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_SOURCES)
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) $(TEST_SOURCES) -o $(TEST_TARGET) $(LIBS)
+
+# Run test
+run: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
+# Run with custom parameters
+run-large: $(TEST_TARGET)
+	./$(TEST_TARGET) --num-minimizers 100000
+
+# Clean
+clean:
+	rm -f $(TEST_TARGET)
+	rm -rf test_output_simple
+
+.PHONY: test run run-large clean

@@ -150,13 +150,13 @@ __global__ void mark_contamination_kernel(
         // Set contamination risk bit (bit 7)
         hit.feature_flags |= (1 << 7);
         
-        // Store contamination type in bits 13-15
-        uint16_t contam_type = 0;
+        // Store contamination type in bits 28-30
+        uint32_t contam_type = 0;
         if (is_human) contam_type |= 1;
         if (is_adapter) contam_type |= 2;
         if (is_low_complexity || is_homopolymer) contam_type |= 4;
         
-        hit.feature_flags |= (contam_type << 13);
+        hit.feature_flags |= (contam_type << 28);
     }
 }
 
@@ -314,8 +314,8 @@ bool ContaminationDetector::mark_contamination_in_batch(
     
     for (const auto& hit : h_hits) {
         if (hit.feature_flags & (1 << 7)) {
-            // Extract contamination type from bits 13-15
-            uint16_t contam_type = (hit.feature_flags >> 13) & 0x7;
+            // Extract contamination type from bits 28-30
+            uint32_t contam_type = (hit.feature_flags >> 28) & 0x7;
             if (contam_type & 1) stats_.human_contamination_count++;
             if (contam_type & 2) stats_.adapter_contamination_count++;
             if (contam_type & 4) stats_.low_complexity_count++;
@@ -664,8 +664,8 @@ namespace ContaminationDetectionUtils {
             if (hit.feature_flags & (1 << 7)) {
                 total_contaminated++;
                 
-                // Extract contamination type from bits 13-15
-                uint16_t contam_type = (hit.feature_flags >> 13) & 0x7;
+                // Extract contamination type from bits 28-30
+                uint32_t contam_type = (hit.feature_flags >> 28) & 0x7;
                 if (contam_type & 1) type_counts[ContaminationType::HUMAN]++;
                 if (contam_type & 2) type_counts[ContaminationType::ADAPTER]++;
                 if (contam_type & 4) type_counts[ContaminationType::LOW_COMPLEXITY]++;

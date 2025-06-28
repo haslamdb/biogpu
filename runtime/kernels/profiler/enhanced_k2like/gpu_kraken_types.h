@@ -560,7 +560,7 @@ struct StreamlinedMinimizerMetadata {
         minimizer_hash(0), lca_taxon(0), total_genome_count(0),
         contributing_taxa_offset(0), num_contributing_taxa(0),
         ml_weight(0), feature_flags(0),
-        phylogenetic_spread(0), max_phylogenetic_distance(0), reserved(0) {}
+        phylogenetic_spread(0), max_phylogenetic_distance(0) {}
         
     // Helper methods for ML fields
     float get_ml_confidence() const {

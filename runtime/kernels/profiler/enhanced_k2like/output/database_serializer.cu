@@ -454,7 +454,6 @@ bool EnhancedDatabaseSerializer::save_enhanced_database(
             contamination_count++;
         }
         
-        metadata.reserved = 0;
         
         streamlined_metadata.push_back(metadata);
     }

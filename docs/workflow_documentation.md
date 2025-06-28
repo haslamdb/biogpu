@@ -3,9 +3,10 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
-**Last Updated**: June 27 2025  
-**Pipeline Version**: 0.13.0  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with fixed bounds checking, and compact GPU taxonomy system
+**Last Updated**: June 28 2025  
+**Pipeline Version**: 0.14.0  
+**Database Version**: 4 (expanded 32-bit feature flags)  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with expanded feature flags for ML-ready metadata, and compact GPU taxonomy system
 
 ---
 
@@ -2965,3 +2966,133 @@ Use the generated taxonomy.bin file with the classifier:
 - `build_compact_taxonomy`: Tool to convert NCBI taxonomy to compact format
 - `test_compact_taxonomy`: Test suite for validation
 - `taxonomy.bin`: Compact binary taxonomy file ready for GPU classification
+
+---
+
+## 🔧 Feature Flags Expansion (June 28, 2025)
+
+### Overview
+Expanded the minimizer feature_flags field from 16 to 32 bits to support ML-ready metadata for reducing false positives and improving classification accuracy.
+
+### Changes Made
+
+#### 1. Core Structure Update
+- **File**: `gpu_kraken_types.h`
+- **Change**: Expanded `GPUMinimizerHit.feature_flags` from `uint16_t` to `uint32_t`
+- **Size Impact**: Structure increased from 24 to 26 bytes (with padding to 32 bytes)
+
+#### 2. Feature Flag Bit Layout
+
+**Currently Implemented** (bits 0-7):
+- Bits 0-2: GC content category (0-7 representing GC% ranges) ✅
+- Bits 3-5: Sequence complexity score (0-7) ✅
+- Bit 6: Position bias indicator (placeholder - always 0)
+- Bit 7: Contamination risk flag (placeholder)
+
+**Not Yet Implemented** (bits 8-31):
+- Bits 8-10: Conservation category/Uniqueness score
+- Bits 11-12: Unique/Rare flags
+- Bits 13-15: Co-occurrence score (0-7)
+- Bits 16-18: Taxonomic ambiguity level (0-7)
+- Bits 19-21: Context complexity score (0-7)
+- Bits 22-23: Read coherence level (0-3)
+- Bits 24-27: Reserved
+- Bits 28-30: Contamination type (moved from 13-15)
+- Bit 31: Reserved
+
+#### 3. Files Modified
+1. `gpu_kraken_types.h` - Core type definitions
+2. `gpu/gpu_database_kernels.cu` - GPU kernel implementations
+3. `processing/minimizer_feature_extractor.cu` - Feature extraction pipeline
+4. `processing/contamination_detector.cu` - Contamination detection (bits moved to 28-30)
+5. `output/database_serializer.cu` - Database version updated to 4
+6. `processing/feature_exporter.cu` - Feature export (no changes needed)
+
+#### 4. Database Version Updates
+- Database format version: 3 → 4
+- Metadata version: 2 → 4
+- Expected size increase: ~9% due to larger structure
+
+#### 5. Testing and Validation
+Created `test_feature_decode.cu` to verify feature extraction:
+```
+GC Content Category: 5 (62.5-75%)
+Sequence Complexity: 7 (high)
+Position Bias: uniform
+Contamination Risk: no
+```
+
+### Next Steps - Implementation Priority
+
+Based on the goal of reducing false positives, here's the recommended implementation order:
+
+#### 1. **Uniqueness Score** (bits 8-10) - HIGHEST PRIORITY
+- Directly addresses false positives
+- Infrastructure already exists in `MinimizerFeatureExtractor`
+- Implementation needed:
+  ```cpp
+  // In calculate_uniqueness_score()
+  uint32_t uniqueness_category = score_to_category(uniqueness_score);
+  feature_flags = set_uniqueness_category(feature_flags, uniqueness_category);
+  ```
+
+#### 2. **Co-occurrence Score** (bits 13-15)
+- Minimizers appearing together strongly indicate true matches
+- Would catch random/spurious matches
+- Implementation approach:
+  - Track minimizer pairs within sliding windows
+  - Score based on frequency of co-occurrence
+  - Higher scores = more reliable classification
+
+#### 3. **Contamination Detection** (bits 7 & 28-30)
+- Many false positives are contamination
+- `ContaminationDetector` class exists but needs integration
+- Implementation needed:
+  - Load contamination patterns database
+  - Check each minimizer against known contaminants
+  - Set bit 7 for risk, bits 28-30 for type
+
+#### 4. **Position Clustering/Bias** (bit 6)
+- `check_position_clustering()` function exists but disconnected
+- Helps identify repetitive regions prone to false matches
+- Implementation:
+  - Analyze position distribution of minimizers
+  - Flag clustered vs uniform distribution
+
+#### 5. **Conservation Category** (bits 8-10)
+- Track how conserved each minimizer is across species
+- Highly conserved = less discriminative
+- Use for weighting in classification
+
+#### 6. **Taxonomic Ambiguity** (bits 16-18)
+- Measure how many different taxa share this minimizer
+- High ambiguity = lower confidence
+- Critical for accurate LCA computation
+
+### Implementation Guide
+
+To implement new features:
+
+1. **Add helper functions in `gpu_kraken_types.h`**:
+```cpp
+inline uint32_t set_uniqueness_category(uint32_t flags, uint8_t category) {
+    return (flags & ~UNIQUENESS_MASK) | ((category << UNIQUENESS_SHIFT) & UNIQUENESS_MASK);
+}
+```
+
+2. **Update feature extraction in kernels**:
+```cpp
+// In extract_minimizers_kernel
+uint32_t uniqueness = calculate_local_uniqueness(minimizer_hash);
+feature_flags = MinimizerFlags::set_uniqueness_category(feature_flags, uniqueness);
+```
+
+3. **Update database version** when adding new features that change interpretation
+
+4. **Test with `test_feature_decode.cu`** to verify correct encoding/decoding
+
+### Performance Considerations
+- 32-bit operations are native on GPU
+- Bit operations are extremely fast
+- Memory bandwidth increase is minimal (~9%)
+- Cache efficiency maintained with 32-byte alignment

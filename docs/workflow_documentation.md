@@ -4,9 +4,9 @@
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
 **Last Updated**: June 28 2025  
-**Pipeline Version**: 0.14.0  
-**Database Version**: 4 (expanded 32-bit feature flags)  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with expanded feature flags for ML-ready metadata, and compact GPU taxonomy system
+**Pipeline Version**: 0.15.0  
+**Database Version**: 4 (expanded 32-bit feature flags with uniqueness scoring)  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with expanded feature flags for ML-ready metadata including uniqueness scoring for false positive reduction, and compact GPU taxonomy system
 
 ---
 
@@ -3022,19 +3022,106 @@ Position Bias: uniform
 Contamination Risk: no
 ```
 
+### ✅ IMPLEMENTED: Uniqueness Scoring System (June 28, 2025)
+
+The uniqueness scoring system has been successfully integrated to reduce false positives in taxonomic classification.
+
+#### Implementation Details
+
+**Files Added/Modified**:
+1. `features/namespace_conflict_resolution.h` - Resolves namespace conflicts with safe functions
+2. `features/working_uniqueness_implementation.cu` - GPU kernels and host implementation
+3. `core/gpu_database_builder_core.h` - Added configuration options
+4. `core/gpu_database_builder_core.cu` - Integrated into processing pipeline
+5. `gpu_kraken_types.h` - Added uniqueness statistics fields
+
+**Configuration Options** (in `DatabaseBuildConfig`):
+```cpp
+bool enable_uniqueness_scoring = true;      // Enable uniqueness computation
+bool enable_uniqueness_filtering = false;   // Enable filtering by uniqueness
+float uniqueness_threshold = 0.3f;          // Minimum uniqueness for filtering
+bool filter_extremely_common = true;        // Filter extremely common minimizers
+```
+
+**Statistics Added** (in `EnhancedBuildStats`):
+```cpp
+size_t minimizers_with_uniqueness_scores;   // Count of scored minimizers
+size_t minimizers_filtered_by_uniqueness;   // Count of filtered minimizers
+size_t unique_minimizers_count;             // Minimizers with ≥90% uniqueness
+size_t rare_minimizers_count;               // Minimizers with ≤3 occurrences
+size_t reliable_minimizers_count;           // Suitable for classification
+double average_uniqueness_score;            // Average score across all minimizers
+```
+
+**Feature Flag Usage**:
+- **Bits 8-10**: Uniqueness category (0-7)
+  - 0: Extremely Common (0-10% uniqueness)
+  - 1: Very Low (10-30%)
+  - 2: Low (30-50%)
+  - 3: Moderate (50-70%)
+  - 4: High (70-80%)
+  - 5: Very High (80-90%)
+  - 6: Extremely High (90-95%)
+  - 7: Singleton-like (95-100%)
+- **Bit 11**: Unique minimizer flag (≥90% uniqueness)
+- **Bit 12**: Rare minimizer flag (≤3 occurrences)
+- **Bit 13**: Reliable minimizer flag (suitable for classification)
+
+**GPU Implementation**:
+- Efficient parallel computation using CUDA kernels
+- Binary search on GPU for fast lookups
+- Batch processing with global state management
+- Logarithmic scaling for better discrimination
+
+**Testing**:
+```bash
+# Build test
+cd runtime/kernels/profiler/enhanced_k2like
+make -f Makefile.test_taxonomy
+
+# Run test
+./test_uniqueness_final
+```
+
+**Expected Output**:
+```
+Computing uniqueness scores for 50000 minimizers...
+Found 12345 unique minimizers across 25 genomes
+
+Uniqueness Distribution:
+  Extremely Common: 5000 minimizers
+  Low: 15000 minimizers
+  Moderate: 20000 minimizers
+  High: 8000 minimizers
+  Very High: 2000 minimizers
+✓ Uniqueness computation completed successfully
+```
+
+**Usage Example**:
+```cpp
+// Create configuration with uniqueness scoring
+DatabaseBuildConfig config;
+config.enable_uniqueness_scoring = true;
+config.enable_uniqueness_filtering = true;  // Filter out low-uniqueness minimizers
+config.uniqueness_threshold = 0.7f;         // Keep only high-quality minimizers
+config.filter_extremely_common = true;       // Remove extremely common minimizers
+
+// Build database with uniqueness scoring
+GPUKrakenDatabaseBuilder builder(output_dir, config);
+builder.build_database_from_genomes(genome_path, taxonomy_path);
+```
+
+**Impact on Classification**:
+- Minimizers with high uniqueness scores are more reliable for classification
+- Extremely common minimizers (category 0) are likely false positives
+- ML weight field now contains encoded uniqueness score (0.0-1.0 scaled to 0-65535)
+- Classification algorithms can use uniqueness score to weight confidence
+
 ### Next Steps - Implementation Priority
 
 Based on the goal of reducing false positives, here's the recommended implementation order:
 
-#### 1. **Uniqueness Score** (bits 8-10) - HIGHEST PRIORITY
-- Directly addresses false positives
-- Infrastructure already exists in `MinimizerFeatureExtractor`
-- Implementation needed:
-  ```cpp
-  // In calculate_uniqueness_score()
-  uint32_t uniqueness_category = score_to_category(uniqueness_score);
-  feature_flags = set_uniqueness_category(feature_flags, uniqueness_category);
-  ```
+#### 1. ~~**Uniqueness Score** (bits 8-10)~~ - ✅ COMPLETED
 
 #### 2. **Co-occurrence Score** (bits 13-15)
 - Minimizers appearing together strongly indicate true matches

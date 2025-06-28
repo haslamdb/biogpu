@@ -18,6 +18,11 @@
 #include <iomanip>
 #include <algorithm>
 #include <filesystem>
+#include <set>
+#include <unordered_map>
+
+// Include uniqueness implementation early to avoid forward declaration issues
+#include "../features/working_uniqueness_implementation.cu"
 
 // ===========================
 // MinimizerStatistics Method Implementations
@@ -1025,12 +1030,42 @@ bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
                 genome_taxon_ids.push_back(info.taxon_id);
             }
             
-            if (!feature_extractor_->process_first_pass(
-                    d_minimizer_hits, total_hits_extracted, genome_taxon_ids)) {
-                std::cerr << "Feature extraction failed" << std::endl;
-                return false;
+            // Include uniqueness calculation
+            if (config_.enable_uniqueness_scoring) {
+                if (!integrate_uniqueness_with_feature_extractor(
+                        feature_extractor_.get(),
+                        d_minimizer_hits, 
+                        total_hits_extracted, 
+                        genome_taxon_ids)) {
+                    std::cerr << "Uniqueness integration failed" << std::endl;
+                    return false;
+                }
+            } else {
+                // Original feature extraction without uniqueness
+                if (!feature_extractor_->process_first_pass(
+                        d_minimizer_hits, total_hits_extracted, genome_taxon_ids)) {
+                    std::cerr << "Feature extraction failed" << std::endl;
+                    return false;
+                }
             }
             std::cout << "✓ Feature extraction completed" << std::endl;
+            
+            // Collect and print uniqueness statistics
+            if (config_.enable_debug_mode && config_.enable_uniqueness_scoring) {
+                std::vector<GPUMinimizerHit> h_hits(total_hits_extracted);
+                cudaMemcpy(h_hits.data(), d_minimizer_hits, 
+                           total_hits_extracted * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+                
+                UniquenessStats uniqueness_stats = collect_uniqueness_statistics(h_hits);
+                uniqueness_stats.print();
+                
+                // Update enhanced stats
+                enhanced_stats_.minimizers_with_uniqueness_scores = total_hits_extracted;
+                enhanced_stats_.unique_minimizers_count = uniqueness_stats.unique_minimizers;
+                enhanced_stats_.rare_minimizers_count = uniqueness_stats.rare_minimizers;
+                enhanced_stats_.reliable_minimizers_count = uniqueness_stats.reliable_minimizers;
+                enhanced_stats_.average_uniqueness_score = uniqueness_stats.average_uniqueness;
+            }
         }
         
         // Copy minimizer hits back to host
@@ -1267,6 +1302,16 @@ void GPUKrakenDatabaseBuilder::print_build_progress() const {
     std::cout << "LCA assignments: " << build_stats_.lca_assignments << std::endl;
     std::cout << "Processing time: " << std::fixed << std::setprecision(2) 
               << build_stats_.sequence_processing_time << "s" << std::endl;
+    
+    // Print enhanced statistics if available
+    if (config_.enable_phylogenetic_analysis) {
+        enhanced_stats_.print_enhanced_stats();
+    }
+    
+    // NEW: Print uniqueness statistics
+    if (config_.enable_uniqueness_scoring) {
+        enhanced_stats_.print_uniqueness_stats();
+    }
 }
 
 void GPUKrakenDatabaseBuilder::print_memory_usage() const {
@@ -1458,3 +1503,8 @@ bool GPUKrakenDatabaseBuilder::export_features_for_training(
     
     return success;
 }
+
+// ===========================
+// Uniqueness Integration Implementation
+// ===========================
+// Implementation is included at the top of the file to avoid forward declaration issues

@@ -14,6 +14,7 @@
 #include <iostream>
 #include <set>
 #include <chrono>
+#include <iomanip>
 
 // ===========================
 // Forward Declarations
@@ -535,8 +536,29 @@ struct EnhancedBuildStats : public GPUBuildStats {
     double phylogenetic_coverage_percentage = 0.0;
     double average_taxa_per_minimizer = 0.0;
     
+    // NEW: Uniqueness statistics
+    size_t minimizers_with_uniqueness_scores = 0;
+    size_t minimizers_filtered_by_uniqueness = 0;
+    size_t unique_minimizers_count = 0;
+    size_t rare_minimizers_count = 0;
+    size_t reliable_minimizers_count = 0;
+    double average_uniqueness_score = 0.0;
+    
     void print_enhanced_stats() const;
     void calculate_derived_stats();
+    
+    void print_uniqueness_stats() const {
+        std::cout << "\n=== UNIQUENESS STATISTICS ===" << std::endl;
+        std::cout << "Minimizers with uniqueness scores: " << minimizers_with_uniqueness_scores << std::endl;
+        std::cout << "Unique minimizers (≥90%): " << unique_minimizers_count << std::endl;
+        std::cout << "Rare minimizers (≤3 occurrences): " << rare_minimizers_count << std::endl;
+        std::cout << "Reliable minimizers: " << reliable_minimizers_count << std::endl;
+        std::cout << "Average uniqueness score: " << std::fixed << std::setprecision(3) 
+                  << average_uniqueness_score << std::endl;
+        if (minimizers_filtered_by_uniqueness > 0) {
+            std::cout << "Minimizers filtered by uniqueness: " << minimizers_filtered_by_uniqueness << std::endl;
+        }
+    }
 };
 
 // ===========================

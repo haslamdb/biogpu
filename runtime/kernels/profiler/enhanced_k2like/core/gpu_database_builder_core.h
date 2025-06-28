@@ -13,6 +13,7 @@
 
 // Include necessary headers
 #include "../gpu_kraken_types.h"
+#include "../features/namespace_conflict_resolution.h"
 
 // Forward declarations for modules that will be implemented later
 class GenomeFileProcessor;
@@ -89,6 +90,12 @@ struct DatabaseBuildConfig {
     bool enable_intermediate_saves = false;
     bool enable_debug_mode = false;
     std::string debug_output_dir;
+    
+    // NEW: Uniqueness scoring configuration
+    bool enable_uniqueness_scoring = true;
+    bool enable_uniqueness_filtering = false;     
+    float uniqueness_threshold = 0.3f;
+    bool filter_extremely_common = true;
 };
 
 // Main GPU Kraken Database Builder coordinating class
@@ -350,5 +357,18 @@ namespace DatabaseBuilderUtils {
     bool migrate_old_database_format(const std::string& old_db_path, const std::string& new_db_path);
     bool upgrade_database_version(const std::string& db_path);
 }
+
+// Forward declarations for uniqueness scoring
+bool integrate_uniqueness_with_feature_extractor(
+    MinimizerFeatureExtractor* feature_extractor,
+    GPUMinimizerHit* d_minimizer_hits,
+    size_t num_hits,
+    const std::vector<uint32_t>& genome_taxon_ids);
+
+bool compute_and_encode_uniqueness_scores(
+    GPUMinimizerHit* d_minimizer_hits,
+    size_t num_hits,
+    const std::vector<uint32_t>& genome_taxon_ids,
+    float total_genomes_processed);
 
 #endif // GPU_DATABASE_BUILDER_CORE_H

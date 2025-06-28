@@ -1,7 +1,7 @@
 # enhanced_k2like/Makefile.test_taxonomy
 NVCC = nvcc
 CXXFLAGS = -std=c++17 -O3
-NVCCFLAGS = -arch=sm_70 -std=c++17 -O3
+NVCCFLAGS = -arch=sm_61 -std=c++17 -O3
 INCLUDES = -I. -I../
 
 test_taxonomy: test_taxonomy_integration.cu

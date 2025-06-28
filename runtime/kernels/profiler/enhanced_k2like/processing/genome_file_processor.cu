@@ -1067,6 +1067,14 @@ uint32_t StreamingFnaProcessor::parse_taxon_from_header(const std::string& heade
             // Extract the content between first and second pipes
             std::string taxid_str = header.substr(first_pipe + 1, second_pipe - first_pipe - 1);
             
+            // Debug output for first few headers
+            static int debug_count = 0;
+            if (debug_count < 5) {
+                std::cout << "DEBUG: Header: " << header.substr(0, 60) << "..." << std::endl;
+                std::cout << "DEBUG: Extracted taxid string: '" << taxid_str << "'" << std::endl;
+                debug_count++;
+            }
+            
             // Check if it's a valid number
             try {
                 uint32_t taxid = std::stoul(taxid_str);

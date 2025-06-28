@@ -519,6 +519,12 @@ __global__ void extract_minimizers_multi_thread_per_genome_kernel(
     const char* sequence = sequence_data + genome.sequence_offset;
     uint32_t seq_length = genome.sequence_length;
     
+    // Debug: Print genome info for first few genomes
+    if (genome_idx < 5 && thread_id == 0) {
+        printf("DEBUG: Genome %d - taxon_id=%u, seq_offset=%u, seq_length=%u\n", 
+               genome_idx, genome.taxon_id, genome.sequence_offset, seq_length);
+    }
+    
     if (seq_length < params.k) {
         if (thread_id == 0) hit_counts_per_genome[genome_idx] = 0;
         return;
@@ -569,6 +575,12 @@ __global__ void extract_minimizers_multi_thread_per_genome_kernel(
                 hit.genome_id = genome_idx;
                 hit.strand = MinimizerFlags::STRAND_FORWARD | MinimizerFlags::CLASSIFICATION_UNIQUE;
                 hit.ml_weight = 65535;
+                
+                // Debug: Print first few minimizers to verify taxon_id
+                if (global_pos < 10) {
+                    printf("DEBUG: Minimizer %u - genome_idx=%d, thread=%d, genome.taxon_id=%u, hit.taxon_id=%u\n", 
+                           global_pos, genome_idx, thread_id, genome.taxon_id, (uint32_t)hit.taxon_id);
+                }
                 
                 // Calculate features safely
                 const char* kmer_seq = sequence + pos;

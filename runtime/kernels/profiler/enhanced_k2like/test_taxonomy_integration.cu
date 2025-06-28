@@ -161,6 +161,14 @@ int main(int argc, char** argv) {
     std::cout << "✓ Loaded " << genome_info.size() << " sequences" << std::endl;
     std::cout << "  Total sequence length: " << concatenated_sequences.length() << " bp" << std::endl;
     
+    // Debug: Show first few genome taxon IDs
+    std::cout << "  First 10 genome info (genome_id -> taxon_id): " << std::endl;
+    for (size_t i = 0; i < std::min(size_t(10), genome_info.size()); i++) {
+        std::cout << "    Genome " << genome_info[i].genome_id 
+                  << " -> Taxon " << genome_info[i].taxon_id << std::endl;
+    }
+    std::cout << std::endl;
+    
     // Step 5: Allocate GPU memory and copy data
     std::cout << "\n5. Copying data to GPU..." << std::endl;
     
@@ -185,6 +193,17 @@ int main(int argc, char** argv) {
     cudaMemcpy(d_genome_info, genome_info.data(), 
                genome_info.size() * sizeof(GPUGenomeInfo), cudaMemcpyHostToDevice);
     cudaMemset(d_hit_counter, 0, sizeof(uint32_t));
+    
+    // Debug: Verify GPU data by copying back first few genomes
+    std::vector<GPUGenomeInfo> verify_genomes(5);
+    cudaMemcpy(verify_genomes.data(), d_genome_info, 
+               std::min(size_t(5), genome_info.size()) * sizeof(GPUGenomeInfo), 
+               cudaMemcpyDeviceToHost);
+    std::cout << "  GPU verification - first 5 genomes:" << std::endl;
+    for (size_t i = 0; i < verify_genomes.size() && i < genome_info.size(); i++) {
+        std::cout << "    GPU Genome " << verify_genomes[i].genome_id 
+                  << " -> Taxon " << verify_genomes[i].taxon_id << std::endl;
+    }
     
     // Step 6: Extract minimizers with taxonomy
     std::cout << "\n6. Extracting minimizers on GPU..." << std::endl;
@@ -232,6 +251,17 @@ int main(int argc, char** argv) {
     
     // Display taxonomy statistics
     print_minimizer_taxonomy_stats(minimizer_hits, taxon_names);
+    
+    // Debug: Show detailed info for first few minimizers
+    std::cout << "\nDEBUG: First 10 minimizer details:" << std::endl;
+    for (size_t i = 0; i < std::min(size_t(10), minimizer_hits.size()); i++) {
+        const auto& hit = minimizer_hits[i];
+        std::cout << "  Minimizer " << i << ": "
+                  << "hash=" << std::hex << hit.minimizer_hash << std::dec
+                  << ", genome_id=" << hit.genome_id
+                  << ", taxon_id=" << hit.taxon_id
+                  << ", position=" << hit.position << std::endl;
+    }
     
     // Step 8: Test phylogenetic calculations
     std::cout << "\n8. Testing phylogenetic calculations..." << std::endl;

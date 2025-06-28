@@ -383,6 +383,39 @@ KernelPerformanceMetrics profile_minimizer_extraction_kernel(
 
 void print_kernel_performance_summary(const KernelPerformanceMetrics& metrics, const std::string& kernel_name);
 
+// ===========================
+// Co-occurrence Scoring Kernels
+// ===========================
+
+// Compute co-occurrence scores for unique minimizers
+__global__ void compute_cooccurrence_scores_kernel(
+    const GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique,
+    size_t window_size
+);
+
+// Optimized version using shared memory
+__global__ void compute_cooccurrence_scores_optimized_kernel(
+    const GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique,
+    size_t window_size
+);
+
+// Update minimizer feature flags with co-occurrence scores
+__global__ void update_cooccurrence_flags_kernel(
+    GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    const float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique
+);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1068,6 +1068,150 @@ bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
             }
         }
         
+        // Add co-occurrence scoring after uniqueness computation
+        if (config_.enable_cooccurrence_scoring) {
+            std::cout << "Computing co-occurrence scores..." << std::endl;
+            
+            // Get unique minimizers for co-occurrence analysis
+            std::vector<uint64_t> unique_minimizers;
+            std::unordered_set<uint64_t> seen_hashes;
+            
+            // Extract unique minimizer hashes from hits
+            std::vector<GPUMinimizerHit> h_hits(total_hits_extracted);
+            cudaMemcpy(h_hits.data(), d_minimizer_hits, 
+                       total_hits_extracted * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+            
+            for (const auto& hit : h_hits) {
+                if (seen_hashes.insert(hit.minimizer_hash).second) {
+                    unique_minimizers.push_back(hit.minimizer_hash);
+                }
+            }
+            
+            size_t num_unique = unique_minimizers.size();
+            std::cout << "Found " << num_unique << " unique minimizers for co-occurrence analysis" << std::endl;
+            
+            // Sort unique minimizers for binary search in update kernel
+            std::sort(unique_minimizers.begin(), unique_minimizers.end());
+            
+            // Allocate GPU memory for unique minimizers
+            uint64_t* d_unique_minimizers;
+            cudaMalloc(&d_unique_minimizers, num_unique * sizeof(uint64_t));
+            cudaMemcpy(d_unique_minimizers, unique_minimizers.data(), 
+                       num_unique * sizeof(uint64_t), cudaMemcpyHostToDevice);
+            
+            // Allocate memory for co-occurrence scores
+            float* d_cooccurrence_scores;
+            cudaMalloc(&d_cooccurrence_scores, num_unique * sizeof(float));
+            
+            // Use the optimized kernel if we have enough minimizers
+            bool use_optimized = (num_unique > 1000 && total_hits_extracted > 10000);
+            
+            if (use_optimized) {
+                int block_size = 128;
+                int grid_size = (num_unique + block_size - 1) / block_size;
+                size_t shared_mem_size = block_size * sizeof(GPUMinimizerHit);
+                
+                compute_cooccurrence_scores_optimized_kernel<<<grid_size, block_size, shared_mem_size>>>(
+                    d_minimizer_hits,
+                    d_unique_minimizers,
+                    d_cooccurrence_scores,
+                    total_hits_extracted,
+                    num_unique,
+                    config_.cooccurrence_window_size
+                );
+            } else {
+                int block_size = 256;
+                int grid_size = (num_unique + block_size - 1) / block_size;
+                
+                compute_cooccurrence_scores_kernel<<<grid_size, block_size>>>(
+                    d_minimizer_hits,
+                    d_unique_minimizers,
+                    d_cooccurrence_scores,
+                    total_hits_extracted,
+                    num_unique,
+                    config_.cooccurrence_window_size
+                );
+            }
+            
+            cudaError_t err = cudaGetLastError();
+            if (err != cudaSuccess) {
+                std::cerr << "Co-occurrence kernel launch failed: " << cudaGetErrorString(err) << std::endl;
+                cudaFree(d_unique_minimizers);
+                cudaFree(d_cooccurrence_scores);
+                return false;
+            }
+            
+            cudaDeviceSynchronize();
+            
+            // Update feature flags with scores
+            int update_block_size = 256;
+            int update_grid_size = (total_hits_extracted + update_block_size - 1) / update_block_size;
+            
+            update_cooccurrence_flags_kernel<<<update_grid_size, update_block_size>>>(
+                d_minimizer_hits,
+                d_unique_minimizers,
+                d_cooccurrence_scores,
+                total_hits_extracted,
+                num_unique
+            );
+            
+            cudaDeviceSynchronize();
+            
+            // Check for errors
+            err = cudaGetLastError();
+            if (err != cudaSuccess) {
+                std::cerr << "Co-occurrence update kernel error: " << cudaGetErrorString(err) << std::endl;
+                cudaFree(d_unique_minimizers);
+                cudaFree(d_cooccurrence_scores);
+                return false;
+            }
+            
+            // Collect co-occurrence statistics if in debug mode
+            if (config_.enable_debug_mode) {
+                std::vector<float> cooccurrence_scores(num_unique);
+                cudaMemcpy(cooccurrence_scores.data(), d_cooccurrence_scores, 
+                           num_unique * sizeof(float), cudaMemcpyDeviceToHost);
+                
+                // Copy updated hits back for statistics
+                cudaMemcpy(h_hits.data(), d_minimizer_hits, 
+                           total_hits_extracted * sizeof(GPUMinimizerHit), cudaMemcpyDeviceToHost);
+                
+                // Collect statistics
+                size_t high_cooccurrence = 0;
+                size_t low_cooccurrence = 0;
+                double score_sum = 0.0;
+                
+                for (const auto& hit : h_hits) {
+                    uint8_t category = MinimizerFlags::get_cooccurrence_score(hit.feature_flags);
+                    if (category >= 5) high_cooccurrence++;
+                    if (category <= 2) low_cooccurrence++;
+                }
+                
+                for (const auto& score : cooccurrence_scores) {
+                    score_sum += score;
+                }
+                
+                // Update enhanced stats
+                enhanced_stats_.minimizers_with_cooccurrence_scores = total_hits_extracted;
+                enhanced_stats_.high_cooccurrence_minimizers = high_cooccurrence;
+                enhanced_stats_.low_cooccurrence_minimizers = low_cooccurrence;
+                enhanced_stats_.average_cooccurrence_score = score_sum / num_unique;
+                
+                std::cout << "Co-occurrence analysis results:" << std::endl;
+                std::cout << "  High co-occurrence minimizers: " << high_cooccurrence 
+                          << " (" << (100.0 * high_cooccurrence / total_hits_extracted) << "%)" << std::endl;
+                std::cout << "  Low co-occurrence minimizers: " << low_cooccurrence 
+                          << " (" << (100.0 * low_cooccurrence / total_hits_extracted) << "%)" << std::endl;
+                std::cout << "  Average co-occurrence score: " << enhanced_stats_.average_cooccurrence_score << std::endl;
+            }
+            
+            // Clean up
+            cudaFree(d_unique_minimizers);
+            cudaFree(d_cooccurrence_scores);
+            
+            std::cout << "✓ Co-occurrence scoring completed" << std::endl;
+        }
+        
         // Copy minimizer hits back to host
         std::vector<GPUMinimizerHit> minimizer_hits(total_hits_extracted);
         cudaMemcpy(minimizer_hits.data(), d_minimizer_hits, 

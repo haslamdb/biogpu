@@ -4,9 +4,11 @@
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
 **Last Updated**: June 28 2025  
-**Pipeline Version**: 0.15.0  
-**Database Version**: 4 (expanded 32-bit feature flags with uniqueness scoring)  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with expanded feature flags for ML-ready metadata including uniqueness scoring for false positive reduction, and compact GPU taxonomy system
+**Pipeline Version**: 0.15.1  
+**Database Version**: 4 (expanded 32-bit feature flags with uniqueness scoring and co-occurrence analysis)  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with expanded feature flags for ML-ready metadata including uniqueness scoring and co-occurrence analysis for false positive reduction, and compact GPU taxonomy system
+
+**Latest Update**: Added co-occurrence scoring system to track minimizers that frequently appear together, improving classification accuracy by identifying true matches vs random/spurious hits
 
 ---
 
@@ -3123,13 +3125,75 @@ Based on the goal of reducing false positives, here's the recommended implementa
 
 #### 1. ~~**Uniqueness Score** (bits 8-10)~~ - ✅ COMPLETED
 
-#### 2. **Co-occurrence Score** (bits 13-15)
+#### 2. ✅ **Co-occurrence Score** (bits 13-15) - COMPLETED (June 28, 2025)
 - Minimizers appearing together strongly indicate true matches
 - Would catch random/spurious matches
-- Implementation approach:
-  - Track minimizer pairs within sliding windows
-  - Score based on frequency of co-occurrence
-  - Higher scores = more reliable classification
+- **Implemented approach**:
+  - Track minimizer pairs within sliding windows (configurable window size)
+  - Distance-weighted scoring: weight = 1/(1+distance)
+  - Sigmoid transformation for better score distribution
+  - GPU kernels with shared memory optimization for large datasets
+
+##### Implementation Details
+
+**Data Structures Added**:
+```cpp
+// In gpu_kraken_types.h
+struct CooccurrenceData {
+    uint64_t minimizer_hash1;
+    uint64_t minimizer_hash2;
+    uint32_t cooccurrence_count;
+    float normalized_score;  // 0.0-1.0
+};
+
+// In MinimizerStatistics
+std::unordered_map<uint64_t, uint32_t> cooccurring_minimizers;  // neighbor_hash -> count
+float cooccurrence_score = 0.0f;  // Computed average co-occurrence strength
+```
+
+**Configuration Options**:
+```cpp
+// In DatabaseBuildConfig
+bool enable_cooccurrence_scoring = false;
+size_t cooccurrence_window_size = 10;  // Window size for co-occurrence analysis
+```
+
+**GPU Kernels Implemented**:
+1. `compute_cooccurrence_scores_kernel` - Basic implementation
+2. `compute_cooccurrence_scores_optimized_kernel` - Uses shared memory for better performance
+3. `update_cooccurrence_flags_kernel` - Updates feature flags with computed scores
+
+**Score Categories** (3-bit encoding):
+- 0: Very low co-occurrence (< 0.1)
+- 1: Low (0.1-0.2)
+- 2: Low-medium (0.2-0.35)
+- 3: Medium (0.35-0.5)
+- 4: Medium-high (0.5-0.65)
+- 5: High (0.65-0.8)
+- 6: Very high (0.8-0.95)
+- 7: Extremely high (≥ 0.95)
+
+**Usage**:
+```cpp
+DatabaseBuildConfig config;
+config.enable_cooccurrence_scoring = true;
+config.cooccurrence_window_size = 10;
+config.enable_debug_mode = true;  // To see statistics
+
+GPUKrakenDatabaseBuilder builder(output_dir, config);
+```
+
+**Statistics Collected**:
+- Total minimizers with co-occurrence scores
+- Count of high co-occurrence minimizers (category ≥ 5)
+- Count of low co-occurrence minimizers (category ≤ 2)
+- Average co-occurrence score
+
+**Performance Notes**:
+- Automatically selects optimized kernel for datasets > 1000 unique minimizers
+- Shared memory optimization reduces global memory accesses
+- Search window limited to ±100 positions for efficiency
+- Binary search used for score lookups
 
 #### 3. **Contamination Detection** (bits 7 & 28-30)
 - Many false positives are contamination

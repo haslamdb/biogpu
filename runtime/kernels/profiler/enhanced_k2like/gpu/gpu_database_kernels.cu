@@ -1149,3 +1149,171 @@ bool launch_minimizer_extraction_with_contamination_check(
     
     return true;
 }
+
+// ===========================
+// Co-occurrence Scoring Kernels
+// ===========================
+
+__global__ void compute_cooccurrence_scores_kernel(
+    const GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique,
+    size_t window_size) {
+    
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= num_unique) return;
+    
+    uint64_t target_hash = unique_minimizers[tid];
+    float co_occurrence_count = 0.0f;
+    float total_opportunities = 0.0f;
+    
+    // Count co-occurrences for this minimizer
+    for (int i = 0; i < total_hits; i++) {
+        if (minimizer_hits[i].minimizer_hash == target_hash) {
+            uint32_t genome_id = minimizer_hits[i].genome_id;
+            uint32_t position = minimizer_hits[i].position;
+            
+            // Look for other minimizers within the window
+            // Limit search range for efficiency
+            int search_start = max(0, i - 100);
+            int search_end = min((int)total_hits, i + 100);
+            
+            for (int j = search_start; j < search_end; j++) {
+                if (i == j) continue;
+                
+                if (minimizer_hits[j].genome_id == genome_id) {
+                    int distance = abs((int)minimizer_hits[j].position - (int)position);
+                    if (distance <= window_size && distance > 0) {
+                        // Weight by inverse distance
+                        float weight = 1.0f / (1.0f + (float)distance);
+                        co_occurrence_count += weight;
+                        total_opportunities += 1.0f;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Calculate normalized co-occurrence score (0.0 to 1.0)
+    float score = 0.0f;
+    if (total_opportunities > 0) {
+        score = co_occurrence_count / total_opportunities;
+        // Apply sigmoid-like transformation for better distribution
+        score = 1.0f / (1.0f + expf(-5.0f * (score - 0.5f)));
+    }
+    
+    cooccurrence_scores[tid] = fmaxf(0.0f, fminf(1.0f, score));
+}
+
+// Optimized version using shared memory for better performance
+__global__ void compute_cooccurrence_scores_optimized_kernel(
+    const GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique,
+    size_t window_size) {
+    
+    // Shared memory for caching minimizer hits
+    extern __shared__ GPUMinimizerHit shared_hits[];
+    
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int local_tid = threadIdx.x;
+    
+    if (tid >= num_unique) return;
+    
+    uint64_t target_hash = unique_minimizers[tid];
+    float co_occurrence_count = 0.0f;
+    float total_opportunities = 0.0f;
+    
+    // Process hits in chunks that fit in shared memory
+    const int chunk_size = blockDim.x;
+    const int num_chunks = (total_hits + chunk_size - 1) / chunk_size;
+    
+    for (int chunk = 0; chunk < num_chunks; chunk++) {
+        // Load chunk into shared memory
+        int global_idx = chunk * chunk_size + local_tid;
+        if (global_idx < total_hits) {
+            shared_hits[local_tid] = minimizer_hits[global_idx];
+        }
+        __syncthreads();
+        
+        // Process current chunk
+        int chunk_end = min(chunk_size, (int)total_hits - chunk * chunk_size);
+        
+        for (int i = 0; i < chunk_end; i++) {
+            if (shared_hits[i].minimizer_hash == target_hash) {
+                uint32_t genome_id = shared_hits[i].genome_id;
+                uint32_t position = shared_hits[i].position;
+                
+                // Check within current chunk
+                for (int j = 0; j < chunk_end; j++) {
+                    if (i == j) continue;
+                    
+                    if (shared_hits[j].genome_id == genome_id) {
+                        int distance = abs((int)shared_hits[j].position - (int)position);
+                        if (distance <= window_size && distance > 0) {
+                            float weight = 1.0f / (1.0f + (float)distance);
+                            co_occurrence_count += weight;
+                            total_opportunities += 1.0f;
+                        }
+                    }
+                }
+            }
+        }
+        __syncthreads();
+    }
+    
+    // Calculate normalized score
+    float score = 0.0f;
+    if (total_opportunities > 0) {
+        score = co_occurrence_count / total_opportunities;
+        score = 1.0f / (1.0f + expf(-5.0f * (score - 0.5f)));
+    }
+    
+    cooccurrence_scores[tid] = fmaxf(0.0f, fminf(1.0f, score));
+}
+
+// Update minimizer feature flags with co-occurrence scores
+__global__ void update_cooccurrence_flags_kernel(
+    GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    const float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique) {
+    
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid >= total_hits) return;
+    
+    uint64_t hash = minimizer_hits[tid].minimizer_hash;
+    
+    // Binary search for this minimizer's score
+    int left = 0, right = num_unique - 1;
+    int found_idx = -1;
+    
+    while (left <= right) {
+        int mid = (left + right) / 2;
+        if (unique_minimizers[mid] == hash) {
+            found_idx = mid;
+            break;
+        } else if (unique_minimizers[mid] < hash) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    
+    if (found_idx >= 0) {
+        float score = cooccurrence_scores[found_idx];
+        
+        // Convert to 3-bit value (0-7) using the existing helper function
+        uint8_t score_bits = static_cast<uint8_t>(fminf(7.0f, score * 7.0f));
+        
+        // Update feature flags using the existing helper function
+        minimizer_hits[tid].feature_flags = 
+            MinimizerFlags::set_cooccurrence_score(
+                minimizer_hits[tid].feature_flags, score_bits);
+    }
+}

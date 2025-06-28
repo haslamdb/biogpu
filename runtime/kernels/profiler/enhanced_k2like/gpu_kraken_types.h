@@ -493,6 +493,18 @@ struct ClassificationParams {
 };
 
 // ===========================
+// Co-occurrence Types
+// ===========================
+
+// Co-occurrence data structure for tracking minimizer relationships
+struct CooccurrenceData {
+    uint64_t minimizer_hash1;
+    uint64_t minimizer_hash2;
+    uint32_t cooccurrence_count;
+    float normalized_score;  // 0.0-1.0
+};
+
+// ===========================
 // Build Statistics
 // ===========================
 
@@ -544,6 +556,12 @@ struct EnhancedBuildStats : public GPUBuildStats {
     size_t reliable_minimizers_count = 0;
     double average_uniqueness_score = 0.0;
     
+    // NEW: Co-occurrence statistics
+    size_t minimizers_with_cooccurrence_scores = 0;
+    size_t high_cooccurrence_minimizers = 0;  // Category >= 5
+    size_t low_cooccurrence_minimizers = 0;   // Category <= 2
+    double average_cooccurrence_score = 0.0;
+    
     void print_enhanced_stats() const;
     void calculate_derived_stats();
     
@@ -558,6 +576,15 @@ struct EnhancedBuildStats : public GPUBuildStats {
         if (minimizers_filtered_by_uniqueness > 0) {
             std::cout << "Minimizers filtered by uniqueness: " << minimizers_filtered_by_uniqueness << std::endl;
         }
+    }
+    
+    void print_cooccurrence_stats() const {
+        std::cout << "\n=== CO-OCCURRENCE STATISTICS ===" << std::endl;
+        std::cout << "Minimizers with co-occurrence scores: " << minimizers_with_cooccurrence_scores << std::endl;
+        std::cout << "High co-occurrence minimizers (≥5): " << high_cooccurrence_minimizers << std::endl;
+        std::cout << "Low co-occurrence minimizers (≤2): " << low_cooccurrence_minimizers << std::endl;
+        std::cout << "Average co-occurrence score: " << std::fixed << std::setprecision(3) 
+                  << average_cooccurrence_score << std::endl;
     }
 };
 

@@ -10,6 +10,7 @@
 #include <memory>
 #include <cstdint>
 #include <unordered_set>
+#include <unordered_map>
 
 // Include necessary headers
 #include "../gpu_kraken_types.h"
@@ -42,6 +43,10 @@ struct MinimizerStatistics {
     float complexity_sum = 0.0f;                     // Sum of complexity scores
     uint32_t clustered_count = 0;                    // Number of times found in clusters
     uint32_t contamination_risk_count = 0;           // Number of times flagged as contamination risk
+    
+    // Co-occurrence tracking
+    std::unordered_map<uint64_t, uint32_t> cooccurring_minimizers;  // neighbor_hash -> count
+    float cooccurrence_score = 0.0f;  // Computed average co-occurrence strength
     
     // Methods for updating statistics
     void add_occurrence(uint32_t taxon_id, float position, uint8_t gc_category, 
@@ -96,6 +101,10 @@ struct DatabaseBuildConfig {
     bool enable_uniqueness_filtering = false;     
     float uniqueness_threshold = 0.3f;
     bool filter_extremely_common = true;
+    
+    // NEW: Co-occurrence scoring configuration
+    bool enable_cooccurrence_scoring = false;
+    size_t cooccurrence_window_size = 10;  // Window size for co-occurrence analysis
 };
 
 // Main GPU Kraken Database Builder coordinating class

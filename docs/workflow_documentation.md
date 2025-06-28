@@ -3,7 +3,7 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
-**Last Updated**: June 28 2025  
+**Last Updated**: June 27 2025  
 **Pipeline Version**: 0.13.0  
 **Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with fixed bounds checking, and compact GPU taxonomy system
 
@@ -2868,7 +2868,7 @@ Successfully processed 47 genomes from ref_genomes.fna:
 
 ---
 
-## 🆕 Compact GPU Taxonomy System (v0.13.0 - June 28, 2025)
+## 🆕 Compact GPU Taxonomy System (v0.13.0 - June 27, 2025)
 
 ### Overview
 

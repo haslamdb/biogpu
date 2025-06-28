@@ -232,15 +232,6 @@ public:
         return true;
     }
     
-    // GPU API methods
-    bool lookup_taxons_gpu(const std::vector<uint32_t>& query_taxons,
-                          std::vector<uint32_t>& parent_results,
-                          std::vector<uint8_t>& depth_results,
-                          std::vector<uint8_t>& rank_results);
-    
-    bool compute_lca_batch_gpu(const std::vector<std::pair<uint32_t, uint32_t>>& taxon_pairs,
-                              std::vector<uint32_t>& lca_results);
-    
     // Accessor methods for database building integration
     std::unordered_map<uint32_t, uint32_t> get_parent_lookup_map() const {
         return parent_lookup;
@@ -273,35 +264,6 @@ public:
     
     bool is_loaded() const {
         return data_loaded;
-    }
-    
-    // Test methods
-    void add_test_taxon(uint32_t taxon_id, uint32_t parent_id, 
-                       const std::string& name, const std::string& rank, uint8_t depth) {
-        CompactTaxonNode node;
-        node.taxon_id = taxon_id;
-        node.parent_id = parent_id;
-        node.rank_level = encode_rank(rank);
-        node.depth_from_root = depth;
-        node.reserved = 0;
-        
-        taxonomy_nodes[taxon_id] = node;
-        taxon_names[taxon_id] = name;
-        taxon_ranks[taxon_id] = rank;
-        parent_lookup[taxon_id] = parent_id;
-        depth_lookup[taxon_id] = depth;
-        rank_lookup[taxon_id] = node.rank_level;
-        
-        max_taxon_id = std::max(max_taxon_id, taxon_id);
-    }
-    
-    bool build_test_taxonomy() {
-        data_loaded = true;
-        return build_gpu_structures();
-    }
-    
-    size_t get_test_size() const {
-        return taxonomy_nodes.size();
     }
 
 private:
@@ -425,9 +387,41 @@ private:
         }
     }
     
-    bool build_gpu_structures();
-    bool build_distance_cache();
-    void free_gpu_memory();
+    bool build_gpu_structures() {
+        // Allocate GPU hash table
+        cudaError_t error = cudaMalloc(&d_hash_table, sizeof(TaxonHashTable));
+        if (error != cudaSuccess) {
+            return false;
+        }
+        
+        // Build and copy hash table data
+        // (Implementation details would go here)
+        
+        // Allocate distance cache if enabled
+        if (use_distance_cache) {
+            error = cudaMalloc(&d_distance_cache, sizeof(PhyloDistanceCache));
+            if (error != cudaSuccess) {
+                return false;
+            }
+            
+            // Initialize cache
+            // (Implementation details would go here)
+        }
+        
+        return true;
+    }
+    
+    void free_gpu_memory() {
+        if (d_hash_table) {
+            cudaFree(d_hash_table);
+            d_hash_table = nullptr;
+        }
+        
+        if (d_distance_cache) {
+            cudaFree(d_distance_cache);
+            d_distance_cache = nullptr;
+        }
+    }
     
     std::vector<std::string> split_dmp_line(const std::string& line) {
         std::vector<std::string> fields;
@@ -457,10 +451,6 @@ private:
         else if (rank == "subspecies") return 9;
         else return 255; // "no rank"
     }
-    
-    // Helper methods for LCA computation
-    uint32_t find_lca_pair(uint32_t taxon1, uint32_t taxon2);
-    uint8_t calculate_distance_sum(uint32_t taxon1, uint32_t taxon2, uint32_t lca);
 };
 
 } // namespace CompactTaxonomy

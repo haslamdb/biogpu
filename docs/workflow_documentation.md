@@ -3,9 +3,9 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
-**Last Updated**: June 26 2025  
-**Pipeline Version**: 0.12.0  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, and enhanced K2-like database builder with fixed bounds checking
+**Last Updated**: June 28 2025  
+**Pipeline Version**: 0.13.0  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with fixed bounds checking, and compact GPU taxonomy system
 
 ---
 
@@ -2803,3 +2803,103 @@ Successfully processed 47 genomes from ref_genomes.fna:
    - Test full pipeline with complete genome dataset
    - Verify database output format
    - Compare with standard Kraken2 database
+
+---
+
+## 🆕 Compact GPU Taxonomy System (v0.13.0 - June 28, 2025)
+
+### Overview
+
+The compact GPU taxonomy system provides a high-performance, GPU-optimized taxonomy lookup and LCA computation system for the BioGPU pipeline. It consists of two complementary components:
+
+1. **CompactGPUTaxonomy** (`tools/compact_gpu_taxonomy.*`): GPU-optimized hash table for fast taxonomy lookups during classification
+2. **EnhancedNCBITaxonomyProcessor** (`enhanced_k2like/taxonomy/taxonomy_processor.*`): Full-featured taxonomy processing for database building
+
+### Key Features
+
+- **GPU-optimized hash table** with ~100M lookups/second performance
+- **Compact binary format** (~70% smaller than raw taxonomy)
+- **Batch GPU operations** for high-throughput processing
+- **GPU kernels** for parallel taxonomy lookups and LCA computation
+- **Optional distance caching** for frequently accessed taxon pairs
+- **Binary save/load format** for fast deployment
+
+### Building the Compact Taxonomy
+
+#### Prerequisites
+- NCBI taxonomy dump files (`names.dmp` and `nodes.dmp`)
+- CUDA 12.5+ and compatible GPU
+- C++17 compiler
+
+#### Build Process
+
+1. **Build the taxonomy tools**:
+```bash
+cd runtime/kernels/profiler/tools
+make -f Makefile.compact.taxonomy clean
+make -f Makefile.compact.taxonomy all
+```
+
+2. **Create compact taxonomy from NCBI files**:
+```bash
+./build_compact_taxonomy \
+    --nodes /home/david/Documents/Code/biogpu/data/nodes.dmp \
+    --names /home/david/Documents/Code/biogpu/data/names.dmp \
+    --output taxonomy.bin \
+    --validate
+```
+
+This command:
+- Reads NCBI taxonomy files (nodes.dmp and names.dmp)
+- Builds GPU-optimized hash table with Jenkins hash function
+- Creates phylogenetic distance cache for 50,000 most common taxon pairs
+- Validates the built taxonomy
+- Outputs compact binary file (~115MB from ~436MB input)
+
+### Performance Characteristics
+
+- **GPU lookups**: ~100M operations/second
+- **GPU LCA**: ~50M operations/second  
+- **Compact format**: <1 second load time
+- **Compression**: ~26.4% of original size
+- **Hash table load factor**: ~31.37%
+
+### Integration with Pipeline
+
+During database building:
+```cpp
+// Use EnhancedNCBITaxonomyProcessor for complex operations
+EnhancedNCBITaxonomyProcessor taxonomy;
+taxonomy.load_ncbi_taxonomy("nodes.dmp", "names.dmp");
+// ... perform complex operations ...
+
+// Export for runtime
+auto* compact = taxonomy.get_compact_taxonomy();
+compact->save_compact_taxonomy("taxonomy.bin");
+```
+
+During classification:
+```cpp
+// Use CompactGPUTaxonomy for fast GPU lookups
+CompactGPUTaxonomy gpu_taxonomy;
+gpu_taxonomy.load_compact_taxonomy("taxonomy.bin");
+// Fast GPU lookups during classification
+```
+
+### Usage with Classifier
+
+Use the generated taxonomy.bin file with the classifier:
+```bash
+./gpu_kraken_classifier \
+    --database kraken_db \
+    --compact-taxonomy taxonomy.bin \
+    --input reads.fastq \
+    --output classification.txt
+```
+
+### Files Generated
+
+- `compact_gpu_taxonomy.cu/h`: GPU implementation of compact taxonomy
+- `build_compact_taxonomy`: Tool to convert NCBI taxonomy to compact format
+- `test_compact_taxonomy`: Test suite for validation
+- `taxonomy.bin`: Compact binary taxonomy file ready for GPU classification

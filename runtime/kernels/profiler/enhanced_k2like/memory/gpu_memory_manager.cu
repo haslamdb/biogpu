@@ -292,7 +292,7 @@ bool GPUMemoryManager::configure_auto_scaling(bool enable, size_t memory_fractio
     }
 
 bool GPUMemoryManager::set_minimizer_capacity(int capacity) {
-        if (capacity <= 0 || capacity > 50000000) {  // Cap at 50M
+        if (capacity <= 0 || capacity > 2000000000) {  // Cap at 2B
             std::cerr << "Invalid minimizer capacity: " << capacity << std::endl;
             return false;
         }
@@ -665,8 +665,8 @@ bool GPUMemoryManager::calculate_optimal_batch_sizes() {
         
         // Calculate optimal capacities
         config_.minimizer_capacity = minimizer_memory / sizeof(GPUMinimizerHit);
-        config_.minimizer_capacity = std::min(config_.minimizer_capacity, size_t(50000000));  // Cap at 50M
-        config_.minimizer_capacity = std::max(config_.minimizer_capacity, size_t(1000000));   // Min 1M
+        config_.minimizer_capacity = std::min(config_.minimizer_capacity, size_t(2000000000));  // Cap at 2B
+        config_.minimizer_capacity = std::max(config_.minimizer_capacity, size_t(100000000));   // Min 100M
         
         // Calculate optimal batch size
         size_t sequence_per_mb = 1024 * 1024 / 5000;  // Assume 5KB per sequence on average

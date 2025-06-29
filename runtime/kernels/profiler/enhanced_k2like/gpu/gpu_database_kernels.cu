@@ -1099,7 +1099,9 @@ cudaError_t launch_memory_validation_kernel(
 // ===========================
 // Contamination Detection Integration
 // ===========================
+// TODO: Implement contamination detection when ContaminationDetector is available
 
+/*
 bool launch_minimizer_extraction_with_contamination_check(
     const GPUBatchData& batch_data,
     const MinimizerParams& params,
@@ -1149,6 +1151,7 @@ bool launch_minimizer_extraction_with_contamination_check(
     
     return true;
 }
+*/
 
 // ===========================
 // Co-occurrence Scoring Kernels

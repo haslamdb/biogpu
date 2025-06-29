@@ -1,0 +1,58 @@
+# Makefile for all features test
+
+CXX = g++
+NVCC = nvcc
+
+# CUDA paths
+CUDA_PATH = /usr/local/cuda
+CUDA_INCLUDE = $(CUDA_PATH)/include
+CUDA_LIB = $(CUDA_PATH)/lib64
+
+# Compiler flags
+CXXFLAGS = -std=c++17 -O3 -g
+NVCCFLAGS = -std=c++17 -O3 -g -arch=sm_61 --expt-relaxed-constexpr -Xcompiler -fPIC
+INCLUDES = -I. -I$(CUDA_INCLUDE)
+LIBS = -L$(CUDA_LIB) -lcudart -lcuda
+
+# Source files
+CUDA_SOURCES = test_all_features.cu \
+               core/gpu_database_builder_core.cu \
+               gpu/gpu_database_kernels.cu \
+               memory/gpu_memory_manager.cu \
+               processing/genome_file_processor.cu \
+               processing/minimizer_feature_extractor.cu \
+               processing/feature_exporter.cu \
+               taxonomy/taxonomy_processor.cu \
+               ../tools/compact_gpu_taxonomy.cu
+
+CPP_SOURCES = sample_csv_parser.cpp
+
+# Object files
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+
+# Target
+TARGET = test_all_features
+
+all: $(TARGET)
+
+$(TARGET): $(CUDA_OBJECTS) $(CPP_OBJECTS)
+	$(NVCC) $(NVCCFLAGS) -o $@ $^ $(LIBS)
+
+%.o: %.cu
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+
+../tools/%.o: ../tools/%.cu
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	rm -f $(CUDA_OBJECTS) $(CPP_OBJECTS) $(TARGET)
+	rm -rf test_all_features_output
+
+run: $(TARGET)
+	./$(TARGET)
+
+.PHONY: all clean run

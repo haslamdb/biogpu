@@ -1,0 +1,44 @@
+# Makefile for all features streaming test
+
+CXX = g++
+NVCC = nvcc
+
+# CUDA paths
+CUDA_PATH = /usr/local/cuda
+CUDA_INCLUDE = $(CUDA_PATH)/include
+CUDA_LIB = $(CUDA_PATH)/lib64
+
+# Compiler flags
+CXXFLAGS = -std=c++17 -O3 -g
+NVCCFLAGS = -std=c++17 -O3 -g -arch=sm_61 --expt-relaxed-constexpr --extended-lambda -Xcompiler -fPIC
+INCLUDES = -I. -I$(CUDA_INCLUDE)
+LIBS = -L$(CUDA_LIB) -lcudart -lcuda
+
+# Source files
+CUDA_SOURCES = test_all_features_streaming.cu \
+               processing/genome_file_processor.cu \
+               features/uniqueness_score_implementation.cu \
+               features/cooccurrence_scoring.cu
+
+# Object files
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+
+# Target
+TARGET = test_all_features_streaming
+
+all: $(TARGET)
+
+$(TARGET): $(CUDA_OBJECTS)
+	$(NVCC) $(NVCCFLAGS) -o $@ $^ $(LIBS)
+
+%.o: %.cu
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+
+clean:
+	rm -f $(CUDA_OBJECTS) $(TARGET)
+	rm -rf /tmp/biogpu_features_test
+
+run: $(TARGET)
+	./$(TARGET)
+
+.PHONY: all clean run

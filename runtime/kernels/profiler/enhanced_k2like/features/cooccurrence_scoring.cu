@@ -1,11 +1,13 @@
 #include "../gpu_kraken_types.h"
 #include "../features/namespace_conflict_resolution.h"
+#include "../features/enhanced_minimizer_flags.h"
 #include <cuda_runtime.h>
 #include <cub/cub.cuh>
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <thrust/binary_search.h>
+#include <algorithm>
 
 // Configuration constants
 constexpr int COOCCURRENCE_WINDOW_BP = 1000;
@@ -255,7 +257,7 @@ __global__ void encode_cooccurrence_in_feature_flags_kernel(
     else category = 7;                     // Perfect co-occurrence pattern
     
     // Update feature flags (bits 13-15)
-    hit.feature_flags = MinimizerFlags::set_cooccurrence_category_safe(hit.feature_flags, category);
+    hit.feature_flags = EnhancedMinimizerFlags::set_cooccurrence_category(hit.feature_flags, category);
 }
 
 // Host-side wrapper class
@@ -380,7 +382,7 @@ public:
         // Sort and aggregate pairs
         if (h_pair_count > 0) {
             thrust::device_ptr<CooccurrencePair> d_pairs_ptr(d_cooccurrence_pairs_);
-            thrust::sort(d_pairs_ptr, d_pairs_ptr + min(h_pair_count, max_pairs_),
+            thrust::sort(d_pairs_ptr, d_pairs_ptr + std::min(h_pair_count, (uint32_t)max_pairs_),
                 [] __device__ (const CooccurrencePair& a, const CooccurrencePair& b) {
                     if (a.hash1 != b.hash1) return a.hash1 < b.hash1;
                     return a.hash2 < b.hash2;
@@ -411,7 +413,7 @@ public:
             d_unique_minimizers,
             d_occurrence_counts,
             d_cooccurrence_scores,
-            min(h_pair_count, max_pairs_),
+            std::min(h_pair_count, (uint32_t)max_pairs_),
             unique_minimizers.size(),
             total_genome_length_,
             window_size_bp

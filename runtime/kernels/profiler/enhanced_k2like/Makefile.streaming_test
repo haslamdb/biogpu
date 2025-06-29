@@ -11,26 +11,26 @@ NVCCFLAGS = -std=c++17 -O2 -g -I. -I/usr/local/cuda/include
 CUDA_LIBS = -L/usr/local/cuda/lib64 -lcudart
 
 # Target executable
-TARGET = test_streaming_fna
+TARGET = test_all_features_streaming
 
 # Source files
-SOURCES = test_streaming_fna.cpp \
+SOURCES = test_all_features_streaming.cu \
           processing/genome_file_processor.cu
 
 # Object files
-OBJECTS = test_streaming_fna.o \
+OBJECTS = test_all_features_streaming.o \
           genome_file_processor.o
 
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CUDA_LIBS)
+	$(NVCC) $(NVCCFLAGS) -arch=sm_61 -o $@ $^ $(CUDA_LIBS)
 
-test_streaming_fna.o: test_streaming_fna.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+test_all_features_streaming.o: test_all_features_streaming.cu
+	$(NVCC) $(NVCCFLAGS) -arch=sm_61 -c -o $@ $<
 
 genome_file_processor.o: processing/genome_file_processor.cu
-	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -arch=sm_61 -c -o $@ $<
 
 run: $(TARGET)
 	./$(TARGET) ../../../../data/test_50_genomes.fna

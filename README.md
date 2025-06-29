@@ -120,7 +120,7 @@ pipeline FluoroquinoloneResistance {
 ### 1. Production Optimization and Clinical Integration
 
 #### Immediate Workflow Optimizations
-- [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
+- [ ] **Batch size tuning**: Optimize batch size (currently 100K reads) for different GPU memory configurations
 
 #### Enhanced Clinical Interpretation
 - [ ] **Confidence scoring system**: Implement tiered confidence levels for resistance calls

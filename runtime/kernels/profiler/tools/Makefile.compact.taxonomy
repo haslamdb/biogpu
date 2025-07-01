@@ -1,0 +1,55 @@
+# Makefile for Compact GPU Taxonomy
+
+# Compiler settings
+NVCC = nvcc
+CXX = g++
+CUDA_FLAGS = -std=c++17 -O3 -arch=sm_70 -Xcompiler -fPIC
+CXX_FLAGS = -std=c++17 -O3 -fPIC
+LDFLAGS = -L/usr/local/cuda-12.5/targets/x86_64-linux/lib -lcudart -lcuda
+
+# Include paths
+INCLUDES = -I. -I/usr/local/cuda/include
+
+# Source files
+CUDA_SOURCES = compact_gpu_taxonomy.cu
+CPP_SOURCES = build_compact_taxonomy.cpp test_compact_taxonomy.cpp
+
+# Object files
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+
+# Targets
+TARGETS = build_compact_taxonomy test_compact_taxonomy
+
+# Default target
+all: $(TARGETS)
+
+# Build compact taxonomy tool
+build_compact_taxonomy: build_compact_taxonomy.o compact_gpu_taxonomy.o
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Test program
+test_compact_taxonomy: test_compact_taxonomy.o compact_gpu_taxonomy.o
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# CUDA compilation
+%.o: %.cu
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) -c $< -o $@
+
+# C++ compilation
+%.o: %.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDES) -c $< -o $@
+
+# Clean
+clean:
+	rm -f *.o $(TARGETS) *.bin
+
+# Run tests
+test: test_compact_taxonomy
+	./test_compact_taxonomy
+
+# Example usage for building from NCBI files
+example:
+	@echo "Example usage:"
+	@echo "  ./build_compact_taxonomy --nodes nodes.dmp --names names.dmp --output taxonomy.bin"
+	@echodddssssss

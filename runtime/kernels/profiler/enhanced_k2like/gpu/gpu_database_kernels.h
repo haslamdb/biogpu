@@ -11,6 +11,9 @@
 // Include common types
 #include "../gpu_kraken_types.h"
 
+// Forward declarations
+struct ContaminationConfig;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,30 +22,8 @@ extern "C" {
 // GPU Data Structures
 // ===========================
 
-// GPU-optimized genome information
-struct GPUGenomeInfo {
-    uint32_t taxon_id;          // Taxonomy ID for this genome
-    uint32_t sequence_offset;   // Offset in concatenated sequence buffer
-    uint32_t sequence_length;   // Length of this genome's sequence
-    uint32_t genome_id;         // Unique genome identifier
-};
-
-// GPU minimizer hit structure
-struct GPUMinimizerHit {
-    uint64_t minimizer_hash;    // Minimizer hash value
-    uint32_t taxon_id;          // Source taxonomy ID
-    uint32_t position;          // Position in sequence
-    uint32_t genome_id;         // Source genome ID
-    
-    // Default constructor for device code
-    __host__ __device__ GPUMinimizerHit() : 
-        minimizer_hash(0), taxon_id(0), position(0), genome_id(0) {}
-    
-    __host__ __device__ GPUMinimizerHit(uint64_t hash, uint32_t taxon, uint32_t pos, uint32_t genome) :
-        minimizer_hash(hash), taxon_id(taxon), position(pos), genome_id(genome) {}
-};
-
-// LCACandidate and MinimizerParams are defined in gpu_kraken_types.h
+// Note: GPUGenomeInfo, GPUMinimizerHit, LCACandidate and MinimizerParams 
+// are all defined in gpu_kraken_types.h
 
 // GPU taxonomy node structure
 struct GPUTaxonomyNode {
@@ -59,12 +40,15 @@ struct GPUTaxonomyNode {
 // GPU Compact Hash Table structure
 struct GPUCompactHashTable {
     uint32_t* hash_cells;
+    uint32_t table_size;
     uint32_t hash_mask;
     uint32_t lca_bits;
+    uint32_t hash_bits;
     uint32_t max_taxon_id;
     
     __host__ __device__ GPUCompactHashTable() : 
-        hash_cells(nullptr), hash_mask(0), lca_bits(0), max_taxon_id(0) {}
+        hash_cells(nullptr), table_size(0), hash_mask(0), 
+        lca_bits(0), hash_bits(0), max_taxon_id(0) {}
 };
 
 // ===========================
@@ -72,6 +56,9 @@ struct GPUCompactHashTable {
 // ===========================
 
 // Hashing functions
+__device__ uint32_t jenkins_hash_gpu(uint64_t key);
+__device__ uint32_t compute_compact_hash_gpu(uint64_t minimizer_hash);
+__device__ uint32_t lookup_lca_gpu(const GPUCompactHashTable* cht, uint64_t minimizer_hash);
 __device__ uint64_t murmur_hash3_64(const void* key, int len, uint32_t seed);
 __device__ uint64_t compute_kmer_hash(const char* sequence, int k, uint64_t mask);
 __device__ uint64_t compute_spaced_kmer_hash(const char* sequence, int k, int spaces, uint64_t mask);
@@ -82,6 +69,9 @@ __device__ uint64_t extract_minimizer_sliding_window(const char* sequence, uint3
                                                     uint64_t xor_mask);
 __device__ bool is_valid_minimizer(uint64_t minimizer_hash, uint64_t min_clear_hash);
 __device__ bool has_valid_dna_bases(const char* sequence, int length);
+__device__ bool has_valid_bases_device(const char* seq, int len);
+__device__ bool validate_sequence_device(const char* sequence, int length);
+__device__ void atomic_add_safe_device(uint32_t* address, uint32_t value);
 
 // Sequence validation
 __device__ bool validate_dna_sequence_gpu(const char* sequence, uint32_t length);
@@ -90,6 +80,9 @@ __device__ uint64_t reverse_complement_hash(uint64_t forward_hash, int k);
 
 // LCA computation device functions
 __device__ uint32_t compute_simple_lca_gpu(uint32_t taxon1, uint32_t taxon2);
+__device__ uint32_t find_lca_simple_device(uint32_t taxon1, uint32_t taxon2,
+                                          const uint32_t* parent_lookup,
+                                          uint32_t max_taxon_id);
 __device__ uint32_t compute_lca_from_taxonomy_gpu(uint32_t taxon1, uint32_t taxon2, 
                                                  const GPUTaxonomyNode* taxonomy_nodes, 
                                                  int num_nodes);
@@ -232,29 +225,41 @@ __global__ void calculate_coverage_statistics_kernel(
 // Host-Side Kernel Launchers
 // ===========================
 
-// Host wrapper functions for kernel launches
-cudaError_t launch_minimizer_extraction_kernel(
-    const char* d_sequence_data,
-    const GPUGenomeInfo* d_genome_info,
-    int num_genomes,
-    GPUMinimizerHit* d_minimizer_hits,
-    uint32_t* d_hit_counts,
-    uint32_t* d_global_counter,
+// Host wrapper functions for kernel launches - matching implementation signatures
+bool launch_minimizer_extraction_kernel(
+    const GPUBatchData& batch_data,
     const MinimizerParams& params,
-    uint64_t min_clear_hash,
+    uint32_t* total_hits_output);
+
+bool launch_improved_minimizer_kernel(
+    const GPUBatchData& batch_data,
+    const MinimizerParams& params,
+    uint64_t min_clear_hash_value,
     uint64_t toggle_mask,
-    int max_minimizers,
-    cudaStream_t stream = 0
-);
+    uint32_t* total_hits_output);
 
-cudaError_t launch_lca_computation_kernel(
-    const GPUMinimizerHit* d_hits,
+bool launch_lca_computation_kernel(
+    const GPUMinimizerHit* hits,
     int num_hits,
-    LCACandidate* d_candidates,
-    int* d_num_candidates,
-    cudaStream_t stream = 0
-);
+    LCACandidate* candidates,
+    int* num_candidates,
+    const uint32_t* parent_lookup = nullptr,
+    uint32_t max_taxon_id = 0);
 
+// Minimizer classification function
+bool classify_minimizers_by_frequency(
+    GPUMinimizerHit* d_minimizer_hits,
+    int num_hits,
+    uint32_t canonical_threshold = 50,
+    uint32_t redundant_threshold = 80);
+
+// Utility functions
+LaunchConfig calculate_optimal_launch_config(int num_elements, int threads_per_block = 256, size_t shared_memory = 0);
+bool check_kernel_execution_errors(const char* kernel_name);
+void print_kernel_launch_info(const LaunchConfig& config, const char* kernel_name);
+bool validate_kernel_parameters(const GPUBatchData& batch_data);
+
+// Legacy signatures for compatibility
 cudaError_t launch_memory_initialization_kernel(
     char* d_sequence_buffer,
     size_t sequence_buffer_size,
@@ -289,6 +294,14 @@ bool compute_lca_assignments_gpu_wrapper(
     int num_hits,
     LCACandidate* d_candidates,
     int* num_candidates
+);
+
+// Contamination detection integration
+bool launch_minimizer_extraction_with_contamination_check(
+    const GPUBatchData& batch_data,
+    const MinimizerParams& params,
+    uint32_t* total_hits_output,
+    const ContaminationConfig& contamination_config
 );
 
 // ===========================
@@ -369,6 +382,39 @@ KernelPerformanceMetrics profile_minimizer_extraction_kernel(
 );
 
 void print_kernel_performance_summary(const KernelPerformanceMetrics& metrics, const std::string& kernel_name);
+
+// ===========================
+// Co-occurrence Scoring Kernels
+// ===========================
+
+// Compute co-occurrence scores for unique minimizers
+__global__ void compute_cooccurrence_scores_kernel(
+    const GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique,
+    size_t window_size
+);
+
+// Optimized version using shared memory
+__global__ void compute_cooccurrence_scores_optimized_kernel(
+    const GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique,
+    size_t window_size
+);
+
+// Update minimizer feature flags with co-occurrence scores
+__global__ void update_cooccurrence_flags_kernel(
+    GPUMinimizerHit* minimizer_hits,
+    const uint64_t* unique_minimizers,
+    const float* cooccurrence_scores,
+    size_t total_hits,
+    size_t num_unique
+);
 
 #ifdef __cplusplus
 }

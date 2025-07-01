@@ -120,7 +120,7 @@ pipeline FluoroquinoloneResistance {
 ### 1. Production Optimization and Clinical Integration
 
 #### Immediate Workflow Optimizations
-- [ ] **Batch size tuning**: Optimize batch size (currently 10K reads) for different GPU memory configurations
+- [ ] **Batch size tuning**: Optimize batch size (currently 100K reads) for different GPU memory configurations
 
 #### Enhanced Clinical Interpretation
 - [ ] **Confidence scoring system**: Implement tiered confidence levels for resistance calls
@@ -364,7 +364,7 @@ pipeline FluoroquinoloneResistance {
 - [ ] ✅ **COMPLETED**: Simplified data structure and index building
 - [ ] ✅ **COMPLETED**: Working draft: `./build/fq_pipeline_gpu data/indices/fq_mutations/fq_mutation_index.h5`
 - [ ] ✅ **COMPLETED**: Fixed k-mer matching phase
-- [ ] ✅ **COMPLETED**: Mapping phase optimization (67% success rate achieved)
+- [ ] ✅ **COMPLETED**: Mapping phase optimization 
 - [ ] Implement mutation confidence scoring system
 
 ### 8. Build Microbial Genome Database

@@ -1,0 +1,99 @@
+# Makefile for BioGPU Modular Tests
+# Easy to extend - just add new source files to SOURCES
+
+# Configuration
+CUDA_PATH ?= /usr/local/cuda
+NVCC = $(CUDA_PATH)/bin/nvcc
+CUDA_ARCH ?= sm_75
+
+# Project paths
+BIOGPU_ROOT = /home/david/Documents/Code/biogpu
+RUNTIME_DIR = $(BIOGPU_ROOT)/runtime/kernels/profiler/enhanced_k2like
+
+# Include directories
+INCLUDES = -I$(RUNTIME_DIR) \
+           -I$(RUNTIME_DIR)/gpu \
+           -I$(RUNTIME_DIR)/features \
+           -I$(RUNTIME_DIR)/processing \
+           -I$(CUDA_PATH)/include
+
+# Source files - ADD NEW FILES HERE
+SOURCES = feature_tests.cpp \
+          $(RUNTIME_DIR)/gpu/gpu_database_kernels.cu \
+          $(RUNTIME_DIR)/processing/minimizer_feature_extractor.cu \
+          $(RUNTIME_DIR)/processing/genome_file_processor.cpp \
+          $(RUNTIME_DIR)/processing/feature_exporter.cu
+
+# Object files
+OBJECTS = $(SOURCES:.cpp=.o)
+OBJECTS := $(OBJECTS:.cu=.o)
+
+# Compiler flags
+NVCC_FLAGS = -arch=$(CUDA_ARCH) -std=c++17 -O3 --extended-lambda -use_fast_math --expt-relaxed-constexpr
+LDFLAGS = -lcudart -lcuda -lstdc++fs
+
+# Debug build
+DEBUG_FLAGS = -g -G -DDEBUG
+RELEASE_FLAGS = -DNDEBUG
+
+# Targets
+TARGET = biogpu_modular_test
+DEBUG_TARGET = biogpu_modular_test_debug
+
+# Default target
+all: release
+
+# Release build
+release: NVCC_FLAGS += $(RELEASE_FLAGS)
+release: $(TARGET)
+
+# Debug build
+debug: NVCC_FLAGS += $(DEBUG_FLAGS)
+debug: $(DEBUG_TARGET)
+
+# Main targets
+$(TARGET): $(SOURCES)
+	@echo "Building release version..."
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+	@echo "Build complete: $@"
+
+$(DEBUG_TARGET): $(SOURCES)
+	@echo "Building debug version..."
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS)
+	@echo "Build complete: $@"
+
+# Run tests
+run: $(TARGET)
+	./$(TARGET)
+
+run-debug: $(DEBUG_TARGET)
+	./$(DEBUG_TARGET)
+
+# Run with custom options
+run-custom: $(TARGET)
+	./$(TARGET) --fna $(FNA_FILE) --batch-size $(BATCH_SIZE)
+
+# Clean
+clean:
+	rm -f $(TARGET) $(DEBUG_TARGET) *.o
+
+# Help
+help:
+	@echo "BioGPU Modular Test Makefile"
+	@echo "============================"
+	@echo "Targets:"
+	@echo "  make              - Build release version"
+	@echo "  make debug        - Build debug version"
+	@echo "  make run          - Build and run release version"
+	@echo "  make run-debug    - Build and run debug version"
+	@echo "  make clean        - Remove built files"
+	@echo ""
+	@echo "Custom run example:"
+	@echo "  make run-custom FNA_FILE=/path/to/genomes.fna BATCH_SIZE=10"
+	@echo ""
+	@echo "To add new features:"
+	@echo "  1. Add source files to SOURCES variable"
+	@echo "  2. Add include paths to INCLUDES if needed"
+	@echo "  3. Create new test class in feature_tests.cpp"
+
+.PHONY: all release debug run run-debug run-custom clean help

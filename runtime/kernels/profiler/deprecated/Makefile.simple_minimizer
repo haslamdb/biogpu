@@ -1,0 +1,19 @@
+# Makefile for simple_minimizer_test
+
+NVCC = nvcc
+NVCCFLAGS = -std=c++17 -g -G -arch=sm_61 -lineinfo -I.
+
+TARGET = simple_minimizer_test
+
+all: $(TARGET)
+
+$(TARGET): simple_minimizer_test.cu
+	$(NVCC) $(NVCCFLAGS) -o $@ $<
+
+run: $(TARGET)
+	./$(TARGET)
+
+clean:
+	rm -f $(TARGET)
+
+.PHONY: all run clean

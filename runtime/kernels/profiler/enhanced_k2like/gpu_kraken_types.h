@@ -14,14 +14,12 @@
 #include <iostream>
 #include <set>
 #include <chrono>
+#include <iomanip>
 
 // ===========================
 // Forward Declarations
 // ===========================
 
-struct GPUGenomeInfo;
-struct GPUMinimizerHit;
-struct LCACandidate;
 struct MinimizerParams;
 struct GPUTaxonomyNode;
 struct SpeciesTrackingData;
@@ -31,6 +29,270 @@ struct ContributingTaxaArrays;
 // ===========================
 // CUDA and GPU Types
 // ===========================
+
+// GPU genome information structure
+struct GPUGenomeInfo {
+    uint32_t genome_id;
+    uint32_t sequence_offset;        // Use this consistently
+    uint32_t sequence_length;
+    uint32_t minimizer_count;
+    uint32_t taxon_id;
+};
+
+// GPU minimizer hit structure
+struct GPUMinimizerHit {
+    uint64_t minimizer_hash;  // 8 bytes
+    uint32_t genome_id;       // 4 bytes
+    uint32_t position;        // 4 bytes
+    uint16_t strand;          // 2 bytes - bits 0-1: strand (0=forward, 1=reverse)
+                              //          bits 2-3: classification (0=unique, 1=canonical, 2=redundant)
+                              //          bits 4-15: reserved for future use
+    uint16_t taxon_id;        // 2 bytes
+    uint16_t ml_weight;       // 2 bytes - ML confidence score (1.0 scaled to uint16_t)
+    uint32_t feature_flags;   // 4 bytes - encoded features
+}; // Total: 26 bytes
+
+// Strand and classification flag constants
+namespace MinimizerFlags {
+    // Strand flags (bits 0-1)
+    constexpr uint32_t STRAND_MASK = 0x0003;
+    constexpr uint32_t STRAND_FORWARD = 0x0000;
+    constexpr uint32_t STRAND_REVERSE = 0x0001;
+    
+    // Classification flags (bits 2-3)
+    constexpr uint32_t CLASSIFICATION_MASK = 0x000C;
+    constexpr uint32_t CLASSIFICATION_SHIFT = 2;
+    constexpr uint32_t CLASSIFICATION_UNIQUE = 0x0000;      // Unique to one species
+    constexpr uint32_t CLASSIFICATION_CANONICAL = 0x0004;   // Canonical for species (most common)
+    constexpr uint32_t CLASSIFICATION_REDUNDANT = 0x0008;   // Redundant within species
+    
+    // Helper functions
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t get_strand(uint32_t flags) {
+        return flags & STRAND_MASK;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t get_classification(uint32_t flags) {
+        return (flags & CLASSIFICATION_MASK) >> CLASSIFICATION_SHIFT;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_classification(uint32_t flags, uint32_t classification) {
+        return (flags & ~CLASSIFICATION_MASK) | ((classification << CLASSIFICATION_SHIFT) & CLASSIFICATION_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool is_unique(uint32_t flags) {
+        return get_classification(flags) == 0;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool is_canonical(uint32_t flags) {
+        return get_classification(flags) == 1;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool is_redundant(uint32_t flags) {
+        return get_classification(flags) == 2;
+    }
+    
+    // Feature flags for ml_weight and feature_flags fields
+    // For feature_flags field:
+    // Bits 0-2: GC content category (0-7 representing GC% ranges)
+    constexpr uint32_t GC_CONTENT_MASK = 0x0007;
+    constexpr uint32_t GC_CONTENT_SHIFT = 0;
+    
+    // Bits 3-5: Sequence complexity score (0-7)
+    constexpr uint32_t COMPLEXITY_MASK = 0x0038;
+    constexpr uint32_t COMPLEXITY_SHIFT = 3;
+    
+    // Bit 6: Position bias indicator (clustered=1, uniform=0)
+    constexpr uint32_t POSITION_BIAS_MASK = 0x0040;
+    constexpr uint32_t POSITION_BIAS_CLUSTERED = 0x0040;
+    constexpr uint32_t POSITION_BIAS_UNIFORM = 0x0000;
+    
+    // Bit 7: Contamination risk flag
+    constexpr uint32_t CONTAMINATION_RISK_MASK = 0x0080;
+    constexpr uint32_t CONTAMINATION_RISK_FLAG = 0x0080;
+    
+    // Bits 8-12: Reserved for future use
+    constexpr uint32_t RESERVED_8_12_MASK = 0x1F00;
+    
+    // Helper functions for feature flags
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t get_gc_content_category(uint32_t feature_flags) {
+        return (feature_flags & GC_CONTENT_MASK) >> GC_CONTENT_SHIFT;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_gc_content_category(uint32_t feature_flags, uint32_t category) {
+        return (feature_flags & ~GC_CONTENT_MASK) | ((category << GC_CONTENT_SHIFT) & GC_CONTENT_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t get_complexity_score(uint32_t feature_flags) {
+        return (feature_flags & COMPLEXITY_MASK) >> COMPLEXITY_SHIFT;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_complexity_score(uint32_t feature_flags, uint32_t score) {
+        return (feature_flags & ~COMPLEXITY_MASK) | ((score << COMPLEXITY_SHIFT) & COMPLEXITY_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool has_position_bias(uint32_t feature_flags) {
+        return (feature_flags & POSITION_BIAS_MASK) != 0;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_position_bias(uint32_t feature_flags, bool clustered) {
+        if (clustered) {
+            return feature_flags | POSITION_BIAS_CLUSTERED;
+        } else {
+            return feature_flags & ~POSITION_BIAS_MASK;
+        }
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline bool has_contamination_risk(uint32_t feature_flags) {
+        return (feature_flags & CONTAMINATION_RISK_MASK) != 0;
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_contamination_risk(uint32_t feature_flags, bool risk) {
+        if (risk) {
+            return feature_flags | CONTAMINATION_RISK_FLAG;
+        } else {
+            return feature_flags & ~CONTAMINATION_RISK_MASK;
+        }
+    }
+    
+    // Bits 13-15: Co-occurrence score (0-7)
+    constexpr uint32_t COOCCURRENCE_MASK = 0xE000;
+    constexpr uint32_t COOCCURRENCE_SHIFT = 13;
+    
+    // Bits 16-18: Taxonomic ambiguity level (0-7)
+    constexpr uint32_t TAXONOMIC_AMBIGUITY_MASK = 0x70000;
+    constexpr uint32_t TAXONOMIC_AMBIGUITY_SHIFT = 16;
+    
+    // Bits 19-21: Context complexity score (0-7)
+    constexpr uint32_t CONTEXT_COMPLEXITY_MASK = 0x380000;
+    constexpr uint32_t CONTEXT_COMPLEXITY_SHIFT = 19;
+    
+    // Bits 22-23: Read coherence level (0-3)
+    constexpr uint32_t READ_COHERENCE_MASK = 0xC00000;
+    constexpr uint32_t READ_COHERENCE_SHIFT = 22;
+    
+    // Bits 24-31: Reserved for future use
+    constexpr uint32_t RESERVED_24_31_MASK = 0xFF000000;
+    
+    // Co-occurrence score functions (bits 13-15)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_cooccurrence_score(uint32_t flags, uint8_t score) {
+        return (flags & ~COOCCURRENCE_MASK) | ((static_cast<uint32_t>(score) << COOCCURRENCE_SHIFT) & COOCCURRENCE_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_cooccurrence_score(uint32_t flags) {
+        return static_cast<uint8_t>((flags & COOCCURRENCE_MASK) >> COOCCURRENCE_SHIFT);
+    }
+    
+    // Taxonomic ambiguity functions (bits 16-18)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_taxonomic_ambiguity(uint32_t flags, uint8_t level) {
+        return (flags & ~TAXONOMIC_AMBIGUITY_MASK) | ((static_cast<uint32_t>(level) << TAXONOMIC_AMBIGUITY_SHIFT) & TAXONOMIC_AMBIGUITY_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_taxonomic_ambiguity(uint32_t flags) {
+        return static_cast<uint8_t>((flags & TAXONOMIC_AMBIGUITY_MASK) >> TAXONOMIC_AMBIGUITY_SHIFT);
+    }
+    
+    // Context complexity functions (bits 19-21)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_context_complexity(uint32_t flags, uint8_t score) {
+        return (flags & ~CONTEXT_COMPLEXITY_MASK) | ((static_cast<uint32_t>(score) << CONTEXT_COMPLEXITY_SHIFT) & CONTEXT_COMPLEXITY_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_context_complexity(uint32_t flags) {
+        return static_cast<uint8_t>((flags & CONTEXT_COMPLEXITY_MASK) >> CONTEXT_COMPLEXITY_SHIFT);
+    }
+    
+    // Read coherence functions (bits 22-23)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint32_t set_read_coherence(uint32_t flags, uint8_t level) {
+        return (flags & ~READ_COHERENCE_MASK) | ((static_cast<uint32_t>(level) << READ_COHERENCE_SHIFT) & READ_COHERENCE_MASK);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint8_t get_read_coherence(uint32_t flags) {
+        return static_cast<uint8_t>((flags & READ_COHERENCE_MASK) >> READ_COHERENCE_SHIFT);
+    }
+    
+    // ML weight conversion helpers (for ml_weight field)
+    // Convert float confidence (0.0-1.0) to uint16_t (0-65535)
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline uint16_t float_to_ml_weight(float confidence) {
+        if (confidence <= 0.0f) return 0;
+        if (confidence >= 1.0f) return 65535;
+        return static_cast<uint16_t>(confidence * 65535.0f);
+    }
+    
+    #ifdef __CUDACC__
+    __host__ __device__
+    #endif
+    inline float ml_weight_to_float(uint16_t weight) {
+        return static_cast<float>(weight) / 65535.0f;
+    }
+}
 
 // CUDA-compatible minimizer parameters
 struct MinimizerParams {
@@ -86,6 +348,32 @@ struct LaunchConfig {
     LaunchConfig() = default;
     LaunchConfig(int blocks, int threads) : blocks_x(blocks), threads_x(threads) {}
     LaunchConfig(int bx, int by, int tx, int ty) : blocks_x(bx), blocks_y(by), threads_x(tx), threads_y(ty) {}
+};
+
+// ===========================
+// Memory Management Types
+// ===========================
+
+// Memory configuration structure
+struct MemoryConfig {
+    size_t max_memory_fraction = 80;        // Percentage of GPU memory to use
+    size_t reserved_memory_mb = 500;        // Reserved memory in MB
+    size_t minimizer_capacity = 5000000;    // Default minimizer capacity
+    size_t sequence_batch_size = 25;        // Default sequence batch size
+    bool enable_memory_pooling = true;      // Enable memory pooling
+    bool auto_scale_enabled = true;         // Enable auto-scaling
+};
+
+// Memory statistics structure
+struct MemoryStats {
+    size_t total_gpu_memory = 0;
+    size_t available_memory = 0;
+    size_t allocated_memory = 0;
+    size_t current_sequence_memory = 0;
+    size_t current_minimizer_memory = 0;
+    size_t current_metadata_memory = 0;
+    size_t peak_usage = 0;
+    double memory_efficiency = 1.0;
 };
 
 // GPU batch processing data
@@ -195,10 +483,25 @@ struct ClassificationParams {
     int num_threads = 1;                // Number of CPU threads
     bool quick_mode = false;            // Quick classification mode
     bool paired_end_processing = false; // Handle paired-end reads
+    bool use_paired_end_bonus = true;   // Apply paired-end concordance bonus
+    float paired_concordance_weight = 2.0f; // Weight for paired concordance
+    float min_pair_concordance = 0.5f;  // Minimum concordance for bonus
     
     ClassificationParams() = default;
     ClassificationParams(uint32_t k_val, uint32_t ell_val, uint32_t spaces_val) 
         : k(k_val), ell(ell_val), spaces(spaces_val) {}
+};
+
+// ===========================
+// Co-occurrence Types
+// ===========================
+
+// Co-occurrence data structure for tracking minimizer relationships
+struct CooccurrenceData {
+    uint64_t minimizer_hash1;
+    uint64_t minimizer_hash2;
+    uint32_t cooccurrence_count;
+    float normalized_score;  // 0.0-1.0
 };
 
 // ===========================
@@ -245,29 +548,79 @@ struct EnhancedBuildStats : public GPUBuildStats {
     double phylogenetic_coverage_percentage = 0.0;
     double average_taxa_per_minimizer = 0.0;
     
+    // NEW: Uniqueness statistics
+    size_t minimizers_with_uniqueness_scores = 0;
+    size_t minimizers_filtered_by_uniqueness = 0;
+    size_t unique_minimizers_count = 0;
+    size_t rare_minimizers_count = 0;
+    size_t reliable_minimizers_count = 0;
+    double average_uniqueness_score = 0.0;
+    
+    // NEW: Co-occurrence statistics
+    size_t minimizers_with_cooccurrence_scores = 0;
+    size_t high_cooccurrence_minimizers = 0;  // Category >= 5
+    size_t low_cooccurrence_minimizers = 0;   // Category <= 2
+    double average_cooccurrence_score = 0.0;
+    
     void print_enhanced_stats() const;
     void calculate_derived_stats();
+    
+    void print_uniqueness_stats() const {
+        std::cout << "\n=== UNIQUENESS STATISTICS ===" << std::endl;
+        std::cout << "Minimizers with uniqueness scores: " << minimizers_with_uniqueness_scores << std::endl;
+        std::cout << "Unique minimizers (≥90%): " << unique_minimizers_count << std::endl;
+        std::cout << "Rare minimizers (≤3 occurrences): " << rare_minimizers_count << std::endl;
+        std::cout << "Reliable minimizers: " << reliable_minimizers_count << std::endl;
+        std::cout << "Average uniqueness score: " << std::fixed << std::setprecision(3) 
+                  << average_uniqueness_score << std::endl;
+        if (minimizers_filtered_by_uniqueness > 0) {
+            std::cout << "Minimizers filtered by uniqueness: " << minimizers_filtered_by_uniqueness << std::endl;
+        }
+    }
+    
+    void print_cooccurrence_stats() const {
+        std::cout << "\n=== CO-OCCURRENCE STATISTICS ===" << std::endl;
+        std::cout << "Minimizers with co-occurrence scores: " << minimizers_with_cooccurrence_scores << std::endl;
+        std::cout << "High co-occurrence minimizers (≥5): " << high_cooccurrence_minimizers << std::endl;
+        std::cout << "Low co-occurrence minimizers (≤2): " << low_cooccurrence_minimizers << std::endl;
+        std::cout << "Average co-occurrence score: " << std::fixed << std::setprecision(3) 
+                  << average_cooccurrence_score << std::endl;
+    }
 };
 
 // ===========================
 // Database Format Definitions
 // ===========================
 
-// Streamlined minimizer metadata (28 bytes per minimizer)
+// Streamlined minimizer metadata (30 bytes per minimizer)
 struct StreamlinedMinimizerMetadata {
     uint64_t minimizer_hash;                 // 8 bytes
     uint32_t lca_taxon;                      // 4 bytes - backward compatibility
     uint32_t total_genome_count;             // 4 bytes
     uint32_t contributing_taxa_offset;       // 4 bytes - offset into external array
     uint16_t num_contributing_taxa;          // 2 bytes
+    uint16_t ml_weight;                      // 2 bytes - ML confidence score (0-65535)
+    uint32_t feature_flags;                  // 4 bytes - encoded features (GC, complexity, etc.)
     uint8_t phylogenetic_spread;             // 1 byte
     uint8_t max_phylogenetic_distance;       // 1 byte
-    uint32_t reserved;                       // 4 bytes - for future use, total = 28 bytes
+    // No padding needed - structure is naturally aligned to 32 bytes
     
     StreamlinedMinimizerMetadata() : 
         minimizer_hash(0), lca_taxon(0), total_genome_count(0),
         contributing_taxa_offset(0), num_contributing_taxa(0),
-        phylogenetic_spread(0), max_phylogenetic_distance(0), reserved(0) {}
+        ml_weight(0), feature_flags(0),
+        phylogenetic_spread(0), max_phylogenetic_distance(0) {}
+        
+    // Helper methods for ML fields
+    float get_ml_confidence() const {
+        return ml_weight / 65535.0f;
+    }
+    
+    void set_ml_confidence(float confidence) {
+        ml_weight = static_cast<uint16_t>(confidence * 65535.0f);
+    }
+    
+    // Use the MinimizerFlags namespace helpers for feature_flags
 };
 
 // ===========================
@@ -336,6 +689,76 @@ struct BuildErrorInfo {
     
     bool is_success() const { return error_code == DatabaseBuildError::SUCCESS; }
     void print_error() const;
+};
+
+// ===========================
+// Database Format Types
+// ===========================
+
+enum class DatabaseFormat {
+    STANDARD_KRAKEN2,
+    ENHANCED_PHYLO,
+    COMPACT_BINARY,
+    CUSTOM_FORMAT
+};
+
+// ===========================
+// File Processing Types
+// ===========================
+
+struct FileProcessingConfig {
+    bool validate_sequences = true;
+    bool skip_invalid_files = true;
+    size_t max_file_size_mb = 10000;
+    bool enable_parallel_loading = true;
+    int num_worker_threads = 4;
+    std::string supported_extensions = ".fna,.fa,.fasta";
+    
+    // Additional fields used in implementation
+    size_t max_file_count = 10000;
+    bool progress_reporting = false;
+    size_t progress_interval = 100;
+    size_t max_file_size = 10000000000ULL;  // 10GB
+    size_t max_sequence_length = 100000000;  // 100MB
+};
+
+struct FileProcessingStats {
+    double processing_time = 0.0;
+    size_t files_processed = 0;
+    size_t total_bytes = 0;
+    size_t sequences_loaded = 0;
+    size_t invalid_files_skipped = 0;
+    
+    // Additional fields used in implementation
+    size_t files_found = 0;
+    size_t files_skipped = 0;
+    size_t total_sequences = 0;
+    size_t total_bases = 0;
+    size_t processing_errors = 0;
+    double average_file_size = 0.0;
+    
+    void reset() {
+        processing_time = 0.0;
+        files_processed = 0;
+        total_bytes = 0;
+        sequences_loaded = 0;
+        invalid_files_skipped = 0;
+        files_found = 0;
+        files_skipped = 0;
+        total_sequences = 0;
+        total_bases = 0;
+        processing_errors = 0;
+        average_file_size = 0.0;
+    }
+    
+    void print_summary() const {
+        std::cout << "File Processing Stats:" << std::endl;
+        std::cout << "  Files processed: " << files_processed << std::endl;
+        std::cout << "  Sequences loaded: " << sequences_loaded << std::endl;
+        std::cout << "  Total bytes: " << (total_bytes / 1024 / 1024) << " MB" << std::endl;
+        std::cout << "  Processing time: " << processing_time << "s" << std::endl;
+        std::cout << "  Invalid files skipped: " << invalid_files_skipped << std::endl;
+    }
 };
 
 // ===========================

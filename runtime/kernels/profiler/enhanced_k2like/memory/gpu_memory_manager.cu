@@ -2,63 +2,13 @@
 // Complete GPU memory management implementation for microbial profiling
 // Handles allocation, auto-scaling, and memory optimization
 
+#include "gpu_memory_manager.h"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
-#include <memory>
-#include <cstdint>
 #include <cstring>
-
-// ===========================
-// Type Definitions
-// ===========================
-
-struct GPUGenomeInfo {
-    uint32_t genome_id;
-    uint32_t sequence_start;
-    uint32_t sequence_length;
-    uint32_t minimizer_count;
-    uint32_t taxon_id;
-};
-
-struct GPUMinimizerHit {
-    uint64_t minimizer_hash;
-    uint32_t genome_id;
-    uint32_t position;
-    uint16_t strand;
-    uint16_t reserved;
-};
-
-struct LCACandidate {
-    uint32_t taxon_id;
-    uint32_t hit_count;
-    float score;
-    uint32_t reserved;
-};
-
-// Memory configuration structure
-struct MemoryConfig {
-    size_t max_memory_fraction = 80;        // Percentage of GPU memory to use
-    size_t reserved_memory_mb = 500;        // Reserved memory in MB
-    size_t minimizer_capacity = 5000000;    // Default minimizer capacity
-    size_t sequence_batch_size = 25;        // Default sequence batch size
-    bool enable_memory_pooling = true;      // Enable memory pooling
-    bool auto_scale_enabled = true;         // Enable auto-scaling
-};
-
-// Memory statistics structure
-struct MemoryStats {
-    size_t total_gpu_memory = 0;
-    size_t available_memory = 0;
-    size_t allocated_memory = 0;
-    size_t current_sequence_memory = 0;
-    size_t current_minimizer_memory = 0;
-    size_t current_metadata_memory = 0;
-    size_t peak_usage = 0;
-    double memory_efficiency = 1.0;
-};
 
 // ===========================
 // CUDA Kernels
@@ -79,7 +29,7 @@ __global__ void memory_initialization_kernel(
     // Initialize genome info
     if (genome_info && tid < genome_count) {
         genome_info[tid].genome_id = 0;
-        genome_info[tid].sequence_start = 0;
+        genome_info[tid].sequence_offset = 0;
         genome_info[tid].sequence_length = 0;
         genome_info[tid].minimizer_count = 0;
         genome_info[tid].taxon_id = 0;
@@ -91,7 +41,7 @@ __global__ void memory_initialization_kernel(
         minimizer_hits[tid].genome_id = 0;
         minimizer_hits[tid].position = 0;
         minimizer_hits[tid].strand = 0;
-        minimizer_hits[tid].reserved = 0;
+        minimizer_hits[tid].taxon_id = 0;
     }
 }
 
@@ -106,11 +56,11 @@ __global__ void memory_validation_kernel(
     if (tid >= num_genomes) return;
     
     // Validate genome info structure
-    if (genome_info[tid].sequence_start != UINT32_MAX && 
+    if (genome_info[tid].sequence_offset != UINT32_MAX && 
         genome_info[tid].sequence_length > 0) {
         
         // Check if sequence data pointer is valid
-        uint32_t start = genome_info[tid].sequence_start;
+        uint32_t start = genome_info[tid].sequence_offset;
         uint32_t length = genome_info[tid].sequence_length;
         
         // Basic validation - check for null termination or valid nucleotides
@@ -215,108 +165,78 @@ bool launch_memory_validation_kernel(
 // GPU Memory Pool Implementation
 // ===========================
 
-class GPUMemoryPool {
-private:
-    void* pool_base_;
-    size_t pool_size_;
-    size_t current_offset_;
-    bool initialized_;
-
-public:
-    explicit GPUMemoryPool(size_t pool_size_mb) 
-        : pool_base_(nullptr), pool_size_(pool_size_mb * 1024 * 1024), 
-          current_offset_(0), initialized_(false) {
-        
-        cudaError_t error = cudaMalloc(&pool_base_, pool_size_);
-        if (error == cudaSuccess) {
-            initialized_ = true;
-            std::cout << "GPU memory pool created: " << pool_size_mb << " MB" << std::endl;
-        } else {
-            std::cerr << "Failed to create GPU memory pool: " << cudaGetErrorString(error) << std::endl;
-        }
+GPUMemoryPool::GPUMemoryPool(size_t pool_size_mb) 
+    : pool_base_(nullptr), pool_size_(pool_size_mb * 1024 * 1024), 
+      current_offset_(0), initialized_(false) {
+    
+    cudaError_t error = cudaMalloc(&pool_base_, pool_size_);
+    if (error == cudaSuccess) {
+        initialized_ = true;
+        std::cout << "GPU memory pool created: " << pool_size_mb << " MB" << std::endl;
+    } else {
+        std::cerr << "Failed to create GPU memory pool: " << cudaGetErrorString(error) << std::endl;
     }
+}
 
-    ~GPUMemoryPool() {
-        if (pool_base_) {
-            cudaFree(pool_base_);
-            pool_base_ = nullptr;
-        }
+GPUMemoryPool::~GPUMemoryPool() {
+    if (pool_base_) {
+        cudaFree(pool_base_);
+        pool_base_ = nullptr;
     }
+}
 
-    void* allocate(size_t size, size_t alignment = 256) {
-        if (!initialized_ || size == 0) return nullptr;
-        
-        // Align the current offset
-        size_t aligned_offset = (current_offset_ + alignment - 1) & ~(alignment - 1);
-        
-        // Check if we have enough space
-        if (aligned_offset + size > pool_size_) {
-            return nullptr;  // Out of memory
-        }
-        
-        void* ptr = static_cast<char*>(pool_base_) + aligned_offset;
-        current_offset_ = aligned_offset + size;
-        
-        return ptr;
+void* GPUMemoryPool::allocate(size_t size, size_t alignment) {
+    if (!initialized_ || size == 0) return nullptr;
+    
+    // Align the current offset
+    size_t aligned_offset = (current_offset_ + alignment - 1) & ~(alignment - 1);
+    
+    // Check if we have enough space
+    if (aligned_offset + size > pool_size_) {
+        return nullptr;  // Out of memory
     }
+    
+    void* ptr = static_cast<char*>(pool_base_) + aligned_offset;
+    current_offset_ = aligned_offset + size;
+    
+    return ptr;
+}
 
-    void deallocate(void* ptr) {
-        // Simple pool doesn't support individual deallocation
-        // Could be extended with a free list
-    }
+void GPUMemoryPool::deallocate(void* ptr) {
+    // Simple pool doesn't support individual deallocation
+    // Could be extended with a free list
+}
 
-    void reset() {
-        current_offset_ = 0;
-    }
+void GPUMemoryPool::reset() {
+    current_offset_ = 0;
+}
 
-    size_t get_available_space() const {
-        return pool_size_ - current_offset_;
-    }
+size_t GPUMemoryPool::get_available_space() const {
+    return pool_size_ - current_offset_;
+}
 
-    bool is_initialized() const { 
-        return initialized_; 
-    }
-};
+bool GPUMemoryPool::is_initialized() const { 
+    return initialized_; 
+}
 
 // ===========================
 // GPU Memory Manager Implementation
 // ===========================
 
-class GPUMemoryManager {
-private:
-    MemoryConfig config_;
-    bool initialized_;
-    bool allocations_active_;
-    size_t total_allocated_;
+GPUMemoryManager::GPUMemoryManager(const MemoryConfig& config)
+    : config_(config), initialized_(false), allocations_active_(false), total_allocated_(0),
+      d_sequence_data_(nullptr), d_genome_info_(nullptr), d_minimizer_hits_(nullptr),
+      d_lca_candidates_(nullptr), d_minimizer_counts_(nullptr), sequence_buffer_size_(0) {
     
-    // Memory pool
-    std::unique_ptr<GPUMemoryPool> memory_pool_;
-    
-    // GPU memory pointers
-    char* d_sequence_data_;
-    GPUGenomeInfo* d_genome_info_;
-    GPUMinimizerHit* d_minimizer_hits_;
-    LCACandidate* d_lca_candidates_;
-    uint32_t* d_minimizer_counts_;
-    
-    // Statistics
-    MemoryStats stats_;
+    // Initialize statistics
+    memset(&stats_, 0, sizeof(stats_));
+}
 
-public:
-    explicit GPUMemoryManager(const MemoryConfig& config = MemoryConfig())
-        : config_(config), initialized_(false), allocations_active_(false), total_allocated_(0),
-          d_sequence_data_(nullptr), d_genome_info_(nullptr), d_minimizer_hits_(nullptr),
-          d_lca_candidates_(nullptr), d_minimizer_counts_(nullptr) {
-        
-        // Initialize statistics
-        memset(&stats_, 0, sizeof(stats_));
-    }
+GPUMemoryManager::~GPUMemoryManager() {
+    free_all_allocations();
+}
 
-    ~GPUMemoryManager() {
-        free_all_allocations();
-    }
-
-    bool initialize() {
+bool GPUMemoryManager::initialize() {
         if (initialized_) return true;
         
         std::cout << "Initializing GPU Memory Manager..." << std::endl;
@@ -360,7 +280,7 @@ public:
         return true;
     }
 
-    bool configure_auto_scaling(bool enable, size_t memory_fraction = 80) {
+bool GPUMemoryManager::configure_auto_scaling(bool enable, size_t memory_fraction) {
         config_.auto_scale_enabled = enable;
         config_.max_memory_fraction = std::min(memory_fraction, size_t(95));  // Cap at 95%
         
@@ -371,8 +291,8 @@ public:
         return true;
     }
 
-    bool set_minimizer_capacity(int capacity) {
-        if (capacity <= 0 || capacity > 50000000) {  // Cap at 50M
+bool GPUMemoryManager::set_minimizer_capacity(int capacity) {
+        if (capacity <= 0 || capacity > 2000000000) {  // Cap at 2B
             std::cerr << "Invalid minimizer capacity: " << capacity << std::endl;
             return false;
         }
@@ -383,7 +303,7 @@ public:
         return true;
     }
 
-    bool set_batch_size(int batch_size) {
+bool GPUMemoryManager::set_batch_size(int batch_size) {
         if (batch_size <= 0 || batch_size > 100) {
             std::cerr << "Invalid batch size: " << batch_size << std::endl;
             return false;
@@ -395,7 +315,7 @@ public:
         return true;
     }
 
-    bool allocate_sequence_memory(size_t max_sequences, size_t max_total_length) {
+bool GPUMemoryManager::allocate_sequence_memory(size_t max_sequences, size_t max_total_length) {
         if (allocations_active_) {
             std::cerr << "Memory already allocated. Free existing allocations first." << std::endl;
             return false;
@@ -412,9 +332,11 @@ public:
         std::cout << "  Total length: " << (max_total_length / 1024 / 1024) << " MB" << std::endl;
         
         // Allocate sequence data buffer
+        sequence_buffer_size_ = max_total_length;
         cudaError_t error = cudaMalloc(&d_sequence_data_, max_total_length);
         if (error != cudaSuccess) {
             std::cerr << "Failed to allocate sequence data: " << cudaGetErrorString(error) << std::endl;
+            sequence_buffer_size_ = 0;
             return false;
         }
         
@@ -448,7 +370,7 @@ public:
         return true;
     }
 
-    bool allocate_minimizer_memory(size_t max_minimizers) {
+bool GPUMemoryManager::allocate_minimizer_memory(size_t max_minimizers) {
         size_t minimizer_memory = max_minimizers * sizeof(GPUMinimizerHit);
         size_t count_memory = config_.sequence_batch_size * sizeof(uint32_t);
         size_t total_memory = minimizer_memory + count_memory;
@@ -495,13 +417,13 @@ public:
         return true;
     }
 
-    bool allocate_metadata_memory(size_t max_genomes) {
+bool GPUMemoryManager::allocate_metadata_memory(size_t max_genomes) {
         // This would allocate additional metadata buffers
         stats_.current_metadata_memory = max_genomes * sizeof(uint32_t) * 4;  // Example
         return true;
     }
 
-    bool allocate_results_memory(size_t max_candidates) {
+bool GPUMemoryManager::allocate_results_memory(size_t max_candidates) {
         size_t results_memory = max_candidates * sizeof(LCACandidate);
         
         if (!validate_allocation_request(results_memory)) {
@@ -525,12 +447,13 @@ public:
         return true;
     }
 
-    void free_all_allocations() {
+void GPUMemoryManager::free_all_allocations() {
         std::cout << "Freeing all GPU memory allocations..." << std::endl;
         
         if (d_sequence_data_) {
             cudaFree(d_sequence_data_);
             d_sequence_data_ = nullptr;
+            sequence_buffer_size_ = 0;
         }
         
         if (d_genome_info_) {
@@ -568,7 +491,7 @@ public:
         std::cout << "✓ All GPU memory freed" << std::endl;
     }
 
-    bool validate_memory_integrity() {
+bool GPUMemoryManager::validate_memory_integrity() {
         if (!allocations_active_ || !d_sequence_data_ || !d_genome_info_) {
             return true;  // No memory to validate
         }
@@ -589,33 +512,33 @@ public:
     }
 
     // Accessor methods
-    char* get_sequence_buffer() const {
+char* GPUMemoryManager::get_sequence_buffer() const {
         return d_sequence_data_;
     }
 
-    GPUGenomeInfo* get_genome_info_buffer() const {
+GPUGenomeInfo* GPUMemoryManager::get_genome_info_buffer() const {
         return d_genome_info_;
     }
 
-    GPUMinimizerHit* get_minimizer_buffer() const {
+GPUMinimizerHit* GPUMemoryManager::get_minimizer_buffer() const {
         return d_minimizer_hits_;
     }
 
-    LCACandidate* get_candidate_buffer() const {
+LCACandidate* GPUMemoryManager::get_candidate_buffer() const {
         return d_lca_candidates_;
     }
 
-    uint32_t* get_count_buffer() const {
+uint32_t* GPUMemoryManager::get_count_buffer() const {
         return d_minimizer_counts_;
     }
 
-    MemoryStats get_memory_statistics() const {
+MemoryStats GPUMemoryManager::get_memory_statistics() const {
         // Update current statistics
         const_cast<GPUMemoryManager*>(this)->update_memory_statistics();
         return stats_;
     }
 
-    void print_memory_usage() const {
+void GPUMemoryManager::print_memory_usage() const {
         std::cout << "\n=== GPU MEMORY USAGE ===" << std::endl;
         std::cout << "Total GPU memory: " << (stats_.total_gpu_memory / 1024 / 1024) << " MB" << std::endl;
         std::cout << "Available memory: " << (stats_.available_memory / 1024 / 1024) << " MB" << std::endl;
@@ -642,12 +565,12 @@ public:
         }
     }
 
-    bool check_memory_pressure() const {
+bool GPUMemoryManager::check_memory_pressure() const {
         double usage_ratio = (double)total_allocated_ / stats_.available_memory;
         return usage_ratio > 0.85;  // Consider high pressure at 85%
     }
 
-    size_t estimate_memory_requirements(int num_sequences, int avg_sequence_length) const {
+size_t GPUMemoryManager::estimate_memory_requirements(int num_sequences, int avg_sequence_length) const {
         size_t sequence_memory = num_sequences * avg_sequence_length;
         size_t genome_info_memory = num_sequences * sizeof(GPUGenomeInfo);
         size_t minimizer_memory = config_.minimizer_capacity * sizeof(GPUMinimizerHit);
@@ -656,7 +579,7 @@ public:
         return sequence_memory + genome_info_memory + minimizer_memory + overhead;
     }
 
-    bool scale_for_workload(size_t estimated_minimizers, size_t estimated_sequences) {
+bool GPUMemoryManager::scale_for_workload(size_t estimated_minimizers, size_t estimated_sequences) {
         if (!config_.auto_scale_enabled) return true;
         
         std::cout << "Auto-scaling for workload:" << std::endl;
@@ -684,7 +607,7 @@ public:
         return true;
     }
 
-    void suggest_optimal_configuration() const {
+void GPUMemoryManager::suggest_optimal_configuration() const {
         std::cout << "\n=== MEMORY OPTIMIZATION SUGGESTIONS ===" << std::endl;
         
         size_t total_gb = stats_.total_gpu_memory / (1024 * 1024 * 1024);
@@ -713,10 +636,8 @@ public:
         }
     }
 
-private:
-    // Private implementation methods
-
-    bool query_gpu_memory_info() {
+// Internal methods implementation
+bool GPUMemoryManager::query_gpu_memory_info() {
         cudaError_t error = cudaMemGetInfo(&stats_.available_memory, &stats_.total_gpu_memory);
         if (error != cudaSuccess) {
             std::cerr << "Failed to query GPU memory: " << cudaGetErrorString(error) << std::endl;
@@ -727,7 +648,7 @@ private:
         return true;
     }
 
-    bool calculate_optimal_batch_sizes() {
+bool GPUMemoryManager::calculate_optimal_batch_sizes() {
         // Calculate optimal minimizer capacity based on available memory
         size_t usable_memory = stats_.available_memory * config_.max_memory_fraction / 100;
         usable_memory -= config_.reserved_memory_mb * 1024 * 1024;  // Reserve memory for system
@@ -744,8 +665,8 @@ private:
         
         // Calculate optimal capacities
         config_.minimizer_capacity = minimizer_memory / sizeof(GPUMinimizerHit);
-        config_.minimizer_capacity = std::min(config_.minimizer_capacity, size_t(50000000));  // Cap at 50M
-        config_.minimizer_capacity = std::max(config_.minimizer_capacity, size_t(1000000));   // Min 1M
+        config_.minimizer_capacity = std::min(config_.minimizer_capacity, size_t(2000000000));  // Cap at 2B
+        config_.minimizer_capacity = std::max(config_.minimizer_capacity, size_t(100000000));   // Min 100M
         
         // Calculate optimal batch size
         size_t sequence_per_mb = 1024 * 1024 / 5000;  // Assume 5KB per sequence on average
@@ -760,7 +681,7 @@ private:
         return true;
     }
 
-    bool validate_gpu_context() {
+bool GPUMemoryManager::validate_gpu_context() {
         int device_count;
         cudaError_t error = cudaGetDeviceCount(&device_count);
         if (error != cudaSuccess || device_count == 0) {
@@ -778,7 +699,7 @@ private:
         return true;
     }
 
-    void update_memory_statistics() {
+void GPUMemoryManager::update_memory_statistics() {
         query_gpu_memory_info();
         stats_.memory_efficiency = calculate_memory_efficiency();
         
@@ -787,7 +708,7 @@ private:
         }
     }
 
-    bool validate_allocation_request(size_t size) const {
+bool GPUMemoryManager::validate_allocation_request(size_t size) const {
         if (size == 0) return false;
         
         size_t available_for_allocation = stats_.available_memory * config_.max_memory_fraction / 100;
@@ -802,7 +723,7 @@ private:
         return true;
     }
 
-    size_t calculate_safe_minimizer_capacity() const {
+size_t GPUMemoryManager::calculate_safe_minimizer_capacity() const {
         size_t memory_gb = stats_.total_gpu_memory / (1024 * 1024 * 1024);
         
         if (memory_gb >= 24) return 15000000;      // 15M for high-end GPUs
@@ -811,7 +732,7 @@ private:
         else return 2000000;                       // 2M for low-end GPUs
     }
 
-    int calculate_optimal_batch_size() const {
+int GPUMemoryManager::calculate_optimal_batch_size() const {
         size_t memory_gb = stats_.total_gpu_memory / (1024 * 1024 * 1024);
         
         if (memory_gb >= 24) return 50;
@@ -820,11 +741,10 @@ private:
         else return 15;
     }
 
-    double calculate_memory_efficiency() const {
-        if (stats_.peak_usage == 0) return 1.0;
-        return (double)total_allocated_ / stats_.peak_usage;
-    }
-};
+double GPUMemoryManager::calculate_memory_efficiency() const {
+    if (stats_.peak_usage == 0) return 1.0;
+    return (double)total_allocated_ / stats_.peak_usage;
+}
 
 // ===========================
 // Memory Utilities Implementation

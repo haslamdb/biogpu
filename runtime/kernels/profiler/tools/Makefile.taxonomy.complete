@@ -1,0 +1,179 @@
+# Complete Makefile for BioGPU Taxonomy System
+
+# Compiler settings
+NVCC = nvcc
+CXX = g++
+CUDA_FLAGS = -std=c++17 -O3 -arch=sm_70 -Xcompiler -fPIC
+CXX_FLAGS = -std=c++17 -O3 -fPIC -Wall -Wextra
+LDFLAGS = -lcudart -lcuda
+
+# Directories
+TOOLS_DIR = ../tools
+ENHANCED_DIR = ../enhanced_k2like
+TAXONOMY_DIR = $(ENHANCED_DIR)/taxonomy
+GPU_DIR = $(ENHANCED_DIR)/gpu
+
+# Include paths
+INCLUDES = -I. -I$(TOOLS_DIR) -I$(ENHANCED_DIR) -I/usr/local/cuda/include
+
+# Source files
+CUDA_SOURCES = \
+    $(TOOLS_DIR)/compact_gpu_taxonomy.cu \
+    $(TAXONOMY_DIR)/taxonomy_processor.cu \
+    $(GPU_DIR)/gpu_database_kernels.cu
+
+CPP_SOURCES = \
+    $(TOOLS_DIR)/build_compact_taxonomy.cpp \
+    $(TOOLS_DIR)/test_compact_taxonomy.cpp \
+    test_taxonomy_processor.cpp \
+    taxonomy_integration_example.cpp
+
+# Object files
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+
+# Executables
+EXECUTABLES = \
+    build_compact_taxonomy \
+    test_compact_taxonomy \
+    test_taxonomy_processor \
+    taxonomy_integration_example
+
+# Library for shared components
+LIB_NAME = libtaxonomy.a
+LIB_OBJECTS = \
+    compact_gpu_taxonomy.o \
+    taxonomy_processor.o
+
+# Default target
+all: $(LIB_NAME) $(EXECUTABLES)
+
+# Build static library
+$(LIB_NAME): $(LIB_OBJECTS)
+	ar rcs $@ $^
+
+# Build compact taxonomy tool
+build_compact_taxonomy: build_compact_taxonomy.o compact_gpu_taxonomy.o
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Test compact taxonomy
+test_compact_taxonomy: test_compact_taxonomy.o compact_gpu_taxonomy.o
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Test taxonomy processor
+test_taxonomy_processor: test_taxonomy_processor.o taxonomy_processor.o compact_gpu_taxonomy.o
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Integration example
+taxonomy_integration_example: taxonomy_integration_example.o $(LIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Pattern rules
+%.o: $(TOOLS_DIR)/%.cu
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) -c $< -o $@
+
+%.o: $(TAXONOMY_DIR)/%.cu
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) -c $< -o $@
+
+%.o: $(GPU_DIR)/%.cu
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) -c $< -o $@
+
+%.o: $(TOOLS_DIR)/%.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDES) -c $< -o $@
+
+%.o: %.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDES) -c $< -o $@
+
+# Clean
+clean:
+	rm -f *.o $(LIB_NAME) $(EXECUTABLES) *.bin *.tsv
+	rm -f $(TOOLS_DIR)/*.o $(TAXONOMY_DIR)/*.o $(GPU_DIR)/*.o
+
+# Install library and headers
+install: $(LIB_NAME)
+	mkdir -p /usr/local/lib /usr/local/include/biogpu
+	cp $(LIB_NAME) /usr/local/lib/
+	cp $(TOOLS_DIR)/compact_gpu_taxonomy.h /usr/local/include/biogpu/
+	cp $(TAXONOMY_DIR)/taxonomy_processor.h /usr/local/include/biogpu/
+	cp $(ENHANCED_DIR)/gpu_kraken_types.h /usr/local/include/biogpu/
+
+# Run all tests
+test: test_compact test_processor test_integration
+
+test_compact: test_compact_taxonomy
+	@echo "=== Running Compact Taxonomy Tests ==="
+	./test_compact_taxonomy
+
+test_processor: test_taxonomy_processor
+	@echo "=== Running Taxonomy Processor Tests ==="
+	./test_taxonomy_processor
+
+test_integration: taxonomy_integration_example
+	@echo "=== Running Integration Tests ==="
+	./taxonomy_integration_example
+
+# Benchmarks
+benchmark: all
+	@echo "=== Running Benchmarks ==="
+	./test_compact_taxonomy | grep -A20 "Testing Performance"
+	./test_taxonomy_processor | grep -A20 "Performance Testing"
+
+# Download NCBI taxonomy (helper target)
+download_taxonomy:
+	@echo "Downloading NCBI taxonomy..."
+	wget -q ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz
+	tar -xzf taxdump.tar.gz nodes.dmp names.dmp
+	rm -f taxdump.tar.gz
+	@echo "Downloaded nodes.dmp and names.dmp"
+
+# Build compact taxonomy from NCBI files
+build_ncbi: build_compact_taxonomy nodes.dmp names.dmp
+	./build_compact_taxonomy --nodes nodes.dmp --names names.dmp \
+	    --output ncbi_compact_taxonomy.bin --validate
+
+# Example workflow
+example_workflow: download_taxonomy build_ncbi
+	@echo "=== Example Workflow Complete ==="
+	@echo "Compact taxonomy built: ncbi_compact_taxonomy.bin"
+	@ls -lh ncbi_compact_taxonomy.bin
+
+# Debug build
+debug: CUDA_FLAGS += -G -g
+debug: CXX_FLAGS += -g -O0
+debug: clean all
+
+# Profile build
+profile: CUDA_FLAGS += -lineinfo
+profile: CXX_FLAGS += -pg
+profile: clean all
+
+# Documentation
+docs:
+	@echo "Generating documentation..."
+	doxygen Doxyfile 2>/dev/null || echo "Doxygen not found"
+
+# Help
+help:
+	@echo "BioGPU Taxonomy System Makefile"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all                - Build all executables"
+	@echo "  clean              - Remove all built files"
+	@echo "  test               - Run all tests"
+	@echo "  benchmark          - Run performance benchmarks"
+	@echo "  install            - Install library and headers"
+	@echo "  download_taxonomy  - Download NCBI taxonomy files"
+	@echo "  build_ncbi         - Build compact taxonomy from NCBI files"
+	@echo "  example_workflow   - Complete example from download to build"
+	@echo "  debug              - Build with debug symbols"
+	@echo "  profile            - Build with profiling support"
+	@echo ""
+	@echo "Executables:"
+	@echo "  build_compact_taxonomy     - Build compact taxonomy from NCBI files"
+	@echo "  test_compact_taxonomy      - Test compact GPU taxonomy"
+	@echo "  test_taxonomy_processor    - Test taxonomy processor"
+	@echo "  taxonomy_integration_example - Integration example"
+
+.PHONY: all clean test test_compact test_processor test_integration \
+        benchmark download_taxonomy build_ncbi example_workflow \
+        debug profile docs help install

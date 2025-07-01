@@ -1,0 +1,27 @@
+# Makefile for minimal streaming test
+# Only includes necessary components
+
+NVCC = nvcc
+NVCC_FLAGS = -std=c++17 -O3 -arch=sm_61 -lineinfo -I. -I/usr/local/cuda/include
+LD_FLAGS = -L/usr/local/cuda/lib64 -lcudart -lcuda
+
+TARGET = test_minimal_streaming
+
+# Only the files we actually need
+SRCS = test_minimal_streaming.cu \
+       processing/genome_file_processor.cu
+
+OBJS = $(SRCS:.cu=.o)
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(NVCC) $(NVCC_FLAGS) -o $@ $^ $(LD_FLAGS)
+
+%.o: %.cu
+	$(NVCC) $(NVCC_FLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean

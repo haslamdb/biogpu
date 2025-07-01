@@ -1,0 +1,40 @@
+# Makefile for basic database building test
+NVCC = nvcc
+NVCC_FLAGS = -std=c++17 -O3 -arch=sm_61 -I. -I/usr/local/cuda/include
+LDFLAGS = -L/usr/local/cuda/lib64 -lcudart -lstdc++fs
+
+# Source files
+TEST_SRCS = test_basic_database_build.cu
+CORE_SRCS = core/gpu_database_builder_core.cu \
+            memory/gpu_memory_manager.cu \
+            gpu/gpu_database_kernels.cu \
+            processing/minimizer_feature_extractor.cu \
+            processing/feature_exporter.cu \
+            processing/contamination_detector.cu \
+            processing/genome_file_processor.cu \
+            taxonomy/taxonomy_processor.cu \
+            output/database_serializer.cu
+
+# Object files
+TEST_OBJS = $(TEST_SRCS:.cu=.o)
+CORE_OBJS = $(CORE_SRCS:.cu=.o)
+
+# Target executable
+TARGET = test_basic_database_build
+
+all: $(TARGET)
+
+$(TARGET): $(TEST_OBJS) $(CORE_OBJS)
+	$(NVCC) $(NVCC_FLAGS) -o $@ $^ $(LDFLAGS)
+
+%.o: %.cu
+	$(NVCC) $(NVCC_FLAGS) -c $< -o $@
+
+clean:
+	rm -f $(TEST_OBJS) $(CORE_OBJS) $(TARGET)
+	rm -rf test_db
+
+run: $(TARGET)
+	./$(TARGET)
+
+.PHONY: all clean run

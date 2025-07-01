@@ -1,0 +1,63 @@
+# Makefile for test_streaming_minimizer_extraction
+
+# Compiler settings
+NVCC = nvcc
+CXX = g++
+CUDA_PATH = /usr/local/cuda
+
+# Compiler flags
+NVCCFLAGS = -std=c++17 -O3 -arch=sm_70 -lineinfo
+CXXFLAGS = -std=c++17 -O3 -Wall
+INCLUDES = -I. -I$(CUDA_PATH)/include
+LDFLAGS = -L$(CUDA_PATH)/lib64 -lcudart -lcuda
+
+# Source files
+CUDA_SOURCES = test_streaming_minimizer_extraction.cu \
+               gpu/gpu_database_kernels.cu \
+               memory/gpu_memory_manager.cu \
+               processing/genome_file_processor.cu \
+               processing/minimizer_feature_extractor.cu \
+               processing/contamination_detector.cu \
+               taxonomy/taxonomy_processor.cu
+
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+
+# Target executable
+TARGET = test_streaming_minimizer
+
+# Default target
+all: $(TARGET)
+
+# Link rule
+$(TARGET): $(CUDA_OBJECTS)
+	$(NVCC) $(NVCCFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Compile CUDA sources
+%.o: %.cu
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -c $< -o $@
+
+# Clean rule
+clean:
+	rm -f $(CUDA_OBJECTS) $(TARGET)
+
+# Run test with default data
+test: $(TARGET)
+	./$(TARGET) data/test_50_genomes.fna 10 31
+
+# Run test with small batch size for debugging
+test-small: $(TARGET)
+	./$(TARGET) data/test_50_genomes.fna 2 31
+
+# Run test with different k-mer size
+test-k25: $(TARGET)
+	./$(TARGET) data/test_50_genomes.fna 10 25
+
+# Debug build
+debug: NVCCFLAGS += -g -G -DDEBUG
+debug: clean all
+
+# Profile build
+profile: NVCCFLAGS += -lineinfo --ptxas-options=-v
+profile: clean all
+
+.PHONY: all clean test test-small test-k25 debug profile

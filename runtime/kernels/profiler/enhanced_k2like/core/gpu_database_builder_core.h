@@ -9,18 +9,56 @@
 #include <vector>
 #include <memory>
 #include <cstdint>
+#include <unordered_set>
+#include <unordered_map>
 
-// Include all module headers
-#include "../memory/gpu_memory_manager.h"
-#include "../processing/genome_file_processor.h"
-#include "../taxonomy/taxonomy_processor.h"
-#include "../output/database_serializer.h"
+// Include necessary headers
 #include "../gpu_kraken_types.h"
+#include "../features/namespace_conflict_resolution.h"
+
+// Forward declarations for modules that will be implemented later
+class GenomeFileProcessor;
+class EnhancedNCBITaxonomyProcessor;
+class StandardDatabaseSerializer;
+class EnhancedDatabaseSerializer;
+class ConcatenatedFnaProcessor;
+class StreamingFnaProcessor;
+class MinimizerFeatureExtractor;
+class FeatureExporter;
+struct FeatureExportConfig;
 
 // Forward declarations
+class GPUMemoryManager;
 struct ClassificationParams;
 struct GPUBuildStats;
 struct EnhancedBuildStats;
+
+// Structure to track statistics for each unique minimizer
+struct MinimizerStatistics {
+    uint32_t occurrence_count = 0;                    // Total number of occurrences
+    std::vector<uint32_t> taxon_occurrences;         // List of taxons where this minimizer appears
+    std::unordered_set<uint64_t> neighbor_minimizers; // Set of neighboring minimizer hashes
+    float average_position_in_genome = 0.0f;         // Average relative position (0.0-1.0)
+    float gc_content_sum = 0.0f;                     // Sum of GC content percentages
+    float complexity_sum = 0.0f;                     // Sum of complexity scores
+    uint32_t clustered_count = 0;                    // Number of times found in clusters
+    uint32_t contamination_risk_count = 0;           // Number of times flagged as contamination risk
+    
+    // Co-occurrence tracking
+    std::unordered_map<uint64_t, uint32_t> cooccurring_minimizers;  // neighbor_hash -> count
+    float cooccurrence_score = 0.0f;  // Computed average co-occurrence strength
+    
+    // Methods for updating statistics
+    void add_occurrence(uint32_t taxon_id, float position, uint8_t gc_category, 
+                       uint8_t complexity_score, bool is_clustered, bool is_contamination);
+    void add_neighbor(uint64_t neighbor_hash);
+    float get_average_gc_content() const;
+    float get_average_complexity() const;
+    float get_clustering_ratio() const;
+    float get_contamination_risk_ratio() const;
+    size_t get_taxonomic_diversity() const;
+};
+
 
 // Configuration for the entire database building process
 struct DatabaseBuildConfig {
@@ -55,7 +93,18 @@ struct DatabaseBuildConfig {
     // Debugging and validation
     bool enable_memory_validation = false;
     bool enable_intermediate_saves = false;
+    bool enable_debug_mode = false;
     std::string debug_output_dir;
+    
+    // NEW: Uniqueness scoring configuration
+    bool enable_uniqueness_scoring = true;
+    bool enable_uniqueness_filtering = false;     
+    float uniqueness_threshold = 0.3f;
+    bool filter_extremely_common = true;
+    
+    // NEW: Co-occurrence scoring configuration
+    bool enable_cooccurrence_scoring = false;
+    size_t cooccurrence_window_size = 10;  // Window size for co-occurrence analysis
 };
 
 // Main GPU Kraken Database Builder coordinating class
@@ -71,6 +120,7 @@ private:
     std::unique_ptr<EnhancedNCBITaxonomyProcessor> taxonomy_processor_;
     std::unique_ptr<StandardDatabaseSerializer> standard_serializer_;
     std::unique_ptr<EnhancedDatabaseSerializer> enhanced_serializer_;
+    std::unique_ptr<MinimizerFeatureExtractor> feature_extractor_;
     
     // Build state
     bool initialized_;
@@ -83,9 +133,17 @@ private:
     std::unordered_map<uint32_t, std::string> taxon_names_;
     std::unordered_map<uint32_t, uint32_t> taxon_parents_;
     std::vector<LCACandidate> all_lca_candidates_;
+    
+    // Batch accumulation variables for proper memory management
+    std::vector<GPUGenomeInfo> accumulated_genome_info_;
+    size_t accumulated_sequence_length_;
+    std::string accumulated_sequences_;
     std::vector<PhylogeneticLCACandidate> phylogenetic_candidates_;
     ContributingTaxaArrays contributing_taxa_arrays_;
     SpeciesTrackingData species_tracking_;
+    
+    // Minimizer statistics tracking
+    std::unordered_map<uint64_t, MinimizerStatistics> minimizer_stats_;
     
     // Statistics
     GPUBuildStats build_stats_;
@@ -153,6 +211,9 @@ public:
     bool test_gpu_functionality();
     bool validate_database_output();
     
+    // Feature export for ML training
+    bool export_features_for_training(const FeatureExportConfig& export_config);
+    
     // Utility methods
     static DatabaseBuildConfig create_default_config();
     static DatabaseBuildConfig create_high_memory_config();
@@ -181,8 +242,13 @@ private:
     bool process_sequence_batches();
     bool process_sequence_batch(const std::vector<std::string>& sequences, 
                                const std::vector<uint32_t>& taxon_ids);
+    bool process_accumulated_sequences();
     bool compute_lca_assignments();
     bool merge_and_deduplicate_candidates();
+    
+    // Minimizer statistics collection
+    void collect_minimizer_statistics(const std::vector<GPUMinimizerHit>& minimizer_hits,
+                                    const std::vector<uint32_t>& genome_lengths);
     
     // Module coordination
     bool coordinate_memory_allocation();
@@ -300,5 +366,18 @@ namespace DatabaseBuilderUtils {
     bool migrate_old_database_format(const std::string& old_db_path, const std::string& new_db_path);
     bool upgrade_database_version(const std::string& db_path);
 }
+
+// Forward declarations for uniqueness scoring
+bool integrate_uniqueness_with_feature_extractor(
+    MinimizerFeatureExtractor* feature_extractor,
+    GPUMinimizerHit* d_minimizer_hits,
+    size_t num_hits,
+    const std::vector<uint32_t>& genome_taxon_ids);
+
+bool compute_and_encode_uniqueness_scores(
+    GPUMinimizerHit* d_minimizer_hits,
+    size_t num_hits,
+    const std::vector<uint32_t>& genome_taxon_ids,
+    float total_genomes_processed);
 
 #endif // GPU_DATABASE_BUILDER_CORE_H

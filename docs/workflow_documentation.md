@@ -3,9 +3,12 @@
 ## Overview
 This document tracks the complete BioGPU pipeline for GPU-accelerated fluoroquinolone resistance detection from metagenomic data and taxonomic classification.
 
-**Last Updated**: June 15 2025  
-**Pipeline Version**: 0.11.0  
-**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, and batch CSV processing
+**Last Updated**: June 28 2025  
+**Pipeline Version**: 0.15.1  
+**Database Version**: 4 (expanded 32-bit feature flags with uniqueness scoring and co-occurrence analysis)  
+**Status**: Fully functional FQ resistance detection with clinical reporting, GPU-accelerated Kraken2-style taxonomic classifier with streaming support, paired-end processing, batch CSV processing, enhanced K2-like database builder with expanded feature flags for ML-ready metadata including uniqueness scoring and co-occurrence analysis for false positive reduction, and compact GPU taxonomy system
+
+**Latest Update**: Added co-occurrence scoring system to track minimizers that frequently appear together, improving classification accuracy by identifying true matches vs random/spurious hits
 
 ---
 
@@ -2152,7 +2155,7 @@ The hybrid database builder supports various input formats:
    - Check coverage breadth metrics
    - Consider adjusting min_abundance threshold
 
-## 🚀 GPU-Accelerated Kraken2-Style Taxonomic Classifier (NEW - December 15, 2025)
+## 🚀 GPU-Accelerated Kraken2-Style Taxonomic Classifier 
 
 ### Overview
 
@@ -2356,7 +2359,7 @@ struct GPUMinimizerHit {
 };
 ```
 
-### New Classification Features (December 2025)
+### New Classification Features 
 
 #### Gzip-Compressed Input Support
 
@@ -2559,6 +2562,176 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
    - Real-time monitoring dashboard
    - Integration with LIMS systems
 
+## Enhanced K2-like Database Builder Status
+
+### Current Implementation Status (As of June 27th 2025)
+
+#### ✅ Completed Components:
+
+1. **Modular Architecture**:
+   - Core database builder (`core/gpu_database_builder_core.h/cu`)
+   - Memory management (`memory/gpu_memory_manager.h/cu`)
+   - GPU kernels (`gpu/gpu_database_kernels.h/cu`)
+   - File processing (`processing/genome_file_processor.h/cu`)
+   - Taxonomy processing (`taxonomy/taxonomy_processor.h/cu`)
+   - Database serialization (`output/database_serializer.h/cu`)
+
+2. **Genome Import**:
+   - **Two methods available**:
+     - `build_database_from_genomes()`: Processes a directory of individual FNA files
+     - `build_database_from_streaming_fna()`: Processes a single large concatenated FNA file
+   - Successfully loads and validates FNA files
+   - Handles multi-sequence FASTA files correctly
+   - Implements batch processing with configurable batch sizes
+
+3. **Buffer Management**:
+   - Implemented accumulation strategy to handle multiple batches
+   - Added 90% buffer threshold checking
+   - Created `process_accumulated_sequences()` helper function
+   - Proper memory cleanup after processing
+   - Successfully prevents buffer overflow
+
+4. **Taxonomy Integration** (✅ Completed June 27th):
+   - **StreamingFnaProcessor**: Successfully parses taxonomic IDs from FNA headers
+     - Supports format: `>kraken:taxid|12345|description...`
+     - Extracts taxon ID from between first and second pipe characters
+     - Handles sequence cleaning (converts masked 'x' bases to 'N')
+   - **GPU Minimizer Extraction**: Properly propagates taxonomy during extraction
+     - Each minimizer is tagged with its source genome's taxon ID
+     - Taxon IDs stored as uint16_t in GPUMinimizerHit structure
+   - **End-to-end validation**: test_taxonomy_integration successfully demonstrates:
+     - Processing 44 genomes across 22 unique taxa
+     - Extracting 78.5M minimizers with correct taxonomic assignment
+     - Proper distribution: e.g., E. coli (taxon 562): 10.1M minimizers
+
+#### 🚧 In Progress:
+
+1. **Minimizer Extraction** (✅ Fixed June 27th):
+   - Multi-threaded kernel implementation complete and working
+   - Successfully extracts minimizers with proper deduplication
+   - Processes at ~260 MB/s on TITAN Xp GPU
+   - Fixed memory allocation issue (was 1M, now configurable based on input size)
+
+2. **Feature Extraction**:
+   - `MinimizerFeatureExtractor` class implemented
+   - Two-pass processing structure in place
+   - GC content and sequence complexity calculation ready
+   - Waiting for successful minimizer extraction to test
+
+3. **Database Building**:
+   - Pipeline structure complete
+   - LCA assignment logic implemented
+   - Database serialization ready
+   - Blocked by minimizer extraction issue
+
+#### 🔧 Technical Details:
+
+**Current Testing Results**:
+- Successfully processes 27 genome files from test directory
+- Accumulates sequences across batches (tested with 3-10 genomes per batch)
+- Buffer management correctly detects when approaching capacity
+- GPU memory allocation working correctly
+- Kernel execution completes without errors
+
+**Key Parameters**:
+- K-mer size: 31
+- L-mer size: 31
+- Spaces: 7
+- Default batch size: 10 genomes
+- Buffer size: Based on GPU memory (typically 50-100MB)
+
+**Recent Fixes (June 27th)**:
+1. ✅ Fixed minimizer extraction - was a memory allocation issue (buffer too small)
+2. ✅ Verified taxonomy assignment works correctly throughout pipeline
+3. ✅ Proper handling of masked sequences (x -> N conversion)
+
+**Remaining Tasks**:
+1. Implement minimizer metadata calculation (GC content, complexity)
+2. Add ML weight assignment based on feature vectors
+3. Implement contamination detection algorithms
+4. Complete database serialization with all metadata
+
+#### 📝 Next Steps:
+
+1. **Complete Minimizer Metadata Implementation**:
+   - Implement GC content calculation in GPU kernel
+   - Add sequence complexity scoring
+   - Integrate ML weight assignment
+   - Add contamination risk flagging
+
+2. **Enhanced Feature Extraction**:
+   - Test MinimizerFeatureExtractor with real minimizer data
+   - Implement host similarity detection
+   - Add phylogenetic distance calculations
+   - Validate feature encoding/decoding
+
+3. **Database Serialization**:
+   - Implement binary format with metadata sections
+   - Add index structures for fast lookup
+   - Include taxonomy tree in database file
+   - Compress minimizer data for space efficiency
+
+4. **Production Testing**:
+   - Process full RefSeq bacterial database
+   - Benchmark against standard Kraken2
+   - Validate classification accuracy
+   - Profile memory usage and performance
+
+5. **Integration with Classification Pipeline**:
+   - Ensure database format compatibility
+   - Test with existing GPU classification code
+   - Implement metadata-based filtering
+   - Add confidence scoring using ML weights
+
+#### 🔬 Integrated Taxonomy-Aware Minimizer Extraction Pipeline
+
+The successful integration of taxonomy assignment into minimizer extraction enables a streamlined database building process:
+
+1. **Input Processing**:
+   - StreamingFnaProcessor reads concatenated FNA files with taxonomic headers
+   - Parses taxon IDs from standardized header format: `>kraken:taxid|12345|...`
+   - Handles sequence quality issues (masked bases, invalid characters)
+   - Processes genomes in configurable batches for memory efficiency
+
+2. **GPU-Accelerated Extraction**:
+   - Each genome's sequences are processed by parallel GPU threads
+   - Minimizers are extracted using Kraken2's algorithm (k=31, l=31, spaces=7)
+   - Each minimizer is immediately tagged with its source genome's taxonomy
+   - Deduplication happens in shared memory for efficiency
+
+3. **Metadata Assignment** (To be implemented):
+   - GC content calculation for each minimizer
+   - Sequence complexity scoring
+   - ML confidence weights
+   - Contamination risk flags
+   - Host similarity markers
+
+4. **Database Construction**:
+   - Minimizers are sorted by hash value for efficient lookup
+   - Taxonomic information enables immediate LCA computation
+   - Feature metadata supports advanced filtering during classification
+   - Compact binary format optimized for GPU memory access
+
+**Key Advantages**:
+- Single-pass processing: No need to re-read sequences for taxonomy assignment
+- Early taxonomy binding: Enables taxonomic filtering during extraction
+- GPU efficiency: All processing happens on device, minimizing data transfers
+- Scalability: Streaming approach handles databases of any size
+
+#### 📚 Two Methods for Processing FNA Files:
+
+1. **build_database_from_genomes(genome_library_path)**
+   - **Input**: A directory path containing multiple individual FNA files
+   - **Processing**: Loads all FNA files from the directory into memory
+   - **Use case**: When you have a collection of separate genome files (like your `/home/david/Documents/Code/biogpu/data/type_strain_reference_genomes/` directory with 27 individual .fna files)
+   - **Memory usage**: Loads multiple files and processes them in batches
+
+2. **build_database_from_streaming_fna(fna_file_path)**
+   - **Input**: A single large FNA file containing multiple genomes
+   - **Processing**: Streams through the file, processing genomes as it encounters them
+   - **Use case**: When you have one large concatenated FNA file with multiple genomes separated by headers (>)
+   - **Memory usage**: More memory-efficient for very large files
+
 2. **Summary Statistics Output**:
    - Generate TSV file with aggregated classification results
    - Include species abundance calculations
@@ -2609,3 +2782,468 @@ Sample003,/data/fastq/,sample003_R1.fastq.gz,
 5. **Bracken Integration**: Abundance estimation at species level
 
 *This is a living document. Update with each significant change.*
+
+
+---
+
+## 🆕 Enhanced K2-like Database Builder (v0.12.0 - June 26, 2025)
+
+### Overview
+
+The enhanced K2-like database builder provides improved GPU-accelerated minimizer extraction with proper bounds checking and streaming support for large genome datasets.
+
+**Location**: `runtime/kernels/profiler/enhanced_k2like/`
+
+### Key Improvements
+
+1. **Fixed Bounds Checking in Minimizer Extraction**:
+   - Added sequence length parameter to `extract_minimizer_sliding_window` to prevent out-of-bounds memory access
+   - Updated all kernel calls to pass sequence length
+   - Prevents illegal memory access errors when processing genomes with invalid characters
+
+2. **Enhanced Streaming FNA Processor**:
+   - Fixed taxon ID parsing to handle format: `>Accession < /dev/null | taxon_id|description`
+   - Increased line length limit from 100KB to 50MB to handle full genome sequences on single lines
+   - Added sequence cleaning to convert invalid characters (x, *, -, .) to N
+   - Skip sequences with <50% valid bases after cleaning
+
+3. **Improved Memory Management**:
+   - Better buffer allocation for large sequences (5MB initial reserve)
+   - Proper handling of very large concatenated FNA files
+   - Efficient batch processing with configurable batch sizes
+
+### Usage
+
+#### Building the Enhanced K2-like Database Builder
+
+```bash
+cd runtime/kernels/profiler/enhanced_k2like
+make -f Makefile
+```
+
+#### Testing with Minimal Streaming (Recommended for Testing)
+
+```bash
+# Build minimal test
+make -f Makefile.minimal_streaming
+
+# Run test with reference genomes
+./test_minimal_streaming /path/to/ref_genomes.fna
+```
+
+#### Key Components
+
+- **StreamingFnaProcessor**: Handles large concatenated FNA files with proper buffering
+- **gpu_minimizer_extraction.cuh**: Fixed minimizer extraction with bounds checking
+- **test_minimal_streaming.cu**: Minimal test program without unimplemented components
+
+### Test Results (June 26, 2025)
+
+Successfully processed 47 genomes from ref_genomes.fna:
+- Total minimizers extracted: ~99 million
+- No GPU memory errors
+- Correct taxon ID parsing (287, 216816, 1282, etc.)
+- Proper handling of sequences with invalid characters
+
+### Known Issues Resolved
+
+1. ✅ Fixed: Illegal memory access in GPU kernel
+2. ✅ Fixed: "Warning: Very long line" preventing genome loading
+3. ✅ Fixed: Incorrect taxon ID parsing from headers
+4. ✅ Fixed: Handling of sequences with 'x' characters
+
+### Next Steps
+
+1. **Complete Feature Implementation**:
+   - Implement contamination detection
+   - Complete taxonomy processor
+   - Add ML weight calculation
+
+2. **Performance Optimization**:
+   - Profile GPU kernel performance
+   - Optimize memory transfers
+   - Implement overlapped processing
+
+3. **Database Building**:
+   - Test full pipeline with complete genome dataset
+   - Verify database output format
+   - Compare with standard Kraken2 database
+
+---
+
+## 🆕 Compact GPU Taxonomy System (v0.13.0 - June 27, 2025)
+
+### Overview
+
+The compact GPU taxonomy system provides a high-performance, GPU-optimized taxonomy lookup and LCA computation system for the BioGPU pipeline. It consists of two complementary components:
+
+1. **CompactGPUTaxonomy** (`tools/compact_gpu_taxonomy.*`): GPU-optimized hash table for fast taxonomy lookups during classification
+2. **EnhancedNCBITaxonomyProcessor** (`enhanced_k2like/taxonomy/taxonomy_processor.*`): Full-featured taxonomy processing for database building
+
+### Key Features
+
+- **GPU-optimized hash table** with ~100M lookups/second performance
+- **Compact binary format** (~70% smaller than raw taxonomy)
+- **Batch GPU operations** for high-throughput processing
+- **GPU kernels** for parallel taxonomy lookups and LCA computation
+- **Optional distance caching** for frequently accessed taxon pairs
+- **Binary save/load format** for fast deployment
+
+### Building the Compact Taxonomy
+
+#### Prerequisites
+- NCBI taxonomy dump files (`names.dmp` and `nodes.dmp`)
+- CUDA 12.5+ and compatible GPU
+- C++17 compiler
+
+#### Build Process
+
+1. **Build the taxonomy tools**:
+```bash
+cd runtime/kernels/profiler/tools
+make -f Makefile.compact.taxonomy clean
+make -f Makefile.compact.taxonomy all
+```
+
+2. **Create compact taxonomy from NCBI files**:
+```bash
+./build_compact_taxonomy \
+    --nodes /home/david/Documents/Code/biogpu/data/nodes.dmp \
+    --names /home/david/Documents/Code/biogpu/data/names.dmp \
+    --output taxonomy.bin \
+    --validate
+```
+
+This command:
+- Reads NCBI taxonomy files (nodes.dmp and names.dmp)
+- Builds GPU-optimized hash table with Jenkins hash function
+- Creates phylogenetic distance cache for 50,000 most common taxon pairs
+- Validates the built taxonomy
+- Outputs compact binary file (~115MB from ~436MB input)
+
+### Performance Characteristics
+
+- **GPU lookups**: ~100M operations/second
+- **GPU LCA**: ~50M operations/second  
+- **Compact format**: <1 second load time
+- **Compression**: ~26.4% of original size
+- **Hash table load factor**: ~31.37%
+
+### Integration with Pipeline
+
+During database building:
+```cpp
+// Use EnhancedNCBITaxonomyProcessor for complex operations
+EnhancedNCBITaxonomyProcessor taxonomy;
+taxonomy.load_ncbi_taxonomy("nodes.dmp", "names.dmp");
+// ... perform complex operations ...
+
+// Export for runtime
+auto* compact = taxonomy.get_compact_taxonomy();
+compact->save_compact_taxonomy("taxonomy.bin");
+```
+
+During classification:
+```cpp
+// Use CompactGPUTaxonomy for fast GPU lookups
+CompactGPUTaxonomy gpu_taxonomy;
+gpu_taxonomy.load_compact_taxonomy("taxonomy.bin");
+// Fast GPU lookups during classification
+```
+
+### Usage with Classifier
+
+Use the generated taxonomy.bin file with the classifier:
+```bash
+./gpu_kraken_classifier \
+    --database kraken_db \
+    --compact-taxonomy taxonomy.bin \
+    --input reads.fastq \
+    --output classification.txt
+```
+
+### Files Generated
+
+- `compact_gpu_taxonomy.cu/h`: GPU implementation of compact taxonomy
+- `build_compact_taxonomy`: Tool to convert NCBI taxonomy to compact format
+- `test_compact_taxonomy`: Test suite for validation
+- `taxonomy.bin`: Compact binary taxonomy file ready for GPU classification
+
+---
+
+## 🔧 Feature Flags Expansion (June 28, 2025)
+
+### Overview
+Expanded the minimizer feature_flags field from 16 to 32 bits to support ML-ready metadata for reducing false positives and improving classification accuracy.
+
+### Changes Made
+
+#### 1. Core Structure Update
+- **File**: `gpu_kraken_types.h`
+- **Change**: Expanded `GPUMinimizerHit.feature_flags` from `uint16_t` to `uint32_t`
+- **Size Impact**: Structure increased from 24 to 26 bytes (with padding to 32 bytes)
+
+#### 2. Feature Flag Bit Layout
+
+**Currently Implemented** (bits 0-7):
+- Bits 0-2: GC content category (0-7 representing GC% ranges) ✅
+- Bits 3-5: Sequence complexity score (0-7) ✅
+- Bit 6: Position bias indicator (placeholder - always 0)
+- Bit 7: Contamination risk flag (placeholder)
+
+**Not Yet Implemented** (bits 8-31):
+- Bits 8-10: Conservation category/Uniqueness score
+- Bits 11-12: Unique/Rare flags
+- Bits 13-15: Co-occurrence score (0-7)
+- Bits 16-18: Taxonomic ambiguity level (0-7)
+- Bits 19-21: Context complexity score (0-7)
+- Bits 22-23: Read coherence level (0-3)
+- Bits 24-27: Reserved
+- Bits 28-30: Contamination type (moved from 13-15)
+- Bit 31: Reserved
+
+#### 3. Files Modified
+1. `gpu_kraken_types.h` - Core type definitions
+2. `gpu/gpu_database_kernels.cu` - GPU kernel implementations
+3. `processing/minimizer_feature_extractor.cu` - Feature extraction pipeline
+4. `processing/contamination_detector.cu` - Contamination detection (bits moved to 28-30)
+5. `output/database_serializer.cu` - Database version updated to 4
+6. `processing/feature_exporter.cu` - Feature export (no changes needed)
+
+#### 4. Database Version Updates
+- Database format version: 3 → 4
+- Metadata version: 2 → 4
+- Expected size increase: ~9% due to larger structure
+
+#### 5. Testing and Validation
+Created `test_feature_decode.cu` to verify feature extraction:
+```
+GC Content Category: 5 (62.5-75%)
+Sequence Complexity: 7 (high)
+Position Bias: uniform
+Contamination Risk: no
+```
+
+### ✅ IMPLEMENTED: Uniqueness Scoring System (June 28, 2025)
+
+The uniqueness scoring system has been successfully integrated to reduce false positives in taxonomic classification.
+
+#### Implementation Details
+
+**Files Added/Modified**:
+1. `features/namespace_conflict_resolution.h` - Resolves namespace conflicts with safe functions
+2. `features/working_uniqueness_implementation.cu` - GPU kernels and host implementation
+3. `core/gpu_database_builder_core.h` - Added configuration options
+4. `core/gpu_database_builder_core.cu` - Integrated into processing pipeline
+5. `gpu_kraken_types.h` - Added uniqueness statistics fields
+
+**Configuration Options** (in `DatabaseBuildConfig`):
+```cpp
+bool enable_uniqueness_scoring = true;      // Enable uniqueness computation
+bool enable_uniqueness_filtering = false;   // Enable filtering by uniqueness
+float uniqueness_threshold = 0.3f;          // Minimum uniqueness for filtering
+bool filter_extremely_common = true;        // Filter extremely common minimizers
+```
+
+**Statistics Added** (in `EnhancedBuildStats`):
+```cpp
+size_t minimizers_with_uniqueness_scores;   // Count of scored minimizers
+size_t minimizers_filtered_by_uniqueness;   // Count of filtered minimizers
+size_t unique_minimizers_count;             // Minimizers with ≥90% uniqueness
+size_t rare_minimizers_count;               // Minimizers with ≤3 occurrences
+size_t reliable_minimizers_count;           // Suitable for classification
+double average_uniqueness_score;            // Average score across all minimizers
+```
+
+**Feature Flag Usage**:
+- **Bits 8-10**: Uniqueness category (0-7)
+  - 0: Extremely Common (0-10% uniqueness)
+  - 1: Very Low (10-30%)
+  - 2: Low (30-50%)
+  - 3: Moderate (50-70%)
+  - 4: High (70-80%)
+  - 5: Very High (80-90%)
+  - 6: Extremely High (90-95%)
+  - 7: Singleton-like (95-100%)
+- **Bit 11**: Unique minimizer flag (≥90% uniqueness)
+- **Bit 12**: Rare minimizer flag (≤3 occurrences)
+- **Bit 13**: Reliable minimizer flag (suitable for classification)
+
+**GPU Implementation**:
+- Efficient parallel computation using CUDA kernels
+- Binary search on GPU for fast lookups
+- Batch processing with global state management
+- Logarithmic scaling for better discrimination
+
+**Testing**:
+```bash
+# Build test
+cd runtime/kernels/profiler/enhanced_k2like
+make -f Makefile.test_taxonomy
+
+# Run test
+./test_uniqueness_final
+```
+
+**Expected Output**:
+```
+Computing uniqueness scores for 50000 minimizers...
+Found 12345 unique minimizers across 25 genomes
+
+Uniqueness Distribution:
+  Extremely Common: 5000 minimizers
+  Low: 15000 minimizers
+  Moderate: 20000 minimizers
+  High: 8000 minimizers
+  Very High: 2000 minimizers
+✓ Uniqueness computation completed successfully
+```
+
+**Usage Example**:
+```cpp
+// Create configuration with uniqueness scoring
+DatabaseBuildConfig config;
+config.enable_uniqueness_scoring = true;
+config.enable_uniqueness_filtering = true;  // Filter out low-uniqueness minimizers
+config.uniqueness_threshold = 0.7f;         // Keep only high-quality minimizers
+config.filter_extremely_common = true;       // Remove extremely common minimizers
+
+// Build database with uniqueness scoring
+GPUKrakenDatabaseBuilder builder(output_dir, config);
+builder.build_database_from_genomes(genome_path, taxonomy_path);
+```
+
+**Impact on Classification**:
+- Minimizers with high uniqueness scores are more reliable for classification
+- Extremely common minimizers (category 0) are likely false positives
+- ML weight field now contains encoded uniqueness score (0.0-1.0 scaled to 0-65535)
+- Classification algorithms can use uniqueness score to weight confidence
+
+### Next Steps - Implementation Priority
+
+Based on the goal of reducing false positives, here's the recommended implementation order:
+
+#### 1. ~~**Uniqueness Score** (bits 8-10)~~ - ✅ COMPLETED
+
+#### 2. ✅ **Co-occurrence Score** (bits 13-15) - COMPLETED (June 28, 2025)
+- Minimizers appearing together strongly indicate true matches
+- Would catch random/spurious matches
+- **Implemented approach**:
+  - Track minimizer pairs within sliding windows (configurable window size)
+  - Distance-weighted scoring: weight = 1/(1+distance)
+  - Sigmoid transformation for better score distribution
+  - GPU kernels with shared memory optimization for large datasets
+
+##### Implementation Details
+
+**Data Structures Added**:
+```cpp
+// In gpu_kraken_types.h
+struct CooccurrenceData {
+    uint64_t minimizer_hash1;
+    uint64_t minimizer_hash2;
+    uint32_t cooccurrence_count;
+    float normalized_score;  // 0.0-1.0
+};
+
+// In MinimizerStatistics
+std::unordered_map<uint64_t, uint32_t> cooccurring_minimizers;  // neighbor_hash -> count
+float cooccurrence_score = 0.0f;  // Computed average co-occurrence strength
+```
+
+**Configuration Options**:
+```cpp
+// In DatabaseBuildConfig
+bool enable_cooccurrence_scoring = false;
+size_t cooccurrence_window_size = 10;  // Window size for co-occurrence analysis
+```
+
+**GPU Kernels Implemented**:
+1. `compute_cooccurrence_scores_kernel` - Basic implementation
+2. `compute_cooccurrence_scores_optimized_kernel` - Uses shared memory for better performance
+3. `update_cooccurrence_flags_kernel` - Updates feature flags with computed scores
+
+**Score Categories** (3-bit encoding):
+- 0: Very low co-occurrence (< 0.1)
+- 1: Low (0.1-0.2)
+- 2: Low-medium (0.2-0.35)
+- 3: Medium (0.35-0.5)
+- 4: Medium-high (0.5-0.65)
+- 5: High (0.65-0.8)
+- 6: Very high (0.8-0.95)
+- 7: Extremely high (≥ 0.95)
+
+**Usage**:
+```cpp
+DatabaseBuildConfig config;
+config.enable_cooccurrence_scoring = true;
+config.cooccurrence_window_size = 10;
+config.enable_debug_mode = true;  // To see statistics
+
+GPUKrakenDatabaseBuilder builder(output_dir, config);
+```
+
+**Statistics Collected**:
+- Total minimizers with co-occurrence scores
+- Count of high co-occurrence minimizers (category ≥ 5)
+- Count of low co-occurrence minimizers (category ≤ 2)
+- Average co-occurrence score
+
+**Performance Notes**:
+- Automatically selects optimized kernel for datasets > 1000 unique minimizers
+- Shared memory optimization reduces global memory accesses
+- Search window limited to ±100 positions for efficiency
+- Binary search used for score lookups
+
+#### 3. **Contamination Detection** (bits 7 & 28-30)
+- Many false positives are contamination
+- `ContaminationDetector` class exists but needs integration
+- Implementation needed:
+  - Load contamination patterns database
+  - Check each minimizer against known contaminants
+  - Set bit 7 for risk, bits 28-30 for type
+
+#### 4. **Position Clustering/Bias** (bit 6)
+- `check_position_clustering()` function exists but disconnected
+- Helps identify repetitive regions prone to false matches
+- Implementation:
+  - Analyze position distribution of minimizers
+  - Flag clustered vs uniform distribution
+
+#### 5. **Conservation Category** (bits 8-10)
+- Track how conserved each minimizer is across species
+- Highly conserved = less discriminative
+- Use for weighting in classification
+
+#### 6. **Taxonomic Ambiguity** (bits 16-18)
+- Measure how many different taxa share this minimizer
+- High ambiguity = lower confidence
+- Critical for accurate LCA computation
+
+### Implementation Guide
+
+To implement new features:
+
+1. **Add helper functions in `gpu_kraken_types.h`**:
+```cpp
+inline uint32_t set_uniqueness_category(uint32_t flags, uint8_t category) {
+    return (flags & ~UNIQUENESS_MASK) | ((category << UNIQUENESS_SHIFT) & UNIQUENESS_MASK);
+}
+```
+
+2. **Update feature extraction in kernels**:
+```cpp
+// In extract_minimizers_kernel
+uint32_t uniqueness = calculate_local_uniqueness(minimizer_hash);
+feature_flags = MinimizerFlags::set_uniqueness_category(feature_flags, uniqueness);
+```
+
+3. **Update database version** when adding new features that change interpretation
+
+4. **Test with `test_feature_decode.cu`** to verify correct encoding/decoding
+
+### Performance Considerations
+- 32-bit operations are native on GPU
+- Bit operations are extremely fast
+- Memory bandwidth increase is minimal (~9%)
+- Cache efficiency maintained with 32-byte alignment

@@ -1,0 +1,41 @@
+# Makefile for direct minimizer test
+NVCC = nvcc
+CUDA_FLAGS = -std=c++17 -O3 -arch=sm_61 -lineinfo
+INCLUDES = -I. -I/usr/local/cuda/include
+LIBS = -lcuda -lcudart
+
+# Source files - only what we need for minimizer extraction
+TEST_SOURCE = test_direct_minimizer.cu
+CUDA_SOURCES = memory/gpu_memory_manager.cu \
+               gpu/gpu_database_kernels.cu \
+               processing/genome_file_processor.cu
+
+# Object files
+TEST_OBJECT = $(TEST_SOURCE:.cu=.o)
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+
+# Target
+TARGET = test_direct_minimizer
+
+# Build rules
+all: $(TARGET)
+
+$(TARGET): $(TEST_OBJECT) $(CUDA_OBJECTS)
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) $(TEST_OBJECT) $(CUDA_OBJECTS) -o $(TARGET) $(LIBS)
+
+%.o: %.cu
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) -c $< -o $@
+
+# Run test
+run: $(TARGET)
+	./$(TARGET)
+
+# Run with custom FNA file
+run-file: $(TARGET)
+	./$(TARGET) $(FNA_FILE)
+
+# Clean
+clean:
+	rm -f $(TEST_OBJECT) $(CUDA_OBJECTS) $(TARGET)
+
+.PHONY: all clean run run-file

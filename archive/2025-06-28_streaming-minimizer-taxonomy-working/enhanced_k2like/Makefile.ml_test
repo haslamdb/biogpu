@@ -1,0 +1,25 @@
+# Makefile for ML structures test
+NVCC = nvcc
+CUDA_FLAGS = -std=c++17 -O3 -arch=sm_70
+INCLUDES = -I. -I/usr/local/cuda/include
+LIBS = -lcuda -lcudart
+
+# Source files
+TEST_SOURCES = test_ml_structures.cu
+TEST_TARGET = test_ml_structures
+
+# Build test
+all: $(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_SOURCES)
+	$(NVCC) $(CUDA_FLAGS) $(INCLUDES) $(TEST_SOURCES) -o $(TEST_TARGET) $(LIBS)
+
+# Run test
+run: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
+# Clean
+clean:
+	rm -f $(TEST_TARGET) test_version.bin
+
+.PHONY: all run clean

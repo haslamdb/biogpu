@@ -10,8 +10,8 @@ int main() {
     
     // Load the FASTA files
     bool success = loader.loadFromFastaFiles(
-        "amr_nucl.fasta",
-        "amr_prot.fasta"
+        "AMR_CDS.fa",
+        "AMRProt.fa"
     );
     
     if (!success) {

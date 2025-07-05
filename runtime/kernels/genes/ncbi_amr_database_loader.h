@@ -262,14 +262,24 @@ private:
         // >accession description
         // >gi|number|ref|accession| description
         // >accession.version description
+        // >0|AAA16360.1|1|1|stxA2b|... (AMRProt.fa format)
         
         std::istringstream iss(header);
         std::string first_token;
         iss >> first_token;
         
-        // Handle RefSeq format: gi|number|ref|accession|
+        // Handle pipe-delimited formats
         if (first_token.find('|') != std::string::npos) {
             std::vector<std::string> parts = splitString(first_token, '|');
+            
+            // AMRProt.fa format: 0|AAA16360.1|1|1|gene_name|...
+            // The protein accession is in parts[1]
+            if (parts.size() >= 2 && parts[0].length() <= 2) {
+                // Check if first part is a small number (0, 1, 2, etc)
+                return parts[1]; // Return the protein accession
+            }
+            
+            // RefSeq format: gi|number|ref|accession|
             if (parts.size() >= 4) {
                 return parts[3]; // Extract accession part
             }

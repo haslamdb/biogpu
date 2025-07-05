@@ -273,3 +273,39 @@ cd ~/Documents/Code/biogpu
   data/integrated_clean_db/protein \
   --csv runtime/kernels/resistance/example_csv.csv \
   --output-dir results_fancy_html
+
+
+  > what command did you use. Was this from the integrated pipeline or did you run the legacy clean_resistance... pipeline
+
+● You're right to ask for clarification! I actually ran both pipelines during my testing. Here are the exact commands I used:
+
+  1. First Attempt: Integrated Resistance Pipeline (Had issues)
+
+  cd /home/david/Documents/Code/biogpu/runtime/kernels/resistance/build
+  ./integrated_resistance_pipeline \
+      ../../../../data/integrated_clean_db/nucleotide/ \
+      ../../../../data/integrated_clean_db/protein/ \
+      --csv ../../../../example_csv.csv \
+      --output-prefix test_integrated
+  Result: This had database loading issues (k-mer size mismatch, missing resistance_db.json)
+
+  2. Second Attempt: Clean Resistance Pipeline (Successful)
+
+  cd /home/david/Documents/Code/biogpu/runtime/kernels/resistance/build
+  ./clean_resistance_pipeline \
+      ../../../../data/integrated_clean_db/nucleotide/ \
+      ../../../../data/integrated_clean_db/protein/ \
+      --csv ../example_csv.csv \
+      --output-prefix test_clean_resistance
+  Result: This worked successfully and detected the resistance mutations
+
+  Key Differences:
+
+  - The clean_resistance_pipeline is the production-ready version that has been fully tested
+  - The integrated_resistance_pipeline seems to be a newer version that may need additional configuration files
+
+  Based on the documentation and our refactoring work, the clean_resistance_pipeline is the one you should use for actual clinical
+  analysis. It's the one that successfully detected the fluoroquinolone resistance mutations in your sample data.
+
+  Would you like me to test the new unified pipeline architecture (resistance_pipeline_v2) that we just created? That would require
+  building it first from the source files we created.

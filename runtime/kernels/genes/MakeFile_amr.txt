@@ -1,0 +1,59 @@
+# Makefile for AMR Detection Pipeline
+
+# Compiler settings
+NVCC = nvcc
+CXX = g++
+CUDA_PATH = /usr/local/cuda
+
+# Flags
+NVCC_FLAGS = -std=c++17 -O3 -arch=sm_80 -lineinfo
+CXX_FLAGS = -std=c++17 -O3 -fopenmp
+INCLUDES = -I$(CUDA_PATH)/include -I./include -I./runtime/kernels/genes
+LIBS = -L$(CUDA_PATH)/lib64 -lcudart -lcublas -lcurand
+
+# Source files
+CUDA_SOURCES = amr_detection_kernels.cu
+CPP_SOURCES = amr_detection_pipeline.cpp \
+              amr_detection_main.cpp \
+              ncbi_amr_database_loader.cpp \
+              sample_csv_parser.cpp
+
+# Object files
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+OBJECTS = $(CUDA_OBJECTS) $(CPP_OBJECTS)
+
+# Target executable
+TARGET = amr_detection
+
+# Build rules
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(NVCC) $(NVCC_FLAGS) -o $@ $^ $(LIBS)
+
+%.o: %.cu
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -c $< -o $@
+
+%.o: %.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDES) -c $< -o $@
+
+# Additional targets
+clean:
+	rm -f $(OBJECTS) $(TARGET)
+
+# Build database preparation tool
+build_amr_db: build_arg_database.cpp ncbi_amr_database_loader.cpp
+	$(CXX) $(CXX_FLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Test target
+test: $(TARGET)
+	./$(TARGET) test_data/amr_db.fasta,test_data/amr_proteins.fasta \
+	            test_data/samples.csv \
+	            test_output/
+
+# Install target
+install: $(TARGET)
+	cp $(TARGET) /usr/local/bin/
+
+.PHONY: all clean test install

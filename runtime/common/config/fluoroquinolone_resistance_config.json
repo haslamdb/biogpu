@@ -1,0 +1,88 @@
+{
+    "pipeline": {
+        "batch_size": 10000,
+        "max_gpu_sequences": 10000,
+        "max_gpu_bases": 3000000,
+        "num_gpu_streams": 2,
+        "enable_resistance": true,
+        "enable_genes": false,
+        "enable_profiler": false,
+        "output_dir": "fluoroquinolone_results",
+        "use_pinned_memory": true,
+        "overlap_compute_transfer": true,
+        "num_worker_threads": 4
+    },
+    
+    "resistance": {
+        "min_coverage": 0.80,
+        "min_identity": 0.95,
+        "min_alignment_length": 30,
+        "min_kmer_hits": 10,
+        "batch_size": 10000,
+        
+        "use_bloom_filter": true,
+        "bloom_kmer_size": 15,
+        "nucleotide_kmer_size": 31,
+        "protein_kmer_size": 10,
+        
+        "enable_bloom_filter": true,
+        "bloom_filter_size": 67108864,
+        "bloom_filter_hashes": 3,
+        
+        "generate_html_report": true,
+        "generate_json_report": true,
+        "generate_allele_csv": true,
+        "output_sam_format": false,
+        "generate_clinical_report": true,
+        
+        "target_genes": ["gyrA", "gyrB", "parC", "parE", "marR", "acrR"],
+        "target_species": [
+            "Escherichia coli",
+            "Klebsiella pneumoniae",
+            "Salmonella enterica",
+            "Pseudomonas aeruginosa",
+            "Staphylococcus aureus",
+            "Enterococcus faecalis",
+            "Enterococcus faecium",
+            "Campylobacter jejuni",
+            "Neisseria gonorrhoeae",
+            "Acinetobacter baumannii"
+        ],
+        
+        "report_partial_matches": false,
+        "partial_match_threshold": 0.8,
+        "high_confidence_threshold": 0.95,
+        
+        "calculate_allele_frequencies": true,
+        "min_coverage_for_frequency": 10,
+        "min_frequency_to_report": 0.01,
+        
+        "max_sequences_per_batch": 10000,
+        "verbose": true,
+        "enable_profiling": true
+    },
+    
+    "io": {
+        "input_format": "fastq",
+        "paired_end": true,
+        "quality_threshold": 20,
+        "min_read_length": 50,
+        "output_format": "tsv",
+        "compress_output": false
+    },
+    
+    "resources": {
+        "max_memory_gb": 0,
+        "max_threads": 0,
+        "gpu_device_id": 0,
+        "gpu_memory_limit_gb": 0
+    },
+    
+    "logging": {
+        "log_level": "info",
+        "log_file": "fluoroquinolone_resistance.log",
+        "log_to_console": true,
+        "save_intermediate_files": false,
+        "temp_directory": "/tmp"
+    }
+}

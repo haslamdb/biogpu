@@ -1,0 +1,58 @@
+# Makefile for refactored AMR detection pipeline
+CXX = g++
+NVCC = nvcc
+CXXFLAGS = -std=c++17 -O3 -I../../ -I../../third_party
+NVCCFLAGS = -std=c++17 -O3 -arch=sm_70 -I../../ -I../../third_party
+LDFLAGS = -lcudart -lz -pthread
+
+# Common source files
+COMMON_SOURCES = \
+    ../../common/io/streaming_fastq_reader.cpp \
+    ../../common/io/sequence_batch.cpp \
+    ../../common/gpu/gpu_sequence_buffer.cu \
+    ../../common/config/unified_config.cpp \
+    ../../common/pipeline/pipeline_base.cpp
+
+# AMR-specific source files
+AMR_SOURCES = \
+    ncbi_amr_database_loader.cpp \
+    sample_csv_parser.cpp \
+    amr_detection_pipeline_v2.cpp
+
+# CUDA source files
+CUDA_SOURCES = \
+    amr_detection_kernels_wrapper.cu
+
+# Object files
+COMMON_OBJS = $(COMMON_SOURCES:.cpp=.o)
+COMMON_OBJS := $(COMMON_OBJS:.cu=.o)
+AMR_OBJS = $(AMR_SOURCES:.cpp=.o)
+CUDA_OBJS = $(CUDA_SOURCES:.cu=.o)
+
+# Targets
+TARGET = test_amr_pipeline_v2
+
+all: $(TARGET)
+
+$(TARGET): test_amr_pipeline_v2.o $(AMR_OBJS) $(CUDA_OBJS) $(COMMON_OBJS)
+	$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Compile C++ files
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile CUDA files
+%.o: %.cu
+	$(NVCC) $(NVCCFLAGS) -c $< -o $@
+
+# Special rule for common directory files
+../../common/%.o: ../../common/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+../../common/%.o: ../../common/%.cu
+	$(NVCC) $(NVCCFLAGS) -c $< -o $@
+
+clean:
+	rm -f *.o $(TARGET) ../../common/io/*.o ../../common/gpu/*.o ../../common/config/*.o ../../common/pipeline/*.o
+
+.PHONY: all clean

@@ -1,0 +1,110 @@
+{
+    "pipeline": {
+        "batch_size": 100000,
+        "max_gpu_sequences": 500000,
+        "max_gpu_bases": 500000000,
+        "num_gpu_streams": 2,
+        "enable_resistance": true,
+        "enable_genes": true,
+        "enable_profiler": true,
+        "output_dir": "output",
+        "use_pinned_memory": true,
+        "overlap_compute_transfer": true,
+        "num_worker_threads": 4
+    },
+    
+    "resistance": {
+        "card_database_path": "$BIOGPU_DATA/databases/card/card.fasta",
+        "megares_database_path": "$BIOGPU_DATA/databases/megares/megares.fasta",
+        "min_coverage": 0.80,
+        "min_identity": 0.95,
+        "min_alignment_length": 50,
+        "min_kmer_hits": 10,
+        "batch_size": 10000,
+        
+        "use_bloom_filter": true,
+        "bloom_kmer_size": 15,
+        "nucleotide_kmer_size": 31,
+        "protein_kmer_size": 10,
+        
+        "enable_bloom_filter": true,
+        "bloom_filter_size": 1073741824,
+        "bloom_filter_hashes": 7,
+        
+        "generate_html_report": true,
+        "generate_json_report": true,
+        "generate_allele_csv": true,
+        "output_sam_format": false,
+        "generate_clinical_report": true,
+        
+        "target_genes": ["gyrA", "gyrB", "parC", "parE"],
+        "target_species": ["Escherichia coli", "Klebsiella pneumoniae", 
+                          "Salmonella enterica", "Staphylococcus aureus"],
+        
+        "report_partial_matches": false,
+        "partial_match_threshold": 0.8,
+        "high_confidence_threshold": 0.95,
+        
+        "calculate_allele_frequencies": true,
+        "min_coverage_for_frequency": 10,
+        "min_frequency_to_report": 0.01,
+        
+        "max_sequences_per_batch": 10000,
+        "verbose": false
+    },
+    
+    "genes": {
+        "amr_cds_path": "AMR_CDS.fa",
+        "amr_prot_path": "AMRProt.fa",
+        "gene_catalog_path": "ReferenceGeneCatalog.txt",
+        "minimizer_k": 15,
+        "minimizer_w": 10,
+        "max_mismatches": 2,
+        "min_exact_matches": 5,
+        "genetic_code_table": 11,
+        "translate_all_frames": true,
+        "min_gene_coverage": 0.95,
+        "min_gene_identity": 0.95,
+        "max_sequences_per_batch": 100000,
+        "verbose": false
+    },
+    
+    "profiler": {
+        "taxonomy_db_path": "$BIOGPU_DATA/databases/taxonomy/taxonomy.db",
+        "reference_genomes_path": "$BIOGPU_DATA/databases/reference_genomes",
+        "sketch_size": 1000,
+        "kmer_size": 21,
+        "min_unique_kmers": 0.1,
+        "confidence_threshold": 0.8,
+        "min_reads_for_species": 10,
+        "report_unclassified": false,
+        "estimate_abundance": true,
+        "abundance_method": "relative",
+        "max_sequences_per_batch": 100000,
+        "verbose": false
+    },
+    
+    "io": {
+        "input_format": "fastq",
+        "paired_end": false,
+        "quality_threshold": 20,
+        "min_read_length": 50,
+        "output_format": "tsv",
+        "compress_output": false
+    },
+    
+    "resources": {
+        "max_memory_gb": 0,
+        "max_threads": 0,
+        "gpu_device_id": 0,
+        "gpu_memory_limit_gb": 0
+    },
+    
+    "logging": {
+        "log_level": "info",
+        "log_file": "",
+        "log_to_console": true,
+        "save_intermediate_files": false,
+        "temp_directory": "/tmp"
+    }
+}

@@ -1,0 +1,3 @@
+=== AMR Detection Clinical Report ===
+
+=== High-Confidence AMR Genes (>95% coverage, >95% identity) ===

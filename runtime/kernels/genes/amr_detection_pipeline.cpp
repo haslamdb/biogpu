@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <set>
 #include <cuda_runtime.h>
 
 // Genetic code initialization is now in amr_detection_kernels_wrapper.cu
@@ -274,11 +275,11 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
     cudaDeviceSynchronize();
     
     // Count how many passed
-    std::vector<bool> passes_filter(current_batch_size);
+    std::vector<uint8_t> passes_filter(current_batch_size);
     cudaMemcpy(passes_filter.data(), d_passes_filter, 
                current_batch_size * sizeof(bool), cudaMemcpyDeviceToHost);
     
-    int passed = std::count(passes_filter.begin(), passes_filter.end(), true);
+    int passed = std::count(passes_filter.begin(), passes_filter.end(), (uint8_t)1);
     std::cout << "Bloom filter: " << passed << "/" << current_batch_size 
               << " reads passed (" << (100.0 * passed / current_batch_size) << "%)" << std::endl;
     

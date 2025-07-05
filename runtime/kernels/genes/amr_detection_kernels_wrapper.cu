@@ -1,8 +1,7 @@
 // amr_detection_kernels_wrapper.cu
 #include "amr_detection_kernels.cu"
 
-// Define the constant memory genetic code table
-extern __constant__ char GENETIC_CODE[64];
+// GENETIC_CODE is already defined in amr_detection_kernels.cu
 
 extern "C" {
     void initializeGeneticCode() {
@@ -64,7 +63,7 @@ extern "C" {
         int blocks = (num_reads + threads - 1) / threads;
         screen_minimizers_kernel<<<blocks, threads>>>(
             minimizers, minimizer_counts, minimizer_offsets,
-            bloom_filter, bloom_size, read_passes, num_reads
+            bloom_filter, read_passes, num_reads, bloom_size
         );
     }
 

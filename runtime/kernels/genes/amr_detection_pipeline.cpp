@@ -6,17 +6,7 @@
 #include <algorithm>
 #include <cuda_runtime.h>
 
-// Initialize genetic code constant memory
-void initializeGeneticCode() {
-    const char genetic_code[64] = {
-        'K', 'N', 'K', 'N', 'T', 'T', 'T', 'T', 'R', 'S', 'R', 'S', 'I', 'I', 'M', 'I',
-        'Q', 'H', 'Q', 'H', 'P', 'P', 'P', 'P', 'R', 'R', 'R', 'R', 'L', 'L', 'L', 'L',
-        'E', 'D', 'E', 'D', 'A', 'A', 'A', 'A', 'G', 'G', 'G', 'G', 'V', 'V', 'V', 'V',
-        '*', 'Y', '*', 'Y', 'S', 'S', 'S', 'S', '*', 'C', 'W', 'C', 'L', 'F', 'L', 'F'
-    };
-    
-    cudaMemcpyToSymbol(GENETIC_CODE, genetic_code, sizeof(genetic_code));
-}
+// Genetic code initialization is now in amr_detection_kernels_wrapper.cu
 
 AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg) 
     : config(cfg), current_batch_size(0) {
@@ -172,10 +162,7 @@ void AMRDetectionPipeline::buildBloomFilter() {
     cudaMemcpy(d_lengths, lengths.data(), num_sequences * sizeof(uint32_t), cudaMemcpyHostToDevice);
     
     // Launch kernel
-    int threads = 256;
-    int blocks = (num_sequences + threads - 1) / threads;
-    
-    build_bloom_filter_kernel<<<blocks, threads>>>(
+    launch_build_bloom_filter_kernel(
         d_amr_sequences,
         d_offsets,
         d_lengths,
@@ -253,10 +240,7 @@ void AMRDetectionPipeline::generateMinimizers() {
                offsets.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
     
     // Launch kernel
-    int threads = 256;
-    int blocks = (current_batch_size + threads - 1) / threads;
-    
-    generate_minimizers_kernel<<<blocks, threads>>>(
+    launch_generate_minimizers_kernel(
         d_reads,
         d_read_offsets,
         d_read_lengths,
@@ -277,17 +261,14 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
     cudaMalloc(&d_passes_filter, current_batch_size * sizeof(bool));
     
     // Launch kernel
-    int threads = 256;
-    int blocks = (current_batch_size + threads - 1) / threads;
-    
-    screen_minimizers_kernel<<<blocks, threads>>>(
+    launch_screen_minimizers_kernel(
         d_minimizers,
         d_minimizer_counts,
         d_minimizer_offsets,
         d_bloom_filter,
+        config.bloom_filter_size,
         d_passes_filter,
-        current_batch_size,
-        config.bloom_filter_size
+        current_batch_size
     );
     
     cudaDeviceSynchronize();
@@ -337,11 +318,7 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
     
     // Launch alignment kernel
-    int threads = 128;  // Fewer threads due to shared memory usage
-    int blocks = (current_batch_size + threads - 1) / threads;
-    size_t shared_mem_size = threads * config.max_read_length * 2;  // For translations
-    
-    translated_alignment_kernel<<<blocks, threads, shared_mem_size>>>(
+    launch_translated_alignment_kernel(
         d_reads,
         d_read_offsets,
         d_read_lengths,
@@ -405,16 +382,13 @@ void AMRDetectionPipeline::extendAlignments() {
                num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
     
     // Launch extension kernel
-    int threads = 256;
-    int blocks = (current_batch_size + threads - 1) / threads;
-    
-    extend_alignments_kernel<<<blocks, threads>>>(
+    launch_extend_alignments_kernel(
         d_reads,
         d_read_offsets,
         d_read_lengths,
         d_minimizers,
-        d_minimizer_counts,
         d_minimizer_offsets,
+        d_minimizer_counts,
         d_amr_hits,
         d_hit_counts,
         d_amr_proteins,
@@ -434,10 +408,7 @@ void AMRDetectionPipeline::calculateCoverageStats() {
     uint32_t num_genes = amr_db->getNumGenes();
     
     // Update coverage with current batch
-    int threads = 256;
-    int blocks = (num_genes + threads - 1) / threads;
-    
-    update_coverage_stats_kernel<<<blocks, threads>>>(
+    launch_update_coverage_stats_kernel(
         d_amr_hits,
         d_hit_counts,
         d_coverage_stats,
@@ -450,7 +421,7 @@ void AMRDetectionPipeline::calculateCoverageStats() {
     // Finalize statistics
     AMRGeneEntry* d_gene_entries = amr_db->getGPUGeneEntries();
     
-    finalize_coverage_stats_kernel<<<blocks, threads>>>(
+    launch_finalize_coverage_stats_kernel(
         d_coverage_stats,
         d_gene_entries,
         num_genes

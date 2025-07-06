@@ -113,16 +113,32 @@ std::vector<std::pair<std::string, std::string>> mergePairedReads(
         std::string id1 = reads1[i].first;
         std::string id2 = reads2[i].first;
         
-        // Remove /1 or /2 suffixes if present
+        // Remove /1 or /2 suffixes if present (old format)
         size_t pos1 = id1.find('/');
         if (pos1 != std::string::npos) id1 = id1.substr(0, pos1);
         size_t pos2 = id2.find('/');
         if (pos2 != std::string::npos) id2 = id2.substr(0, pos2);
         
+        // Handle new Illumina format (e.g., "1:N:0" vs "2:N:0")
+        // Find the first space and check if it's followed by read pair info
+        size_t space1 = id1.find(' ');
+        size_t space2 = id2.find(' ');
+        if (space1 != std::string::npos && space2 != std::string::npos) {
+            // Check if the part after space starts with "1:" or "2:"
+            std::string suffix1 = id1.substr(space1 + 1);
+            std::string suffix2 = id2.substr(space2 + 1);
+            if ((suffix1.length() >= 2 && suffix1[0] == '1' && suffix1[1] == ':') ||
+                (suffix2.length() >= 2 && suffix2[0] == '2' && suffix2[1] == ':')) {
+                // Remove the read pair suffix for comparison
+                id1 = id1.substr(0, space1);
+                id2 = id2.substr(0, space2);
+            }
+        }
+        
         // Verify paired reads match
         if (id1 != id2) {
             std::cerr << "Warning: Read IDs don't match at position " << i 
-                      << ": " << id1 << " vs " << id2 << std::endl;
+                      << ": " << reads1[i].first << " vs " << reads2[i].first << std::endl;
             continue;
         }
         

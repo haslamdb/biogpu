@@ -75,8 +75,14 @@ struct AMRCoverageStats {
     uint32_t gene_length;           // Length of the gene (in amino acids for proteins)
     float percent_coverage;         // Percentage of gene covered (0-100)
     float mean_depth;              // Average depth across covered positions
+    float mean_coverage;           // Average coverage across all positions
+    float coverage_uniformity;     // Measure of how evenly coverage is distributed
     float rpkm;                    // Reads Per Kilobase per Million mapped reads
     float tpm;                     // Transcripts Per Million
+    
+    // Position-specific coverage tracking
+    // Note: We'll allocate this dynamically based on gene length
+    uint32_t* position_counts;     // Coverage depth at each position (allocated separately)
 };
 
 // Gene abundance information for clinical reporting
@@ -147,6 +153,10 @@ public:
     void extendAlignments();
     void calculateCoverageStats();
     void calculateAbundanceMetrics();
+    
+    // Coverage stats management
+    void initializeCoverageStats();
+    void freeCoverageStats();
     
     // Get results
     std::vector<AMRHit> getAMRHits();

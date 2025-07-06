@@ -66,9 +66,7 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     buildBloomFilter();
     
     // Initialize coverage statistics
-    h_coverage_stats.resize(amr_db->getNumGenes());
-    cudaMemset(d_coverage_stats, 0, 
-               amr_db->getNumGenes() * sizeof(AMRCoverageStats));
+    initializeCoverageStats();
     
     return true;
 }
@@ -116,7 +114,51 @@ void AMRDetectionPipeline::freeGPUMemory() {
     if (d_bloom_filter) cudaFree(d_bloom_filter);
     if (d_amr_hits) cudaFree(d_amr_hits);
     if (d_hit_counts) cudaFree(d_hit_counts);
-    if (d_coverage_stats) cudaFree(d_coverage_stats);
+    if (d_coverage_stats) {
+        // Free position counts arrays
+        freeCoverageStats();
+        cudaFree(d_coverage_stats);
+    }
+}
+
+void AMRDetectionPipeline::initializeCoverageStats() {
+    uint32_t num_genes = amr_db->getNumGenes();
+    h_coverage_stats.resize(num_genes);
+    
+    // Get gene information to know lengths
+    std::vector<AMRGeneEntry> gene_entries(num_genes);
+    cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+               num_genes * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
+    
+    // Calculate total memory needed for position counts
+    size_t total_position_memory = 0;
+    for (uint32_t i = 0; i < num_genes; i++) {
+        h_coverage_stats[i].gene_length = gene_entries[i].protein_length;
+        total_position_memory += gene_entries[i].protein_length * sizeof(uint32_t);
+    }
+    
+    // Allocate one big block for all position counts
+    uint32_t* d_all_position_counts;
+    cudaMalloc(&d_all_position_counts, total_position_memory);
+    cudaMemset(d_all_position_counts, 0, total_position_memory);
+    
+    // Set up pointers for each gene
+    size_t offset = 0;
+    for (uint32_t i = 0; i < num_genes; i++) {
+        h_coverage_stats[i].position_counts = d_all_position_counts + offset;
+        offset += gene_entries[i].protein_length;
+    }
+    
+    // Copy coverage stats to GPU
+    cudaMemcpy(d_coverage_stats, h_coverage_stats.data(),
+               num_genes * sizeof(AMRCoverageStats), cudaMemcpyHostToDevice);
+}
+
+void AMRDetectionPipeline::freeCoverageStats() {
+    if (!h_coverage_stats.empty() && h_coverage_stats[0].position_counts) {
+        // Free the big block of position counts
+        cudaFree(h_coverage_stats[0].position_counts);
+    }
 }
 
 void AMRDetectionPipeline::buildBloomFilter() {

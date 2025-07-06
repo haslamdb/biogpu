@@ -1,4 +1,5 @@
 #include "amr_detection_kernels.h"
+#include "amr_detection_kernels.cu"
 #include <cuda_runtime.h>
 
 // Genetic code table initialization

@@ -511,9 +511,10 @@ __global__ void update_coverage_stats_kernel(
             
             if (hit.gene_id == gene_idx) {
                 atomicAdd(&stats.total_reads, 1);
+                atomicAdd(&stats.total_bases_mapped, hit.ref_end - hit.ref_start);
                 
                 // Update position-specific coverage
-                for (uint16_t pos = hit.ref_start; pos < hit.ref_end; pos++) {
+                for (uint16_t pos = hit.ref_start; pos < hit.ref_end && pos < stats.gene_length; pos++) {
                     atomicAdd(&stats.position_counts[pos], 1);
                 }
             }

@@ -122,6 +122,7 @@ private:
     
     // GPU memory for bloom filter
     uint64_t* d_bloom_filter;
+    bool* d_read_passes_filter;  // Boolean array for bloom filter results
     
     // GPU memory for alignment results
     AMRHit* d_amr_hits;

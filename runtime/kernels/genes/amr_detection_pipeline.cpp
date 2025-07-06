@@ -11,6 +11,15 @@
 #include <iomanip>
 #include <cuda_runtime.h>
 
+// CUDA error checking macro
+#define CHECK_CUDA_ERROR(msg) do { \
+    cudaError_t err = cudaGetLastError(); \
+    if (err != cudaSuccess) { \
+        std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ \
+                  << " (" << msg << ") - " << cudaGetErrorString(err) << std::endl; \
+    } \
+} while(0)
+
 // Genetic code initialization is now in amr_detection_kernels_wrapper.cu
 
 // Structure to track paired-end relationships
@@ -59,6 +68,7 @@ AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg)
     d_minimizer_counts = nullptr;
     d_minimizer_offsets = nullptr;
     d_bloom_filter = nullptr;
+    d_read_passes_filter = nullptr;
     d_amr_hits = nullptr;
     d_hit_counts = nullptr;
     d_coverage_stats = nullptr;
@@ -109,7 +119,8 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     
     // Create translated search engine once (with appropriate batch size)
     // For paired-end reads, we need 2x the batch size (R1 and R2 processed separately)
-    int engine_batch_size = config.reads_per_batch * 2;
+    // Add safety margin to match memory allocation
+    int engine_batch_size = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);
     translated_search_engine = create_translated_search_engine_with_sw(engine_batch_size, true);
     if (!translated_search_engine) {
         std::cerr << "Failed to create translated search engine" << std::endl;
@@ -139,8 +150,16 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
 void AMRDetectionPipeline::allocateGPUMemory() {
     // Allocate for maximum batch size
     // For paired-end reads, we process R1 and R2 separately, so need 2x batch size
-    size_t max_batch = config.reads_per_batch * 2;
+    // Add 10% safety margin to avoid boundary issues
+    size_t max_batch = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);  // 220,000 instead of 200,000
     size_t max_read_len = config.max_read_length;
+    
+    std::cout << "=== GPU Memory Allocation Debug ===" << std::endl;
+    std::cout << "Config reads_per_batch: " << config.reads_per_batch << std::endl;
+    std::cout << "Engine batch size: " << (config.reads_per_batch * 2) << std::endl;
+    std::cout << "Max batch with safety margin: " << max_batch << std::endl;
+    std::cout << "Max read length: " << config.max_read_length << std::endl;
+    std::cout << "Total read memory: " << (max_batch * max_single_read_len) << " bytes" << std::endl;
     
     // Read data - no longer merging reads, just process them separately
     size_t max_single_read_len = max_read_len;
@@ -184,6 +203,9 @@ void AMRDetectionPipeline::allocateGPUMemory() {
         cudaMemset(d_bloom_filter, 0, bloom_words * sizeof(uint64_t));
     }
     
+    // Bloom filter results (always allocate for consistency)
+    cudaMalloc(&d_read_passes_filter, max_batch * sizeof(bool));
+    
     // Hits (max 10 per read)
     cudaMalloc(&d_amr_hits, max_batch * 10 * sizeof(AMRHit));
     cudaMalloc(&d_hit_counts, max_batch * sizeof(uint32_t));
@@ -203,6 +225,7 @@ void AMRDetectionPipeline::freeGPUMemory() {
     if (d_minimizer_counts) cudaFree(d_minimizer_counts);
     if (d_minimizer_offsets) cudaFree(d_minimizer_offsets);
     if (d_bloom_filter) cudaFree(d_bloom_filter);
+    if (d_read_passes_filter) cudaFree(d_read_passes_filter);
     if (d_amr_hits) cudaFree(d_amr_hits);
     if (d_hit_counts) cudaFree(d_hit_counts);
     if (d_coverage_stats) {
@@ -317,10 +340,15 @@ void AMRDetectionPipeline::copyReadsToGPU(const std::vector<std::string>& reads)
     // Copy to GPU
     cudaMemcpy(d_reads, concatenated_reads.data(), 
                concatenated_reads.size(), cudaMemcpyHostToDevice);
+    CHECK_CUDA_ERROR("copying reads to GPU");
+    
     cudaMemcpy(d_read_offsets, offsets.data(), 
                offsets.size() * sizeof(int), cudaMemcpyHostToDevice);
+    CHECK_CUDA_ERROR("copying read offsets to GPU");
+    
     cudaMemcpy(d_read_lengths, lengths.data(), 
                lengths.size() * sizeof(int), cudaMemcpyHostToDevice);
+    CHECK_CUDA_ERROR("copying read lengths to GPU");
 }
 
 void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
@@ -334,22 +362,22 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     // Copy reads to GPU
     copyReadsToGPU(reads);
     
-    // Generate minimizers
-    generateMinimizers();
-    
-    // Screen with bloom filter if enabled
-    if (config.use_bloom_filter) {
-        screenWithBloomFilter();
-    } else {
-        // If bloom filter is disabled, mark all reads as passing
-        bool* d_all_pass;
-        cudaMalloc(&d_all_pass, current_batch_size * sizeof(bool));
-        cudaMemset(d_all_pass, 1, current_batch_size * sizeof(bool));  // Set all to true
-        cudaMemcpy(d_read_ids, d_all_pass, current_batch_size * sizeof(bool), cudaMemcpyDeviceToDevice);
-        cudaFree(d_all_pass);
+    // Skip bloom filter completely if disabled (default behavior)
+    if (!config.use_bloom_filter) {
+        // Don't allocate or use any bloom filter memory
+        // Pass nullptr to indicate all reads should be processed
+        performTranslatedAlignment();
+        
+        // Skip to coverage calculation
+        extendAlignments();
+        calculateCoverageStats();
+        calculateAbundanceMetrics();
+        return;
     }
     
-    // Perform translated alignment
+    // Only do bloom filter operations if explicitly enabled
+    generateMinimizers();
+    screenWithBloomFilter();
     performTranslatedAlignment();
     
     // Extend alignments using minimizer information
@@ -390,18 +418,14 @@ void AMRDetectionPipeline::generateMinimizers() {
 }
 
 void AMRDetectionPipeline::screenWithBloomFilter() {
-    // Allocate filter results
-    bool* d_passes_filter;
-    cudaMalloc(&d_passes_filter, current_batch_size * sizeof(bool));
-    
-    // Launch kernel
+    // Launch kernel using the class member boolean array
     launch_screen_minimizers_kernel(
         d_minimizers,
         d_minimizer_counts,
         d_minimizer_offsets,
         d_bloom_filter,
         config.bloom_filter_size,
-        d_passes_filter,
+        d_read_passes_filter,
         current_batch_size
     );
     
@@ -409,18 +433,12 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
     
     // Count how many passed
     std::vector<uint8_t> passes_filter(current_batch_size);
-    cudaMemcpy(passes_filter.data(), d_passes_filter, 
+    cudaMemcpy(passes_filter.data(), d_read_passes_filter, 
                current_batch_size * sizeof(bool), cudaMemcpyDeviceToHost);
     
     int passed = std::count(passes_filter.begin(), passes_filter.end(), (uint8_t)1);
     std::cout << "Bloom filter: " << passed << "/" << current_batch_size 
               << " reads passed (" << (100.0 * passed / current_batch_size) << "%)" << std::endl;
-    
-    // Store for alignment stage
-    cudaMemcpy(d_read_ids, d_passes_filter, current_batch_size * sizeof(bool), 
-               cudaMemcpyDeviceToDevice);
-    
-    cudaFree(d_passes_filter);
 }
 
 void AMRDetectionPipeline::performTranslatedAlignment() {
@@ -429,6 +447,36 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
         std::cerr << "Translated search engine not initialized" << std::endl;
         return;
     }
+    
+    // Add validation
+    if (current_batch_size == 0) {
+        std::cerr << "ERROR: current_batch_size is 0" << std::endl;
+        return;
+    }
+    
+    // Get engine capacity
+    int engine_capacity = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);  // Match our allocation
+    if (current_batch_size > engine_capacity) {
+        std::cerr << "ERROR: current_batch_size (" << current_batch_size 
+                  << ") exceeds engine capacity (" << engine_capacity << ")" << std::endl;
+        return;
+    }
+    
+    // Validate concatenated read data
+    std::vector<int> h_read_lengths(current_batch_size);
+    cudaMemcpy(h_read_lengths.data(), d_read_lengths, 
+               current_batch_size * sizeof(int), cudaMemcpyDeviceToHost);
+    
+    size_t total_bases = 0;
+    for (int len : h_read_lengths) {
+        if (len <= 0 || len > config.max_read_length) {
+            std::cerr << "WARNING: Invalid read length: " << len << std::endl;
+        }
+        total_bases += len;
+    }
+    
+    std::cout << "DEBUG: Processing " << current_batch_size << " reads with " 
+              << total_bases << " total bases" << std::endl;
     
     // Load gene entries from database if not already loaded
     if (gene_entries.empty()) {
@@ -491,11 +539,33 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     // Clear any existing CUDA errors before the call
     cudaGetLastError();
     
+    // Bounds checking
+    size_t allocated_max = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);
+    if (current_batch_size > allocated_max) {
+        std::cerr << "ERROR: Batch size " << current_batch_size 
+                  << " exceeds allocated maximum " << allocated_max << std::endl;
+        return;
+    }
+    
+    // Check GPU memory before kernel call
+    size_t free_mem, total_mem;
+    cudaMemGetInfo(&free_mem, &total_mem);
+    std::cout << "GPU memory before translated search: " << free_mem << "/" << total_mem << " bytes free" << std::endl;
+    
+    std::cout << "=== Translated Search Debug ===" << std::endl;
+    std::cout << "Current batch size: " << current_batch_size << std::endl;
+    std::cout << "Engine capacity: " << engine_capacity << std::endl;
+    std::cout << "Using bloom filter: " << (config.use_bloom_filter ? "YES" : "NO") << std::endl;
+    
     // Use the class member search engine
-    // Pass NULL for reads_to_process to process all reads (bloom filter is disabled by default)
+    // Pass bloom filter results if enabled, otherwise nullptr to process all reads
+    bool* reads_filter = config.use_bloom_filter ? d_read_passes_filter : nullptr;
+    std::cout << "Calling search_translated_reads..." << std::endl;
     int result = search_translated_reads(translated_search_engine, d_reads, d_read_lengths, 
-                                       d_read_offsets, nullptr, 
+                                       d_read_offsets, reads_filter, 
                                        current_batch_size, d_protein_matches, d_hit_counts);
+    
+    CHECK_CUDA_ERROR("after search_translated_reads");
     
     if (result != 0) {
         std::cerr << "search_translated_reads returned error code: " << result << std::endl;
@@ -997,19 +1067,32 @@ void AMRDetectionPipeline::exportAbundanceTable(const std::string& output_file) 
 }
 
 void AMRDetectionPipeline::resetTranslatedSearchEngine() {
-    // Clean up existing engine if present
+    std::cout << "Resetting translated search engine..." << std::endl;
+    
+    // Add more thorough cleanup
     if (translated_search_engine) {
+        // Ensure all operations complete
+        cudaDeviceSynchronize();
+        
+        // Clear any errors
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cout << "Clearing CUDA error before engine reset: " << cudaGetErrorString(err) << std::endl;
+        }
+        
         destroy_translated_search_engine(translated_search_engine);
         translated_search_engine = nullptr;
         search_engine_initialized = false;
     }
     
-    // Clear any CUDA errors before creating new engine
-    cudaGetLastError();
+    // Wait a moment for GPU to settle
+    cudaDeviceSynchronize();
     
-    // Create new engine with appropriate batch size
-    // For paired-end reads, we need 2x the batch size (R1 and R2 processed separately)
-    int engine_batch_size = config.reads_per_batch * 2;
+    // Create new engine with proper size
+    int engine_batch_size = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);
+    std::cout << "Creating new translated search engine with batch size: " 
+              << engine_batch_size << std::endl;
+    
     translated_search_engine = create_translated_search_engine_with_sw(engine_batch_size, true);
     if (!translated_search_engine) {
         std::cerr << "Failed to create new translated search engine during reset" << std::endl;
@@ -1083,6 +1166,28 @@ void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& re
     }
     
     // Process all reads together (R1 and R2 separately)
+    // Ensure current_batch_size doesn't exceed engine capacity
+    int engine_batch_size = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);  // Match allocation
+    
+    if (all_reads.size() > engine_batch_size) {
+        // Process in smaller chunks
+        std::cout << "Batch size " << all_reads.size() << " exceeds engine capacity " 
+                  << engine_batch_size << ", processing in chunks" << std::endl;
+        
+        size_t chunk_size = engine_batch_size;
+        for (size_t i = 0; i < all_reads.size(); i += chunk_size) {
+            size_t end = std::min(i + chunk_size, all_reads.size());
+            std::vector<std::string> chunk_reads(all_reads.begin() + i, all_reads.begin() + end);
+            std::vector<std::string> chunk_ids(all_read_ids.begin() + i, all_read_ids.begin() + end);
+            
+            std::cout << "Processing chunk " << (i/chunk_size + 1) << ": reads " << i << "-" << end << std::endl;
+            current_batch_size = chunk_reads.size();
+            processBatch(chunk_reads, chunk_ids);
+        }
+        return;
+    }
+    
+    // Process normally if within limits
     current_batch_size = all_reads.size();
     if (current_batch_size > 0) {
         processBatch(all_reads, all_read_ids);

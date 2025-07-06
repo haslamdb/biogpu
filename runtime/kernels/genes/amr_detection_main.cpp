@@ -179,7 +179,7 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     std::cout << "Processing paired-end reads separately..." << std::endl;
     
     // Process in batches
-    const int batch_size = 100000;  // From config - this is per read pair
+    const int batch_size = 100000;  // This must match config.reads_per_batch - this is per read pair
     int num_pairs = std::min(reads_r1.size(), reads_r2.size());
     int num_batches = (num_pairs + batch_size - 1) / batch_size;
     

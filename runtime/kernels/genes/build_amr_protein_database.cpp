@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cstring>
+#include <cstdint>
 
 struct ProteinEntry {
     std::string accession;
@@ -133,8 +134,8 @@ int main(int argc, char** argv) {
     }
     
     std::cout << "\nDrug class distribution:" << std::endl;
-    for (const auto& [drug_class, count] : drug_class_counts) {
-        std::cout << "  " << drug_class << ": " << count << " genes" << std::endl;
+    for (const auto& pair : drug_class_counts) {
+        std::cout << "  " << pair.first << ": " << pair.second << " genes" << std::endl;
     }
     
     // Build k-mer index

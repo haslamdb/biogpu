@@ -5,53 +5,219 @@
 #include <string>
 #include <chrono>
 #include <iomanip>
+#include <zlib.h>
 #include "amr_detection_pipeline.h"
 #include "sample_csv_parser.h"  // Reuse from your FQ pipeline
 
-// Function to read FASTQ file
+// Function to check if file is gzipped
+bool isGzipped(const std::string& filename) {
+    return filename.size() > 3 && filename.substr(filename.size() - 3) == ".gz";
+}
+
+// Function to read FASTQ file (supports gzipped)
 std::vector<std::pair<std::string, std::string>> readFastq(const std::string& filename, 
                                                            int max_reads = -1) {
     std::vector<std::pair<std::string, std::string>> reads;
-    std::ifstream file(filename);
     
-    if (!file.is_open()) {
-        std::cerr << "Error: Cannot open file " << filename << std::endl;
-        return reads;
-    }
-    
-    std::string line;
-    int count = 0;
-    
-    while (std::getline(file, line)) {
-        if (line[0] == '@') {
-            std::string id = line.substr(1);  // Remove '@'
-            std::string seq;
-            std::getline(file, seq);
+    if (isGzipped(filename)) {
+        // Read gzipped file
+        gzFile gz_file = gzopen(filename.c_str(), "rb");
+        if (!gz_file) {
+            std::cerr << "Error: Cannot open gzipped file " << filename << std::endl;
+            return reads;
+        }
+        
+        char buffer[4096];
+        std::string line;
+        int count = 0;
+        
+        while (gzgets(gz_file, buffer, sizeof(buffer))) {
+            line = buffer;
+            // Remove newline
+            if (!line.empty() && line.back() == '\n') line.pop_back();
             
-            // Skip quality header and quality string
-            std::getline(file, line);  // +
-            std::getline(file, line);  // quality
-            
-            reads.push_back({id, seq});
-            count++;
-            
-            if (max_reads > 0 && count >= max_reads) {
-                break;
+            if (!line.empty() && line[0] == '@') {
+                std::string id = line.substr(1);  // Remove '@'
+                
+                // Read sequence
+                if (gzgets(gz_file, buffer, sizeof(buffer))) {
+                    std::string seq = buffer;
+                    if (!seq.empty() && seq.back() == '\n') seq.pop_back();
+                    
+                    // Skip quality header and quality string
+                    gzgets(gz_file, buffer, sizeof(buffer));  // +
+                    gzgets(gz_file, buffer, sizeof(buffer));  // quality
+                    
+                    reads.push_back({id, seq});
+                    count++;
+                    
+                    if (max_reads > 0 && count >= max_reads) {
+                        break;
+                    }
+                }
             }
         }
+        
+        gzclose(gz_file);
+    } else {
+        // Read uncompressed file
+        std::ifstream file(filename);
+        
+        if (!file.is_open()) {
+            std::cerr << "Error: Cannot open file " << filename << std::endl;
+            return reads;
+        }
+        
+        std::string line;
+        int count = 0;
+        
+        while (std::getline(file, line)) {
+            if (line[0] == '@') {
+                std::string id = line.substr(1);  // Remove '@'
+                std::string seq;
+                std::getline(file, seq);
+                
+                // Skip quality header and quality string
+                std::getline(file, line);  // +
+                std::getline(file, line);  // quality
+                
+                reads.push_back({id, seq});
+                count++;
+                
+                if (max_reads > 0 && count >= max_reads) {
+                    break;
+                }
+            }
+        }
+        
+        file.close();
     }
     
-    file.close();
     return reads;
 }
 
-// Function to process a single sample
+// Function to merge paired-end reads into single longer reads
+std::vector<std::pair<std::string, std::string>> mergePairedReads(
+    const std::vector<std::pair<std::string, std::string>>& reads1,
+    const std::vector<std::pair<std::string, std::string>>& reads2,
+    int merge_gap = 10) {
+    
+    std::vector<std::pair<std::string, std::string>> merged;
+    size_t min_size = std::min(reads1.size(), reads2.size());
+    
+    // Simple merge strategy: concatenate R1 and R2 with N's in between
+    std::string gap_seq(merge_gap, 'N');
+    
+    for (size_t i = 0; i < min_size; i++) {
+        // Extract read ID without /1 or /2 suffix
+        std::string id1 = reads1[i].first;
+        std::string id2 = reads2[i].first;
+        
+        // Remove /1 or /2 suffixes if present
+        size_t pos1 = id1.find('/');
+        if (pos1 != std::string::npos) id1 = id1.substr(0, pos1);
+        size_t pos2 = id2.find('/');
+        if (pos2 != std::string::npos) id2 = id2.substr(0, pos2);
+        
+        // Verify paired reads match
+        if (id1 != id2) {
+            std::cerr << "Warning: Read IDs don't match at position " << i 
+                      << ": " << id1 << " vs " << id2 << std::endl;
+            continue;
+        }
+        
+        // Merge sequences
+        std::string merged_seq = reads1[i].second + gap_seq + reads2[i].second;
+        merged.push_back({id1 + "_merged", merged_seq});
+    }
+    
+    return merged;
+}
+
+// Function to process paired-end sample
+void processSamplePaired(AMRDetectionPipeline& pipeline, 
+                        const std::string& sample_name,
+                        const std::string& fastq_r1,
+                        const std::string& fastq_r2,
+                        const std::string& output_dir,
+                        bool merge_reads = true) {
+    
+    std::cout << "\n=== Processing paired-end sample: " << sample_name << " ===" << std::endl;
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // Read both FASTQ files
+    std::cout << "Reading R1 file: " << fastq_r1 << std::endl;
+    auto reads_r1 = readFastq(fastq_r1);
+    
+    std::cout << "Reading R2 file: " << fastq_r2 << std::endl;
+    auto reads_r2 = readFastq(fastq_r2);
+    
+    if (reads_r1.empty() || reads_r2.empty()) {
+        std::cerr << "No reads found in one or both files" << std::endl;
+        return;
+    }
+    
+    std::cout << "R1 reads: " << reads_r1.size() << ", R2 reads: " << reads_r2.size() << std::endl;
+    
+    std::vector<std::pair<std::string, std::string>> fastq_data;
+    
+    if (merge_reads) {
+        // Merge paired reads
+        std::cout << "Merging paired-end reads..." << std::endl;
+        fastq_data = mergePairedReads(reads_r1, reads_r2);
+        std::cout << "Merged reads: " << fastq_data.size() << std::endl;
+    } else {
+        // Process R1 and R2 separately (concatenate)
+        fastq_data = reads_r1;
+        for (auto& read : reads_r2) {
+            read.first += "_R2";  // Mark R2 reads
+            fastq_data.push_back(read);
+        }
+        std::cout << "Total reads (R1+R2): " << fastq_data.size() << std::endl;
+    }
+    
+    // Process in batches
+    const int batch_size = 100000;  // From config
+    int num_batches = (fastq_data.size() + batch_size - 1) / batch_size;
+    
+    for (int batch = 0; batch < num_batches; batch++) {
+        int start_idx = batch * batch_size;
+        int end_idx = std::min(start_idx + batch_size, (int)fastq_data.size());
+        
+        std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
+                  << " (reads " << start_idx << "-" << end_idx << ")" << std::endl;
+        
+        // Extract reads and IDs for this batch
+        std::vector<std::string> batch_reads;
+        std::vector<std::string> batch_ids;
+        
+        for (int i = start_idx; i < end_idx; i++) {
+            batch_ids.push_back(fastq_data[i].first);
+            batch_reads.push_back(fastq_data[i].second);
+        }
+        
+        // Process batch
+        pipeline.processBatch(batch_reads, batch_ids);
+    }
+    
+    // Write results
+    std::string output_prefix = output_dir + "/" + sample_name;
+    pipeline.writeResults(output_prefix);
+    pipeline.generateClinicalReport(output_prefix + "_clinical_report.txt");
+    pipeline.exportAbundanceTable(output_prefix + "_abundance.tsv");
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+    std::cout << "\nSample processing completed in " << duration.count() << " seconds" << std::endl;
+}
+
+// Function to process a single-end sample
 void processSample(AMRDetectionPipeline& pipeline, 
                   const std::string& sample_name,
                   const std::string& fastq_file,
                   const std::string& output_dir) {
     
-    std::cout << "\n=== Processing sample: " << sample_name << " ===" << std::endl;
+    std::cout << "\n=== Processing single-end sample: " << sample_name << " ===" << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
     
     // Read FASTQ file
@@ -128,6 +294,9 @@ int main(int argc, char** argv) {
     config.max_read_length = 300;
     config.output_prefix = output_dir + "/amr_results";
     
+    // Additional configuration for paired-end processing
+    bool merge_paired_reads = true;
+    
     // Optional: Parse additional config from command line
     for (int i = 4; i < argc; i += 2) {
         std::string arg = argv[i];
@@ -142,6 +311,9 @@ int main(int argc, char** argv) {
                 config.reads_per_batch = std::stoi(argv[i + 1]);
             } else if (arg == "--protein-db") {
                 config.protein_db_path = argv[i + 1];
+            } else if (arg == "--no-merge") {
+                merge_paired_reads = false;
+                i--; // This flag doesn't take a value
             }
         }
     }
@@ -167,53 +339,43 @@ int main(int argc, char** argv) {
         return 1;
     }
     
-    // Parse input CSV
+    // Parse input CSV using the proper parser
     std::cout << "\nParsing input CSV..." << std::endl;
-    std::vector<std::pair<std::string, std::string>> samples;
+    BioGPU::SampleCSVParser csv_parser;
     
-    std::ifstream csv_file(input_csv);
-    if (!csv_file.is_open()) {
-        std::cerr << "Cannot open input CSV: " << input_csv << std::endl;
+    if (!csv_parser.parseFile(input_csv, true)) {
+        std::cerr << "Failed to parse input CSV: " << input_csv << std::endl;
         return 1;
     }
     
-    std::string line;
-    // Skip header if present
-    std::getline(csv_file, line);
-    if (line.find("sample_name") == std::string::npos) {
-        // No header, process first line
-        size_t comma_pos = line.find(',');
-        if (comma_pos != std::string::npos) {
-            std::string sample_name = line.substr(0, comma_pos);
-            std::string fastq_path = line.substr(comma_pos + 1);
-            samples.push_back({sample_name, fastq_path});
-        }
-    }
-    
-    // Read remaining lines
-    while (std::getline(csv_file, line)) {
-        size_t comma_pos = line.find(',');
-        if (comma_pos != std::string::npos) {
-            std::string sample_name = line.substr(0, comma_pos);
-            std::string fastq_path = line.substr(comma_pos + 1);
-            
-            // Remove quotes if present
-            if (fastq_path.front() == '"') fastq_path = fastq_path.substr(1);
-            if (fastq_path.back() == '"') fastq_path.pop_back();
-            
-            samples.push_back({sample_name, fastq_path});
-        }
-    }
-    csv_file.close();
-    
+    const auto& samples = csv_parser.getSamples();
     std::cout << "Found " << samples.size() << " patient samples to analyze" << std::endl;
+    
+    // Print sample information
+    for (const auto& sample : samples) {
+        std::cout << "  " << sample.sample_name << ": ";
+        if (sample.isPairedEnd()) {
+            std::cout << "paired-end (R1 + R2)" << std::endl;
+        } else {
+            std::cout << "single-end" << std::endl;
+        }
+    }
     
     // Process each patient sample
     auto total_start = std::chrono::high_resolution_clock::now();
     
     for (size_t i = 0; i < samples.size(); i++) {
+        const auto& sample = samples[i];
         std::cout << "\n[" << (i + 1) << "/" << samples.size() << "] ";
-        processSample(pipeline, samples[i].first, samples[i].second, output_dir);
+        
+        if (sample.isPairedEnd()) {
+            // Process paired-end reads
+            processSamplePaired(pipeline, sample.sample_name, 
+                               sample.read1_path, sample.read2_path, output_dir, merge_paired_reads);
+        } else {
+            // Process single-end reads
+            processSample(pipeline, sample.sample_name, sample.read1_path, output_dir);
+        }
     }
     
     // Generate diagnostic summary across all patient samples

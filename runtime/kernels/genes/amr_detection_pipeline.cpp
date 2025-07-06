@@ -117,15 +117,21 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     // Initialize coverage statistics
     initializeCoverageStats();
     
-    // Create translated search engine once (with appropriate batch size)
-    // For paired-end reads, we need 2x the batch size (R1 and R2 processed separately)
-    // Add safety margin to match memory allocation
-    int engine_batch_size = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);
+    // Create translated search engine with Smith-Waterman
+    // Use the exact batch size we'll process (no multiplication needed)
+    int engine_batch_size = config.reads_per_batch * 2 + 20000; // Add buffer
+    
+    std::cout << "Creating translated search engine with batch size: " << engine_batch_size << std::endl;
+    
+    // Use the SW version as in the resistance pipeline
     translated_search_engine = create_translated_search_engine_with_sw(engine_batch_size, true);
     if (!translated_search_engine) {
         std::cerr << "Failed to create translated search engine" << std::endl;
         return false;
     }
+    
+    // NOTE: The resistance version doesn't have initialize_genetic_code_gpu
+    // The genetic code is initialized as a __constant__ in the CUDA file
     
     // Load protein database once
     std::string protein_db_path = config.protein_db_path;
@@ -159,7 +165,7 @@ void AMRDetectionPipeline::allocateGPUMemory() {
     std::cout << "Engine batch size: " << (config.reads_per_batch * 2) << std::endl;
     std::cout << "Max batch with safety margin: " << max_batch << std::endl;
     std::cout << "Max read length: " << config.max_read_length << std::endl;
-    std::cout << "Total read memory: " << (max_batch * max_single_read_len) << " bytes" << std::endl;
+    std::cout << "Total read memory: " << (max_batch * max_read_len) << " bytes" << std::endl;
     
     // Read data - no longer merging reads, just process them separately
     size_t max_single_read_len = max_read_len;

@@ -300,7 +300,10 @@ int main(int argc, char** argv) {
     config.min_coverage = 0.80f;
     config.min_alignment_length = 50;
     config.band_width = 15;
-    config.reads_per_batch = 100000;
+    
+    // REDUCE BATCH SIZE TO AVOID ISSUES
+    config.reads_per_batch = 50000;  // Reduced from 100000
+    
     config.max_read_length = 300;
     config.output_prefix = output_dir + "/amr_results";
     

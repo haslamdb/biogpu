@@ -951,10 +951,28 @@ public:
         
         DEBUG_PRINT("Loaded %d proteins, total sequence length: %zu", num_proteins, sequences.size());
         
+        // Check for any existing CUDA errors before allocation
+        cudaError_t existing_err = cudaGetLastError();
+        if (existing_err != cudaSuccess) {
+            printf("[PROTEIN DB ERROR] Existing CUDA error before allocation: %s\n", cudaGetErrorString(existing_err));
+            return false;
+        }
+        
         // Allocate and copy to GPU
         ProteinDatabase h_db;
         h_db.num_proteins = num_proteins;
         h_db.num_kmers = sorted_hashes.size();
+        
+        // Debug: Print allocation sizes
+        printf("[PROTEIN DB] Allocating GPU memory:\n");
+        printf("  - K-mer hashes: %zu entries (%zu MB)\n", sorted_hashes.size(), 
+               (sorted_hashes.size() * sizeof(uint64_t)) / (1024*1024));
+        printf("  - Start indices: %zu entries (%zu MB)\n", start_indices.size(),
+               (start_indices.size() * sizeof(uint32_t)) / (1024*1024));
+        printf("  - K-mer counts: %zu entries (%zu MB)\n", kmer_counts.size(),
+               (kmer_counts.size() * sizeof(uint32_t)) / (1024*1024));
+        printf("  - Position data: %zu entries (%zu MB)\n", position_data.size(),
+               (position_data.size() * sizeof(uint32_t)) / (1024*1024));
         
         cudaError_t err;
         

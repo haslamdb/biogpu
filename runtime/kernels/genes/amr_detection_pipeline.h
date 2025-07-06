@@ -13,6 +13,7 @@
 // Configuration for AMR detection
 struct AMRDetectionConfig {
     // Bloom filter parameters
+    bool use_bloom_filter = false;          // Disabled by default
     size_t bloom_filter_size = 1ULL << 30;  // 1GB bloom filter
     int bloom_k = 3;                        // Number of hash functions
     int kmer_length = 31;                   // DNA k-mer size for bloom filter

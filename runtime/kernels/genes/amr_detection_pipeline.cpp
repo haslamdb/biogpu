@@ -62,8 +62,10 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     // Allocate GPU memory
     allocateGPUMemory();
     
-    // Build bloom filter
-    buildBloomFilter();
+    // Build bloom filter only if enabled
+    if (config.use_bloom_filter) {
+        buildBloomFilter();
+    }
     
     // Initialize coverage statistics
     initializeCoverageStats();
@@ -88,10 +90,12 @@ void AMRDetectionPipeline::allocateGPUMemory() {
     cudaMalloc(&d_minimizer_counts, max_batch * sizeof(uint32_t));
     cudaMalloc(&d_minimizer_offsets, max_batch * sizeof(uint32_t));
     
-    // Bloom filter
-    size_t bloom_words = (config.bloom_filter_size + 63) / 64;
-    cudaMalloc(&d_bloom_filter, bloom_words * sizeof(uint64_t));
-    cudaMemset(d_bloom_filter, 0, bloom_words * sizeof(uint64_t));
+    // Bloom filter (only if enabled)
+    if (config.use_bloom_filter) {
+        size_t bloom_words = (config.bloom_filter_size + 63) / 64;
+        cudaMalloc(&d_bloom_filter, bloom_words * sizeof(uint64_t));
+        cudaMemset(d_bloom_filter, 0, bloom_words * sizeof(uint64_t));
+    }
     
     // Hits (max 10 per read)
     cudaMalloc(&d_amr_hits, max_batch * 10 * sizeof(AMRHit));
@@ -246,8 +250,10 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     // Generate minimizers
     generateMinimizers();
     
-    // Screen with bloom filter
-    screenWithBloomFilter();
+    // Screen with bloom filter if enabled
+    if (config.use_bloom_filter) {
+        screenWithBloomFilter();
+    }
     
     // Perform translated alignment
     performTranslatedAlignment();
@@ -346,9 +352,40 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     // Load gene entries from database if not already loaded
     if (gene_entries.empty()) {
         uint32_t num_genes = amr_db->getNumGenes();
+        if (num_genes == 0) {
+            std::cerr << "No genes loaded in AMR database" << std::endl;
+            destroy_translated_search_engine(search_engine);
+            return;
+        }
+        
+        AMRGeneEntry* gpu_entries = amr_db->getGPUGeneEntries();
+        if (!gpu_entries) {
+            std::cerr << "GPU gene entries pointer is NULL" << std::endl;
+            destroy_translated_search_engine(search_engine);
+            return;
+        }
+        
         gene_entries.resize(num_genes);
-        cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+        
+        // Ensure all previous GPU operations are complete
+        cudaDeviceSynchronize();
+        
+        // Check for any existing errors
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cerr << "CUDA error before gene entries copy: " << cudaGetErrorString(err) << std::endl;
+            // Clear the error
+            cudaGetLastError();
+        }
+        
+        cudaMemcpy(gene_entries.data(), gpu_entries,
                    num_genes * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
+                   
+        // Check for errors after copy
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cerr << "CUDA error after gene entries copy: " << cudaGetErrorString(err) << std::endl;
+        }
     }
     
     // Structure to match ProteinMatch from translated_search_amr.cu

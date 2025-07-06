@@ -285,10 +285,15 @@ void processSample(AMRDetectionPipeline& pipeline,
 // Main function
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " <amr_db_path> <input_csv> <output_dir>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <amr_db_path> <input_csv> <output_dir> [options]" << std::endl;
         std::cerr << "  amr_db_path: Path to AMR database (format: dna.fasta,protein.fasta)" << std::endl;
         std::cerr << "  input_csv: CSV file with columns: sample_name,fastq_path" << std::endl;
         std::cerr << "  output_dir: Directory for output files" << std::endl;
+        std::cerr << "\nOptions:" << std::endl;
+        std::cerr << "  --use-bloom-filter    Use bloom filter for pre-screening (default: disabled)" << std::endl;
+        std::cerr << "  --no-merge           Don't merge paired-end reads" << std::endl;
+        std::cerr << "  --min-identity <f>   Minimum identity threshold (default: 0.85)" << std::endl;
+        std::cerr << "  --min-coverage <f>   Minimum coverage threshold (default: 0.80)" << std::endl;
         return 1;
     }
     
@@ -329,6 +334,9 @@ int main(int argc, char** argv) {
                 config.protein_db_path = argv[i + 1];
             } else if (arg == "--no-merge") {
                 merge_paired_reads = false;
+                i--; // This flag doesn't take a value
+            } else if (arg == "--use-bloom-filter") {
+                config.use_bloom_filter = true;
                 i--; // This flag doesn't take a value
             }
         }

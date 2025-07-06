@@ -305,3 +305,6 @@ cd ~/Documents/Code/biogpu
 
   Would you like me to test the new unified pipeline architecture (resistance_pipeline_v2) that we just created? That would require
   building it first from the source files we created.
+
+  ## here's for the genes detection
+  ./amr_detection AMR_CDS.fa,AMRProt.fa test_samples.csv amr_results/  

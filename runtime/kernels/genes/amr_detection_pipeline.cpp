@@ -5,12 +5,14 @@
 #include <fstream>
 #include <algorithm>
 #include <set>
+#include <cstdio>
+#include <iomanip>
 #include <cuda_runtime.h>
 
 // Genetic code initialization is now in amr_detection_kernels_wrapper.cu
 
 AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg) 
-    : config(cfg), current_batch_size(0) {
+    : config(cfg), current_batch_size(0), total_reads_processed(0) {
     
     // Initialize CUDA
     initializeGeneticCode();
@@ -99,18 +101,7 @@ void AMRDetectionPipeline::allocateGPUMemory() {
     // Coverage statistics
     size_t num_genes = amr_db->getNumGenes();
     cudaMalloc(&d_coverage_stats, num_genes * sizeof(AMRCoverageStats));
-    
-    // Allocate position counts for each gene
-    for (size_t i = 0; i < num_genes; i++) {
-        uint16_t gene_length = 1000;  // Max protein length, adjust as needed
-        uint32_t* position_counts;
-        cudaMalloc(&position_counts, gene_length * sizeof(uint32_t));
-        cudaMemset(position_counts, 0, gene_length * sizeof(uint32_t));
-        
-        // Set the pointer in coverage stats
-        cudaMemcpy(&d_coverage_stats[i].position_counts, &position_counts,
-                   sizeof(uint32_t*), cudaMemcpyHostToDevice);
-    }
+    cudaMemset(d_coverage_stats, 0, num_genes * sizeof(AMRCoverageStats));
 }
 
 void AMRDetectionPipeline::freeGPUMemory() {
@@ -124,12 +115,7 @@ void AMRDetectionPipeline::freeGPUMemory() {
     if (d_bloom_filter) cudaFree(d_bloom_filter);
     if (d_amr_hits) cudaFree(d_amr_hits);
     if (d_hit_counts) cudaFree(d_hit_counts);
-    
-    // Free position counts in coverage stats
-    if (d_coverage_stats) {
-        // Note: In practice, you'd need to free individual position_counts arrays
-        cudaFree(d_coverage_stats);
-    }
+    if (d_coverage_stats) cudaFree(d_coverage_stats);
 }
 
 void AMRDetectionPipeline::buildBloomFilter() {
@@ -208,6 +194,7 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     if (reads.empty()) return;
     
     current_batch_size = reads.size();
+    total_reads_processed += current_batch_size;
     std::cout << "Processing batch of " << current_batch_size << " reads" << std::endl;
     
     // Copy reads to GPU
@@ -227,6 +214,9 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     
     // Update coverage statistics
     calculateCoverageStats();
+    
+    // Calculate abundance metrics (RPKM/TPM)
+    calculateAbundanceMetrics();
 }
 
 void AMRDetectionPipeline::generateMinimizers() {
@@ -291,67 +281,122 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
 }
 
 void AMRDetectionPipeline::performTranslatedAlignment() {
-    // Get protein database info
-    char* d_amr_proteins = amr_db->getGPUProteinSequences();
-    AMRGeneEntry* d_gene_entries = amr_db->getGPUGeneEntries();
-    uint32_t num_proteins = amr_db->getNumGenes();
-    
-    // Create protein offset and length arrays
-    std::vector<uint32_t> protein_offsets(num_proteins);
-    std::vector<uint32_t> protein_lengths(num_proteins);
-    std::vector<AMRGeneEntry> gene_entries(num_proteins);
-    
-    cudaMemcpy(gene_entries.data(), d_gene_entries, 
-               num_proteins * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
-    
-    for (uint32_t i = 0; i < num_proteins; i++) {
-        protein_offsets[i] = gene_entries[i].gpu_offset_protein;
-        protein_lengths[i] = gene_entries[i].protein_length;
+    // Declare external functions
+    extern "C" {
+        void* create_translated_search_engine_with_sw(int batch_size, bool enable_sw);
+        void destroy_translated_search_engine(void* engine);
+        int load_protein_database(void* engine, const char* db_path);
+        int search_translated_reads(void* engine, const char* d_reads, const int* d_read_lengths,
+                                    const int* d_read_offsets, const bool* d_reads_to_process,
+                                    int num_reads, void* results, uint32_t* result_counts);
     }
     
-    uint32_t* d_protein_offsets;
-    uint32_t* d_protein_lengths;
-    cudaMalloc(&d_protein_offsets, num_proteins * sizeof(uint32_t));
-    cudaMalloc(&d_protein_lengths, num_proteins * sizeof(uint32_t));
-    cudaMemcpy(d_protein_offsets, protein_offsets.data(), 
-               num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_protein_lengths, protein_lengths.data(), 
-               num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
+    // Create translated search engine with Smith-Waterman enabled
+    void* search_engine = create_translated_search_engine_with_sw(current_batch_size, true);
     
-    // Launch alignment kernel
-    launch_translated_alignment_kernel(
-        d_reads,
-        d_read_offsets,
-        d_read_lengths,
-        (bool*)d_read_ids,  // Reusing as filter results
-        d_amr_proteins,
-        d_protein_offsets,
-        d_protein_lengths,
-        d_gene_entries,
-        d_amr_hits,
-        d_hit_counts,
-        current_batch_size,
-        num_proteins,
-        config
-    );
+    // Use pre-built protein database directory
+    // This should be created by running: ./build_amr_protein_db AMRProt.fa amr_protein_db/
+    std::string protein_db_path = config.protein_db_path;
+    if (protein_db_path.empty()) {
+        // Default location
+        protein_db_path = "amr_protein_db";
+    }
+    
+    // Load protein database into search engine
+    if (load_protein_database(search_engine, protein_db_path.c_str()) != 0) {
+        std::cerr << "Failed to load protein database from " << protein_db_path << std::endl;
+        std::cerr << "Please ensure you have run: ./build_amr_protein_db AMRProt.fa " << protein_db_path << std::endl;
+        destroy_translated_search_engine(search_engine);
+        return;
+    }
+    
+    // Structure to match ProteinMatch from translated_search_amr.cu
+    struct ProteinMatch {
+        uint32_t read_id;
+        int8_t frame;
+        uint32_t protein_id;
+        uint32_t gene_id;
+        uint32_t species_id;
+        uint16_t query_start;
+        uint16_t ref_start;
+        uint16_t match_length;
+        float alignment_score;
+        float identity;
+        uint8_t num_mutations;
+        uint8_t mutation_positions[10];
+        char ref_aas[10];
+        char query_aas[10];
+        float blosum_scores[10];
+        bool used_smith_waterman;
+        char query_peptide[51];
+        bool is_qrdr_alignment;
+    };
+    
+    // Allocate space for results
+    ProteinMatch* d_protein_matches;
+    cudaMalloc(&d_protein_matches, current_batch_size * 10 * sizeof(ProteinMatch));
+    
+    // Use the search engine
+    search_translated_reads(search_engine, d_reads, d_read_lengths, 
+                          d_read_offsets, (bool*)d_read_ids, 
+                          current_batch_size, d_protein_matches, d_hit_counts);
     
     cudaDeviceSynchronize();
     
-    // Cleanup
-    cudaFree(d_protein_offsets);
-    cudaFree(d_protein_lengths);
-    
-    // Report hits
+    // Convert ProteinMatch results to AMRHit format
     std::vector<uint32_t> hit_counts(current_batch_size);
     cudaMemcpy(hit_counts.data(), d_hit_counts, 
                current_batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
     
+    std::vector<ProteinMatch> protein_matches(current_batch_size * 10);
+    cudaMemcpy(protein_matches.data(), d_protein_matches,
+               protein_matches.size() * sizeof(ProteinMatch), cudaMemcpyDeviceToHost);
+    
+    // Convert to AMRHit format
+    std::vector<AMRHit> amr_hits;
+    for (int i = 0; i < current_batch_size; i++) {
+        for (uint32_t j = 0; j < hit_counts[i]; j++) {
+            ProteinMatch& pm = protein_matches[i * 10 + j];
+            AMRHit hit = {};
+            
+            hit.read_id = pm.read_id;
+            hit.gene_id = pm.protein_id;  // Using protein_id as gene_id
+            hit.ref_start = pm.ref_start;
+            hit.ref_end = pm.ref_start + pm.match_length;
+            hit.read_start = pm.query_start;
+            hit.read_end = pm.query_start + pm.match_length;
+            hit.identity = pm.identity;
+            hit.coverage = (float)pm.match_length / gene_entries[pm.protein_id].protein_length;
+            hit.frame = pm.frame;
+            hit.num_mutations = pm.num_mutations;
+            hit.is_complete_gene = (pm.ref_start == 0 && 
+                                   hit.ref_end >= gene_entries[pm.protein_id].protein_length * 0.95);
+            
+            strncpy(hit.gene_name, gene_entries[pm.protein_id].gene_name, 63);
+            strncpy(hit.drug_class, gene_entries[pm.protein_id].class_, 31);
+            
+            amr_hits.push_back(hit);
+        }
+    }
+    
+    // Copy converted hits back to GPU
+    if (!amr_hits.empty()) {
+        cudaMemcpy(d_amr_hits, amr_hits.data(), 
+                   amr_hits.size() * sizeof(AMRHit), cudaMemcpyHostToDevice);
+    }
+    
+    // Cleanup
+    cudaFree(d_protein_matches);
+    destroy_translated_search_engine(search_engine);
+    std::remove(temp_protein_db.c_str());  // Delete temporary file
+    
+    // Report hits
     int total_hits = 0;
     for (auto count : hit_counts) {
         total_hits += count;
     }
     
-    std::cout << "Found " << total_hits << " AMR hits" << std::endl;
+    std::cout << "Found " << total_hits << " AMR hits using translated search" << std::endl;
 }
 
 void AMRDetectionPipeline::extendAlignments() {
@@ -498,8 +543,8 @@ void AMRDetectionPipeline::writeResults(const std::string& output_prefix) {
     std::string coverage_file = output_prefix + "_coverage.tsv";
     out.open(coverage_file);
     
-    out << "gene_id\tgene_name\ttotal_reads\tmean_coverage\t"
-        << "covered_positions\tgene_length\tcoverage_uniformity\n";
+    out << "gene_id\tgene_name\ttotal_reads\ttotal_bases\tcovered_positions\t"
+        << "gene_length\tpercent_coverage\tmean_depth\tRPKM\tTPM\n";
     
     auto coverage_stats = getCoverageStats();
     std::vector<AMRGeneEntry> gene_entries(amr_db->getNumGenes());
@@ -512,10 +557,14 @@ void AMRDetectionPipeline::writeResults(const std::string& output_prefix) {
             out << i << "\t"
                 << gene_entries[i].gene_name << "\t"
                 << stats.total_reads << "\t"
-                << stats.mean_coverage << "\t"
+                << stats.total_bases_mapped << "\t"
                 << stats.covered_positions << "\t"
                 << stats.gene_length << "\t"
-                << stats.coverage_uniformity << "\n";
+                << std::fixed << std::setprecision(2)
+                << stats.percent_coverage << "\t"
+                << stats.mean_depth << "\t"
+                << stats.rpkm << "\t"
+                << stats.tpm << "\n";
         }
     }
     
@@ -527,46 +576,214 @@ void AMRDetectionPipeline::writeResults(const std::string& output_prefix) {
 void AMRDetectionPipeline::generateClinicalReport(const std::string& output_file) {
     std::ofstream report(output_file);
     
-    report << "=== AMR Detection Clinical Report ===\n\n";
+    report << "=== Clinical Diagnostic Report: Antibiotic Resistance Gene Detection ===\n\n";
+    report << "Purpose: Detection of antibiotic resistance genes in patient microbiome sample\n";
+    report << "Clinical Application: Guide antibiotic selection based on detected resistance genes\n\n";
     
-    // Get hits and coverage
-    auto hits = getAMRHits();
+    // Get coverage statistics and gene information
     auto coverage_stats = getCoverageStats();
+    std::vector<AMRGeneEntry> gene_entries(amr_db->getNumGenes());
+    cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+               gene_entries.size() * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
     
-    // Group by drug class
-    std::map<std::string, std::vector<AMRHit>> hits_by_class;
-    for (const auto& hit : hits) {
-        hits_by_class[hit.drug_class].push_back(hit);
+    // Group detected genes by drug class
+    std::map<std::string, std::vector<GeneAbundance>> genes_by_class;
+    
+    for (size_t i = 0; i < coverage_stats.size(); i++) {
+        const auto& stats = coverage_stats[i];
+        const auto& gene = gene_entries[i];
+        
+        // Report genes with >90% coverage as "detected"
+        if (stats.percent_coverage > 90.0f && stats.total_reads > 0) {
+            GeneAbundance abundance;
+            abundance.gene_id = i;
+            strncpy(abundance.gene_name, gene.gene_name, 63);
+            strncpy(abundance.drug_class, gene.class_, 31);
+            abundance.read_count = stats.total_reads;
+            abundance.rpkm = stats.rpkm;
+            abundance.tpm = stats.tpm;
+            abundance.coverage_depth = stats.mean_depth;
+            abundance.coverage_breadth = stats.percent_coverage;
+            
+            genes_by_class[gene.class_].push_back(abundance);
+        }
     }
+    
+    // Summary of detected resistance
+    report << "=== SUMMARY OF DETECTED RESISTANCE GENES ===\n\n";
+    report << "Total antibiotic classes with resistance detected: " << genes_by_class.size() << "\n\n";
     
     // Report by drug class
-    for (const auto& [drug_class, class_hits] : hits_by_class) {
-        report << "Drug Class: " << drug_class << "\n";
-        report << "Number of resistance genes detected: " << class_hits.size() << "\n";
+    for (const auto& [drug_class, genes] : genes_by_class) {
+        report << "Antibiotic Class: " << drug_class << "\n";
+        report << "Clinical Implication: Resistance detected - consider alternative antibiotics\n";
+        report << "Number of resistance genes detected: " << genes.size() << "\n\n";
         
-        // Find unique genes
-        std::set<std::string> unique_genes;
-        for (const auto& hit : class_hits) {
-            unique_genes.insert(hit.gene_name);
-        }
+        report << "Detected Genes:\n";
+        report << std::left << std::setw(20) << "Gene" 
+               << std::setw(15) << "Read Count" 
+               << std::setw(15) << "Coverage %" 
+               << std::setw(15) << "Depth"
+               << std::setw(15) << "TPM" << "\n";
+        report << std::string(80, '-') << "\n";
         
-        report << "Unique genes: ";
-        for (const auto& gene : unique_genes) {
-            report << gene << " ";
+        for (const auto& gene : genes) {
+            report << std::left << std::setw(20) << gene.gene_name
+                   << std::setw(15) << gene.read_count
+                   << std::setw(15) << std::fixed << std::setprecision(1) << gene.coverage_breadth
+                   << std::setw(15) << std::fixed << std::setprecision(1) << gene.coverage_depth
+                   << std::setw(15) << std::fixed << std::setprecision(2) << gene.tpm << "\n";
         }
-        report << "\n\n";
+        report << "\n";
     }
     
-    // High-confidence complete gene detections
-    report << "=== High-Confidence AMR Genes (>95% coverage, >95% identity) ===\n";
-    for (const auto& hit : hits) {
-        if (hit.coverage >= 0.95f && hit.identity >= 0.95f) {
-            report << hit.gene_name << " (" << hit.drug_class << "): "
-                   << "Coverage=" << hit.coverage * 100 << "%, "
-                   << "Identity=" << hit.identity * 100 << "%\n";
+    // Clinical recommendations
+    report << "=== CLINICAL RECOMMENDATIONS ===\n\n";
+    if (genes_by_class.empty()) {
+        report << "No resistance genes detected with high confidence (>90% coverage).\n";
+        report << "Standard antibiotic therapy may be appropriate.\n";
+    } else {
+        report << "Resistance genes detected. Consider the following:\n\n";
+        
+        for (const auto& [drug_class, genes] : genes_by_class) {
+            report << "- " << drug_class << " antibiotics: RESISTANCE DETECTED\n";
+            report << "  Detected genes: ";
+            for (size_t i = 0; i < genes.size(); i++) {
+                if (i > 0) report << ", ";
+                report << genes[i].gene_name;
+            }
+            report << "\n  Clinical Action: Avoid " << drug_class << " antibiotics\n\n";
         }
     }
+    
+    // Technical details
+    report << "\n=== TECHNICAL DETAILS ===\n";
+    report << "Total reads processed: " << total_reads_processed << "\n";
+    report << "Detection threshold: >90% gene coverage\n";
+    report << "Note: This analysis detects known resistance genes present in the patient's microbiome\n";
     
     report.close();
     std::cout << "Clinical report written to " << output_file << std::endl;
+}
+
+void AMRDetectionPipeline::calculateAbundanceMetrics() {
+    if (total_reads_processed == 0) return;
+    
+    uint32_t num_genes = amr_db->getNumGenes();
+    
+    // Get current coverage stats from GPU
+    cudaMemcpy(h_coverage_stats.data(), d_coverage_stats,
+               num_genes * sizeof(AMRCoverageStats), cudaMemcpyDeviceToHost);
+    
+    // Get gene information
+    std::vector<AMRGeneEntry> gene_entries(num_genes);
+    cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+               num_genes * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
+    
+    // Calculate total mapped reads for TPM normalization
+    uint64_t total_mapped_reads = 0;
+    for (uint32_t i = 0; i < num_genes; i++) {
+        total_mapped_reads += h_coverage_stats[i].total_reads;
+    }
+    
+    // First pass: Calculate RPKM and the sum for TPM normalization
+    double tpm_sum = 0.0;
+    for (uint32_t i = 0; i < num_genes; i++) {
+        auto& stats = h_coverage_stats[i];
+        
+        // Set gene length from database
+        stats.gene_length = gene_entries[i].protein_length;
+        
+        if (stats.gene_length > 0) {
+            // Calculate percent coverage
+            stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
+            
+            // Calculate mean depth
+            if (stats.covered_positions > 0) {
+                stats.mean_depth = (float)stats.total_bases_mapped / stats.covered_positions;
+            } else {
+                stats.mean_depth = 0.0f;
+            }
+            
+            // Calculate RPKM: (reads * 10^9) / (gene_length * total_reads)
+            // Note: gene_length is in amino acids, so multiply by 3 for nucleotides
+            double gene_length_kb = (stats.gene_length * 3) / 1000.0;
+            double total_reads_millions = total_reads_processed / 1000000.0;
+            
+            if (gene_length_kb > 0 && total_reads_millions > 0) {
+                stats.rpkm = (float)(stats.total_reads / (gene_length_kb * total_reads_millions));
+            } else {
+                stats.rpkm = 0.0f;
+            }
+            
+            // Calculate reads per kilobase for TPM
+            double rpk = stats.total_reads / gene_length_kb;
+            tpm_sum += rpk;
+        }
+    }
+    
+    // Second pass: Calculate TPM
+    if (tpm_sum > 0) {
+        for (uint32_t i = 0; i < num_genes; i++) {
+            auto& stats = h_coverage_stats[i];
+            if (stats.gene_length > 0) {
+                double gene_length_kb = (stats.gene_length * 3) / 1000.0;
+                double rpk = stats.total_reads / gene_length_kb;
+                stats.tpm = (float)(rpk / tpm_sum * 1000000.0);
+            } else {
+                stats.tpm = 0.0f;
+            }
+        }
+    }
+    
+    // Copy updated stats back to GPU
+    cudaMemcpy(d_coverage_stats, h_coverage_stats.data(),
+               num_genes * sizeof(AMRCoverageStats), cudaMemcpyHostToDevice);
+}
+
+void AMRDetectionPipeline::exportAbundanceTable(const std::string& output_file) {
+    std::ofstream out(output_file);
+    
+    // Write header
+    out << "gene_name\tdrug_class\tread_count\trpkm\ttpm\tcoverage_depth\tcoverage_breadth\n";
+    
+    // Get coverage statistics
+    auto coverage_stats = getCoverageStats();
+    
+    // Get gene information
+    std::vector<AMRGeneEntry> gene_entries(amr_db->getNumGenes());
+    cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+               gene_entries.size() * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
+    
+    // Export abundance data for each gene
+    for (size_t i = 0; i < coverage_stats.size(); i++) {
+        const auto& stats = coverage_stats[i];
+        const auto& gene = gene_entries[i];
+        
+        // Only export genes with detected reads
+        if (stats.total_reads > 0) {
+            GeneAbundance abundance;
+            abundance.gene_id = i;
+            strncpy(abundance.gene_name, gene.gene_name, 63);
+            strncpy(abundance.drug_class, gene.class_, 31);
+            abundance.read_count = stats.total_reads;
+            abundance.rpkm = stats.rpkm;
+            abundance.tpm = stats.tpm;
+            abundance.coverage_depth = stats.mean_depth;
+            abundance.coverage_breadth = stats.percent_coverage;
+            
+            // Write to file
+            out << abundance.gene_name << "\t"
+                << abundance.drug_class << "\t"
+                << abundance.read_count << "\t"
+                << std::fixed << std::setprecision(2)
+                << abundance.rpkm << "\t"
+                << abundance.tpm << "\t"
+                << abundance.coverage_depth << "\t"
+                << abundance.coverage_breadth << "\n";
+        }
+    }
+    
+    out.close();
+    std::cout << "Abundance table written to " << output_file << std::endl;
 }

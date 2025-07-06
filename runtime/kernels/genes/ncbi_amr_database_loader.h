@@ -273,9 +273,8 @@ private:
             std::vector<std::string> parts = splitString(first_token, '|');
             
             // AMRProt.fa format: 0|AAA16360.1|1|1|gene_name|...
-            // The protein accession is in parts[1]
-            if (parts.size() >= 2 && parts[0].length() <= 2) {
-                // Check if first part is a small number (0, 1, 2, etc)
+            if (parts.size() >= 5 && parts[0].length() <= 2) {
+                // Gene name will be extracted in extractGeneNameFromHeader
                 return parts[1]; // Return the protein accession
             }
             
@@ -292,6 +291,15 @@ private:
     std::string extractGeneNameFromHeader(const std::string& header) {
         // Try to extract gene name from various header formats
         // Look for patterns like blaKPC, vanA, mecA, etc.
+        
+        // First check for AMRProt.fa format: 0|AAA16360.1|1|1|gene_name|...
+        if (header.find('|') != std::string::npos) {
+            std::vector<std::string> parts = splitString(header, '|');
+            if (parts.size() >= 5 && parts[0].length() <= 2) {
+                // Return the gene name from parts[4]
+                return parts[4];
+            }
+        }
         
         std::string lower_header = header;
         std::transform(lower_header.begin(), lower_header.end(), lower_header.begin(), ::tolower);
@@ -358,12 +366,32 @@ private:
     
     void matchDNAandProteinSequences() {
         // Try to match DNA sequences with protein sequences
+        // AMR_CDS.fa uses RefSeq accessions (NC_*, NZ_*)
+        // AMRProt.fa uses protein accessions (WP_*, YP_*, etc.)
+        // Prioritize gene name matching over accession matching
+        
         int matches = 0;
         
+        // Build a gene name to protein sequence map for faster matching
+        std::unordered_map<std::string, std::pair<std::string, std::string>> gene_name_to_protein;
+        for (const auto& prot_pair : protein_header_map) {
+            std::string prot_gene_name = extractGeneNameFromHeader(prot_pair.second);
+            if (prot_gene_name != "unknown") {
+                gene_name_to_protein[prot_gene_name] = {prot_pair.first, protein_map[prot_pair.first]};
+            }
+        }
+        
         for (auto& gene : amr_genes) {
-            std::string dna_accession(gene.accession);
+            // First priority: Try matching by gene name
+            std::string gene_name(gene.gene_name);
+            if (gene_name != "unknown" && gene_name_to_protein.find(gene_name) != gene_name_to_protein.end()) {
+                attachProteinSequence(gene, gene_name_to_protein[gene_name].second);
+                matches++;
+                continue;
+            }
             
-            // Try exact match first
+            // Second priority: Try exact accession match (less likely with different formats)
+            std::string dna_accession(gene.accession);
             auto it = protein_map.find(dna_accession);
             if (it != protein_map.end()) {
                 attachProteinSequence(gene, it->second);
@@ -371,7 +399,7 @@ private:
                 continue;
             }
             
-            // Try fuzzy matching (remove version numbers, etc.)
+            // Third priority: Try fuzzy matching (remove version numbers, etc.)
             std::string base_accession = removeVersionFromAccession(dna_accession);
             for (const auto& prot_pair : protein_map) {
                 std::string prot_base = removeVersionFromAccession(prot_pair.first);
@@ -382,11 +410,16 @@ private:
                 }
             }
             
-            // Try matching by gene name
-            if (!gene.has_protein_match) {
-                std::string gene_name(gene.gene_name);
+            // Fourth priority: Try substring matching of gene name in header
+            if (!gene.has_protein_match && gene_name != "unknown") {
                 for (const auto& prot_pair : protein_header_map) {
-                    if (prot_pair.second.find(gene_name) != std::string::npos) {
+                    // Case-insensitive search for gene name in protein header
+                    std::string lower_prot_header = prot_pair.second;
+                    std::string lower_gene_name = gene_name;
+                    std::transform(lower_prot_header.begin(), lower_prot_header.end(), lower_prot_header.begin(), ::tolower);
+                    std::transform(lower_gene_name.begin(), lower_gene_name.end(), lower_gene_name.begin(), ::tolower);
+                    
+                    if (lower_prot_header.find(lower_gene_name) != std::string::npos) {
                         auto seq_it = protein_map.find(prot_pair.first);
                         if (seq_it != protein_map.end()) {
                             attachProteinSequence(gene, seq_it->second);
@@ -399,6 +432,7 @@ private:
         }
         
         std::cout << "Matched " << matches << " DNA sequences with protein sequences" << std::endl;
+        std::cout << "Unmatched DNA sequences: " << (amr_genes.size() - matches) << std::endl;
     }
     
     void attachProteinSequence(AMRGeneEntry& gene, const std::string& protein_seq) {
@@ -442,6 +476,36 @@ private:
                 gene.identity_threshold = 0.92f;
                 gene.coverage_threshold = 0.85f;
                 strcpy(gene.class_, "AMINOGLYCOSIDE");
+            } else if (family.find("qnr") == 0) {
+                // Quinolone resistance: moderate to high stringency
+                gene.identity_threshold = 0.93f;
+                gene.coverage_threshold = 0.88f;
+                strcpy(gene.class_, "QUINOLONE");
+            } else if (family.find("mcr") == 0) {
+                // Colistin resistance: very high stringency (critical)
+                gene.identity_threshold = 0.98f;
+                gene.coverage_threshold = 0.95f;
+                strcpy(gene.class_, "COLISTIN");
+            } else if (family.find("oxa") == 0) {
+                // Oxacillinase (beta-lactamase subtype): high stringency
+                gene.identity_threshold = 0.95f;
+                gene.coverage_threshold = 0.90f;
+                strcpy(gene.class_, "BETA_LACTAM");
+            } else if (family.find("mec") == 0) {
+                // Methicillin resistance: very high stringency
+                gene.identity_threshold = 0.98f;
+                gene.coverage_threshold = 0.95f;
+                strcpy(gene.class_, "BETA_LACTAM");
+            } else if (family.find("sul") == 0) {
+                // Sulfonamide resistance: moderate stringency
+                gene.identity_threshold = 0.92f;
+                gene.coverage_threshold = 0.85f;
+                strcpy(gene.class_, "SULFONAMIDE");
+            } else if (family.find("erm") == 0) {
+                // Macrolide resistance: moderate to high stringency
+                gene.identity_threshold = 0.93f;
+                gene.coverage_threshold = 0.88f;
+                strcpy(gene.class_, "MACROLIDE");
             } else {
                 // Default thresholds
                 gene.identity_threshold = 0.90f;

@@ -93,6 +93,7 @@ void processSample(AMRDetectionPipeline& pipeline,
     std::string output_prefix = output_dir + "/" + sample_name;
     pipeline.writeResults(output_prefix);
     pipeline.generateClinicalReport(output_prefix + "_clinical_report.txt");
+    pipeline.exportAbundanceTable(output_prefix + "_abundance.tsv");
     
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
@@ -143,22 +144,24 @@ int main(int argc, char** argv) {
         }
     }
     
-    std::cout << "=== AMR Detection Pipeline ===" << std::endl;
-    std::cout << "Database: " << amr_db_path << std::endl;
-    std::cout << "Input CSV: " << input_csv << std::endl;
+    std::cout << "=== Clinical Diagnostic Pipeline: Antibiotic Resistance Gene Detection ===" << std::endl;
+    std::cout << "Purpose: Detect resistance genes in patient microbiome samples for treatment guidance" << std::endl;
+    std::cout << "\nReference Database: " << amr_db_path << std::endl;
+    std::cout << "Patient Samples CSV: " << input_csv << std::endl;
     std::cout << "Output directory: " << output_dir << std::endl;
-    std::cout << "\nConfiguration:" << std::endl;
+    std::cout << "\nDetection Parameters:" << std::endl;
     std::cout << "  Min identity: " << config.min_identity << std::endl;
     std::cout << "  Min coverage: " << config.min_coverage << std::endl;
-    std::cout << "  K-mer length: " << config.kmer_length << std::endl;
+    std::cout << "  DNA k-mer length: " << config.kmer_length << std::endl;
+    std::cout << "  Protein k-mer size: " << config.protein_kmer_size << std::endl;
     std::cout << "  Batch size: " << config.reads_per_batch << std::endl;
     
     // Initialize pipeline
     AMRDetectionPipeline pipeline(config);
     
-    std::cout << "\nInitializing AMR database..." << std::endl;
+    std::cout << "\nLoading reference database of known resistance genes..." << std::endl;
     if (!pipeline.initialize(amr_db_path)) {
-        std::cerr << "Failed to initialize pipeline" << std::endl;
+        std::cerr << "Failed to initialize diagnostic pipeline" << std::endl;
         return 1;
     }
     
@@ -201,9 +204,9 @@ int main(int argc, char** argv) {
     }
     csv_file.close();
     
-    std::cout << "Found " << samples.size() << " samples to process" << std::endl;
+    std::cout << "Found " << samples.size() << " patient samples to analyze" << std::endl;
     
-    // Process each sample
+    // Process each patient sample
     auto total_start = std::chrono::high_resolution_clock::now();
     
     for (size_t i = 0; i < samples.size(); i++) {
@@ -211,15 +214,16 @@ int main(int argc, char** argv) {
         processSample(pipeline, samples[i].first, samples[i].second, output_dir);
     }
     
-    // Generate summary report across all samples
-    std::cout << "\n=== Generating summary report ===" << std::endl;
+    // Generate diagnostic summary across all patient samples
+    std::cout << "\n=== Generating clinical diagnostic summary ===" << std::endl;
     
     auto total_end = std::chrono::high_resolution_clock::now();
     auto total_duration = std::chrono::duration_cast<std::chrono::minutes>(total_end - total_start);
     
-    std::cout << "\n=== Pipeline completed ===" << std::endl;
-    std::cout << "Total time: " << total_duration.count() << " minutes" << std::endl;
-    std::cout << "Results written to: " << output_dir << std::endl;
+    std::cout << "\n=== Clinical Diagnostic Analysis Complete ===" << std::endl;
+    std::cout << "Total analysis time: " << total_duration.count() << " minutes" << std::endl;
+    std::cout << "Clinical reports and results written to: " << output_dir << std::endl;
+    std::cout << "These results can guide antibiotic selection for patient treatment" << std::endl;
     
     return 0;
 }

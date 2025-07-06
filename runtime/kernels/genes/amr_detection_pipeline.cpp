@@ -20,6 +20,29 @@ struct PairedReadInfo {
     uint32_t pair_offset;   // Offset to find the paired read results
 };
 
+// Structure to match ProteinMatch from translated_search_amr.cu
+struct ProteinMatch {
+    uint32_t read_id;
+    int8_t frame;
+    uint32_t protein_id;
+    uint32_t gene_id;
+    uint32_t species_id;
+    uint16_t query_start;    // Position in translated frame
+    uint16_t ref_start;      // Position in reference protein
+    uint16_t match_length;
+    float alignment_score;
+    float identity;
+    // Coverage tracking fields
+    uint32_t gene_length;     // Total gene length
+    uint16_t coverage_start;  // Start of covered region
+    uint16_t coverage_end;    // End of covered region
+    // Remove mutation-specific fields for AMR gene detection
+    // (mutations are not needed for gene presence/absence)
+    bool used_smith_waterman;  // Flag indicating if SW was used
+    bool concordant;           // Flag for paired-end concordance
+    char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
+};
+
 AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg) 
     : config(cfg), current_batch_size(0), total_reads_processed(0),
       translated_search_engine(nullptr), search_engine_initialized(false) {
@@ -85,7 +108,9 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     initializeCoverageStats();
     
     // Create translated search engine once (with appropriate batch size)
-    translated_search_engine = create_translated_search_engine_with_sw(config.reads_per_batch, true);
+    // For paired-end reads, we need 2x the batch size (R1 and R2 processed separately)
+    int engine_batch_size = config.reads_per_batch * 2;
+    translated_search_engine = create_translated_search_engine_with_sw(engine_batch_size, true);
     if (!translated_search_engine) {
         std::cerr << "Failed to create translated search engine" << std::endl;
         return false;
@@ -113,18 +138,18 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
 
 void AMRDetectionPipeline::allocateGPUMemory() {
     // Allocate for maximum batch size
-    size_t max_batch = config.reads_per_batch;
+    // For paired-end reads, we process R1 and R2 separately, so need 2x batch size
+    size_t max_batch = config.reads_per_batch * 2;
     size_t max_read_len = config.max_read_length;
     
-    // Read data - allocate extra space for merged paired-end reads
-    // Merged reads can be up to 2*max_read_len + gap
-    size_t max_merged_len = max_read_len * 2 + 100;  // 100 N's for gap
+    // Read data - no longer merging reads, just process them separately
+    size_t max_single_read_len = max_read_len;
     
     cudaError_t err;
-    err = cudaMalloc(&d_reads, max_batch * max_merged_len);
+    err = cudaMalloc(&d_reads, max_batch * max_single_read_len);
     if (err != cudaSuccess) {
         std::cerr << "Failed to allocate GPU memory for reads: " << cudaGetErrorString(err) << std::endl;
-        std::cerr << "Requested size: " << (max_batch * max_merged_len) << " bytes" << std::endl;
+        std::cerr << "Requested size: " << (max_batch * max_single_read_len) << " bytes" << std::endl;
         throw std::runtime_error("GPU allocation failed");
     }
     
@@ -442,29 +467,6 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
         }
     }
     
-    // Structure to match ProteinMatch from translated_search_amr.cu
-    struct ProteinMatch {
-        uint32_t read_id;
-        int8_t frame;
-        uint32_t protein_id;
-        uint32_t gene_id;
-        uint32_t species_id;
-        uint16_t query_start;    // Position in translated frame
-        uint16_t ref_start;      // Position in reference protein
-        uint16_t match_length;
-        float alignment_score;
-        float identity;
-        // Coverage tracking fields
-        uint32_t gene_length;     // Total gene length
-        uint16_t coverage_start;  // Start of covered region
-        uint16_t coverage_end;    // End of covered region
-        // Remove mutation-specific fields for AMR gene detection
-        // (mutations are not needed for gene presence/absence)
-        bool used_smith_waterman;  // Flag indicating if SW was used
-        bool concordant;           // Flag for paired-end concordance
-        char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
-    };
-    
     // Allocate space for results
     ProteinMatch* d_protein_matches;
     cudaMalloc(&d_protein_matches, current_batch_size * 10 * sizeof(ProteinMatch));
@@ -490,8 +492,9 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     cudaGetLastError();
     
     // Use the class member search engine
+    // Pass NULL for reads_to_process to process all reads (bloom filter is disabled by default)
     int result = search_translated_reads(translated_search_engine, d_reads, d_read_lengths, 
-                                       d_read_offsets, (bool*)d_read_ids, 
+                                       d_read_offsets, nullptr, 
                                        current_batch_size, d_protein_matches, d_hit_counts);
     
     if (result != 0) {
@@ -1005,7 +1008,9 @@ void AMRDetectionPipeline::resetTranslatedSearchEngine() {
     cudaGetLastError();
     
     // Create new engine with appropriate batch size
-    translated_search_engine = create_translated_search_engine_with_sw(config.reads_per_batch, true);
+    // For paired-end reads, we need 2x the batch size (R1 and R2 processed separately)
+    int engine_batch_size = config.reads_per_batch * 2;
+    translated_search_engine = create_translated_search_engine_with_sw(engine_batch_size, true);
     if (!translated_search_engine) {
         std::cerr << "Failed to create new translated search engine during reset" << std::endl;
         return;

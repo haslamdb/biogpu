@@ -1,2 +1,0 @@
-/bin/ar qc libresistance_detection_gpu.a CMakeFiles/resistance_detection_gpu.dir/resistance_detection_gpu.cu.o
-/bin/ranlib libresistance_detection_gpu.a

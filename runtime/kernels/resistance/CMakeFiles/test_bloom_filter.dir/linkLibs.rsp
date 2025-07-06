@@ -1,1 +1,0 @@
- libbloom_filter.a -lcudart -lcuda -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

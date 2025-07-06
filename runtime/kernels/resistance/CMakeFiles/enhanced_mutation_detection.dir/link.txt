@@ -1,2 +1,0 @@
-/bin/ar qc libenhanced_mutation_detection.a CMakeFiles/enhanced_mutation_detection.dir/enhanced_mutation_detection_unified.cu.o
-/bin/ranlib libenhanced_mutation_detection.a

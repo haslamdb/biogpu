@@ -1,2 +1,0 @@
-/bin/ar qc libhdf5_writer.a CMakeFiles/hdf5_writer.dir/hdf5_alignment_writer.cpp.o
-/bin/ranlib libhdf5_writer.a

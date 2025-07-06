@@ -675,4 +675,13 @@ extern "C" {
             static_cast<ClinicalFQReportGenerator*>(generator)->generateReport();
         }
     }
+    
+    void update_clinical_report_performance(void* generator, double processing_seconds, double reads_per_sec) {
+        if (generator) {
+            auto* gen = static_cast<ClinicalFQReportGenerator*>(generator);
+            // Update performance metrics in the report
+            // This is a placeholder implementation - you may want to store these metrics
+            // in the ClinicalFQReportGenerator class for inclusion in the report
+        }
+    }
 }

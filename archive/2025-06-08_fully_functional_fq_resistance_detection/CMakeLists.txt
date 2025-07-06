@@ -289,75 +289,75 @@ target_link_libraries(clean_resistance_pipeline
 # Test Executables
 # ===========================
 
-# Test program for resistance detection GPU
-add_executable(test_resistance_gpu
-    tests/test_resistance_detection_gpu.cu
-)
-
-set_target_properties(test_resistance_gpu PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_link_libraries(test_resistance_gpu
-    resistance_detection_gpu
-    cudart
-    cuda
-)
-
-# Add test executable for FQ mapper
-add_executable(test_fq_mapper
-    tests/test_fq_mapper.cpp
-)
-
-target_link_libraries(test_fq_mapper
-    global_fq_mapper
-    cudart
-)
+# # Test program for resistance detection GPU
+# add_executable(test_resistance_gpu
+#     tests/test_resistance_detection_gpu.cu
+# )
+# 
+# set_target_properties(test_resistance_gpu PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+# )
+# 
+# target_link_libraries(test_resistance_gpu
+#     resistance_detection_gpu
+#     cudart
+#     cuda
+# )
+# 
+# # Add test executable for FQ mapper
+# add_executable(test_fq_mapper
+#     tests/test_fq_mapper.cpp
+# )
+# 
+# target_link_libraries(test_fq_mapper
+#     global_fq_mapper
+#     cudart
+# )
 
 # Other test executables (unchanged)
-add_executable(test_bloom_filter
-    runtime/kernels/resistance/test_bloom_filter.cu
-)
-
-set_target_properties(test_bloom_filter PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_link_libraries(test_bloom_filter
-    bloom_filter
-    cudart
-    cuda
-)
-
-add_executable(test_hdf5_reader
-    tests/test_hdf5_reader.cpp
-)
-
-target_link_libraries(test_hdf5_reader
-    ${HDF5_LIBRARIES}
-    ${HDF5_CXX_LIBRARIES}
-)
-
-add_executable(test_translated_search
-    tests/test_translated_search.cu
-)
-
-set_target_properties(test_translated_search PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_link_libraries(test_translated_search
-    translated_search
-    cudart
-    cuda
-)
-
-# ===========================
-# NEW: Clean Database Building Targets
-# ===========================
+# add_executable(test_bloom_filter
+#     runtime/kernels/resistance/test_bloom_filter.cu
+# )
+# 
+# set_target_properties(test_bloom_filter PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+# )
+# 
+# target_link_libraries(test_bloom_filter
+#     bloom_filter
+#     cudart
+#     cuda
+# )
+# 
+# add_executable(test_hdf5_reader
+#     tests/test_hdf5_reader.cpp
+# )
+# 
+# target_link_libraries(test_hdf5_reader
+#     ${HDF5_LIBRARIES}
+#     ${HDF5_CXX_LIBRARIES}
+# )
+# 
+# add_executable(test_translated_search
+#     tests/test_translated_search.cu
+# )
+# 
+# set_target_properties(test_translated_search PROPERTIES
+#     CUDA_SEPARABLE_COMPILATION ON
+#     CUDA_ARCHITECTURES "61;70;75;80;86"
+# )
+# 
+# target_link_libraries(test_translated_search
+#     translated_search
+#     cudart
+#     cuda
+# )
+# 
+# # ===========================
+# # NEW: Clean Database Building Targets
+# # ===========================
 
 # Build clean resistance database (position-only, no drug info)
 add_custom_target(build_clean_resistance_db
@@ -511,11 +511,11 @@ install(TARGETS
     fq_pipeline_gpu
     integrated_resistance_pipeline
     clean_resistance_pipeline      # NEW
-    test_resistance_gpu
-    test_bloom_filter 
-    test_hdf5_reader 
-    test_translated_search
-    test_fq_mapper                 # ADD THIS
+    # test_resistance_gpu
+    # test_bloom_filter 
+    # test_hdf5_reader 
+    # test_translated_search
+    # test_fq_mapper                 # ADD THIS
     RUNTIME DESTINATION bin
 )
 

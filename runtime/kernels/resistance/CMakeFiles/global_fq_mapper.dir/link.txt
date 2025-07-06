@@ -1,2 +1,0 @@
-/bin/ar qc libglobal_fq_mapper.a CMakeFiles/global_fq_mapper.dir/global_fq_resistance_mapper.cpp.o
-/bin/ranlib libglobal_fq_mapper.a

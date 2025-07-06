@@ -47,7 +47,7 @@ add_library(bloom_filter STATIC
 
 set_target_properties(bloom_filter PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86;"
+    CUDA_ARCHITECTURES "61;70;75;80;86"
 )
 
 # Enhanced HDF5 alignment writer library
@@ -173,48 +173,48 @@ target_link_libraries(fq_pipeline_gpu
     ${HDF5_CXX_LIBRARIES}
 )
 
-# Integrated resistance pipeline executable - COMMENTED OUT (file moved)
-# add_executable(integrated_resistance_pipeline
-#     integrate_resistance_pipeline.cpp
-#     fq_mutation_detector.cu
-# )
-# 
-# set_target_properties(integrated_resistance_pipeline PROPERTIES
-#     CUDA_SEPARABLE_COMPILATION ON
-#     CUDA_ARCHITECTURES "61;70;75;80;86"
-# )
-# 
-# target_compile_options(integrated_resistance_pipeline PRIVATE
-#     $<$<COMPILE_LANGUAGE:CUDA>:
-#         --use_fast_math
-#         --generate-line-info
-#         -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
-#         --ptxas-options=-v
-#         --maxrregcount=64
-#         -O3
-#     >
-# )
-# 
-# target_link_libraries(integrated_resistance_pipeline
-#     bloom_filter
-#     hdf5_writer
-#     translated_search
-#     kmer_screening
-#     resistance_detection_gpu
-#     fixed_database_loader
-#     clean_resistance_loader
-#     global_fq_mapper
-#     diagnostic_reporter
-#     enhanced_mutation_detection
-#     z
-#     cudart
-#     cuda
-#     ${HDF5_LIBRARIES}
-#     ${HDF5_CXX_LIBRARIES}
-#     ${JSONCPP_LIBRARIES}
-# )
-# 
-# target_compile_definitions(integrated_resistance_pipeline PRIVATE ${HDF5_DEFINITIONS})
+# Integrated resistance pipeline executable
+add_executable(integrated_resistance_pipeline
+    integrate_resistance_pipeline.cpp
+    fq_mutation_detector.cu
+)
+
+set_target_properties(integrated_resistance_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+target_compile_options(integrated_resistance_pipeline PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:
+        --use_fast_math
+        --generate-line-info
+        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
+        --ptxas-options=-v
+        --maxrregcount=64
+        -O3
+    >
+)
+
+target_link_libraries(integrated_resistance_pipeline
+    bloom_filter
+    hdf5_writer
+    translated_search
+    kmer_screening
+    resistance_detection_gpu
+    fixed_database_loader
+    clean_resistance_loader
+    global_fq_mapper
+    diagnostic_reporter
+    enhanced_mutation_detection
+    z
+    cudart
+    cuda
+    ${HDF5_LIBRARIES}
+    ${HDF5_CXX_LIBRARIES}
+    ${JSONCPP_LIBRARIES}
+)
+
+target_compile_definitions(integrated_resistance_pipeline PRIVATE ${HDF5_DEFINITIONS})
 
 # Clean resistance pipeline executable (WITH CSV PARSER SUPPORT)
 add_executable(clean_resistance_pipeline
@@ -262,21 +262,21 @@ target_link_libraries(clean_resistance_pipeline
 # Test Executables
 # ===========================
 
-# Test bloom filter - COMMENTED OUT (file moved)
-# add_executable(test_bloom_filter
-#     test_bloom_filter.cu
-# )
-# 
-# set_target_properties(test_bloom_filter PROPERTIES
-#     CUDA_SEPARABLE_COMPILATION ON
-#     CUDA_ARCHITECTURES "61;70;75;80;86"
-# )
-# 
-# target_link_libraries(test_bloom_filter
-#     bloom_filter
-#     cudart
-#     cuda
-# )
+# Test bloom filter (only test that exists in current directory)
+add_executable(test_bloom_filter
+    test_bloom_filter.cu
+)
+
+set_target_properties(test_bloom_filter PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86"
+)
+
+target_link_libraries(test_bloom_filter
+    bloom_filter
+    cudart
+    cuda
+)
 
 # Comment out test executables that reference missing files
 # These can be uncommented when the test files are available

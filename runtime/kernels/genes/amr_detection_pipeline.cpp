@@ -6,14 +6,23 @@
 #include <fstream>
 #include <algorithm>
 #include <set>
+#include <map>
 #include <cstdio>
 #include <iomanip>
 #include <cuda_runtime.h>
 
 // Genetic code initialization is now in amr_detection_kernels_wrapper.cu
 
+// Structure to track paired-end relationships
+struct PairedReadInfo {
+    uint32_t read_idx;      // Original read pair index
+    bool is_read2;          // false for R1, true for R2
+    uint32_t pair_offset;   // Offset to find the paired read results
+};
+
 AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg) 
-    : config(cfg), current_batch_size(0), total_reads_processed(0) {
+    : config(cfg), current_batch_size(0), total_reads_processed(0),
+      translated_search_engine(nullptr), search_engine_initialized(false) {
     
     // Initialize CUDA
     initializeGeneticCode();
@@ -33,6 +42,11 @@ AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg)
 }
 
 AMRDetectionPipeline::~AMRDetectionPipeline() {
+    // Clean up search engine if initialized
+    if (translated_search_engine) {
+        destroy_translated_search_engine(translated_search_engine);
+        translated_search_engine = nullptr;
+    }
     freeGPUMemory();
 }
 
@@ -69,6 +83,30 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     
     // Initialize coverage statistics
     initializeCoverageStats();
+    
+    // Create translated search engine once (with appropriate batch size)
+    translated_search_engine = create_translated_search_engine_with_sw(config.reads_per_batch, true);
+    if (!translated_search_engine) {
+        std::cerr << "Failed to create translated search engine" << std::endl;
+        return false;
+    }
+    
+    // Load protein database once
+    std::string protein_db_path = config.protein_db_path;
+    if (protein_db_path.empty()) {
+        protein_db_path = "amr_protein_db";
+    }
+    
+    if (load_protein_database(translated_search_engine, protein_db_path.c_str()) == 0) {
+        search_engine_initialized = true;
+        std::cout << "Protein database loaded successfully from " << protein_db_path << std::endl;
+    } else {
+        std::cerr << "Failed to load protein database from " << protein_db_path << std::endl;
+        std::cerr << "Please ensure you have run: ./build_amr_protein_db AMRProt.fa " << protein_db_path << std::endl;
+        destroy_translated_search_engine(translated_search_engine);
+        translated_search_engine = nullptr;
+        return false;
+    }
     
     return true;
 }
@@ -277,6 +315,13 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     // Screen with bloom filter if enabled
     if (config.use_bloom_filter) {
         screenWithBloomFilter();
+    } else {
+        // If bloom filter is disabled, mark all reads as passing
+        bool* d_all_pass;
+        cudaMalloc(&d_all_pass, current_batch_size * sizeof(bool));
+        cudaMemset(d_all_pass, 1, current_batch_size * sizeof(bool));  // Set all to true
+        cudaMemcpy(d_read_ids, d_all_pass, current_batch_size * sizeof(bool), cudaMemcpyDeviceToDevice);
+        cudaFree(d_all_pass);
     }
     
     // Perform translated alignment
@@ -354,22 +399,9 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
 }
 
 void AMRDetectionPipeline::performTranslatedAlignment() {
-    // Create translated search engine with Smith-Waterman enabled
-    void* search_engine = create_translated_search_engine_with_sw(current_batch_size, true);
-    
-    // Use pre-built protein database directory
-    // This should be created by running: ./build_amr_protein_db AMRProt.fa amr_protein_db/
-    std::string protein_db_path = config.protein_db_path;
-    if (protein_db_path.empty()) {
-        // Default location
-        protein_db_path = "amr_protein_db";
-    }
-    
-    // Load protein database into search engine
-    if (load_protein_database(search_engine, protein_db_path.c_str()) != 0) {
-        std::cerr << "Failed to load protein database from " << protein_db_path << std::endl;
-        std::cerr << "Please ensure you have run: ./build_amr_protein_db AMRProt.fa " << protein_db_path << std::endl;
-        destroy_translated_search_engine(search_engine);
+    // Check if search engine is initialized
+    if (!translated_search_engine || !search_engine_initialized) {
+        std::cerr << "Translated search engine not initialized" << std::endl;
         return;
     }
     
@@ -378,14 +410,12 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
         uint32_t num_genes = amr_db->getNumGenes();
         if (num_genes == 0) {
             std::cerr << "No genes loaded in AMR database" << std::endl;
-            destroy_translated_search_engine(search_engine);
             return;
         }
         
         AMRGeneEntry* gpu_entries = amr_db->getGPUGeneEntries();
         if (!gpu_entries) {
             std::cerr << "GPU gene entries pointer is NULL" << std::endl;
-            destroy_translated_search_engine(search_engine);
             return;
         }
         
@@ -419,29 +449,54 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
         uint32_t protein_id;
         uint32_t gene_id;
         uint32_t species_id;
-        uint16_t query_start;
-        uint16_t ref_start;
+        uint16_t query_start;    // Position in translated frame
+        uint16_t ref_start;      // Position in reference protein
         uint16_t match_length;
         float alignment_score;
         float identity;
-        uint8_t num_mutations;
-        uint8_t mutation_positions[10];
-        char ref_aas[10];
-        char query_aas[10];
-        float blosum_scores[10];
-        bool used_smith_waterman;
-        char query_peptide[51];
-        bool is_qrdr_alignment;
+        // Coverage tracking fields
+        uint32_t gene_length;     // Total gene length
+        uint16_t coverage_start;  // Start of covered region
+        uint16_t coverage_end;    // End of covered region
+        // Remove mutation-specific fields for AMR gene detection
+        // (mutations are not needed for gene presence/absence)
+        bool used_smith_waterman;  // Flag indicating if SW was used
+        bool concordant;           // Flag for paired-end concordance
+        char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
     };
     
     // Allocate space for results
     ProteinMatch* d_protein_matches;
     cudaMalloc(&d_protein_matches, current_batch_size * 10 * sizeof(ProteinMatch));
     
-    // Use the search engine
-    search_translated_reads(search_engine, d_reads, d_read_lengths, 
-                          d_read_offsets, (bool*)d_read_ids, 
-                          current_batch_size, d_protein_matches, d_hit_counts);
+    // Initialize hit counts to zero
+    cudaMemset(d_hit_counts, 0, current_batch_size * sizeof(uint32_t));
+    
+    // Debug: Check all pointers before calling search
+    if (!d_reads || !d_read_lengths || !d_read_offsets || !d_read_ids || 
+        !d_protein_matches || !d_hit_counts) {
+        std::cerr << "ERROR: One or more GPU pointers are NULL:" << std::endl;
+        std::cerr << "  d_reads: " << (void*)d_reads << std::endl;
+        std::cerr << "  d_read_lengths: " << (void*)d_read_lengths << std::endl;
+        std::cerr << "  d_read_offsets: " << (void*)d_read_offsets << std::endl;
+        std::cerr << "  d_read_ids: " << (void*)d_read_ids << std::endl;
+        std::cerr << "  d_protein_matches: " << (void*)d_protein_matches << std::endl;
+        std::cerr << "  d_hit_counts: " << (void*)d_hit_counts << std::endl;
+        cudaFree(d_protein_matches);
+        return;
+    }
+    
+    // Clear any existing CUDA errors before the call
+    cudaGetLastError();
+    
+    // Use the class member search engine
+    int result = search_translated_reads(translated_search_engine, d_reads, d_read_lengths, 
+                                       d_read_offsets, (bool*)d_read_ids, 
+                                       current_batch_size, d_protein_matches, d_hit_counts);
+    
+    if (result != 0) {
+        std::cerr << "search_translated_reads returned error code: " << result << std::endl;
+    }
     
     cudaDeviceSynchronize();
     
@@ -454,30 +509,54 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     cudaMemcpy(protein_matches.data(), d_protein_matches,
                protein_matches.size() * sizeof(ProteinMatch), cudaMemcpyDeviceToHost);
     
-    // Convert to AMRHit format
+    // Apply paired-end concordance scoring if we have paired read info
+    if (!paired_read_info.empty()) {
+        applyPairedConcordanceScoring(protein_matches.data(), hit_counts.data(), current_batch_size);
+    }
+    
+    // Convert to AMRHit format and process results with concordance information
     std::vector<AMRHit> amr_hits;
     for (int i = 0; i < current_batch_size; i++) {
-        for (uint32_t j = 0; j < hit_counts[i]; j++) {
-            ProteinMatch& pm = protein_matches[i * 10 + j];
-            AMRHit hit = {};
+        if (hit_counts[i] > 0) {
+            // Get paired read info if available
+            const PairedReadInfo* pairInfo = nullptr;
+            if (!paired_read_info.empty() && i < paired_read_info.size()) {
+                pairInfo = &paired_read_info[i];
+            }
             
-            hit.read_id = pm.read_id;
-            hit.gene_id = pm.protein_id;  // Using protein_id as gene_id
-            hit.ref_start = pm.ref_start;
-            hit.ref_end = pm.ref_start + pm.match_length;
-            hit.read_start = pm.query_start;
-            hit.read_end = pm.query_start + pm.match_length;
-            hit.identity = pm.identity;
-            hit.coverage = (float)pm.match_length / gene_entries[pm.protein_id].protein_length;
-            hit.frame = pm.frame;
-            hit.num_mutations = pm.num_mutations;
-            hit.is_complete_gene = (pm.ref_start == 0 && 
-                                   hit.ref_end >= gene_entries[pm.protein_id].protein_length * 0.95);
-            
-            strncpy(hit.gene_name, gene_entries[pm.protein_id].gene_name, 63);
-            strncpy(hit.drug_class, gene_entries[pm.protein_id].class_, 31);
-            
-            amr_hits.push_back(hit);
+            for (uint32_t j = 0; j < hit_counts[i]; j++) {
+                ProteinMatch& pm = protein_matches[i * 10 + j];
+                AMRHit hit = {};
+                
+                hit.read_id = pm.read_id;
+                hit.gene_id = pm.protein_id;  // Using protein_id as gene_id
+                hit.ref_start = pm.ref_start;
+                hit.ref_end = pm.ref_start + pm.match_length;
+                hit.read_start = pm.query_start;
+                hit.read_end = pm.query_start + pm.match_length;
+                hit.identity = pm.identity;
+                hit.coverage = (float)pm.match_length / gene_entries[pm.protein_id].protein_length;
+                hit.frame = pm.frame;
+                hit.is_complete_gene = (pm.ref_start == 0 && 
+                                       hit.ref_end >= gene_entries[pm.protein_id].protein_length * 0.95);
+                hit.concordant = pm.concordant;  // Copy concordance information
+                
+                strncpy(hit.gene_name, gene_entries[pm.protein_id].gene_name, 63);
+                strncpy(hit.drug_class, gene_entries[pm.protein_id].class_, 31);
+                
+                // Include concordance information in debug output
+                if (pairInfo) {
+                    printf("Read %d %s: Gene %d (Species %d) - Score: %.2f %s\n",
+                        pairInfo->read_idx,
+                        pairInfo->is_read2 ? "R2" : "R1",
+                        pm.gene_id,
+                        pm.species_id,
+                        pm.alignment_score,
+                        pm.concordant ? "[CONCORDANT]" : "[DISCORDANT]");
+                }
+                
+                amr_hits.push_back(hit);
+            }
         }
     }
     
@@ -487,17 +566,32 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                    amr_hits.size() * sizeof(AMRHit), cudaMemcpyHostToDevice);
     }
     
-    // Cleanup
+    // Cleanup (but don't destroy the search engine - it's reused)
     cudaFree(d_protein_matches);
-    destroy_translated_search_engine(search_engine);
     
     // Ensure all GPU operations complete and check for errors
     cudaDeviceSynchronize();
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         std::cerr << "CUDA error after translated search: " << cudaGetErrorString(err) << std::endl;
-        // Clear the error to prevent it from affecting the next batch
+        
+        // Try to recover without destroying the engine
+        // First, clear the error
         cudaGetLastError();
+        
+        // If we get repeated errors, consider resetting the engine
+        static int consecutive_errors = 0;
+        consecutive_errors++;
+        
+        if (consecutive_errors > 5) {
+            std::cerr << "Too many consecutive CUDA errors, resetting translated search engine" << std::endl;
+            resetTranslatedSearchEngine();
+            consecutive_errors = 0;
+        }
+    } else {
+        // Reset error counter on success
+        static int consecutive_errors = 0;
+        consecutive_errors = 0;
     }
     
     // Report hits
@@ -632,7 +726,7 @@ void AMRDetectionPipeline::writeResults(const std::string& output_prefix) {
     std::ofstream out(hits_file);
     
     out << "read_id\tgene_name\tdrug_class\tidentity\tcoverage\t"
-        << "ref_start\tref_end\tframe\tcomplete_gene\n";
+        << "ref_start\tref_end\tframe\tcomplete_gene\tconcordant\n";
     
     auto hits = getAMRHits();
     for (const auto& hit : hits) {
@@ -644,7 +738,8 @@ void AMRDetectionPipeline::writeResults(const std::string& output_prefix) {
             << hit.ref_start << "\t"
             << hit.ref_end << "\t"
             << (int)hit.frame << "\t"
-            << (hit.is_complete_gene ? "Y" : "N") << "\n";
+            << (hit.is_complete_gene ? "Y" : "N") << "\t"
+            << (hit.concordant ? "Y" : "N") << "\n";
     }
     
     out.close();
@@ -896,4 +991,203 @@ void AMRDetectionPipeline::exportAbundanceTable(const std::string& output_file) 
     
     out.close();
     std::cout << "Abundance table written to " << output_file << std::endl;
+}
+
+void AMRDetectionPipeline::resetTranslatedSearchEngine() {
+    // Clean up existing engine if present
+    if (translated_search_engine) {
+        destroy_translated_search_engine(translated_search_engine);
+        translated_search_engine = nullptr;
+        search_engine_initialized = false;
+    }
+    
+    // Clear any CUDA errors before creating new engine
+    cudaGetLastError();
+    
+    // Create new engine with appropriate batch size
+    translated_search_engine = create_translated_search_engine_with_sw(config.reads_per_batch, true);
+    if (!translated_search_engine) {
+        std::cerr << "Failed to create new translated search engine during reset" << std::endl;
+        return;
+    }
+    
+    // Reload protein database
+    std::string protein_db_path = config.protein_db_path;
+    if (protein_db_path.empty()) {
+        protein_db_path = "amr_protein_db";
+    }
+    
+    if (load_protein_database(translated_search_engine, protein_db_path.c_str()) == 0) {
+        search_engine_initialized = true;
+        std::cout << "Translated search engine reset successfully" << std::endl;
+    } else {
+        std::cerr << "Failed to reload protein database after reset" << std::endl;
+        destroy_translated_search_engine(translated_search_engine);
+        translated_search_engine = nullptr;
+    }
+}
+
+void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& reads1,
+                                              const std::vector<std::string>& reads2,
+                                              const std::vector<std::string>& read_ids) {
+    if (reads1.empty() && reads2.empty()) return;
+    
+    // Pre-allocate for 2x reads (R1 and R2 separate)
+    int num_pairs = std::min(reads1.size(), reads2.size());
+    int max_reads = num_pairs * 2;
+    paired_read_info.clear();
+    paired_read_info.reserve(max_reads);
+    
+    // Prepare reads for GPU processing
+    std::vector<std::string> all_reads;
+    std::vector<std::string> all_read_ids;
+    all_reads.reserve(max_reads);
+    all_read_ids.reserve(max_reads);
+    
+    // Process each read pair
+    for (int i = 0; i < num_pairs; i++) {
+        // Process R1
+        if (!reads1[i].empty()) {
+            all_reads.push_back(reads1[i]);
+            all_read_ids.push_back(read_ids[i] + "_R1");
+            
+            uint32_t r1_idx = all_reads.size() - 1;
+            uint32_t r2_idx = r1_idx + 1; // Will be the R2 index
+            
+            paired_read_info.push_back({
+                static_cast<uint32_t>(i),     // Original pair index
+                false,                        // This is R1
+                r2_idx                       // Points to R2
+            });
+        }
+        
+        // Process R2
+        if (!reads2[i].empty()) {
+            all_reads.push_back(reads2[i]);
+            all_read_ids.push_back(read_ids[i] + "_R2");
+            
+            uint32_t r2_idx = all_reads.size() - 1;
+            uint32_t r1_idx = r2_idx - 1; // Points back to R1
+            
+            paired_read_info.push_back({
+                static_cast<uint32_t>(i),     // Original pair index
+                true,                         // This is R2
+                r1_idx                       // Points to R1
+            });
+        }
+    }
+    
+    // Process all reads together (R1 and R2 separately)
+    current_batch_size = all_reads.size();
+    if (current_batch_size > 0) {
+        processBatch(all_reads, all_read_ids);
+    }
+}
+
+void AMRDetectionPipeline::applyPairedConcordanceScoring(
+    void* matches_ptr,
+    uint32_t* match_counts,
+    int num_reads
+) {
+    // Cast void pointer to ProteinMatch*
+    ProteinMatch* matches = static_cast<ProteinMatch*>(matches_ptr);
+    
+    // Only apply concordance scoring if we have paired read info
+    if (paired_read_info.empty()) {
+        return;
+    }
+    
+    // Create a map of read pairs to their matches
+    struct GeneAssignment {
+        uint32_t gene_id;
+        uint32_t species_id;
+        float score;
+        int read_idx;
+    };
+    
+    std::map<uint32_t, std::vector<GeneAssignment>> pairAssignments;
+    
+    // Collect all assignments by pair
+    for (int i = 0; i < num_reads; i++) {
+        if (match_counts[i] == 0) continue;
+        
+        // Make sure we have paired info for this read
+        if (i >= paired_read_info.size()) continue;
+        
+        uint32_t pair_idx = paired_read_info[i].read_idx;
+        
+        for (uint32_t j = 0; j < match_counts[i]; j++) {
+            ProteinMatch& match = matches[i * 10 + j];  // Using 10 as max matches per read
+            pairAssignments[pair_idx].push_back({
+                match.gene_id,
+                match.species_id,
+                match.alignment_score,
+                i
+            });
+        }
+    }
+    
+    // Apply concordance bonus
+    const float CONCORDANCE_BONUS = 1.5f;  // 50% score boost for concordant pairs
+    const float DISCORD_PENALTY = 0.8f;    // 20% penalty for discordant pairs
+    
+    for (auto& pair : pairAssignments) {
+        auto& assignments = pair.second;
+        
+        // Check for concordant gene/species assignments
+        std::map<std::pair<uint32_t, uint32_t>, std::vector<int>> geneSpeciesPairs;
+        
+        for (size_t i = 0; i < assignments.size(); i++) {
+            auto key = std::make_pair(assignments[i].gene_id, assignments[i].species_id);
+            geneSpeciesPairs[key].push_back(i);
+        }
+        
+        // Apply bonuses/penalties
+        for (auto& gs_pair : geneSpeciesPairs) {
+            if (gs_pair.second.size() >= 2) {
+                // Concordant: both reads map to same gene/species
+                for (int idx : gs_pair.second) {
+                    int read_idx = assignments[idx].read_idx;
+                    
+                    // Find the match in the results
+                    for (uint32_t j = 0; j < match_counts[read_idx]; j++) {
+                        ProteinMatch& match = matches[read_idx * 10 + j];
+                        if (match.gene_id == assignments[idx].gene_id && 
+                            match.species_id == assignments[idx].species_id) {
+                            match.alignment_score *= CONCORDANCE_BONUS;
+                            match.concordant = true;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Discordant: only one read maps to this gene/species
+                for (int idx : gs_pair.second) {
+                    int read_idx = assignments[idx].read_idx;
+                    for (uint32_t j = 0; j < match_counts[read_idx]; j++) {
+                        ProteinMatch& match = matches[read_idx * 10 + j];
+                        if (match.gene_id == assignments[idx].gene_id && 
+                            match.species_id == assignments[idx].species_id) {
+                            match.alignment_score *= DISCORD_PENALTY;
+                            match.concordant = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Re-sort matches by score within each read after applying bonuses
+    for (int i = 0; i < num_reads; i++) {
+        if (match_counts[i] > 1) {
+            std::sort(
+                matches + i * 10,
+                matches + i * 10 + match_counts[i],
+                [](const ProteinMatch& a, const ProteinMatch& b) {
+                    return a.alignment_score > b.alignment_score;
+                }
+            );
+        }
+    }
 }

@@ -161,6 +161,7 @@ struct ProteinMatch {
     // Remove mutation-specific fields for AMR gene detection
     // (mutations are not needed for gene presence/absence)
     bool used_smith_waterman;  // Flag indicating if SW was used
+    bool concordant;           // Flag for paired-end concordance
     char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
 };
 

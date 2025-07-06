@@ -175,45 +175,34 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     
     std::cout << "R1 reads: " << reads_r1.size() << ", R2 reads: " << reads_r2.size() << std::endl;
     
-    std::vector<std::pair<std::string, std::string>> fastq_data;
-    
-    if (merge_reads) {
-        // Merge paired reads
-        std::cout << "Merging paired-end reads..." << std::endl;
-        fastq_data = mergePairedReads(reads_r1, reads_r2);
-        std::cout << "Merged reads: " << fastq_data.size() << std::endl;
-    } else {
-        // Process R1 and R2 separately (concatenate)
-        fastq_data = reads_r1;
-        for (auto& read : reads_r2) {
-            read.first += "_R2";  // Mark R2 reads
-            fastq_data.push_back(read);
-        }
-        std::cout << "Total reads (R1+R2): " << fastq_data.size() << std::endl;
-    }
+    // Always process paired reads separately (no merging)
+    std::cout << "Processing paired-end reads separately..." << std::endl;
     
     // Process in batches
-    const int batch_size = 100000;  // From config
-    int num_batches = (fastq_data.size() + batch_size - 1) / batch_size;
+    const int batch_size = 100000;  // From config - this is per read pair
+    int num_pairs = std::min(reads_r1.size(), reads_r2.size());
+    int num_batches = (num_pairs + batch_size - 1) / batch_size;
     
     for (int batch = 0; batch < num_batches; batch++) {
         int start_idx = batch * batch_size;
-        int end_idx = std::min(start_idx + batch_size, (int)fastq_data.size());
+        int end_idx = std::min(start_idx + batch_size, num_pairs);
         
         std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
-                  << " (reads " << start_idx << "-" << end_idx << ")" << std::endl;
+                  << " (read pairs " << start_idx << "-" << end_idx << ")" << std::endl;
         
         // Extract reads and IDs for this batch
-        std::vector<std::string> batch_reads;
+        std::vector<std::string> batch_reads1;
+        std::vector<std::string> batch_reads2;
         std::vector<std::string> batch_ids;
         
         for (int i = start_idx; i < end_idx; i++) {
-            batch_ids.push_back(fastq_data[i].first);
-            batch_reads.push_back(fastq_data[i].second);
+            batch_ids.push_back(reads_r1[i].first);
+            batch_reads1.push_back(reads_r1[i].second);
+            batch_reads2.push_back(reads_r2[i].second);
         }
         
-        // Process batch
-        pipeline.processBatch(batch_reads, batch_ids);
+        // Process batch of paired reads
+        pipeline.processBatchPaired(batch_reads1, batch_reads2, batch_ids);
     }
     
     // Write results

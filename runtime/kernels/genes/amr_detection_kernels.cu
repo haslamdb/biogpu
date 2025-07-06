@@ -510,6 +510,8 @@ __global__ void update_coverage_stats_kernel(
             const AMRHit& hit = hits[read_idx * 10 + h];
             
             if (hit.gene_id == gene_idx) {
+                // Each read counts as 1, regardless of concordance
+                // Concordance was already used during gene assignment
                 atomicAdd(&stats.total_reads, 1);
                 atomicAdd(&stats.total_bases_mapped, hit.ref_end - hit.ref_start);
                 

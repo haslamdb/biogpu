@@ -308,3 +308,4 @@ cd ~/Documents/Code/biogpu
 
   ## here's for the genes detection
   ./amr_detection AMR_CDS.fa,AMRProt.fa test_samples.csv amr_results/  
+  ./amr_detection AMR_CDS.fa,AMRProt.fa test_samples.csv amr_results/

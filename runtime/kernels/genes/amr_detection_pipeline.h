@@ -10,6 +10,9 @@
 #include "sample_csv_parser.h"  // Reuse from FQ pipeline
 // #include "bloom_filter.h"       // Reuse bloom filter
 
+// Forward declaration for paired-end tracking
+struct PairedReadInfo;
+
 // Configuration for AMR detection
 struct AMRDetectionConfig {
     // Bloom filter parameters
@@ -62,8 +65,8 @@ struct AMRHit {
     float identity;
     float coverage;         // Fraction of AMR gene covered
     int8_t frame;          // Translation frame (-3 to +3, excluding 0)
-    uint8_t num_mutations;
     bool is_complete_gene;
+    bool concordant;        // For paired-end reads, true if both reads hit same gene
     char gene_name[64];
     char drug_class[32];
 };
@@ -135,6 +138,13 @@ private:
     // Gene entries from database
     std::vector<AMRGeneEntry> gene_entries;
     
+    // Translated search engine (reused across batches)
+    void* translated_search_engine;
+    bool search_engine_initialized;
+    
+    // Paired-end read tracking
+    std::vector<PairedReadInfo> paired_read_info;
+    
 public:
     AMRDetectionPipeline(const AMRDetectionConfig& cfg);
     ~AMRDetectionPipeline();
@@ -145,6 +155,11 @@ public:
     // Process a batch of reads
     void processBatch(const std::vector<std::string>& reads,
                      const std::vector<std::string>& read_ids);
+    
+    // Process a batch of paired-end reads
+    void processBatchPaired(const std::vector<std::string>& reads1,
+                           const std::vector<std::string>& reads2,
+                           const std::vector<std::string>& read_ids);
     
     // Main processing steps
     void buildBloomFilter();
@@ -173,6 +188,12 @@ private:
     void allocateGPUMemory();
     void freeGPUMemory();
     void copyReadsToGPU(const std::vector<std::string>& reads);
+    
+    // Translated search engine management
+    void resetTranslatedSearchEngine();
+    
+    // Paired-end concordance scoring (Note: ProteinMatch is defined in cpp file)
+    void applyPairedConcordanceScoring(void* matches, uint32_t* match_counts, int num_reads);
 };
 
 #endif // AMR_DETECTION_PIPELINE_H

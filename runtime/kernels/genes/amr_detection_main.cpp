@@ -140,6 +140,8 @@ int main(int argc, char** argv) {
                 config.kmer_length = std::stoi(argv[i + 1]);
             } else if (arg == "--batch-size") {
                 config.reads_per_batch = std::stoi(argv[i + 1]);
+            } else if (arg == "--protein-db") {
+                config.protein_db_path = argv[i + 1];
             }
         }
     }

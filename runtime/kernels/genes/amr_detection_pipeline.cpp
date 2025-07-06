@@ -310,6 +310,14 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
         return;
     }
     
+    // Load gene entries from database if not already loaded
+    if (gene_entries.empty()) {
+        uint32_t num_genes = amr_db->getNumGenes();
+        gene_entries.resize(num_genes);
+        cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+                   num_genes * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
+    }
+    
     // Structure to match ProteinMatch from translated_search_amr.cu
     struct ProteinMatch {
         uint32_t read_id;
@@ -388,7 +396,6 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     // Cleanup
     cudaFree(d_protein_matches);
     destroy_translated_search_engine(search_engine);
-    std::remove(temp_protein_db.c_str());  // Delete temporary file
     
     // Report hits
     int total_hits = 0;

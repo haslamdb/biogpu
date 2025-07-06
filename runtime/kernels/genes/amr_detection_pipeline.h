@@ -38,6 +38,9 @@ struct AMRDetectionConfig {
     bool output_sam = false;
     bool output_hdf5 = true;
     std::string output_prefix = "amr_results";
+    
+    // Database paths
+    std::string protein_db_path = "amr_protein_db";  // Default location
 };
 
 // Structure to hold minimizer information
@@ -121,6 +124,9 @@ private:
     // Batch processing
     int current_batch_size;
     uint64_t total_reads_processed;
+    
+    // Gene entries from database
+    std::vector<AMRGeneEntry> gene_entries;
     
 public:
     AMRDetectionPipeline(const AMRDetectionConfig& cfg);

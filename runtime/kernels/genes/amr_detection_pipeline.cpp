@@ -78,17 +78,41 @@ void AMRDetectionPipeline::allocateGPUMemory() {
     size_t max_batch = config.reads_per_batch;
     size_t max_read_len = config.max_read_length;
     
-    // Read data
-    cudaMalloc(&d_reads, max_batch * max_read_len);
-    cudaMalloc(&d_read_offsets, max_batch * sizeof(int));
-    cudaMalloc(&d_read_lengths, max_batch * sizeof(int));
-    cudaMalloc(&d_read_ids, max_batch * sizeof(uint32_t));
+    // Read data - allocate extra space for merged paired-end reads
+    // Merged reads can be up to 2*max_read_len + gap
+    size_t max_merged_len = max_read_len * 2 + 100;  // 100 N's for gap
+    
+    cudaError_t err;
+    err = cudaMalloc(&d_reads, max_batch * max_merged_len);
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate GPU memory for reads: " << cudaGetErrorString(err) << std::endl;
+        std::cerr << "Requested size: " << (max_batch * max_merged_len) << " bytes" << std::endl;
+        throw std::runtime_error("GPU allocation failed");
+    }
+    
+    err = cudaMalloc(&d_read_offsets, max_batch * sizeof(int));
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate GPU memory for read offsets: " << cudaGetErrorString(err) << std::endl;
+        throw std::runtime_error("GPU allocation failed");
+    }
+    
+    err = cudaMalloc(&d_read_lengths, max_batch * sizeof(int));
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate GPU memory for read lengths: " << cudaGetErrorString(err) << std::endl;
+        throw std::runtime_error("GPU allocation failed");
+    }
+    
+    err = cudaMalloc(&d_read_ids, max_batch * sizeof(uint32_t));
+    if (err != cudaSuccess) {
+        std::cerr << "Failed to allocate GPU memory for read IDs: " << cudaGetErrorString(err) << std::endl;
+        throw std::runtime_error("GPU allocation failed");
+    }
     
     // Minimizers (estimate ~100 minimizers per read)
     size_t max_minimizers = max_batch * 1000;
     cudaMalloc(&d_minimizers, max_minimizers * sizeof(Minimizer));
     cudaMalloc(&d_minimizer_counts, max_batch * sizeof(uint32_t));
-    cudaMalloc(&d_minimizer_offsets, max_batch * sizeof(uint32_t));
+    cudaMalloc(&d_minimizer_offsets, (max_batch + 1) * sizeof(uint32_t));  // +1 for offset array
     
     // Bloom filter (only if enabled)
     if (config.use_bloom_filter) {
@@ -466,6 +490,15 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     // Cleanup
     cudaFree(d_protein_matches);
     destroy_translated_search_engine(search_engine);
+    
+    // Ensure all GPU operations complete and check for errors
+    cudaDeviceSynchronize();
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA error after translated search: " << cudaGetErrorString(err) << std::endl;
+        // Clear the error to prevent it from affecting the next batch
+        cudaGetLastError();
+    }
     
     // Report hits
     int total_hits = 0;

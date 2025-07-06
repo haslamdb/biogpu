@@ -61,44 +61,52 @@ FASTQ Input → Read Processing → K-mer/Minimizer Generation
 
 ## Current Issues (2025-01-06)
 
-### GPU Memory Error in Protein Database Loading
-**Error**: "CUDA error before allocation: invalid argument" when loading protein database
+### GPU Memory Error in Translated Search
+**Error**: "CUDA error after translated search: invalid argument"
 
-**Symptoms**:
-- Occurs on every batch during `performTranslatedAlignment()`
-- Error happens BEFORE the protein k-mer allocation, suggesting an earlier operation failed
-- The error persists across all batches (not a memory exhaustion issue)
+**Root Causes Found**:
+1. **Memory allocation size mismatch**: 
+   - `d_reads` was allocated for `max_batch * max_read_len` (30MB)
+   - But merged paired-end reads are much longer (2 * read_len + gap)
+   - Fixed by allocating `max_batch * (max_read_len * 2 + 100)`
+
+2. **Offset array size issue**:
+   - `d_minimizer_offsets` needed `max_batch + 1` elements, not just `max_batch`
+   - Fixed by updating allocation size
+
+3. **Persistent CUDA error state**:
+   - The translated search engine leaves CUDA in an error state after each batch
+   - Error is now caught and cleared, but the underlying issue persists
 
 **What We've Done**:
 1. Added `--use-bloom-filter` flag (bloom filter disabled by default)
 2. Fixed paired-end read ID matching for new Illumina format (e.g., "1:N:0" vs "2:N:0")
-3. Added error checking and synchronization around GPU operations
-4. Added null pointer checks for GPU memory
+3. Fixed GPU memory allocation sizes for merged reads
+4. Added comprehensive error checking throughout the pipeline
+5. Added error clearing to prevent cascade failures
 
-**Next Debugging Steps**:
-1. **Check earlier GPU operations**: The "invalid argument" error suggests a previous CUDA call failed
-   - Look at minimizer generation kernel calls
-   - Check read copying to GPU
-   - Verify all GPU memory allocations in `allocateGPUMemory()`
+**Current Status**:
+- First batch sometimes succeeds in loading the protein database
+- All subsequent batches fail with "invalid argument" error
+- The protein database is being reloaded for each batch (inefficient)
+- No AMR genes are detected due to the persistent error
 
-2. **Investigate the gene entries copy**: 
-   - The error occurs around `cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(), ...)`
-   - Check if `d_gene_entries` is properly allocated in `NCBIAMRDatabaseLoader`
-   - Verify the size calculations are correct
+**Next Steps**:
+1. **Investigate why translated search corrupts CUDA state**:
+   - Check for memory leaks in translated_search_amr.cu
+   - Look for unfreed GPU memory in the search engine
+   - Verify all GPU pointers are properly initialized
 
-3. **Check for uninitialized pointers**:
-   - Some GPU pointers might not be initialized when bloom filter is disabled
-   - Look for any conditional allocations that might leave pointers null
+2. **Optimize protein database loading**:
+   - Load the protein database once at initialization
+   - Reuse it across all batches instead of reloading
+   - This would also improve performance significantly
 
-4. **Memory alignment issues**:
-   - Check if data structures have proper alignment for GPU access
-   - Verify sizeof(AMRGeneEntry) matches between CPU and GPU code
-
-5. **Consider running with cuda-memcheck**:
-   ```bash
-   cuda-memcheck ./amr_detection AMR_CDS.fa,AMRProt.fa test_samples.csv amr_results/
-   ```
+3. **Debug the search engine lifecycle**:
+   - Check what `destroy_translated_search_engine()` actually frees
+   - Look for static/global GPU allocations that persist
+   - Consider resetting CUDA context between batches (last resort)
 
 **Temporary Workaround**: 
-- The pipeline continues to process despite the error, but no AMR genes are detected
-- Each batch independently fails to load the protein database
+- The pipeline continues despite errors but finds no AMR genes
+- Can process smaller batches or single samples to minimize impact

@@ -12,7 +12,6 @@
 #include <cctype>
 #include <cstring>
 #include <cuda_runtime.h>
-#include <json/json.h>
 
 // Simplified AMR gene entry for FASTA-only data
 struct AMRGeneEntry {

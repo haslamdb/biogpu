@@ -91,9 +91,14 @@ extern "C" void launch_translated_alignment_kernel(
     const int num_proteins,
     const AMRDetectionConfig config
 ) {
-    dim3 blockSize(128);
+    // Adjust block size and shared memory for Titan X (sm_61) constraints
+    // Shared memory limit per block: 48KB
+    dim3 blockSize(64);  // Reduced from 128 to fit in shared memory
     dim3 gridSize((num_reads + blockSize.x - 1) / blockSize.x);
-    size_t sharedMemSize = blockSize.x * 6 * 67 * sizeof(char); // 6 frames * max protein length * threads
+    
+    // Conservative estimate: 64 threads * 6 frames * 60 chars = 23KB < 48KB limit
+    const int max_protein_len_per_thread = 60;
+    size_t sharedMemSize = blockSize.x * 6 * max_protein_len_per_thread * sizeof(char);
     
     translated_alignment_kernel<<<gridSize, blockSize, sharedMemSize>>>(
         reads, read_offsets, read_lengths, read_passes_filter,

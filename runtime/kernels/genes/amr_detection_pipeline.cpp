@@ -1,6 +1,7 @@
 // amr_detection_pipeline.cpp
 #include "amr_detection_pipeline.h"
 #include "amr_detection_kernels.h"
+#include "translated_search_amr.h"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -281,16 +282,6 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
 }
 
 void AMRDetectionPipeline::performTranslatedAlignment() {
-    // Declare external functions
-    extern "C" {
-        void* create_translated_search_engine_with_sw(int batch_size, bool enable_sw);
-        void destroy_translated_search_engine(void* engine);
-        int load_protein_database(void* engine, const char* db_path);
-        int search_translated_reads(void* engine, const char* d_reads, const int* d_read_lengths,
-                                    const int* d_read_offsets, const bool* d_reads_to_process,
-                                    int num_reads, void* results, uint32_t* result_counts);
-    }
-    
     // Create translated search engine with Smith-Waterman enabled
     void* search_engine = create_translated_search_engine_with_sw(current_batch_size, true);
     

@@ -6,10 +6,13 @@
 #include <chrono>
 #include <iomanip>
 #include <zlib.h>
+#include <filesystem>
 #include "amr_detection_pipeline.h"
 #include "sample_csv_parser.h"  // Reuse from your FQ pipeline
 #include "hdf5_amr_writer.h"
 #include "clinical_amr_report_generator.h"
+
+namespace fs = std::filesystem;
 
 // Function to check if file is gzipped
 bool isGzipped(const std::string& filename) {
@@ -41,20 +44,29 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
             if (!line.empty() && line[0] == '@') {
                 std::string id = line.substr(1);  // Remove '@'
                 
-                // Read sequence
+                // Read exactly 4 lines per FASTQ entry
                 if (gzgets(gz_file, buffer, sizeof(buffer))) {
                     std::string seq = buffer;
                     if (!seq.empty() && seq.back() == '\n') seq.pop_back();
                     
-                    // Skip quality header and quality string
-                    gzgets(gz_file, buffer, sizeof(buffer));  // +
-                    gzgets(gz_file, buffer, sizeof(buffer));  // quality
-                    
-                    reads.push_back({id, seq});
-                    count++;
-                    
-                    if (max_reads > 0 && count >= max_reads) {
-                        break;
+                    if (gzgets(gz_file, buffer, sizeof(buffer))) {
+                        std::string plus = buffer;
+                        if (!plus.empty() && plus.back() == '\n') plus.pop_back();
+                        
+                        if (gzgets(gz_file, buffer, sizeof(buffer))) {
+                            std::string quality = buffer;
+                            if (!quality.empty() && quality.back() == '\n') quality.pop_back();
+                            
+                            // Validate FASTQ format
+                            if (!plus.empty() && plus[0] == '+' && !seq.empty()) {
+                                reads.push_back({id, seq});
+                                count++;
+                                
+                                if (max_reads > 0 && count >= max_reads) {
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -74,20 +86,24 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
         int count = 0;
         
         while (std::getline(file, line)) {
-            if (line[0] == '@') {
+            if (!line.empty() && line[0] == '@') {
                 std::string id = line.substr(1);  // Remove '@'
-                std::string seq;
-                std::getline(file, seq);
+                std::string seq, plus, quality;
                 
-                // Skip quality header and quality string
-                std::getline(file, line);  // +
-                std::getline(file, line);  // quality
-                
-                reads.push_back({id, seq});
-                count++;
-                
-                if (max_reads > 0 && count >= max_reads) {
-                    break;
+                // Read exactly 4 lines per FASTQ entry
+                if (std::getline(file, seq) && 
+                    std::getline(file, plus) && 
+                    std::getline(file, quality)) {
+                    
+                    // Validate FASTQ format
+                    if (!plus.empty() && plus[0] == '+' && !seq.empty()) {
+                        reads.push_back({id, seq});
+                        count++;
+                        
+                        if (max_reads > 0 && count >= max_reads) {
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -163,6 +179,9 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     
     std::cout << "\n=== Processing paired-end sample: " << sample_name << " ===" << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // Create output directory if it doesn't exist
+    fs::create_directories(output_dir);
     
     // Create HDF5 writer
     std::string hdf5_path = output_dir + "/" + sample_name + "_amr_results.h5";
@@ -273,6 +292,9 @@ void processSample(AMRDetectionPipeline& pipeline,
     
     std::cout << "\n=== Processing single-end sample: " << sample_name << " ===" << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // Create output directory if it doesn't exist
+    fs::create_directories(output_dir);
     
     // Create HDF5 writer
     std::string hdf5_path = output_dir + "/" + sample_name + "_amr_results.h5";

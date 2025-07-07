@@ -1,9 +1,9 @@
 {
-  "sample_name": "569_A_038",
-  "report_timestamp": "2025-07-07 16:23:14",
+  "sample_name": "test_subset",
+  "report_timestamp": "2025-07-07 16:25:48",
   "summary": {
-    "total_reads": 3405007,
-    "reads_with_amr": 0,
+    "total_reads": 100000,
+    "reads_with_amr": 1655,
     "total_genes_detected": 0,
     "high_confidence_genes": 0,
     "drug_classes_affected": 0

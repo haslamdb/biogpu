@@ -445,10 +445,8 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
         // Statistics will be collected at the end for all batches
         std::cout << "Batch completed successfully" << std::endl;
         
-        // Skip to coverage calculation
-        extendAlignments();
-        calculateCoverageStats();
-        calculateAbundanceMetrics();
+        // Skip per-batch calculations to avoid memory corruption
+        // These will be done once at the end for all batches
         return;
     }
     
@@ -461,14 +459,7 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     // Statistics will be collected at the end for all batches
     std::cout << "Batch completed successfully" << std::endl;
     
-    // Extend alignments using minimizer information
-    extendAlignments();
-    
-    // Update coverage statistics
-    calculateCoverageStats();
-    
-    // Calculate abundance metrics (RPKM/TPM)
-    calculateAbundanceMetrics();
+    // Skip per-batch calculations to avoid memory corruption
 }
 
 void AMRDetectionPipeline::generateMinimizers() {

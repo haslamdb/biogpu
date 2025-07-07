@@ -173,33 +173,27 @@ struct TranslatedFrame {
     bool valid;          // Validity flag
 };
 
-// Enhanced protein match structure for AMR detection
+// Enhanced protein match structure for AMR detection - MUST match pipeline exactly
 struct ProteinMatch {
     uint32_t read_id;
     int8_t frame;
     uint32_t protein_id;
     uint32_t gene_id;
     uint32_t species_id;
-    uint16_t query_start;      // Position in translated frame
-    uint16_t ref_start;        // Position in reference protein
+    uint16_t query_start;    // Position in translated frame
+    uint16_t ref_start;      // Position in reference protein
     uint16_t match_length;
     float alignment_score;
     float identity;
-    
-    // Coverage and quality metrics
-    uint32_t gene_length;      // Total gene length in nucleotides
-    uint16_t coverage_start;   // Start of covered region
-    uint16_t coverage_end;     // End of covered region
-    float coverage_fraction;   // Fraction of gene covered
-    
-    // Alignment flags
-    bool used_smith_waterman;
-    bool concordant;
-    bool high_confidence;      // Flag for high-confidence matches
-    
-    // Store peptide sequence for AMR analysis
-    char query_peptide[51];    // Up to 50 AA + null terminator
-    char ref_peptide[51];      // Reference peptide for comparison
+    // Coverage tracking fields
+    uint32_t gene_length;     // Total gene length
+    uint16_t coverage_start;  // Start of covered region
+    uint16_t coverage_end;    // End of covered region
+    // Remove mutation-specific fields for AMR gene detection
+    // (mutations are not needed for gene presence/absence)
+    bool used_smith_waterman;  // Flag indicating if SW was used
+    bool concordant;           // Flag for paired-end concordance
+    char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
 };
 
 // Enhanced protein database structure
@@ -736,32 +730,25 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 temp_match.gene_length = ref_len * 3;  // Convert AA to nucleotides
                 temp_match.coverage_start = match_ref_start;
                 temp_match.coverage_end = match_ref_start + match_length;
-                temp_match.coverage_fraction = (float)match_length / ref_len;
+                // Coverage fraction can be calculated later from coverage_start/end and gene_length
                 
                 temp_match.used_smith_waterman = false;
                 temp_match.concordant = false;
-                temp_match.high_confidence = (temp_match.identity >= 0.85f && match_length >= 20);
+                // Initialize query_peptide
+                memset(temp_match.query_peptide, 0, 51);
                 
-                // Extract peptide sequences with bounds checking
+                // Extract query peptide sequence with bounds checking
                 int peptide_len = min(match_length, 50);
                 for (int k = 0; k < peptide_len; k++) {
                     int query_idx = match_query_start + k;
-                    int ref_idx = match_ref_start + k;
                     
                     if (query_idx < frame.length && k < 50) {
                         temp_match.query_peptide[k] = frame.sequence[query_idx];
                     } else {
                         temp_match.query_peptide[k] = 'X';
                     }
-                    
-                    if (ref_idx < ref_len && k < 50) {
-                        temp_match.ref_peptide[k] = ref_seq[ref_idx];
-                    } else {
-                        temp_match.ref_peptide[k] = 'X';
-                    }
                 }
                 temp_match.query_peptide[peptide_len] = '\0';
-                temp_match.ref_peptide[peptide_len] = '\0';
                 
                 // Apply Smith-Waterman if enabled and beneficial
                 if (enable_smith_waterman && seed_count >= MIN_SEED_HITS && match_length < 40) {
@@ -789,7 +776,7 @@ __global__ void enhanced_protein_kmer_match_kernel(
                             // Update coverage
                             temp_match.coverage_start = temp_match.ref_start;
                             temp_match.coverage_end = temp_match.ref_start + sw_length;
-                            temp_match.coverage_fraction = (float)sw_length / ref_len;
+                            // Coverage fraction can be calculated later from coverage_start/end and gene_length
                         }
                     }
                 }

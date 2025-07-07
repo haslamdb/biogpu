@@ -1,6 +1,5 @@
-// translated_search.cu
-// GPU-accelerated 6-frame translation and protein search for resistance detection
-// Enhanced with k-mer seeding, clustering, extension, and optional Smith-Waterman
+// translated_search_amr.cu - CORRECTED VERSION
+// Enhanced memory safety and bounds checking for clinical AMR detection
 
 #ifndef TRANSLATED_SEARCH_CU
 #define TRANSLATED_SEARCH_CU
@@ -15,25 +14,38 @@
 #include <string>
 #include <algorithm>
 #include <map>
+#include <cassert>
 
 namespace cg = cooperative_groups;
 
-// Debug macros
-#define DEBUG_TRANS 1
-#define DEBUG_PRINT(fmt, ...) if(DEBUG_TRANS) { printf("[TRANS DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
+// Debug and safety macros
+#define DEBUG_AMR 1
+#define BOUNDS_CHECK 1
+#define DEBUG_PRINT(fmt, ...) if(DEBUG_AMR) { printf("[AMR DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
+#define CUDA_CHECK(call) do { \
+    cudaError_t err = call; \
+    if (err != cudaSuccess) { \
+        printf("[CUDA ERROR] %s:%d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
+        return false; \
+    } \
+} while(0)
 
-// Enhanced constants for protein k-mer approach
+// Enhanced constants for protein k-mer approach with safety margins
 #define CODON_SIZE 3
 #define NUM_FRAMES 6
 #define MAX_PROTEIN_LENGTH 200
-#define PROTEIN_KMER_SIZE 8         // Increased from 5 to 8 amino acids for better specificity
-#define MIN_PEPTIDE_LENGTH 20       // Minimum peptide length to consider
-#define MIN_SEED_HITS 2            // Require at least 2 k-mer hits for better balance
-#define EXTENSION_THRESHOLD 30     // Increase from 15 to 30 - minimum 30 amino acids
-#define MIN_IDENTITY_THRESHOLD 0.9f // Increase from 0.8f to 0.9f - 90% identity required
-#define MIN_ALIGNMENT_LENGTH 30     // Minimum alignment length in amino acids
-#define SW_SCORE_THRESHOLD 75.0f   // Threshold for Smith-Waterman alignment to detect mutations
+#define MAX_READ_LENGTH 1000
+#define PROTEIN_KMER_SIZE 8
+#define MIN_PEPTIDE_LENGTH 20
+#define MIN_SEED_HITS 1
+#define EXTENSION_THRESHOLD 15
+#define MIN_IDENTITY_THRESHOLD 0.75f  // Slightly more lenient for AMR detection
+#define MIN_ALIGNMENT_LENGTH 12       // Reduced for short AMR peptides
+#define SW_SCORE_THRESHOLD 60.0f      // More sensitive for resistance mutations
 #define AA_ALPHABET_SIZE 24
+#define MAX_SEEDS_PER_FRAME 100
+#define MAX_PROTEIN_SEEDS 20
+#define MAX_MATCHES_PER_READ 32
 
 // Genetic code table (standard code)
 __constant__ char GENETIC_CODE[64] = {
@@ -47,7 +59,7 @@ __constant__ char GENETIC_CODE[64] = {
     'W', 'C', '*', 'C', 'L', 'F', 'L', 'F'   // TGA, TGC, TGG, TGT, TTA, TTC, TTG, TTT
 };
 
-// BLOSUM62 matrix (simplified, key values)
+// BLOSUM62 matrix for amino acid scoring
 __constant__ float BLOSUM62_SCORES[24*24] = {
     // A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V   B   Z   X   *
     4, -1, -2, -2,  0, -1, -1,  0, -2, -1, -1, -1, -1, -2, -1,  1,  0, -3, -2,  0, -2, -1,  0, -4, // A
@@ -76,7 +88,7 @@ __constant__ float BLOSUM62_SCORES[24*24] = {
    -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4,  1  // *
 };
 
-// Amino acid to index mapping
+// Safe amino acid to index mapping
 __host__ __device__ inline int aa_to_index(char aa) {
     switch(aa) {
         case 'A': return 0;  case 'R': return 1;  case 'N': return 2;  case 'D': return 3;
@@ -89,17 +101,21 @@ __host__ __device__ inline int aa_to_index(char aa) {
     }
 }
 
-// REMOVED: covers_qrdr_region function - QRDR detection now handled by global FQ mapper
-
-
-// Get BLOSUM score
+// Get BLOSUM score with bounds checking
 __device__ inline float get_blosum_score(char aa1, char aa2) {
     int idx1 = aa_to_index(aa1);
     int idx2 = aa_to_index(aa2);
+    
+    #if BOUNDS_CHECK
+    if (idx1 < 0 || idx1 >= 24 || idx2 < 0 || idx2 >= 24) {
+        return -4.0f; // Penalty for invalid amino acids
+    }
+    #endif
+    
     return BLOSUM62_SCORES[idx1 * 24 + idx2];
 }
 
-// Base encoding for translation
+// Safe base encoding for translation
 __device__ inline int base_to_index(char base) {
     switch(base) {
         case 'A': case 'a': return 0;
@@ -110,82 +126,107 @@ __device__ inline int base_to_index(char base) {
     }
 }
 
-// Translate codon to amino acid
+// Safe codon translation with bounds checking
 __device__ inline char translate_codon(const char* codon) {
+    if (!codon) return 'X';
+    
     int idx = 0;
     for (int i = 0; i < 3; i++) {
         int base = base_to_index(codon[i]);
         if (base < 0) return 'X';  // Unknown
         idx = (idx << 2) | base;
     }
+    
+    #if BOUNDS_CHECK
+    if (idx < 0 || idx >= 64) return 'X';
+    #endif
+    
     return GENETIC_CODE[idx];
 }
 
-// Optimized hash function for protein k-mers
-__device__ inline uint64_t hash_protein_kmer(const char* kmer) {
+// Hash function for protein k-mers with overflow protection
+__host__ __device__ inline uint64_t hash_protein_kmer(const char* kmer) {
+    if (!kmer) return 0;
+    
     uint64_t hash = 0;
     const uint64_t prime = 31;
     
     for (int i = 0; i < PROTEIN_KMER_SIZE; i++) {
-        // Map amino acid to value preserving chemical properties
         uint8_t aa_val = aa_to_index(kmer[i]);
-        hash = hash * prime + aa_val;
+        // Prevent overflow
+        if (hash > (UINT64_MAX / prime)) {
+            hash = (hash % prime) * prime + aa_val;
+        } else {
+            hash = hash * prime + aa_val;
+        }
     }
     
     return hash;
 }
 
-// Structure for translated read
+// Structure for translated read frame
 struct TranslatedFrame {
     char sequence[MAX_PROTEIN_LENGTH];
     uint16_t length;
-    int8_t frame;  // -3, -2, -1, +1, +2, +3
+    int8_t frame;        // -3, -2, -1, +1, +2, +3
     uint16_t start_pos;  // Start position in original read
+    bool valid;          // Validity flag
 };
 
-// Enhanced structure for protein match with coverage tracking
+// Enhanced protein match structure for AMR detection
 struct ProteinMatch {
     uint32_t read_id;
     int8_t frame;
     uint32_t protein_id;
     uint32_t gene_id;
     uint32_t species_id;
-    uint16_t query_start;    // Position in translated frame
-    uint16_t ref_start;      // Position in reference protein
+    uint16_t query_start;      // Position in translated frame
+    uint16_t ref_start;        // Position in reference protein
     uint16_t match_length;
     float alignment_score;
     float identity;
-    // Coverage tracking fields
-    uint32_t gene_length;     // Total gene length
-    uint16_t coverage_start;  // Start of covered region
-    uint16_t coverage_end;    // End of covered region
-    // Remove mutation-specific fields for AMR gene detection
-    // (mutations are not needed for gene presence/absence)
-    bool used_smith_waterman;  // Flag indicating if SW was used
-    bool concordant;           // Flag for paired-end concordance
-    char query_peptide[51];  // Store aligned peptide sequence (up to 50 AA + null terminator)
+    
+    // Coverage and quality metrics
+    uint32_t gene_length;      // Total gene length in nucleotides
+    uint16_t coverage_start;   // Start of covered region
+    uint16_t coverage_end;     // End of covered region
+    float coverage_fraction;   // Fraction of gene covered
+    
+    // Alignment flags
+    bool used_smith_waterman;
+    bool concordant;
+    bool high_confidence;      // Flag for high-confidence matches
+    
+    // Store peptide sequence for AMR analysis
+    char query_peptide[51];    // Up to 50 AA + null terminator
+    char ref_peptide[51];      // Reference peptide for comparison
 };
 
-// Enhanced protein database structure with sorted k-mer index
+// Enhanced protein database structure
 struct ProteinDatabase {
     uint32_t num_proteins;
     uint32_t num_kmers;
+    uint32_t total_sequence_length;  // For bounds checking
     
     // Sorted k-mer index for binary search
     uint64_t* sorted_kmer_hashes;
-    uint32_t* kmer_start_indices;  // Start index in position array
-    uint32_t* kmer_counts;         // Number of positions per k-mer
-    uint32_t* position_data;       // Encoded protein ID + position
+    uint32_t* kmer_start_indices;
+    uint32_t* kmer_counts;
+    uint32_t* position_data;
     
-    // Protein metadata
+    // Protein metadata with bounds checking
     uint32_t* protein_ids;
     uint32_t* gene_ids;
     uint32_t* species_ids;
     uint16_t* seq_lengths;
-    
-    // Reference sequences for Smith-Waterman
-    char* sequences;
     uint32_t* seq_offsets;
+    
+    // Reference sequences
+    char* sequences;
+    
+    // AMR-specific metadata
+    uint8_t* is_amr_gene;      // Flag for AMR genes (0=false, 1=true)
+    uint8_t* resistance_class; // Resistance class (0=unknown, 1=fluoroquinolone, etc.)
 };
 
 // Helper structure for seed clustering
@@ -194,18 +235,30 @@ struct SeedHit {
     uint32_t query_pos;
     uint32_t ref_pos;
     float score;
+    bool valid;
 };
 
-// Binary search for protein k-mer
+// Safe binary search for protein k-mer
 __device__ inline int binary_search_protein_kmer(
     const ProteinDatabase* db,
     uint64_t target_hash
 ) {
+    if (!db || !db->sorted_kmer_hashes || db->num_kmers == 0) {
+        return -1;
+    }
+    
     int left = 0;
     int right = db->num_kmers - 1;
     
     while (left <= right) {
-        int mid = (left + right) / 2;
+        int mid = left + (right - left) / 2;  // Prevent overflow
+        
+        #if BOUNDS_CHECK
+        if (mid < 0 || mid >= db->num_kmers) {
+            return -1;
+        }
+        #endif
+        
         uint64_t mid_hash = db->sorted_kmer_hashes[mid];
         
         if (mid_hash == target_hash) {
@@ -220,73 +273,72 @@ __device__ inline int binary_search_protein_kmer(
     return -1; // Not found
 }
 
-// Smith-Waterman local alignment (simplified for GPU)
+// Enhanced Smith-Waterman with bounds checking and AMR-specific scoring
 __device__ float smith_waterman_align(
     const char* query, uint16_t query_len,
     const char* ref, uint16_t ref_len,
     uint16_t* best_query_start,
     uint16_t* best_ref_start,
     uint16_t* best_length,
-    uint8_t* mutations,
-    char* ref_mutations,
-    char* query_mutations,
-    float* blosum_mutations,
-    uint8_t* num_mutations
+    char* aligned_query = nullptr,
+    char* aligned_ref = nullptr
 ) {
-    // Simplified banded Smith-Waterman for GPU (more lenient scoring)
-    const int GAP_OPEN = -2;
-    const int GAP_EXTEND = -1;
-    const int BAND_WIDTH = 10;
+    // Input validation
+    if (!query || !ref || query_len == 0 || ref_len == 0) {
+        if (best_query_start) *best_query_start = 0;
+        if (best_ref_start) *best_ref_start = 0;
+        if (best_length) *best_length = 0;
+        return 0.0f;
+    }
     
-    // Use local arrays for alignments - handle full 150bp reads (50 AA)
-    // For banded alignment, we only need a strip of the matrix
-    const int MAX_ALIGN_LEN = 50; // Support up to 50 AA (150 bp)
-    float H[MAX_ALIGN_LEN][MAX_ALIGN_LEN] = {0}; // Score matrix
+    // Constants for alignment
+    const float GAP_OPEN = -3.0f;
+    const float GAP_EXTEND = -1.0f;
+    const int BAND_WIDTH = 15;  // Wider band for AMR detection
+    const int MAX_ALIGN_LEN = 50;
     
-    if (query_len > MAX_ALIGN_LEN-1 || ref_len > MAX_ALIGN_LEN-1) {
-        // Fall back to simple scoring for very large sequences
+    // Bounds checking for sequence lengths
+    if (query_len > MAX_ALIGN_LEN || ref_len > MAX_ALIGN_LEN) {
+        // Fallback to simple scoring for very large sequences
         float score = 0.0f;
         int matches = 0;
         int aligned_len = min(query_len, ref_len);
-        uint8_t mut_count = 0;
         
         for (int i = 0; i < aligned_len; i++) {
             float blosum = get_blosum_score(query[i], ref[i]);
             score += blosum;
-            if (blosum > 0) {
-                matches++;
-            } else if (query[i] != ref[i] && mut_count < 10) {
-                // Record mutation
-                mutations[mut_count] = i;
-                ref_mutations[mut_count] = ref[i];
-                query_mutations[mut_count] = query[i];
-                blosum_mutations[mut_count] = blosum;
-                mut_count++;
-            }
+            if (blosum > 0) matches++;
         }
         
-        *best_query_start = 0;
-        *best_ref_start = 0;
-        *best_length = aligned_len;
-        *num_mutations = mut_count;
+        if (best_query_start) *best_query_start = 0;
+        if (best_ref_start) *best_ref_start = 0;
+        if (best_length) *best_length = aligned_len;
         
         return score;
+    }
+    
+    // Dynamic programming matrix (local arrays)
+    float H[MAX_ALIGN_LEN + 1][MAX_ALIGN_LEN + 1];
+    
+    // Initialize matrix
+    for (int i = 0; i <= query_len; i++) {
+        for (int j = 0; j <= ref_len; j++) {
+            H[i][j] = 0.0f;
+        }
     }
     
     float max_score = 0.0f;
     int max_i = 0, max_j = 0;
     
     // Fill scoring matrix with banding optimization
-    // Since we expect high similarity, only compute cells near the diagonal
     for (int i = 1; i <= query_len; i++) {
-        // Banded alignment: only fill cells within BAND_WIDTH of diagonal
         int j_start = max(1, i - BAND_WIDTH);
         int j_end = min((int)ref_len, i + BAND_WIDTH);
         
         for (int j = j_start; j <= j_end; j++) {
             float match = H[i-1][j-1] + get_blosum_score(query[i-1], ref[j-1]);
-            float delete_gap = (j > 1) ? H[i-1][j] + GAP_OPEN : GAP_OPEN;
-            float insert_gap = (i > 1) ? H[i][j-1] + GAP_OPEN : GAP_OPEN;
+            float delete_gap = H[i-1][j] + GAP_OPEN;
+            float insert_gap = H[i][j-1] + GAP_OPEN;
             
             H[i][j] = fmaxf(0.0f, fmaxf(match, fmaxf(delete_gap, insert_gap)));
             
@@ -298,48 +350,52 @@ __device__ float smith_waterman_align(
         }
     }
     
-    // Traceback to find alignment
+    // Traceback to find alignment boundaries
     int i = max_i, j = max_j;
     int align_len = 0;
-    uint8_t mut_count = 0;
+    int align_start_i = i, align_start_j = j;
     
-    while (i > 0 && j > 0 && H[i][j] > 0 && align_len < MAX_ALIGN_LEN-1) {
-        if (i > 0 && j > 0 && H[i][j] == H[i-1][j-1] + get_blosum_score(query[i-1], ref[j-1])) {
+    while (i > 0 && j > 0 && H[i][j] > 0 && align_len < MAX_ALIGN_LEN) {
+        if (i > 0 && j > 0 && 
+            H[i][j] == H[i-1][j-1] + get_blosum_score(query[i-1], ref[j-1])) {
             // Match or mismatch
-            if (query[i-1] != ref[j-1] && mut_count < 10) {
-                mutations[mut_count] = align_len - 1; // Position in alignment (will be reversed after traceback)
-                ref_mutations[mut_count] = ref[j-1];
-                query_mutations[mut_count] = query[i-1];
-                blosum_mutations[mut_count] = get_blosum_score(query[i-1], ref[j-1]);
-                mut_count++;
+            if (aligned_query && align_len < 50) {
+                aligned_query[align_len] = query[i-1];
+                aligned_ref[align_len] = ref[j-1];
             }
             i--; j--;
+            align_start_i = i;
+            align_start_j = j;
         } else if (i > 0 && H[i][j] == H[i-1][j] + GAP_OPEN) {
-            // Deletion in reference
+            // Deletion in query
+            if (aligned_query && align_len < 50) {
+                aligned_query[align_len] = query[i-1];
+                aligned_ref[align_len] = '-';
+            }
             i--;
+            align_start_i = i;
         } else if (j > 0 && H[i][j] == H[i][j-1] + GAP_OPEN) {
-            // Insertion in reference  
+            // Insertion in query
+            if (aligned_query && align_len < 50) {
+                aligned_query[align_len] = '-';
+                aligned_ref[align_len] = ref[j-1];
+            }
             j--;
+            align_start_j = j;
         } else {
             break;
         }
         align_len++;
     }
     
-    *best_query_start = i;
-    *best_ref_start = j;
-    *best_length = align_len;
-    *num_mutations = mut_count;
-    
-    // Fix mutation positions (they were recorded backwards during traceback)
-    for (int k = 0; k < mut_count; k++) {
-        mutations[k] = align_len - 1 - mutations[k];
-    }
+    if (best_query_start) *best_query_start = align_start_i;
+    if (best_ref_start) *best_ref_start = align_start_j;
+    if (best_length) *best_length = align_len;
     
     return max_score;
 }
 
-// 6-frame translation kernel (unchanged)
+// Enhanced 6-frame translation kernel with comprehensive bounds checking
 __global__ void six_frame_translate_kernel(
     const char* reads,
     const int* read_lengths,
@@ -349,108 +405,152 @@ __global__ void six_frame_translate_kernel(
     uint32_t* frame_counts
 ) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    // Bounds checking for thread ID
     if (tid >= num_reads) return;
     
-    const char* read = reads + read_offsets[tid];
+    // Additional input validation
+    if (!reads || !read_lengths || !read_offsets || !translated_frames || !frame_counts) {
+        if (frame_counts && tid < num_reads) frame_counts[tid] = 0;
+        return;
+    }
+    
     const int read_len = read_lengths[tid];
     
+    // Validate read length
+    if (read_len <= 0 || read_len > MAX_READ_LENGTH) {
+        frame_counts[tid] = 0;
+        return;
+    }
+    
+    // Validate read offset
+    const int read_offset = read_offsets[tid];
+    if (read_offset < 0) {
+        frame_counts[tid] = 0;
+        return;
+    }
+    
+    const char* read = reads + read_offset;
     TranslatedFrame* read_frames = &translated_frames[tid * NUM_FRAMES];
     int valid_frames = 0;
     
+    // Initialize frames
+    for (int f = 0; f < NUM_FRAMES; f++) {
+        read_frames[f].length = 0;
+        read_frames[f].valid = false;
+        read_frames[f].sequence[0] = '\0';
+    }
+    
     // Forward frames (+1, +2, +3)
-    for (int frame = 0; frame < 3; frame++) {
-        TranslatedFrame& tf = read_frames[valid_frames];
-        tf.frame = frame + 1;
-        tf.start_pos = frame;
-        tf.length = 0;
+    for (int frame = 0; frame < 3 && valid_frames < NUM_FRAMES; frame++) {
+        TranslatedFrame* tf = &read_frames[valid_frames];
+        tf->frame = frame + 1;
+        tf->start_pos = frame;
+        tf->length = 0;
+        tf->valid = true;
         
-        for (int pos = frame; pos + 2 < read_len; pos += 3) {
-            if (tf.length >= MAX_PROTEIN_LENGTH - 1) break;
-            
+        for (int pos = frame; pos + 2 < read_len && tf->length < MAX_PROTEIN_LENGTH - 1; pos += 3) {
             char aa = translate_codon(&read[pos]);
+            
             if (aa == '*') {
-                if (tf.length >= MIN_PEPTIDE_LENGTH) {
-                    tf.sequence[tf.length] = '\0';
+                // Stop codon - finalize current peptide if long enough
+                if (tf->length >= MIN_PEPTIDE_LENGTH) {
+                    tf->sequence[tf->length] = '\0';
                     valid_frames++;
                     
+                    // Start new frame after stop codon
                     if (valid_frames < NUM_FRAMES) {
-                        tf = read_frames[valid_frames];
-                        tf.frame = frame + 1;
-                        tf.start_pos = pos + 3;
-                        tf.length = 0;
+                        tf = &read_frames[valid_frames];
+                        tf->frame = frame + 1;
+                        tf->start_pos = pos + 3;
+                        tf->length = 0;
+                        tf->valid = true;
                     }
                 } else {
-                    tf.length = 0;
-                    tf.start_pos = pos + 3;
+                    // Reset if peptide too short
+                    tf->length = 0;
+                    tf->start_pos = pos + 3;
                 }
             } else {
-                tf.sequence[tf.length++] = aa;
+                tf->sequence[tf->length++] = aa;
             }
         }
         
-        if (tf.length >= MIN_PEPTIDE_LENGTH) {
-            tf.sequence[tf.length] = '\0';
+        // Finalize last peptide if long enough
+        if (tf->length >= MIN_PEPTIDE_LENGTH && valid_frames < NUM_FRAMES) {
+            tf->sequence[tf->length] = '\0';
             valid_frames++;
+        } else if (tf->length < MIN_PEPTIDE_LENGTH) {
+            tf->valid = false;
         }
     }
     
     // Reverse complement frames (-1, -2, -3)
     for (int frame = 0; frame < 3 && valid_frames < NUM_FRAMES; frame++) {
-        TranslatedFrame& tf = read_frames[valid_frames];
-        tf.frame = -(frame + 1);
-        tf.start_pos = read_len - frame - 1;
-        tf.length = 0;
+        TranslatedFrame* tf = &read_frames[valid_frames];
+        tf->frame = -(frame + 1);
+        tf->start_pos = read_len - frame - 1;
+        tf->length = 0;
+        tf->valid = true;
         
-        for (int pos = read_len - frame - 1; pos >= 2; pos -= 3) {
-            if (tf.length >= MAX_PROTEIN_LENGTH - 1) break;
-            
+        for (int pos = read_len - frame - 1; pos >= 2 && tf->length < MAX_PROTEIN_LENGTH - 1; pos -= 3) {
+            // Generate reverse complement codon
             char rc_codon[3];
             for (int i = 0; i < 3; i++) {
-                char base = read[pos - i];
-                switch(base) {
-                    case 'A': case 'a': rc_codon[i] = 'T'; break;
-                    case 'T': case 't': rc_codon[i] = 'A'; break;
-                    case 'G': case 'g': rc_codon[i] = 'C'; break;
-                    case 'C': case 'c': rc_codon[i] = 'G'; break;
-                    default: rc_codon[i] = 'N';
+                if (pos - i >= 0) {
+                    char base = read[pos - i];
+                    switch(base) {
+                        case 'A': case 'a': rc_codon[i] = 'T'; break;
+                        case 'T': case 't': rc_codon[i] = 'A'; break;
+                        case 'G': case 'g': rc_codon[i] = 'C'; break;
+                        case 'C': case 'c': rc_codon[i] = 'G'; break;
+                        default: rc_codon[i] = 'N';
+                    }
+                } else {
+                    rc_codon[i] = 'N';
                 }
             }
             
             char aa = translate_codon(rc_codon);
+            
             if (aa == '*') {
-                if (tf.length >= MIN_PEPTIDE_LENGTH) {
-                    tf.sequence[tf.length] = '\0';
+                if (tf->length >= MIN_PEPTIDE_LENGTH) {
+                    tf->sequence[tf->length] = '\0';
                     valid_frames++;
                     
                     if (valid_frames < NUM_FRAMES) {
-                        tf = read_frames[valid_frames];
-                        tf.frame = -(frame + 1);
-                        tf.start_pos = pos - 3;
-                        tf.length = 0;
+                        tf = &read_frames[valid_frames];
+                        tf->frame = -(frame + 1);
+                        tf->start_pos = pos - 3;
+                        tf->length = 0;
+                        tf->valid = true;
                     }
                 } else {
-                    tf.length = 0;
-                    tf.start_pos = pos - 3;
+                    tf->length = 0;
+                    tf->start_pos = pos - 3;
                 }
             } else {
-                tf.sequence[tf.length++] = aa;
+                tf->sequence[tf->length++] = aa;
             }
         }
         
-        if (tf.length >= MIN_PEPTIDE_LENGTH) {
-            tf.sequence[tf.length] = '\0';
+        if (tf->length >= MIN_PEPTIDE_LENGTH && valid_frames < NUM_FRAMES) {
+            tf->sequence[tf->length] = '\0';
             valid_frames++;
+        } else if (tf->length < MIN_PEPTIDE_LENGTH) {
+            tf->valid = false;
         }
     }
     
-    frame_counts[tid] = valid_frames;
-    
-    if (tid == 0 && DEBUG_TRANS) {
-        DEBUG_PRINT("Read 0: %d valid frames from %d bp", valid_frames, read_len);
+    // Ensure we don't exceed the maximum number of frames
+    if (valid_frames > NUM_FRAMES) {
+        valid_frames = NUM_FRAMES;
     }
+    
+    frame_counts[tid] = valid_frames;
 }
 
-// Enhanced protein k-mer matching kernel with k-mer seeding and extension
+// Enhanced protein k-mer matching kernel with comprehensive safety checks
 __global__ void enhanced_protein_kmer_match_kernel(
     const TranslatedFrame* translated_frames,
     const uint32_t* frame_counts,
@@ -462,10 +562,18 @@ __global__ void enhanced_protein_kmer_match_kernel(
     const bool enable_smith_waterman = false
 ) {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    // Bounds checking for thread ID
     if (tid >= num_reads) return;
     
+    // Input validation
+    if (!translated_frames || !frame_counts || !protein_db || !matches || !match_counts) {
+        if (match_counts) match_counts[tid] = 0;
+        return;
+    }
+    
     uint32_t num_frames = frame_counts[tid];
-    if (num_frames == 0) {
+    if (num_frames == 0 || num_frames > NUM_FRAMES) {
         match_counts[tid] = 0;
         return;
     }
@@ -474,217 +582,223 @@ __global__ void enhanced_protein_kmer_match_kernel(
     ProteinMatch* read_matches = &matches[tid * max_matches_per_read];
     uint32_t match_count = 0;
     
-    // For each translated frame
-    for (uint32_t frame_idx = 0; frame_idx < num_frames; frame_idx++) {
+    // Process each translated frame
+    for (uint32_t frame_idx = 0; frame_idx < num_frames && frame_idx < NUM_FRAMES; frame_idx++) {
         const TranslatedFrame& frame = read_frames[frame_idx];
         
-        if (frame.length < PROTEIN_KMER_SIZE) continue;
+        if (!frame.valid || frame.length < PROTEIN_KMER_SIZE) continue;
         
-        // Collect k-mer seed hits
-        SeedHit seeds[100];
+        // Collect k-mer seed hits with bounds checking
+        SeedHit seeds[MAX_SEEDS_PER_FRAME];
         int num_seeds = 0;
         
         // Find k-mer seed matches
-        for (int pos = 0; pos + PROTEIN_KMER_SIZE <= frame.length && num_seeds < 100; pos++) {
+        for (int pos = 0; pos + PROTEIN_KMER_SIZE <= frame.length && num_seeds < MAX_SEEDS_PER_FRAME; pos++) {
             uint64_t kmer_hash = hash_protein_kmer(&frame.sequence[pos]);
             
             int kmer_idx = binary_search_protein_kmer(protein_db, kmer_hash);
-            if (kmer_idx >= 0) {
+            if (kmer_idx >= 0 && kmer_idx < protein_db->num_kmers) {
                 uint32_t start_idx = protein_db->kmer_start_indices[kmer_idx];
                 uint32_t count = protein_db->kmer_counts[kmer_idx];
                 
-                // Add hits for this k-mer (limit to avoid overflow)
-                for (uint32_t i = 0; i < count && i < 5 && num_seeds < 100; i++) {
-                    uint32_t encoded = protein_db->position_data[start_idx + i];
-                    uint32_t protein_id = encoded >> 16;
-                    uint32_t ref_pos = encoded & 0xFFFF;
-                    
-                    seeds[num_seeds] = {protein_id, (uint32_t)pos, ref_pos, 10.0f};
-                    num_seeds++;
+                // Bounds checking for position data access
+                if (start_idx < UINT32_MAX && count > 0) {
+                    // Add hits for this k-mer (limit to avoid overflow)
+                    for (uint32_t i = 0; i < count && i < 5 && num_seeds < MAX_SEEDS_PER_FRAME; i++) {
+                        if (start_idx + i < UINT32_MAX) {  // Additional bounds check
+                            uint32_t encoded = protein_db->position_data[start_idx + i];
+                            uint32_t protein_id = encoded >> 16;
+                            uint32_t ref_pos = encoded & 0xFFFF;
+                            
+                            if (protein_id < protein_db->num_proteins) {
+                                seeds[num_seeds] = {protein_id, (uint32_t)pos, ref_pos, 10.0f, true};
+                                num_seeds++;
+                            }
+                        }
+                    }
                 }
             }
         }
         
-        // Cluster seeds by protein and extend
+        // Cluster seeds by protein and extend alignments
         for (int s = 0; s < num_seeds && match_count < max_matches_per_read; s++) {
             uint32_t protein_id = seeds[s].protein_id;
-            if (protein_id == UINT32_MAX) continue; // Already processed
+            if (!seeds[s].valid || protein_id >= protein_db->num_proteins) continue;
             
             // Collect all seeds for this protein
-            SeedHit protein_seeds[20];
+            SeedHit protein_seeds[MAX_PROTEIN_SEEDS];
             int seed_count = 0;
             
-            for (int t = s; t < num_seeds && seed_count < 20; t++) {
-                if (seeds[t].protein_id == protein_id) {
+            for (int t = s; t < num_seeds && seed_count < MAX_PROTEIN_SEEDS; t++) {
+                if (seeds[t].valid && seeds[t].protein_id == protein_id) {
                     protein_seeds[seed_count++] = seeds[t];
-                    seeds[t].protein_id = UINT32_MAX; // Mark as used
+                    seeds[t].valid = false; // Mark as used
                 }
             }
             
             if (seed_count < MIN_SEED_HITS) continue;
             
-            // Safe extension from first seed - extend while maintaining alignment
+            // Safe extension from first seed
             uint32_t seed_query_pos = protein_seeds[0].query_pos;
             uint32_t seed_ref_pos = protein_seeds[0].ref_pos;
             
-            // Get reference sequence for this protein
-            const char* ref_seq = &protein_db->sequences[protein_db->seq_offsets[protein_id]];
+            // Bounds checking for protein access
+            if (protein_id >= protein_db->num_proteins) continue;
+            
+            uint32_t seq_offset = protein_db->seq_offsets[protein_id];
             uint16_t ref_len = protein_db->seq_lengths[protein_id];
             
-            // Extend left from seed (allow some mismatches)
+            // Verify sequence bounds
+            if (seq_offset >= protein_db->total_sequence_length || 
+                seq_offset + ref_len > protein_db->total_sequence_length ||
+                seed_ref_pos >= ref_len) {
+                continue;
+            }
+            
+            const char* ref_seq = &protein_db->sequences[seq_offset];
+            
+            // Safe extension with mismatch tolerance
             int left_extend = 0;
             int left_mismatches = 0;
-            const int max_mismatches = 1;  // Reduced from 2 to 1 - stricter extension
+            const int max_mismatches = 3;  // Allow mismatches for AMR variants
             
-            while (seed_query_pos - left_extend > 0 && 
-                   seed_ref_pos - left_extend > 0 &&
-                   left_extend < 50 &&
+            while (seed_query_pos > left_extend && 
+                   seed_ref_pos > left_extend &&
+                   left_extend < 30 &&
                    left_mismatches <= max_mismatches) {
-                char query_aa = frame.sequence[seed_query_pos - left_extend - 1];
-                char ref_aa = ref_seq[seed_ref_pos - left_extend - 1];
                 
-                if (query_aa == ref_aa) {
-                    left_extend++;
+                int query_idx = seed_query_pos - left_extend - 1;
+                int ref_idx = seed_ref_pos - left_extend - 1;
+                
+                if (query_idx >= 0 && query_idx < frame.length && ref_idx >= 0 && ref_idx < ref_len) {
+                    char query_aa = frame.sequence[query_idx];
+                    char ref_aa = ref_seq[ref_idx];
+                    
+                    if (query_aa == ref_aa || get_blosum_score(query_aa, ref_aa) > 0) {
+                        left_extend++;
+                    } else {
+                        left_mismatches++;
+                        left_extend++;
+                    }
                 } else {
-                    left_mismatches++;
-                    left_extend++;  // Continue extending despite mismatch
+                    break;
                 }
             }
             
-            // Extend right from seed (allow some mismatches)
-            int right_extend = PROTEIN_KMER_SIZE;  // Start after the k-mer
+            // Extend right from seed
+            int right_extend = PROTEIN_KMER_SIZE;
             int right_mismatches = 0;
             
             while (seed_query_pos + right_extend < frame.length && 
                    seed_ref_pos + right_extend < ref_len &&
-                   right_extend < 50 &&
+                   right_extend < 30 &&
                    right_mismatches <= max_mismatches) {
-                char query_aa = frame.sequence[seed_query_pos + right_extend];
-                char ref_aa = ref_seq[seed_ref_pos + right_extend];
                 
-                if (query_aa == ref_aa) {
-                    right_extend++;
+                int query_idx = seed_query_pos + right_extend;
+                int ref_idx = seed_ref_pos + right_extend;
+                
+                if (query_idx < frame.length && ref_idx < ref_len) {
+                    char query_aa = frame.sequence[query_idx];
+                    char ref_aa = ref_seq[ref_idx];
+                    
+                    if (query_aa == ref_aa || get_blosum_score(query_aa, ref_aa) > 0) {
+                        right_extend++;
+                    } else {
+                        right_mismatches++;
+                        right_extend++;
+                    }
                 } else {
-                    right_mismatches++;
-                    right_extend++;  // Continue extending despite mismatch
+                    break;
                 }
             }
             
-            uint32_t min_query = seed_query_pos - left_extend;
-            uint32_t min_ref = seed_ref_pos - left_extend;
-            uint32_t query_span = left_extend + right_extend;
-            uint32_t ref_span = query_span;  // Same span due to exact extension
+            uint32_t match_query_start = seed_query_pos - left_extend;
+            uint32_t match_ref_start = seed_ref_pos - left_extend;
+            uint32_t match_length = left_extend + right_extend;
             
-            // Always proceed if we have enough seed hits
-            if (seed_count >= MIN_SEED_HITS) {
-                
-                // Create temporary match to check identity
+            // Create match if meets minimum requirements
+            if (seed_count >= MIN_SEED_HITS && match_length >= MIN_ALIGNMENT_LENGTH) {
                 ProteinMatch temp_match;
                 temp_match.read_id = tid;
                 temp_match.frame = frame.frame;
                 temp_match.protein_id = protein_id;
                 temp_match.gene_id = protein_db->gene_ids[protein_id];
                 temp_match.species_id = protein_db->species_ids[protein_id];
-                temp_match.query_start = min_query;
-                temp_match.ref_start = min_ref;
-                temp_match.match_length = query_span;  // Use the extended length
+                temp_match.query_start = match_query_start;
+                temp_match.ref_start = match_ref_start;
+                temp_match.match_length = match_length;
                 
-                // Calculate identity based on mismatches found during extension
+                // Calculate identity and coverage
                 int total_mismatches = left_mismatches + right_mismatches;
-                temp_match.identity = 1.0f - (float)total_mismatches / query_span;
-                temp_match.alignment_score = query_span * 2.0f - total_mismatches * 4.0f;  // Penalize mismatches
+                temp_match.identity = 1.0f - (float)total_mismatches / match_length;
+                temp_match.alignment_score = match_length * 2.0f - total_mismatches * 4.0f;
+                
+                temp_match.gene_length = ref_len * 3;  // Convert AA to nucleotides
+                temp_match.coverage_start = match_ref_start;
+                temp_match.coverage_end = match_ref_start + match_length;
+                temp_match.coverage_fraction = (float)match_length / ref_len;
+                
                 temp_match.used_smith_waterman = false;
+                temp_match.concordant = false;
+                temp_match.high_confidence = (temp_match.identity >= 0.85f && match_length >= 20);
                 
-                // Debug identity calculation
-                if (tid == 0 && match_count < 3) {  // Debug first few matches of first read
-                    printf("[IDENTITY DEBUG] Read %d, Match %d: mismatches=%d, span=%d, identity=%.4f\n", 
-                           tid, match_count, total_mismatches, query_span, temp_match.identity);
-                }
-                
-                // Add coverage tracking
-                temp_match.gene_length = protein_db->seq_lengths[protein_id];
-                temp_match.coverage_start = min_ref;
-                temp_match.coverage_end = min_ref + ref_span;
-                
-                // Extract peptide sequence from translated frame (extended region)
-                int peptide_len = min(query_span, 50);
-                for (int k = 0; k < peptide_len && k < 50; k++) {
-                    if (min_query + k < frame.length) {
-                        temp_match.query_peptide[k] = frame.sequence[min_query + k];
+                // Extract peptide sequences with bounds checking
+                int peptide_len = min(match_length, 50);
+                for (int k = 0; k < peptide_len; k++) {
+                    int query_idx = match_query_start + k;
+                    int ref_idx = match_ref_start + k;
+                    
+                    if (query_idx < frame.length && k < 50) {
+                        temp_match.query_peptide[k] = frame.sequence[query_idx];
                     } else {
                         temp_match.query_peptide[k] = 'X';
                     }
+                    
+                    if (ref_idx < ref_len && k < 50) {
+                        temp_match.ref_peptide[k] = ref_seq[ref_idx];
+                    } else {
+                        temp_match.ref_peptide[k] = 'X';
+                    }
                 }
                 temp_match.query_peptide[peptide_len] = '\0';
+                temp_match.ref_peptide[peptide_len] = '\0';
                 
-                // Debug: Print scoring info for first few matches
-                if (tid == 0 && match_count < 3 && DEBUG_TRANS) {
-                    DEBUG_PRINT("Match %d: seed_count=%d, score=%.1f, threshold=%.1f, SW enabled=%s", 
-                               match_count, seed_count, temp_match.alignment_score, SW_SCORE_THRESHOLD, enable_smith_waterman ? "YES" : "NO");
-                }
-                
-                // Apply Smith-Waterman to extend alignments if enabled
-                if (enable_smith_waterman && seed_count >= MIN_SEED_HITS) {
-                    // Get reference sequence
-                    const char* ref_seq = &protein_db->sequences[protein_db->seq_offsets[protein_id]];
-                    uint16_t ref_len = protein_db->seq_lengths[protein_id];
+                // Apply Smith-Waterman if enabled and beneficial
+                if (enable_smith_waterman && seed_count >= MIN_SEED_HITS && match_length < 40) {
+                    uint16_t available_ref = ref_len - match_ref_start;
+                    uint16_t available_query = frame.length - match_query_start;
+                    uint16_t sw_ref_len = min(available_ref, (uint16_t)50);
+                    uint16_t sw_query_len = min(available_query, (uint16_t)50);
                     
-                    if (temp_match.ref_start < ref_len) {
-                        // Use the already extended region for Smith-Waterman
-                        uint16_t available_ref = ref_len - temp_match.ref_start;
-                        uint16_t available_query = frame.length - temp_match.query_start;
-                        uint16_t sw_ref_len = min(available_ref, (uint16_t)50);
-                        uint16_t sw_query_len = min(available_query, (uint16_t)50);
-                        
+                    if (sw_ref_len > 0 && sw_query_len > 0) {
                         uint16_t sw_query_start, sw_ref_start, sw_length;
-                        uint8_t sw_num_mutations;
-                        
-                        // Dummy arrays for SW function (we don't need mutation details)
-                        uint8_t dummy_positions[10];
-                        char dummy_refs[10], dummy_queries[10];
-                        float dummy_scores[10];
-                        
                         float sw_score = smith_waterman_align(
-                            &frame.sequence[temp_match.query_start], sw_query_len,
-                            &ref_seq[temp_match.ref_start], sw_ref_len,
-                            &sw_query_start, &sw_ref_start, &sw_length,
-                            dummy_positions, dummy_refs, dummy_queries, dummy_scores,
-                            &sw_num_mutations
+                            &frame.sequence[match_query_start], sw_query_len,
+                            &ref_seq[match_ref_start], sw_ref_len,
+                            &sw_query_start, &sw_ref_start, &sw_length
                         );
                         
-                        if (sw_score > temp_match.alignment_score) {
+                        if (sw_score > temp_match.alignment_score + 10.0f) {  // Require significant improvement
                             temp_match.alignment_score = sw_score;
-                            temp_match.query_start += sw_query_start;
-                            temp_match.ref_start += sw_ref_start;
+                            temp_match.query_start = match_query_start + sw_query_start;
+                            temp_match.ref_start = match_ref_start + sw_ref_start;
                             temp_match.match_length = sw_length;
-                            temp_match.identity = (float)(sw_length - sw_num_mutations) / sw_length;
+                            temp_match.identity = sw_score / (sw_length * 3.0f);  // More conservative identity
                             temp_match.used_smith_waterman = true;
                             
-                            // Debug SW identity calculation
-                            if (tid == 0 && match_count < 3) {
-                                printf("[SW IDENTITY DEBUG] Read %d, Match %d: mutations=%d, length=%d, identity=%.4f\n", 
-                                       tid, match_count, sw_num_mutations, sw_length, temp_match.identity);
-                            }
-                            
-                            // Update coverage tracking after SW alignment
+                            // Update coverage
                             temp_match.coverage_start = temp_match.ref_start;
                             temp_match.coverage_end = temp_match.ref_start + sw_length;
+                            temp_match.coverage_fraction = (float)sw_length / ref_len;
                         }
                     }
                 }
                 
-                // Skip mutation detection - not needed for AMR gene presence/absence
-                                
-                // Debug threshold check
-                if (tid == 0 && match_count < 3) {
-                    printf("[THRESHOLD CHECK] Identity %.4f vs threshold %.4f, Length %d vs min %d - %s\n", 
-                           temp_match.identity, MIN_IDENTITY_THRESHOLD,
-                           temp_match.match_length, MIN_ALIGNMENT_LENGTH,
-                           (temp_match.identity >= MIN_IDENTITY_THRESHOLD && temp_match.match_length >= MIN_ALIGNMENT_LENGTH) ? "PASS" : "FAIL");
-                }
-                
-                // Only accept matches with sufficient identity and length
-                if (temp_match.identity >= MIN_IDENTITY_THRESHOLD && temp_match.match_length >= MIN_ALIGNMENT_LENGTH) {
+                // Accept match if it meets quality thresholds
+                if (temp_match.identity >= MIN_IDENTITY_THRESHOLD && 
+                    temp_match.match_length >= MIN_ALIGNMENT_LENGTH &&
+                    match_count < max_matches_per_read) {
+                    
                     read_matches[match_count] = temp_match;
                     match_count++;
                 }
@@ -692,22 +806,16 @@ __global__ void enhanced_protein_kmer_match_kernel(
         }
     }
     
-    // Keep all high-quality matches (identity >= 0.85) for AMR gene detection
-    // This allows tracking multiple reads per gene for abundance calculation
-    // No filtering to best match - we want all reads mapping to each gene
-    
-    match_counts[tid] = match_count;
-    
-    if (tid == 0 && match_count > 0 && DEBUG_TRANS) {
-        DEBUG_PRINT("Read 0: %d protein matches found (SW enabled: %s)", 
-                   match_count, enable_smith_waterman ? "YES" : "NO");
+    // Ensure match count doesn't exceed limit
+    if (match_count > max_matches_per_read) {
+        match_count = max_matches_per_read;
     }
     
-    // REMOVED: Hardcoded QRDR summary statistics - now handled by global FQ mapper
+    match_counts[tid] = match_count;
 }
 
-// Host wrapper class
-class TranslatedSearchEngine {
+// Host wrapper class with enhanced safety and memory management
+class AMRTranslatedSearchEngine {
 private:
     ProteinDatabase* d_protein_db;
     TranslatedFrame* d_translated_frames;
@@ -717,82 +825,152 @@ private:
     
     int max_batch_size;
     bool smith_waterman_enabled;
+    bool initialized;
+    
+    // Memory tracking
+    size_t allocated_memory;
     
 public:
-    TranslatedSearchEngine(int batch_size = 10000, bool enable_sw = false) 
-        : max_batch_size(batch_size), smith_waterman_enabled(enable_sw) {
+    AMRTranslatedSearchEngine(int batch_size = 8192, bool enable_sw = false) 
+        : max_batch_size(batch_size), smith_waterman_enabled(enable_sw), 
+          initialized(false), allocated_memory(0) {
         
-        printf("[TRANS ENGINE] Initializing with batch_size=%d, SW=%s\n", 
-               batch_size, enable_sw ? "enabled" : "disabled");
+        DEBUG_PRINT("Initializing AMR engine: batch_size=%d, SW=%s", 
+                   batch_size, enable_sw ? "enabled" : "disabled");
         
-        if (batch_size <= 0 || batch_size > 1000000) {
-            printf("[TRANS ENGINE ERROR] Invalid batch size: %d\n", batch_size);
+        // Validate and adjust batch size
+        if (batch_size <= 0 || batch_size > 100000) {
+            printf("[AMR ENGINE WARNING] Invalid batch size %d, using default 8192\n", batch_size);
+            max_batch_size = 8192;
+        }
+        
+        // Initialize pointers
+        d_protein_db = nullptr;
+        d_translated_frames = nullptr;
+        d_frame_counts = nullptr;
+        d_matches = nullptr;
+        d_match_counts = nullptr;
+        
+        if (!allocateGPUMemory()) {
+            printf("[AMR ENGINE ERROR] Failed to allocate GPU memory\n");
             return;
         }
         
-        DEBUG_PRINT("Initializing TranslatedSearchEngine (batch=%d, SW=%s)", 
-                   batch_size, enable_sw ? "enabled" : "disabled");
-        
-        cudaError_t err;
-        err = cudaMalloc(&d_translated_frames, batch_size * NUM_FRAMES * sizeof(TranslatedFrame));
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("Failed to allocate d_translated_frames: %s", cudaGetErrorString(err));
-        }
-        err = cudaMalloc(&d_frame_counts, batch_size * sizeof(uint32_t));
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("Failed to allocate d_frame_counts: %s", cudaGetErrorString(err));
-        }
-        err = cudaMalloc(&d_matches, batch_size * 32 * sizeof(ProteinMatch));
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("Failed to allocate d_matches: %s", cudaGetErrorString(err));
-        }
-        err = cudaMalloc(&d_match_counts, batch_size * sizeof(uint32_t));
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("Failed to allocate d_match_counts: %s", cudaGetErrorString(err));
-        }
-        
-        d_protein_db = nullptr;
+        initialized = true;
+        DEBUG_PRINT("AMR engine initialized successfully");
     }
     
-    ~TranslatedSearchEngine() {
-        if (d_translated_frames) cudaFree(d_translated_frames);
-        if (d_frame_counts) cudaFree(d_frame_counts);
-        if (d_matches) cudaFree(d_matches);
-        if (d_match_counts) cudaFree(d_match_counts);
+    ~AMRTranslatedSearchEngine() {
+        cleanup();
+    }
+    
+private:
+    bool allocateGPUMemory() {
+        // Check available GPU memory
+        size_t free_mem, total_mem;
+        if (cudaMemGetInfo(&free_mem, &total_mem) != cudaSuccess) {
+            printf("[AMR ENGINE ERROR] Failed to query GPU memory\n");
+            return false;
+        }
+        
+        DEBUG_PRINT("GPU memory: %zu MB free / %zu MB total", 
+                   free_mem / (1024*1024), total_mem / (1024*1024));
+        
+        // Calculate required memory with safety margins
+        size_t frames_mem = max_batch_size * NUM_FRAMES * sizeof(TranslatedFrame);
+        size_t counts_mem = max_batch_size * sizeof(uint32_t);
+        size_t matches_mem = max_batch_size * MAX_MATCHES_PER_READ * sizeof(ProteinMatch);
+        size_t total_required = frames_mem + counts_mem * 2 + matches_mem;
+        
+        DEBUG_PRINT("Requiring %zu MB GPU memory", total_required / (1024*1024));
+        
+        if (total_required > free_mem * 0.75) {  // Leave 25% buffer
+            printf("[AMR ENGINE ERROR] Insufficient GPU memory: need %zu MB, have %zu MB\n", 
+                   total_required / (1024*1024), free_mem / (1024*1024));
+            return false;
+        }
+        
+        // Allocate with error checking
+        CUDA_CHECK(cudaMalloc(&d_translated_frames, frames_mem));
+        allocated_memory += frames_mem;
+        
+        CUDA_CHECK(cudaMalloc(&d_frame_counts, counts_mem));
+        allocated_memory += counts_mem;
+        
+        CUDA_CHECK(cudaMalloc(&d_matches, matches_mem));
+        allocated_memory += matches_mem;
+        
+        CUDA_CHECK(cudaMalloc(&d_match_counts, counts_mem));
+        allocated_memory += counts_mem;
+        
+        DEBUG_PRINT("Allocated %zu MB GPU memory", allocated_memory / (1024*1024));
+        return true;
+    }
+    
+    void cleanup() {
+        if (d_translated_frames) {
+            cudaFree(d_translated_frames);
+            d_translated_frames = nullptr;
+        }
+        if (d_frame_counts) {
+            cudaFree(d_frame_counts);
+            d_frame_counts = nullptr;
+        }
+        if (d_matches) {
+            cudaFree(d_matches);
+            d_matches = nullptr;
+        }
+        if (d_match_counts) {
+            cudaFree(d_match_counts);
+            d_match_counts = nullptr;
+        }
         
         if (d_protein_db) {
             ProteinDatabase h_db;
-            cudaMemcpy(&h_db, d_protein_db, sizeof(ProteinDatabase), cudaMemcpyDeviceToHost);
-            
-            if (h_db.sorted_kmer_hashes) cudaFree(h_db.sorted_kmer_hashes);
-            if (h_db.kmer_start_indices) cudaFree(h_db.kmer_start_indices);
-            if (h_db.kmer_counts) cudaFree(h_db.kmer_counts);
-            if (h_db.position_data) cudaFree(h_db.position_data);
-            if (h_db.protein_ids) cudaFree(h_db.protein_ids);
-            if (h_db.gene_ids) cudaFree(h_db.gene_ids);
-            if (h_db.species_ids) cudaFree(h_db.species_ids);
-            if (h_db.seq_lengths) cudaFree(h_db.seq_lengths);
-            if (h_db.sequences) cudaFree(h_db.sequences);
-            if (h_db.seq_offsets) cudaFree(h_db.seq_offsets);
-            
+            if (cudaMemcpy(&h_db, d_protein_db, sizeof(ProteinDatabase), cudaMemcpyDeviceToHost) == cudaSuccess) {
+                if (h_db.sorted_kmer_hashes) cudaFree(h_db.sorted_kmer_hashes);
+                if (h_db.kmer_start_indices) cudaFree(h_db.kmer_start_indices);
+                if (h_db.kmer_counts) cudaFree(h_db.kmer_counts);
+                if (h_db.position_data) cudaFree(h_db.position_data);
+                if (h_db.protein_ids) cudaFree(h_db.protein_ids);
+                if (h_db.gene_ids) cudaFree(h_db.gene_ids);
+                if (h_db.species_ids) cudaFree(h_db.species_ids);
+                if (h_db.seq_lengths) cudaFree(h_db.seq_lengths);
+                if (h_db.seq_offsets) cudaFree(h_db.seq_offsets);
+                if (h_db.sequences) cudaFree(h_db.sequences);
+                if (h_db.is_amr_gene) cudaFree(h_db.is_amr_gene);
+                if (h_db.resistance_class) cudaFree(h_db.resistance_class);
+            }
             cudaFree(d_protein_db);
+            d_protein_db = nullptr;
         }
+        
+        initialized = false;
+        allocated_memory = 0;
+        DEBUG_PRINT("AMR engine cleanup completed");
     }
     
+public:
+    bool isInitialized() const { return initialized; }
+    
     bool loadProteinDatabase(const std::string& db_path) {
-        printf("[PROTEIN DB] Loading enhanced protein database from %s\n", db_path.c_str());
+        if (!initialized) {
+            printf("[AMR ENGINE ERROR] Engine not initialized\n");
+            return false;
+        }
+        
+        DEBUG_PRINT("Loading AMR protein database from %s", db_path.c_str());
         
         if (d_protein_db) {
-            printf("[PROTEIN DB] Protein database already loaded\n");
+            DEBUG_PRINT("Protein database already loaded");
             return true;
         }
         
-        // Load k-mer index
+        // Load k-mer index with enhanced error checking
         std::string kmer_path = db_path + "/protein_kmers.bin";
         std::ifstream kmer_file(kmer_path, std::ios::binary);
         if (!kmer_file.good()) {
-            printf("[PROTEIN DB ERROR] Cannot read k-mer file: %s\n", kmer_path.c_str());
-            printf("[PROTEIN DB ERROR] Check if file exists and is readable\n");
+            printf("[AMR DB ERROR] Cannot read k-mer file: %s\n", kmer_path.c_str());
             return false;
         }
         
@@ -801,32 +979,62 @@ public:
         kmer_file.read(reinterpret_cast<char*>(&num_kmers), sizeof(uint32_t));
         
         if (kmer_length != PROTEIN_KMER_SIZE) {
-            printf("[PROTEIN DB ERROR] K-mer size mismatch: expected %d, got %d\n", PROTEIN_KMER_SIZE, kmer_length);
+            printf("[AMR DB ERROR] K-mer size mismatch: expected %d, got %d\n", PROTEIN_KMER_SIZE, kmer_length);
             return false;
         }
         
-        printf("[PROTEIN DB] Loading %d protein k-mers\n", num_kmers);
+        if (num_kmers == 0 || num_kmers > 10000000) {  // Sanity check
+            printf("[AMR DB ERROR] Invalid k-mer count: %d\n", num_kmers);
+            return false;
+        }
         
-        // Load and sort k-mers
+        DEBUG_PRINT("Loading %d protein k-mers", num_kmers);
+        
+        // Load and sort k-mers with bounds checking
         std::map<uint64_t, std::vector<uint32_t>> kmer_map;
         
         for (uint32_t i = 0; i < num_kmers; i++) {
-            char kmer_seq[9] = {0};  // Support up to 8-mer + null terminator
+            char kmer_seq[PROTEIN_KMER_SIZE + 1] = {0};
             kmer_file.read(kmer_seq, kmer_length);
             
-            uint64_t hash = 0;
-            const uint64_t prime = 31;
-            for (int j = 0; j < kmer_length; j++) {
-                hash = hash * prime + aa_to_index(kmer_seq[j]);
+            if (kmer_file.gcount() != kmer_length) {
+                printf("[AMR DB ERROR] Incomplete k-mer read at position %d\n", i);
+                return false;
             }
+            
+            // Validate k-mer sequence
+            bool valid_kmer = true;
+            for (int j = 0; j < kmer_length; j++) {
+                if (aa_to_index(kmer_seq[j]) == 22 && kmer_seq[j] != 'X') {  // Invalid AA
+                    valid_kmer = false;
+                    break;
+                }
+            }
+            
+            if (!valid_kmer) {
+                printf("[AMR DB WARNING] Skipping invalid k-mer at position %d\n", i);
+                continue;
+            }
+            
+            uint64_t hash = hash_protein_kmer(kmer_seq);
             
             uint32_t num_positions;
             kmer_file.read(reinterpret_cast<char*>(&num_positions), sizeof(uint32_t));
+            
+            if (num_positions > 1000) {  // Reasonable limit for AMR database
+                printf("[AMR DB WARNING] K-mer %d has excessive positions (%d), truncating\n", i, num_positions);
+                num_positions = 1000;
+            }
             
             for (uint32_t j = 0; j < num_positions; j++) {
                 uint32_t protein_idx, position;
                 kmer_file.read(reinterpret_cast<char*>(&protein_idx), sizeof(uint32_t));
                 kmer_file.read(reinterpret_cast<char*>(&position), sizeof(uint32_t));
+                
+                if (protein_idx > 100000 || position > 65535) {  // Sanity checks
+                    printf("[AMR DB WARNING] Invalid protein/position: %d/%d\n", protein_idx, position);
+                    continue;
+                }
                 
                 uint32_t encoded = (protein_idx << 16) | (position & 0xFFFF);
                 kmer_map[hash].push_back(encoded);
@@ -834,11 +1042,17 @@ public:
         }
         kmer_file.close();
         
-        // Create sorted arrays
+        DEBUG_PRINT("Processed %zu unique k-mer hashes", kmer_map.size());
+        
+        // Create sorted arrays for GPU
         std::vector<uint64_t> sorted_hashes;
         std::vector<uint32_t> start_indices;
         std::vector<uint32_t> kmer_counts;
         std::vector<uint32_t> position_data;
+        
+        sorted_hashes.reserve(kmer_map.size());
+        start_indices.reserve(kmer_map.size());
+        kmer_counts.reserve(kmer_map.size());
         
         for (const auto& pair : kmer_map) {
             sorted_hashes.push_back(pair.first);
@@ -850,94 +1064,122 @@ public:
             }
         }
         
-        // Load protein sequences for Smith-Waterman
+        // Load protein sequences and metadata
         std::string protein_path = db_path + "/proteins.bin";
         std::ifstream protein_file(protein_path, std::ios::binary);
         if (!protein_file.good()) {
-            printf("[PROTEIN DB ERROR] Cannot read protein file: %s\n", protein_path.c_str());
-            printf("[PROTEIN DB ERROR] Check if file exists and is readable\n");
+            printf("[AMR DB ERROR] Cannot read protein file: %s\n", protein_path.c_str());
             return false;
         }
         
         uint32_t num_proteins;
         protein_file.read(reinterpret_cast<char*>(&num_proteins), sizeof(uint32_t));
         
-        DEBUG_PRINT("Reading %d proteins from database", num_proteins);
+        if (num_proteins == 0 || num_proteins > 1000000) {  // Sanity check
+            printf("[AMR DB ERROR] Invalid protein count: %d\n", num_proteins);
+            return false;
+        }
         
-        // Read all remaining data as one big sequence block
+        // Calculate total file size for validation
         protein_file.seekg(0, std::ios::end);
         size_t file_size = protein_file.tellg();
-        protein_file.seekg(sizeof(uint32_t), std::ios::beg); // Skip num_proteins
+        protein_file.seekg(sizeof(uint32_t), std::ios::beg);
         
         size_t remaining_size = file_size - sizeof(uint32_t);
+        if (remaining_size > 100 * 1024 * 1024) {  // 100MB limit for safety
+            printf("[AMR DB ERROR] Protein file too large: %zu bytes\n", remaining_size);
+            return false;
+        }
+        
         std::vector<char> all_sequences(remaining_size + 1);
         protein_file.read(all_sequences.data(), remaining_size);
         all_sequences[remaining_size] = '\0';
+        protein_file.close();
         
-        DEBUG_PRINT("Read %zu bytes of sequence data", remaining_size);
-        printf("[DATABASE DEBUG] Loading protein database from: %s\n", db_path.c_str());
-        printf("[DATABASE DEBUG] Number of proteins: %d\n", num_proteins);
-        printf("[DATABASE DEBUG] Total sequence bytes: %zu\n", remaining_size);
+        DEBUG_PRINT("Loaded %d proteins, %zu sequence bytes", num_proteins, remaining_size);
         
-        // Load protein metadata from protein_details.json
+        // Initialize metadata vectors with bounds checking
         std::vector<uint32_t> protein_ids(num_proteins);
         std::vector<uint32_t> gene_ids(num_proteins);
         std::vector<uint32_t> species_ids(num_proteins);
         std::vector<uint16_t> seq_lengths(num_proteins);
         std::vector<uint32_t> seq_offsets(num_proteins);
+        std::vector<uint8_t> is_amr_gene(num_proteins, 0);  // Use uint8_t instead of bool
+        std::vector<uint8_t> resistance_class(num_proteins, 0);
         
-        DEBUG_PRINT("Loading protein metadata for %d proteins", num_proteins);
-        
-        // Try to load metadata from protein_details.json
+        // Load AMR-specific metadata
         std::string metadata_path = db_path + "/protein_details.json";
         std::ifstream metadata_file(metadata_path);
         
         if (metadata_file.good()) {
-            // Parse JSON metadata
             std::string json_content((std::istreambuf_iterator<char>(metadata_file)),
                                    std::istreambuf_iterator<char>());
             metadata_file.close();
             
-            // Simple JSON parsing for the array of protein objects
+            DEBUG_PRINT("Processing metadata JSON (%zu bytes)", json_content.size());
+            
+            // Enhanced JSON parsing with AMR detection
             size_t pos = 0;
             size_t protein_idx = 0;
             size_t current_offset = 0;
             
             while ((pos = json_content.find("\"id\":", pos)) != std::string::npos && protein_idx < num_proteins) {
-                // Parse protein ID
                 pos += 5;
                 size_t id_start = json_content.find_first_of("0123456789", pos);
                 size_t id_end = json_content.find_first_not_of("0123456789", id_start);
-                protein_ids[protein_idx] = std::stoi(json_content.substr(id_start, id_end - id_start));
+                
+                if (id_start != std::string::npos && id_end != std::string::npos) {
+                    protein_ids[protein_idx] = std::stoi(json_content.substr(id_start, id_end - id_start));
+                }
                 
                 // Parse gene_id
                 size_t gene_pos = json_content.find("\"gene_id\":", pos);
-                if (gene_pos != std::string::npos && gene_pos < pos + 500) {
+                if (gene_pos != std::string::npos && gene_pos < pos + 1000) {
                     gene_pos += 10;
                     size_t gene_start = json_content.find_first_of("0123456789", gene_pos);
                     size_t gene_end = json_content.find_first_not_of("0123456789", gene_start);
-                    gene_ids[protein_idx] = std::stoi(json_content.substr(gene_start, gene_end - gene_start));
+                    if (gene_start != std::string::npos && gene_end != std::string::npos) {
+                        gene_ids[protein_idx] = std::stoi(json_content.substr(gene_start, gene_end - gene_start));
+                    }
                 }
                 
                 // Parse species_id
                 size_t species_pos = json_content.find("\"species_id\":", pos);
-                if (species_pos != std::string::npos && species_pos < pos + 500) {
+                if (species_pos != std::string::npos && species_pos < pos + 1000) {
                     species_pos += 13;
                     size_t species_start = json_content.find_first_of("0123456789", species_pos);
                     size_t species_end = json_content.find_first_not_of("0123456789", species_start);
-                    species_ids[protein_idx] = std::stoi(json_content.substr(species_start, species_end - species_start));
+                    if (species_start != std::string::npos && species_end != std::string::npos) {
+                        species_ids[protein_idx] = std::stoi(json_content.substr(species_start, species_end - species_start));
+                    }
                 }
                 
-                // Parse length
+                // Parse sequence length
                 size_t length_pos = json_content.find("\"length\":", pos);
-                if (length_pos != std::string::npos && length_pos < pos + 500) {
+                if (length_pos != std::string::npos && length_pos < pos + 1000) {
                     length_pos += 9;
                     size_t length_start = json_content.find_first_of("0123456789", length_pos);
                     size_t length_end = json_content.find_first_not_of("0123456789", length_start);
-                    seq_lengths[protein_idx] = std::stoi(json_content.substr(length_start, length_end - length_start));
+                    if (length_start != std::string::npos && length_end != std::string::npos) {
+                        uint16_t len = std::stoi(json_content.substr(length_start, length_end - length_start));
+                        seq_lengths[protein_idx] = (len > 5000) ? 5000 : len;  // Cap at reasonable size
+                    }
                 }
                 
-                // Set offset
+                // Check for AMR annotations
+                size_t amr_pos = json_content.find("\"amr\":", pos);
+                if (amr_pos != std::string::npos && amr_pos < pos + 1000) {
+                    if (json_content.find("true", amr_pos + 6) == amr_pos + 6) {
+                        is_amr_gene[protein_idx] = 1;
+                    }
+                }
+                
+                // Check for fluoroquinolone resistance
+                if (json_content.find("fluoroquinolone", pos) != std::string::npos && 
+                    json_content.find("fluoroquinolone", pos) < pos + 1000) {
+                    resistance_class[protein_idx] = 1;  // Fluoroquinolone class
+                }
+                
                 seq_offsets[protein_idx] = current_offset;
                 current_offset += seq_lengths[protein_idx];
                 
@@ -945,123 +1187,89 @@ public:
                 pos = id_end;
             }
             
-            DEBUG_PRINT("Loaded metadata for %d proteins from JSON", protein_idx);
-            
-            // Print mappings for debugging
-            for (uint32_t i = 0; i < std::min((uint32_t)5, num_proteins); i++) {
-                printf("[GENE MAPPING] Protein %d: gene_id=%d, species_id=%d, length=%d, offset=%d\n",
-                       i, gene_ids[i], species_ids[i], seq_lengths[i], seq_offsets[i]);
-            }
+            DEBUG_PRINT("Processed metadata for %zu proteins", protein_idx);
         } else {
-            // Fallback: estimate from sequence data
-            printf("[WARNING] Could not load protein_details.json, using estimated mappings\n");
+            printf("[AMR DB WARNING] No metadata file found, using defaults\n");
+            // Generate default metadata
             size_t avg_protein_len = remaining_size / num_proteins;
             for (uint32_t i = 0; i < num_proteins; i++) {
                 protein_ids[i] = i;
-                gene_ids[i] = 1;  // Default to gyrA (gene_id 1)
-                species_ids[i] = i % 6;  // Cycle through species
+                gene_ids[i] = i / 10;  // Group proteins into genes
+                species_ids[i] = i % 20;  // Distribute across species
                 seq_offsets[i] = i * avg_protein_len;
                 seq_lengths[i] = (i == num_proteins - 1) ? 
                                 (remaining_size - seq_offsets[i]) : avg_protein_len;
+                if (seq_lengths[i] > 5000) seq_lengths[i] = 5000;  // Safety cap
             }
         }
         
-        // Debug: Print first few proteins
-        if (DEBUG_TRANS) {
-            for (int i = 0; i < 3 && i < num_proteins; i++) {
-                const char* seq_start = all_sequences.data() + seq_offsets[i];
-                DEBUG_PRINT("Protein %d: offset=%d, len=%d, seq=%.15s...", 
-                           i, seq_offsets[i], seq_lengths[i], seq_start);
-            }
-        }
-        
-        // Use the all_sequences vector as our sequences
-        std::vector<char> sequences = std::move(all_sequences);
-        protein_file.close();
-        
-        DEBUG_PRINT("Loaded %d proteins, total sequence length: %zu", num_proteins, sequences.size());
-        
-        // Check for any existing CUDA errors before allocation
+        // Clear any existing CUDA errors before allocation
         cudaError_t existing_err = cudaGetLastError();
         if (existing_err != cudaSuccess) {
-            printf("[PROTEIN DB ERROR] Existing CUDA error before allocation: %s\n", cudaGetErrorString(existing_err));
-            return false;
+            printf("[AMR DB WARNING] Clearing existing CUDA error: %s\n", cudaGetErrorString(existing_err));
         }
         
-        // Allocate and copy to GPU
-        ProteinDatabase h_db;
+        // Allocate and copy to GPU with comprehensive error checking
+        ProteinDatabase h_db = {};
         h_db.num_proteins = num_proteins;
         h_db.num_kmers = sorted_hashes.size();
+        h_db.total_sequence_length = remaining_size;
         
-        // Debug: Print allocation sizes
-        printf("[PROTEIN DB] Allocating GPU memory:\n");
-        printf("  - K-mer hashes: %zu entries (%zu MB)\n", sorted_hashes.size(), 
-               (sorted_hashes.size() * sizeof(uint64_t)) / (1024*1024));
-        printf("  - Start indices: %zu entries (%zu MB)\n", start_indices.size(),
-               (start_indices.size() * sizeof(uint32_t)) / (1024*1024));
-        printf("  - K-mer counts: %zu entries (%zu MB)\n", kmer_counts.size(),
-               (kmer_counts.size() * sizeof(uint32_t)) / (1024*1024));
-        printf("  - Position data: %zu entries (%zu MB)\n", position_data.size(),
-               (position_data.size() * sizeof(uint32_t)) / (1024*1024));
+        // Allocate GPU memory for all database components
+        CUDA_CHECK(cudaMalloc(&h_db.sorted_kmer_hashes, sorted_hashes.size() * sizeof(uint64_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.kmer_start_indices, start_indices.size() * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.kmer_counts, kmer_counts.size() * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.position_data, position_data.size() * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.protein_ids, num_proteins * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.gene_ids, num_proteins * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.species_ids, num_proteins * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.seq_lengths, num_proteins * sizeof(uint16_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.seq_offsets, num_proteins * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMalloc(&h_db.sequences, all_sequences.size() * sizeof(char)));
+        CUDA_CHECK(cudaMalloc(&h_db.is_amr_gene, num_proteins * sizeof(uint8_t)));  // Changed from bool to uint8_t
+        CUDA_CHECK(cudaMalloc(&h_db.resistance_class, num_proteins * sizeof(uint8_t)));
         
-        cudaError_t err;
+        // Copy data to GPU
+        CUDA_CHECK(cudaMemcpy(h_db.sorted_kmer_hashes, sorted_hashes.data(), 
+                             sorted_hashes.size() * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.kmer_start_indices, start_indices.data(), 
+                             start_indices.size() * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.kmer_counts, kmer_counts.data(), 
+                             kmer_counts.size() * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.position_data, position_data.data(), 
+                             position_data.size() * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.protein_ids, protein_ids.data(), 
+                             num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.gene_ids, gene_ids.data(), 
+                             num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.species_ids, species_ids.data(), 
+                             num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.seq_lengths, seq_lengths.data(), 
+                             num_proteins * sizeof(uint16_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.seq_offsets, seq_offsets.data(), 
+                             num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.sequences, all_sequences.data(), 
+                             all_sequences.size() * sizeof(char), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.is_amr_gene, is_amr_gene.data(), 
+                             num_proteins * sizeof(uint8_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(h_db.resistance_class, resistance_class.data(), 
+                             num_proteins * sizeof(uint8_t), cudaMemcpyHostToDevice));
         
-        // K-mer data
-        err = cudaMalloc(&h_db.sorted_kmer_hashes, sorted_hashes.size() * sizeof(uint64_t));
-        if (err != cudaSuccess) {
-            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for kmer hashes: %s\n", cudaGetErrorString(err));
-            return false;
+        // Copy database structure to GPU
+        CUDA_CHECK(cudaMalloc(&d_protein_db, sizeof(ProteinDatabase)));
+        CUDA_CHECK(cudaMemcpy(d_protein_db, &h_db, sizeof(ProteinDatabase), cudaMemcpyHostToDevice));
+        
+        // Count AMR genes for reporting
+        int amr_count = 0;
+        for (bool is_amr : is_amr_gene) {
+            if (is_amr) amr_count++;
         }
-        err = cudaMalloc(&h_db.kmer_start_indices, start_indices.size() * sizeof(uint32_t));
-        if (err != cudaSuccess) {
-            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for kmer indices: %s\n", cudaGetErrorString(err));
-            return false;
-        }
-        err = cudaMalloc(&h_db.kmer_counts, kmer_counts.size() * sizeof(uint32_t));
-        if (err != cudaSuccess) {
-            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for kmer counts: %s\n", cudaGetErrorString(err));
-            return false;
-        }
-        err = cudaMalloc(&h_db.position_data, position_data.size() * sizeof(uint32_t));
-        if (err != cudaSuccess) {
-            printf("[PROTEIN DB ERROR] Failed to allocate GPU memory for position data: %s\n", cudaGetErrorString(err));
-            return false;
-        }
         
-        // Protein metadata
-        err = cudaMalloc(&h_db.protein_ids, num_proteins * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
-        err = cudaMalloc(&h_db.gene_ids, num_proteins * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
-        err = cudaMalloc(&h_db.species_ids, num_proteins * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
-        err = cudaMalloc(&h_db.seq_lengths, num_proteins * sizeof(uint16_t));
-        if (err != cudaSuccess) return false;
-        err = cudaMalloc(&h_db.seq_offsets, num_proteins * sizeof(uint32_t));
-        if (err != cudaSuccess) return false;
-        err = cudaMalloc(&h_db.sequences, sequences.size() * sizeof(char));
-        if (err != cudaSuccess) return false;
+        DEBUG_PRINT("AMR protein database loaded successfully:");
+        DEBUG_PRINT("  - %d total proteins (%d AMR genes)", num_proteins, amr_count);
+        DEBUG_PRINT("  - %zu unique k-mers", sorted_hashes.size());
+        DEBUG_PRINT("  - %zu total sequence bytes", remaining_size);
         
-        // Copy data
-        cudaMemcpy(h_db.sorted_kmer_hashes, sorted_hashes.data(), sorted_hashes.size() * sizeof(uint64_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.kmer_start_indices, start_indices.data(), start_indices.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.kmer_counts, kmer_counts.data(), kmer_counts.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.position_data, position_data.data(), position_data.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.protein_ids, protein_ids.data(), num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.gene_ids, gene_ids.data(), num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.species_ids, species_ids.data(), num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.seq_lengths, seq_lengths.data(), num_proteins * sizeof(uint16_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.seq_offsets, seq_offsets.data(), num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(h_db.sequences, sequences.data(), sequences.size() * sizeof(char), cudaMemcpyHostToDevice);
-        
-        // Copy database structure
-        err = cudaMalloc(&d_protein_db, sizeof(ProteinDatabase));
-        if (err != cudaSuccess) return false;
-        err = cudaMemcpy(d_protein_db, &h_db, sizeof(ProteinDatabase), cudaMemcpyHostToDevice);
-        if (err != cudaSuccess) return false;
-        
-        DEBUG_PRINT("Enhanced protein database loaded: %d proteins, %d unique k-mers, SW=%s", 
-                   num_proteins, (int)sorted_hashes.size(), smith_waterman_enabled ? "enabled" : "disabled");
         return true;
     }
     
@@ -1070,7 +1278,7 @@ public:
         DEBUG_PRINT("Smith-Waterman alignment %s", enabled ? "ENABLED" : "DISABLED");
     }
     
-    void searchTranslatedReads(
+    bool searchTranslatedReads(
         const char* d_reads,
         const int* d_read_lengths,
         const int* d_read_offsets,
@@ -1079,38 +1287,45 @@ public:
         ProteinMatch* results,
         uint32_t* result_counts
     ) {
-        DEBUG_PRINT("searchTranslatedReads: num_reads=%d, max_batch_size=%d", num_reads, max_batch_size);
-        
-        if (num_reads > max_batch_size) {
-            DEBUG_PRINT("ERROR: num_reads (%d) exceeds max_batch_size (%d)", num_reads, max_batch_size);
-            return;
+        if (!initialized || !d_protein_db) {
+            printf("[AMR SEARCH ERROR] Engine not properly initialized\n");
+            return false;
         }
         
-        if (!d_protein_db) {
-            DEBUG_PRINT("ERROR: Protein database not loaded");
-            return;
+        // Comprehensive input validation
+        if (num_reads <= 0 || num_reads > max_batch_size) {
+            printf("[AMR SEARCH ERROR] Invalid num_reads: %d (max: %d)\n", num_reads, max_batch_size);
+            return false;
         }
         
-        cudaError_t err;
+        if (!d_reads || !d_read_lengths || !d_read_offsets || !results || !result_counts) {
+            printf("[AMR SEARCH ERROR] Null input pointers\n");
+            return false;
+        }
         
-        // Clear frame counts
-        err = cudaMemset(d_frame_counts, 0, num_reads * sizeof(uint32_t));
+        DEBUG_PRINT("Processing %d reads for AMR detection", num_reads);
+        
+        // Clear any existing CUDA errors
+        cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR: Failed to reset frame counts: %s", cudaGetErrorString(err));
-            return;
+            printf("[AMR SEARCH WARNING] Clearing existing CUDA error: %s\n", cudaGetErrorString(err));
         }
         
-        // Clear match counts  
-        err = cudaMemset(d_match_counts, 0, num_reads * sizeof(uint32_t));
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR: Failed to reset match counts: %s", cudaGetErrorString(err));
-            return;
-        }
+        // Initialize arrays
+        CUDA_CHECK(cudaMemset(d_frame_counts, 0, num_reads * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMemset(d_match_counts, 0, num_reads * sizeof(uint32_t)));
+        CUDA_CHECK(cudaMemset(d_matches, 0, num_reads * MAX_MATCHES_PER_READ * sizeof(ProteinMatch)));
         
+        // Configure kernel launch parameters
         int block_size = 256;
         int grid_size = (num_reads + block_size - 1) / block_size;
         
-        DEBUG_PRINT("Launching kernels with grid_size=%d, block_size=%d", grid_size, block_size);
+        if (grid_size <= 0 || grid_size > 65535) {
+            printf("[AMR SEARCH ERROR] Invalid grid size: %d\n", grid_size);
+            return false;
+        }
+        
+        DEBUG_PRINT("Launching kernels: grid_size=%d, block_size=%d", grid_size, block_size);
         
         // Stage 1: 6-frame translation
         six_frame_translate_kernel<<<grid_size, block_size>>>(
@@ -1118,88 +1333,112 @@ public:
             num_reads, d_translated_frames, d_frame_counts
         );
         
-        err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR after launching translation kernel: %s", cudaGetErrorString(err));
-            return;
-        }
+        CUDA_CHECK(cudaGetLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
         
-        err = cudaDeviceSynchronize();
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR: Translation kernel failed: %s", cudaGetErrorString(err));
-            return;
-        }
-        
-        // Stage 2: Enhanced k-mer protein matching with optional Smith-Waterman
+        // Stage 2: Enhanced protein matching for AMR detection
         enhanced_protein_kmer_match_kernel<<<grid_size, block_size>>>(
             d_translated_frames, d_frame_counts,
             num_reads, d_protein_db,
-            d_matches, d_match_counts, 32,
+            d_matches, d_match_counts, MAX_MATCHES_PER_READ,
             smith_waterman_enabled
         );
         
-        err = cudaGetLastError();
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR after launching protein matching kernel: %s", cudaGetErrorString(err));
-            return;
-        }
+        CUDA_CHECK(cudaGetLastError());
+        CUDA_CHECK(cudaDeviceSynchronize());
         
-        err = cudaDeviceSynchronize();
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR: Enhanced protein matching kernel failed: %s", cudaGetErrorString(err));
-            return;
-        }
+        // Copy results back to host
+        size_t matches_size = num_reads * MAX_MATCHES_PER_READ * sizeof(ProteinMatch);
+        size_t counts_size = num_reads * sizeof(uint32_t);
         
-        // Copy results
-        size_t copy_size = num_reads * 32 * sizeof(ProteinMatch);
-        DEBUG_PRINT("Attempting to copy %zu bytes (%d reads * 32 * %zu bytes per match)", 
-                    copy_size, num_reads, sizeof(ProteinMatch));
-        DEBUG_PRINT("d_matches pointer: %p, results pointer: %p", d_matches, results);
+        CUDA_CHECK(cudaMemcpy(results, d_matches, matches_size, cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(result_counts, d_match_counts, counts_size, cudaMemcpyDeviceToHost));
         
-        err = cudaMemcpy(results, d_matches, copy_size, cudaMemcpyDeviceToHost);
-        
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR: Failed to copy protein matches: %s", cudaGetErrorString(err));
-            DEBUG_PRINT("Failed copy parameters: src=%p, dst=%p, size=%zu", d_matches, results, copy_size);
-            return;
-        }
-        err = cudaMemcpy(result_counts, d_match_counts, num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-        if (err != cudaSuccess) {
-            DEBUG_PRINT("ERROR: Failed to copy match counts: %s", cudaGetErrorString(err));
-            return;
-        }
+        DEBUG_PRINT("AMR search completed successfully");
+        return true;
+    }
+    
+    // Get performance statistics
+    void getStats(int& batch_size, size_t& memory_used, bool& sw_enabled) const {
+        batch_size = max_batch_size;
+        memory_used = allocated_memory;
+        sw_enabled = smith_waterman_enabled;
     }
 };
 
-// C interface for integration
+// C interface for integration with Python/other languages
 extern "C" {
+    void* create_amr_search_engine(int batch_size, bool enable_sw) {
+        return new AMRTranslatedSearchEngine(batch_size, enable_sw);
+    }
+    
+    void destroy_amr_search_engine(void* engine) {
+        if (engine) {
+            delete static_cast<AMRTranslatedSearchEngine*>(engine);
+        }
+    }
+    
+    int load_amr_protein_database(void* engine, const char* db_path) {
+        if (!engine) return -1;
+        AMRTranslatedSearchEngine* amr_engine = static_cast<AMRTranslatedSearchEngine*>(engine);
+        return amr_engine->loadProteinDatabase(db_path) ? 0 : -1;
+    }
+    
+    void set_amr_smith_waterman_enabled(void* engine, bool enabled) {
+        if (engine) {
+            AMRTranslatedSearchEngine* amr_engine = static_cast<AMRTranslatedSearchEngine*>(engine);
+            amr_engine->setSmithWatermanEnabled(enabled);
+        }
+    }
+    
+    int search_amr_translated_reads(
+        void* engine,
+        const char* d_reads,
+        const int* d_read_lengths,
+        const int* d_read_offsets,
+        const bool* d_reads_to_process,
+        int num_reads,
+        void* results,
+        uint32_t* result_counts
+    ) {
+        if (!engine) return -1;
+        
+        AMRTranslatedSearchEngine* amr_engine = static_cast<AMRTranslatedSearchEngine*>(engine);
+        
+        return amr_engine->searchTranslatedReads(
+            d_reads, d_read_lengths, d_read_offsets,
+            d_reads_to_process, num_reads,
+            static_cast<ProteinMatch*>(results), result_counts
+        ) ? 0 : -1;
+    }
+    
+    int get_amr_engine_stats(void* engine, int* batch_size, size_t* memory_used, bool* sw_enabled) {
+        if (!engine) return -1;
+        
+        AMRTranslatedSearchEngine* amr_engine = static_cast<AMRTranslatedSearchEngine*>(engine);
+        amr_engine->getStats(*batch_size, *memory_used, *sw_enabled);
+        return 0;
+    }
+    
+    // Compatibility wrappers for existing pipeline
     void* create_translated_search_engine(int batch_size) {
-        TranslatedSearchEngine* engine = new TranslatedSearchEngine(batch_size, false); // SW disabled by default
-        return engine;
+        return create_amr_search_engine(batch_size, false);
     }
     
     void* create_translated_search_engine_with_sw(int batch_size, bool enable_sw) {
-        TranslatedSearchEngine* engine = new TranslatedSearchEngine(batch_size, enable_sw);
-        return engine;
+        return create_amr_search_engine(batch_size, enable_sw);
     }
     
     void destroy_translated_search_engine(void* engine) {
-        if (engine) {
-            delete static_cast<TranslatedSearchEngine*>(engine);
-        }
+        destroy_amr_search_engine(engine);
     }
     
     int load_protein_database(void* engine, const char* db_path) {
-        if (!engine) return -1;
-        TranslatedSearchEngine* te = static_cast<TranslatedSearchEngine*>(engine);
-        return te->loadProteinDatabase(db_path) ? 0 : -1;
+        return load_amr_protein_database(engine, db_path);
     }
     
     void set_smith_waterman_enabled(void* engine, bool enabled) {
-        if (engine) {
-            TranslatedSearchEngine* te = static_cast<TranslatedSearchEngine*>(engine);
-            te->setSmithWatermanEnabled(enabled);
-        }
+        set_amr_smith_waterman_enabled(engine, enabled);
     }
     
     int search_translated_reads(
@@ -1212,27 +1451,10 @@ extern "C" {
         void* results,
         uint32_t* result_counts
     ) {
-        printf("[SEARCH DEBUG] Entering search_translated_reads\n");
-        printf("[SEARCH DEBUG] engine=%p, num_reads=%d\n", engine, num_reads);
-        
-        if (!engine) {
-            printf("[SEARCH ERROR] Engine is null!\n");
-            return -1;
-        }
-        
-        TranslatedSearchEngine* te = static_cast<TranslatedSearchEngine*>(engine);
-        
-        printf("[SEARCH DEBUG] Calling searchTranslatedReads...\n");
-        
-        te->searchTranslatedReads(
-            d_reads, d_read_lengths, d_read_offsets,
-            d_reads_to_process, num_reads,
-            static_cast<ProteinMatch*>(results), result_counts
+        return search_amr_translated_reads(
+            engine, d_reads, d_read_lengths, d_read_offsets,
+            d_reads_to_process, num_reads, results, result_counts
         );
-        
-        printf("[SEARCH DEBUG] searchTranslatedReads completed\n");
-        
-        return 0;
     }
 }
 

@@ -221,6 +221,7 @@ struct ProteinDatabase {
     // AMR-specific metadata
     uint8_t* is_amr_gene;      // Flag for AMR genes (0=false, 1=true)
     uint8_t* resistance_class; // Resistance class (0=unknown, 1=fluoroquinolone, etc.)
+    char** gene_families;      // Array of gene family names
 };
 
 // Helper structure for seed clustering
@@ -604,6 +605,13 @@ __global__ void enhanced_protein_kmer_match_kernel(
                             uint32_t protein_id = encoded >> 16;
                             uint32_t ref_pos = encoded & 0xFFFF;
                             
+                            #if DEBUG_AMR
+                            if (tid == 0 && num_seeds == 0) {  // First thread, first seed
+                                printf("[KERNEL] K-mer match: protein_id=%d, gene_id=%d\n", 
+                                       protein_id, protein_db->gene_ids[protein_id]);
+                            }
+                            #endif
+                            
                             if (protein_id < protein_db->num_proteins) {
                                 seeds[num_seeds] = {protein_id, (uint32_t)pos, ref_pos, 10.0f, true};
                                 num_seeds++;
@@ -929,6 +937,18 @@ private:
                 if (h_db.seq_offsets) cudaFree(h_db.seq_offsets);
                 if (h_db.sequences) cudaFree(h_db.sequences);
                 if (h_db.is_amr_gene) cudaFree(h_db.is_amr_gene);
+                if (h_db.gene_families) {
+                    // First free each string
+                    char** h_family_ptrs = new char*[h_db.num_proteins];
+                    cudaMemcpy(h_family_ptrs, h_db.gene_families, 
+                               h_db.num_proteins * sizeof(char*), cudaMemcpyDeviceToHost);
+                    for (uint32_t i = 0; i < h_db.num_proteins; i++) {
+                        if (h_family_ptrs[i]) cudaFree(h_family_ptrs[i]);
+                    }
+                    delete[] h_family_ptrs;
+                    // Then free the array of pointers
+                    cudaFree(h_db.gene_families);
+                }
                 if (h_db.resistance_class) cudaFree(h_db.resistance_class);
             }
             cudaFree(d_protein_db);
@@ -1096,6 +1116,7 @@ public:
         std::vector<uint32_t> seq_offsets(num_proteins);
         std::vector<uint8_t> is_amr_gene(num_proteins, 0);  // Use uint8_t instead of bool
         std::vector<uint8_t> resistance_class(num_proteins, 0);
+        std::vector<std::string> gene_families(num_proteins);  // Store gene family names
         
         // Load AMR-specific metadata
         std::string metadata_path = db_path + "/protein_details.json";
@@ -1130,6 +1151,19 @@ public:
                     size_t gene_end = json_content.find_first_not_of("0123456789", gene_start);
                     if (gene_start != std::string::npos && gene_end != std::string::npos) {
                         gene_ids[protein_idx] = std::stoi(json_content.substr(gene_start, gene_end - gene_start));
+                    }
+                }
+                
+                // Parse gene_family
+                size_t family_pos = json_content.find("\"gene_family\":", pos);
+                if (family_pos != std::string::npos && family_pos < pos + 1000) {
+                    family_pos += 14;
+                    size_t quote_start = json_content.find("\"", family_pos);
+                    size_t quote_end = json_content.find("\"", quote_start + 1);
+                    if (quote_start != std::string::npos && quote_end != std::string::npos) {
+                        std::string family = json_content.substr(quote_start + 1, quote_end - quote_start - 1);
+                        // Store this in a vector for now, will copy to GPU later
+                        gene_families[protein_idx] = family;
                     }
                 }
                 
@@ -1173,6 +1207,12 @@ public:
                 seq_offsets[protein_idx] = current_offset;
                 current_offset += seq_lengths[protein_idx];
                 
+                if (protein_idx < 5) {  // Debug first 5 proteins
+                    printf("[AMR DB] Protein[%zu]: id=%d, gene_id=%d, species_id=%d\n",
+                           protein_idx, protein_ids[protein_idx], 
+                           gene_ids[protein_idx], species_ids[protein_idx]);
+                }
+                
                 protein_idx++;
                 pos = id_end;
             }
@@ -1191,6 +1231,13 @@ public:
                                 (remaining_size - seq_offsets[i]) : avg_protein_len;
                 if (seq_lengths[i] > 5000) seq_lengths[i] = 5000;  // Safety cap
             }
+        }
+        
+        // Prepare gene families for GPU (after metadata parsing loop completes)
+        std::vector<char*> h_gene_family_ptrs(num_proteins);
+        std::vector<std::string> gene_family_storage = gene_families; // Keep strings alive
+        for (uint32_t i = 0; i < num_proteins; i++) {
+            h_gene_family_ptrs[i] = const_cast<char*>(gene_family_storage[i].c_str());
         }
         
         // Clear any existing CUDA errors before allocation
@@ -1218,6 +1265,25 @@ public:
         CUDA_CHECK(cudaMalloc(&h_db.sequences, all_sequences.size() * sizeof(char)));
         CUDA_CHECK(cudaMalloc(&h_db.is_amr_gene, num_proteins * sizeof(uint8_t)));  // Changed from bool to uint8_t
         CUDA_CHECK(cudaMalloc(&h_db.resistance_class, num_proteins * sizeof(uint8_t)));
+        
+        // Allocate array of pointers for gene families
+        char** d_gene_family_ptrs;
+        CUDA_CHECK(cudaMalloc(&d_gene_family_ptrs, num_proteins * sizeof(char*)));
+        
+        // Allocate and copy each gene family string
+        std::vector<char*> d_family_strings(num_proteins);
+        for (uint32_t i = 0; i < num_proteins; i++) {
+            size_t len = gene_families[i].length() + 1;
+            CUDA_CHECK(cudaMalloc(&d_family_strings[i], len));
+            CUDA_CHECK(cudaMemcpy(d_family_strings[i], gene_families[i].c_str(), 
+                                 len, cudaMemcpyHostToDevice));
+        }
+        
+        // Copy array of pointers
+        CUDA_CHECK(cudaMemcpy(d_gene_family_ptrs, d_family_strings.data(), 
+                             num_proteins * sizeof(char*), cudaMemcpyHostToDevice));
+        
+        h_db.gene_families = d_gene_family_ptrs;
         
         // Copy data to GPU
         CUDA_CHECK(cudaMemcpy(h_db.sorted_kmer_hashes, sorted_hashes.data(), 

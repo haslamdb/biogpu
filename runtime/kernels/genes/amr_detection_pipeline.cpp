@@ -730,7 +730,8 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                 for (uint32_t j = 0; j < std::min(hit_counts[i], 3u); j++) {
                     ProteinMatch& pm = protein_matches[i * MAX_MATCHES_PER_READ + j];
                     std::cout << "DEBUG: Read " << i << " Match " << j << ":" << std::endl;
-                    std::cout << "  protein_id=" << pm.protein_id << ", gene_id=" << pm.gene_id << std::endl;
+                    std::cout << "  protein_id=" << pm.protein_id << ", gene_id=" << pm.gene_id 
+                              << " (expecting gene_id from FASTA header)" << std::endl;
                     std::cout << "  identity=" << pm.identity << ", match_length=" << pm.match_length << std::endl;
                     std::cout << "  ref_start=" << pm.ref_start << ", query_start=" << pm.query_start << std::endl;
                     std::cout << "  alignment_score=" << pm.alignment_score << std::endl;
@@ -762,6 +763,8 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                 
                 strncpy(hit.gene_name, gene_entries[pm.gene_id].gene_name, 63);
                 strncpy(hit.drug_class, gene_entries[pm.gene_id].class_, 31);
+                strncpy(hit.gene_family, gene_entries[pm.gene_id].gene_family, 31);
+                hit.gene_family[31] = '\0';
                 
                 // Include concordance information in debug output
                 if (pairInfo) {

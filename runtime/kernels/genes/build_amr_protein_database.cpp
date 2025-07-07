@@ -15,6 +15,7 @@
 struct ProteinEntry {
     std::string accession;
     std::string gene_name;
+    std::string gene_family;
     std::string drug_class;
     std::string sequence;
     uint32_t gene_id;
@@ -40,6 +41,15 @@ void parseAMRProtHeader(const std::string& header, ProteinEntry& entry) {
         entry.gene_id = std::stoi(parts[2]);
         entry.species_id = std::stoi(parts[3]);
         entry.gene_name = parts[4];
+        
+        // Extract gene family from gene name (e.g., "blaKPC-2" -> "blaKPC")
+        std::string name = entry.gene_name;
+        size_t dash_pos = name.find('-');
+        if (dash_pos != std::string::npos) {
+            entry.gene_family = name.substr(0, dash_pos);
+        } else {
+            entry.gene_family = name;
+        }
         
         // Try to infer drug class from gene name
         std::string gene_lower = entry.gene_name;
@@ -127,6 +137,14 @@ int main(int argc, char** argv) {
     
     std::cout << "Loaded " << proteins.size() << " AMR protein sequences" << std::endl;
     
+    // Debug: Print first 5 proteins to verify ordering
+    std::cout << "\nFirst 5 proteins in order:" << std::endl;
+    for (size_t i = 0; i < std::min(size_t(5), proteins.size()); i++) {
+        std::cout << "  [" << i << "] " << proteins[i].accession 
+                  << " gene_id=" << proteins[i].gene_id 
+                  << " gene_name=" << proteins[i].gene_name << std::endl;
+    }
+    
     // Statistics
     std::map<std::string, int> drug_class_counts;
     for (const auto& p : proteins) {
@@ -179,6 +197,7 @@ int main(int argc, char** argv) {
         meta_out << "    \"id\": " << i << "," << std::endl;
         meta_out << "    \"accession\": \"" << p.accession << "\"," << std::endl;
         meta_out << "    \"gene_name\": \"" << p.gene_name << "\"," << std::endl;
+        meta_out << "    \"gene_family\": \"" << p.gene_family << "\"," << std::endl;
         meta_out << "    \"drug_class\": \"" << p.drug_class << "\"," << std::endl;
         meta_out << "    \"gene_id\": " << p.gene_id << "," << std::endl;
         meta_out << "    \"species_id\": " << p.species_id << "," << std::endl;

@@ -345,21 +345,21 @@ private:
     
     void extractGeneFamilyFromName(const std::string& gene_name, char* gene_family) {
         // Extract gene family from gene name
-        // e.g., blaKPC-2 -> blaKPC, vanA -> van, mecA -> mec
+        // e.g., blaKPC-2 -> blaKPC, vanA -> vanA, mecA -> mecA
         
         std::string name = gene_name;
-        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
         
-        // Remove numbers and special characters from the end
-        std::regex family_regex("([a-z]+).*");
-        std::smatch match;
-        
-        if (std::regex_match(name, match, family_regex)) {
-            std::string family = match[1].str();
+        // Find dash position to extract family name
+        size_t dash_pos = name.find('-');
+        if (dash_pos != std::string::npos) {
+            // Extract everything before the dash
+            std::string family = name.substr(0, dash_pos);
             strncpy(gene_family, family.c_str(), 31);
             gene_family[31] = '\0';
         } else {
-            strcpy(gene_family, "unknown");
+            // No dash found, use the whole name as family
+            strncpy(gene_family, name.c_str(), 31);
+            gene_family[31] = '\0';
         }
     }
     

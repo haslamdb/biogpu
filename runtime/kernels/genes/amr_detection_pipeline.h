@@ -73,6 +73,7 @@ struct AMRHit {
     bool concordant;        // For paired-end reads, true if both reads hit same gene
     char gene_name[64];
     char drug_class[32];
+    char gene_family[32];
 };
 
 // Coverage tracking per AMR gene

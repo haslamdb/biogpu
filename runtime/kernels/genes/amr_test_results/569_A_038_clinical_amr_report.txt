@@ -2,12 +2,12 @@ CLINICAL ANTIMICROBIAL RESISTANCE REPORT
 =====================================
 
 Sample: 569_A_038
-Report Generated: 2025-07-07 16:23:14
+Report Generated: 2025-07-07 16:27:20
 
 SUMMARY
 -------
 Total reads processed: 3405007
-Reads with AMR genes: 0
+Reads with AMR genes: 43623
 Total AMR genes detected: 0
 High confidence genes: 0
 Drug classes affected: 0

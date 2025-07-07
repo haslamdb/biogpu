@@ -10,8 +10,12 @@
 #include "sample_csv_parser.h"  // Reuse from FQ pipeline
 // #include "bloom_filter.h"       // Reuse bloom filter
 
-// Forward declaration for paired-end tracking
-struct PairedReadInfo;
+// Structure to track paired-end relationships
+struct PairedReadInfo {
+    uint32_t read_idx;      // Original read pair index
+    bool is_read2;          // false for R1, true for R2
+    uint32_t pair_offset;   // Offset to find the paired read results
+};
 
 // Configuration for AMR detection
 struct AMRDetectionConfig {
@@ -181,10 +185,77 @@ public:
     std::vector<AMRHit> getAMRHits();
     std::vector<AMRCoverageStats> getCoverageStats();
     
+    // Get database information
+    uint32_t getNumGenes() const { 
+        return amr_db ? amr_db->getNumGenes() : 0; 
+    }
+    
+    AMRGeneEntry* getGPUGeneEntries() const { 
+        return amr_db ? amr_db->getGPUGeneEntries() : nullptr; 
+    }
+    
+    // Get configuration
+    const AMRDetectionConfig& getConfig() const { return config; }
+    
+    // Get gene entries as vector (for report generation)
+    std::vector<AMRGeneEntry> getGeneEntries() const {
+        std::vector<AMRGeneEntry> entries;
+        if (amr_db) {
+            uint32_t num_genes = amr_db->getNumGenes();
+            entries.resize(num_genes);
+            
+            AMRGeneEntry* gpu_entries = amr_db->getGPUGeneEntries();
+            if (gpu_entries && num_genes > 0) {
+                cudaMemcpy(entries.data(), gpu_entries, 
+                          num_genes * sizeof(AMRGeneEntry), 
+                          cudaMemcpyDeviceToHost);
+            }
+        }
+        return entries;
+    }
+    
+    // Get specific gene entry
+    AMRGeneEntry getGeneEntry(uint32_t gene_id) const {
+        AMRGeneEntry entry = {};
+        if (amr_db && gene_id < amr_db->getNumGenes()) {
+            AMRGeneEntry* gpu_entries = amr_db->getGPUGeneEntries();
+            if (gpu_entries) {
+                cudaMemcpy(&entry, &gpu_entries[gene_id], 
+                          sizeof(AMRGeneEntry), 
+                          cudaMemcpyDeviceToHost);
+            }
+        }
+        return entry;
+    }
+    
     // Output methods
     void writeResults(const std::string& output_prefix);
     void generateClinicalReport(const std::string& output_file);
     void exportAbundanceTable(const std::string& output_file);
+    
+    // Clear accumulated results (useful between samples)
+    void clearResults() {
+        // Clear host-side coverage statistics
+        h_coverage_stats.clear();
+        
+        // Reset GPU hit counts to zero
+        if (d_hit_counts) {
+            cudaMemset(d_hit_counts, 0, config.reads_per_batch * sizeof(uint32_t));
+        }
+        
+        // Reset coverage statistics on GPU
+        if (d_coverage_stats && amr_db) {
+            uint32_t num_genes = amr_db->getNumGenes();
+            cudaMemset(d_coverage_stats, 0, num_genes * sizeof(AMRCoverageStats));
+        }
+        
+        // Clear paired read info
+        paired_read_info.clear();
+        
+        // Reset batch info
+        current_batch_size = 0;
+        total_reads_processed = 0;
+    }
     
 private:
     // Memory management

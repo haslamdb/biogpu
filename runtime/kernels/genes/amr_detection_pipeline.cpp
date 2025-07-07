@@ -23,12 +23,6 @@
 
 // Genetic code initialization is now in amr_detection_kernels_wrapper.cu
 
-// Structure to track paired-end relationships
-struct PairedReadInfo {
-    uint32_t read_idx;      // Original read pair index
-    bool is_read2;          // false for R1, true for R2
-    uint32_t pair_offset;   // Offset to find the paired read results
-};
 
 // Structure to match ProteinMatch from translated_search_amr.cu
 struct ProteinMatch {

@@ -8,6 +8,8 @@
 #include <zlib.h>
 #include "amr_detection_pipeline.h"
 #include "sample_csv_parser.h"  // Reuse from your FQ pipeline
+#include "hdf5_amr_writer.h"
+#include "clinical_amr_report_generator.h"
 
 // Function to check if file is gzipped
 bool isGzipped(const std::string& filename) {
@@ -156,12 +158,26 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
                         const std::string& fastq_r1,
                         const std::string& fastq_r2,
                         const std::string& output_dir,
+                        const AMRDetectionConfig& config,  // Add config parameter
                         bool merge_reads = true) {
     
     std::cout << "\n=== Processing paired-end sample: " << sample_name << " ===" << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
     
-    // Read both FASTQ files
+    // Create HDF5 writer
+    std::string hdf5_path = output_dir + "/" + sample_name + "_amr_results.h5";
+    HDF5AMRWriter hdf5_writer(hdf5_path);
+    
+    // Get the database paths from config
+    std::string dna_db_path = config.protein_db_path;  // Assuming this contains the database info
+    std::string protein_db_path = config.protein_db_path;
+    hdf5_writer.initialize(sample_name, dna_db_path, protein_db_path);
+    
+    // Create clinical report generator
+    std::string report_prefix = output_dir + "/" + sample_name;
+    ClinicalAMRReportGenerator report_generator(report_prefix, sample_name);
+    
+    // Read FASTQ files
     std::cout << "Reading R1 file: " << fastq_r1 << std::endl;
     auto reads_r1 = readFastq(fastq_r1);
     
@@ -174,12 +190,13 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     }
     
     std::cout << "R1 reads: " << reads_r1.size() << ", R2 reads: " << reads_r2.size() << std::endl;
-    
-    // Always process paired reads separately (no merging)
     std::cout << "Processing paired-end reads separately..." << std::endl;
     
+    // Collect all AMR hits across batches
+    std::vector<AMRHit> all_amr_hits;
+    
     // Process in batches
-    const int batch_size = 100000;  // This must match config.reads_per_batch - this is per read pair
+    const int batch_size = config.reads_per_batch;
     int num_pairs = std::min(reads_r1.size(), reads_r2.size());
     int num_batches = (num_pairs + batch_size - 1) / batch_size;
     
@@ -203,27 +220,71 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         
         // Process batch of paired reads
         pipeline.processBatchPaired(batch_reads1, batch_reads2, batch_ids);
+        
+        // Get results from this batch
+        auto batch_hits = pipeline.getAMRHits();
+        
+        // Accumulate hits
+        all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
+        
+        // Write batch hits to HDF5
+        hdf5_writer.addAMRHits(batch_hits);
     }
     
-    // Write results
+    // Get final coverage statistics and gene entries
+    auto coverage_stats = pipeline.getCoverageStats();
+    auto gene_entries = pipeline.getGeneEntries();  // Now using the new getter method
+    
+    // Write coverage stats to HDF5
+    hdf5_writer.addCoverageStats(coverage_stats, gene_entries);
+    
+    // Finalize HDF5
+    std::string json_summary = output_dir + "/" + sample_name + "_hdf5_summary.json";
+    hdf5_writer.finalize(json_summary);
+    
+    // Generate clinical report with all accumulated hits
+    report_generator.processAMRResults(all_amr_hits, coverage_stats, 
+                                      gene_entries, num_pairs);
+    report_generator.generateReports();
+    
+    // Write basic TSV results (backward compatibility)
     std::string output_prefix = output_dir + "/" + sample_name;
     pipeline.writeResults(output_prefix);
-    pipeline.generateClinicalReport(output_prefix + "_clinical_report.txt");
     pipeline.exportAbundanceTable(output_prefix + "_abundance.tsv");
     
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+    
     std::cout << "\nSample processing completed in " << duration.count() << " seconds" << std::endl;
+    std::cout << "Results written to:" << std::endl;
+    std::cout << "  - HDF5: " << hdf5_path << std::endl;
+    std::cout << "  - Clinical report: " << report_prefix << "_clinical_amr_report.html" << std::endl;
+    std::cout << "  - Abundance table: " << output_prefix << "_abundance.tsv" << std::endl;
+    std::cout << "  - Coverage stats: " << output_prefix << "_coverage.tsv" << std::endl;
+    std::cout << "  - Raw hits: " << output_prefix << "_hits.tsv" << std::endl;
 }
 
 // Function to process a single-end sample
 void processSample(AMRDetectionPipeline& pipeline, 
                   const std::string& sample_name,
                   const std::string& fastq_file,
-                  const std::string& output_dir) {
+                  const std::string& output_dir,
+                  const AMRDetectionConfig& config) {
     
     std::cout << "\n=== Processing single-end sample: " << sample_name << " ===" << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // Create HDF5 writer
+    std::string hdf5_path = output_dir + "/" + sample_name + "_amr_results.h5";
+    HDF5AMRWriter hdf5_writer(hdf5_path);
+    
+    std::string dna_db_path = config.protein_db_path;
+    std::string protein_db_path = config.protein_db_path;
+    hdf5_writer.initialize(sample_name, dna_db_path, protein_db_path);
+    
+    // Create clinical report generator
+    std::string report_prefix = output_dir + "/" + sample_name;
+    ClinicalAMRReportGenerator report_generator(report_prefix, sample_name);
     
     // Read FASTQ file
     std::cout << "Reading FASTQ file: " << fastq_file << std::endl;
@@ -236,8 +297,11 @@ void processSample(AMRDetectionPipeline& pipeline,
     
     std::cout << "Total reads: " << fastq_data.size() << std::endl;
     
+    // Collect all AMR hits
+    std::vector<AMRHit> all_amr_hits;
+    
     // Process in batches
-    const int batch_size = 100000;  // From config
+    const int batch_size = config.reads_per_batch;
     int num_batches = (fastq_data.size() + batch_size - 1) / batch_size;
     
     for (int batch = 0; batch < num_batches; batch++) {
@@ -258,17 +322,47 @@ void processSample(AMRDetectionPipeline& pipeline,
         
         // Process batch
         pipeline.processBatch(batch_reads, batch_ids);
+        
+        // Get results from this batch
+        auto batch_hits = pipeline.getAMRHits();
+        
+        // Accumulate hits
+        all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
+        
+        // Write batch hits to HDF5
+        hdf5_writer.addAMRHits(batch_hits);
     }
     
-    // Write results
+    // Get final coverage statistics and gene entries
+    auto coverage_stats = pipeline.getCoverageStats();
+    auto gene_entries = pipeline.getGeneEntries();
+    
+    // Write coverage stats to HDF5
+    hdf5_writer.addCoverageStats(coverage_stats, gene_entries);
+    
+    // Finalize HDF5
+    std::string json_summary = output_dir + "/" + sample_name + "_hdf5_summary.json";
+    hdf5_writer.finalize(json_summary);
+    
+    // Generate clinical report
+    report_generator.processAMRResults(all_amr_hits, coverage_stats, 
+                                      gene_entries, fastq_data.size());
+    report_generator.generateReports();
+    
+    // Write basic TSV results (backward compatibility)
     std::string output_prefix = output_dir + "/" + sample_name;
     pipeline.writeResults(output_prefix);
-    pipeline.generateClinicalReport(output_prefix + "_clinical_report.txt");
     pipeline.exportAbundanceTable(output_prefix + "_abundance.tsv");
     
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+    
     std::cout << "\nSample processing completed in " << duration.count() << " seconds" << std::endl;
+    std::cout << "Results written to:" << std::endl;
+    std::cout << "  - HDF5: " << hdf5_path << std::endl;
+    std::cout << "  - Clinical report: " << report_prefix << "_clinical_amr_report.html" << std::endl;
+    std::cout << "  - Abundance table: " << output_prefix << "_abundance.tsv" << std::endl;
+    std::cout << "  - Coverage stats: " << output_prefix << "_coverage.tsv" << std::endl;
 }
 
 // Main function
@@ -384,13 +478,16 @@ int main(int argc, char** argv) {
         const auto& sample = samples[i];
         std::cout << "\n[" << (i + 1) << "/" << samples.size() << "] ";
         
+        // Clear any accumulated results from previous samples
+        pipeline.clearResults();
+        
         if (sample.isPairedEnd()) {
             // Process paired-end reads
             processSamplePaired(pipeline, sample.sample_name, 
-                               sample.read1_path, sample.read2_path, output_dir, merge_paired_reads);
+                               sample.read1_path, sample.read2_path, output_dir, config, merge_paired_reads);
         } else {
             // Process single-end reads
-            processSample(pipeline, sample.sample_name, sample.read1_path, output_dir);
+            processSample(pipeline, sample.sample_name, sample.read1_path, output_dir, config);
         }
     }
     

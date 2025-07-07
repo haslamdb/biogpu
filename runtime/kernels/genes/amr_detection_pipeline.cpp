@@ -9,6 +9,7 @@
 #include <map>
 #include <cstdio>
 #include <iomanip>
+#include <cfloat>
 #include <cuda_runtime.h>
 
 // CUDA error checking macro
@@ -368,11 +369,73 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     // Copy reads to GPU
     copyReadsToGPU(reads);
     
+    // Debug: Verify the offsets are correct
+    std::vector<int> h_offsets(current_batch_size);
+    std::vector<int> h_lengths(current_batch_size);
+    cudaMemcpy(h_offsets.data(), d_read_offsets, current_batch_size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_lengths.data(), d_read_lengths, current_batch_size * sizeof(int), cudaMemcpyDeviceToHost);
+    
+    std::cout << "First 5 read offsets and lengths:" << std::endl;
+    for (int i = 0; i < std::min(5, current_batch_size); i++) {
+        std::cout << "  Read " << i << ": offset=" << h_offsets[i] << ", length=" << h_lengths[i] << std::endl;
+    }
+    
+    // Check if offsets are monotonically increasing
+    for (int i = 1; i < std::min(100, current_batch_size); i++) {
+        if (h_offsets[i] <= h_offsets[i-1]) {
+            std::cerr << "ERROR: Non-monotonic offsets at index " << i 
+                      << ": " << h_offsets[i-1] << " -> " << h_offsets[i] << std::endl;
+            break;
+        }
+    }
+    
     // Skip bloom filter completely if disabled (default behavior)
     if (!config.use_bloom_filter) {
         // Don't allocate or use any bloom filter memory
         // Pass nullptr to indicate all reads should be processed
         performTranslatedAlignment();
+        
+        // Add summary statistics
+        auto hits = getAMRHits();
+        
+        // Count statistics
+        int concordant_count = 0;
+        int discordant_count = 0;
+        float min_score = FLT_MAX;
+        float max_score = 0;
+        float avg_score = 0;
+        std::map<uint32_t, int> gene_counts;
+        
+        for (const auto& hit : hits) {
+            if (hit.concordant) concordant_count++;
+            else discordant_count++;
+            
+            float score = hit.identity * 100.0f;  // Convert to percentage
+            if (score < min_score) min_score = score;
+            if (score > max_score) max_score = score;
+            avg_score += score;
+            
+            gene_counts[hit.gene_id]++;
+        }
+        
+        if (!hits.empty()) {
+            avg_score /= hits.size();
+            std::cout << "\n=== Batch Summary ===" << std::endl;
+            std::cout << "Total hits: " << hits.size() << std::endl;
+            std::cout << "Concordant: " << concordant_count << std::endl;
+            std::cout << "Discordant: " << discordant_count << std::endl;
+            std::cout << "Identity range: " << min_score << "% - " << max_score << "%" << std::endl;
+            std::cout << "Average identity: " << avg_score << "%" << std::endl;
+            std::cout << "Unique genes hit: " << gene_counts.size() << std::endl;
+            
+            // Show top genes
+            std::cout << "Top genes by hit count:" << std::endl;
+            int shown = 0;
+            for (const auto& [gene_id, count] : gene_counts) {
+                std::cout << "  Gene " << gene_id << ": " << count << " hits" << std::endl;
+                if (++shown >= 5) break;
+            }
+        }
         
         // Skip to coverage calculation
         extendAlignments();
@@ -385,6 +448,48 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     generateMinimizers();
     screenWithBloomFilter();
     performTranslatedAlignment();
+    
+    // Add summary statistics
+    auto hits = getAMRHits();
+    
+    // Count statistics
+    int concordant_count = 0;
+    int discordant_count = 0;
+    float min_score = FLT_MAX;
+    float max_score = 0;
+    float avg_score = 0;
+    std::map<uint32_t, int> gene_counts;
+    
+    for (const auto& hit : hits) {
+        if (hit.concordant) concordant_count++;
+        else discordant_count++;
+        
+        float score = hit.identity * 100.0f;  // Convert to percentage
+        if (score < min_score) min_score = score;
+        if (score > max_score) max_score = score;
+        avg_score += score;
+        
+        gene_counts[hit.gene_id]++;
+    }
+    
+    if (!hits.empty()) {
+        avg_score /= hits.size();
+        std::cout << "\n=== Batch Summary ===" << std::endl;
+        std::cout << "Total hits: " << hits.size() << std::endl;
+        std::cout << "Concordant: " << concordant_count << std::endl;
+        std::cout << "Discordant: " << discordant_count << std::endl;
+        std::cout << "Score range: " << min_score << " - " << max_score << std::endl;
+        std::cout << "Average score: " << avg_score << std::endl;
+        std::cout << "Unique genes hit: " << gene_counts.size() << std::endl;
+        
+        // Show top genes
+        std::cout << "Top genes by hit count:" << std::endl;
+        int shown = 0;
+        for (const auto& [gene_id, count] : gene_counts) {
+            std::cout << "  Gene " << gene_id << ": " << count << " hits" << std::endl;
+            if (++shown >= 5) break;
+        }
+    }
     
     // Extend alignments using minimizer information
     extendAlignments();
@@ -522,8 +627,19 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     }
     
     // Allocate space for results
-    ProteinMatch* d_protein_matches;
-    cudaMalloc(&d_protein_matches, current_batch_size * 10 * sizeof(ProteinMatch));
+    ProteinMatch* d_protein_matches = nullptr;
+    const size_t MAX_MATCHES_PER_READ = 32;  // Must match what's in the kernel
+    size_t protein_match_size = current_batch_size * MAX_MATCHES_PER_READ * sizeof(ProteinMatch);
+    
+    std::cout << "Allocating protein matches: " << protein_match_size << " bytes" << std::endl;
+    std::cout << "  ProteinMatch size: " << sizeof(ProteinMatch) << " bytes" << std::endl;
+    std::cout << "  Max matches per read: " << MAX_MATCHES_PER_READ << std::endl;
+    
+    cudaError_t alloc_err = cudaMalloc(&d_protein_matches, protein_match_size);
+    if (alloc_err != cudaSuccess) {
+        std::cerr << "ERROR: Failed to allocate protein matches: " << cudaGetErrorString(alloc_err) << std::endl;
+        return;
+    }
     
     // Initialize hit counts to zero
     cudaMemset(d_hit_counts, 0, current_batch_size * sizeof(uint32_t));
@@ -565,13 +681,59 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     
     // Use the class member search engine
     // Pass bloom filter results if enabled, otherwise nullptr to process all reads
-    bool* reads_filter = config.use_bloom_filter ? d_read_passes_filter : nullptr;
+    bool* reads_filter = config.use_bloom_filter ? d_read_passes_filter : (bool*)nullptr;
+    
+    // Debug: Print all parameters being passed
+    std::cout << "\n=== DEBUG: search_translated_reads parameters ===" << std::endl;
+    std::cout << "translated_search_engine: " << translated_search_engine << std::endl;
+    std::cout << "d_reads: " << (void*)d_reads << std::endl;
+    std::cout << "d_read_lengths: " << (void*)d_read_lengths << std::endl;
+    std::cout << "d_read_offsets: " << (void*)d_read_offsets << std::endl;
+    std::cout << "bloom filter: " << (reads_filter ? (void*)reads_filter : nullptr) << std::endl;
+    std::cout << "current_batch_size: " << current_batch_size << std::endl;
+    std::cout << "d_protein_matches: " << (void*)d_protein_matches << std::endl;
+    std::cout << "d_hit_counts: " << (void*)d_hit_counts << std::endl;
+    std::cout << "=== END DEBUG ===" << std::endl;
+    
+    // Debug: Verify GPU allocations are valid
+    std::cout << "\n=== DEBUG: Verifying GPU memory before search ===" << std::endl;
+    
+    // Test if we can read from the GPU pointers
+    int test_length;
+    cudaError_t err = cudaMemcpy(&test_length, d_read_lengths, sizeof(int), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        std::cerr << "ERROR: Cannot read from d_read_lengths: " << cudaGetErrorString(err) << std::endl;
+    } else {
+        std::cout << "First read length: " << test_length << std::endl;
+    }
+    
+    
+    // Clear any existing CUDA errors before the call
+    cudaError_t pre_err = cudaGetLastError();
+    if (pre_err != cudaSuccess) {
+        std::cerr << "WARNING: Existing CUDA error before search: " << cudaGetErrorString(pre_err) << std::endl;
+    }
+    
     std::cout << "Calling search_translated_reads..." << std::endl;
+    
+    // Clear any pre-existing CUDA errors before the search
+    cudaError_t clear_err = cudaGetLastError();
+    if (clear_err != cudaSuccess) {
+        std::cerr << "WARNING: Clearing pre-existing CUDA error before search: " 
+                  << cudaGetErrorString(clear_err) << std::endl;
+    }
+    
+    // Call search
     int result = search_translated_reads(translated_search_engine, d_reads, d_read_lengths, 
                                        d_read_offsets, reads_filter, 
                                        current_batch_size, d_protein_matches, d_hit_counts);
     
-    CHECK_CUDA_ERROR("after search_translated_reads");
+    // Now check for errors
+    cudaError_t post_err = cudaGetLastError();
+    if (post_err != cudaSuccess) {
+        std::cerr << "CUDA error after search_translated_reads: " 
+                  << cudaGetErrorString(post_err) << std::endl;
+    }
     
     if (result != 0) {
         std::cerr << "search_translated_reads returned error code: " << result << std::endl;
@@ -584,7 +746,7 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     cudaMemcpy(hit_counts.data(), d_hit_counts, 
                current_batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
     
-    std::vector<ProteinMatch> protein_matches(current_batch_size * 10);
+    std::vector<ProteinMatch> protein_matches(current_batch_size * MAX_MATCHES_PER_READ);
     cudaMemcpy(protein_matches.data(), d_protein_matches,
                protein_matches.size() * sizeof(ProteinMatch), cudaMemcpyDeviceToHost);
     
@@ -604,7 +766,7 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
             }
             
             for (uint32_t j = 0; j < hit_counts[i]; j++) {
-                ProteinMatch& pm = protein_matches[i * 10 + j];
+                ProteinMatch& pm = protein_matches[i * MAX_MATCHES_PER_READ + j];
                 AMRHit hit = {};
                 
                 hit.read_id = pm.read_id;
@@ -650,9 +812,9 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     
     // Ensure all GPU operations complete and check for errors
     cudaDeviceSynchronize();
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "CUDA error after translated search: " << cudaGetErrorString(err) << std::endl;
+    cudaError_t final_err = cudaGetLastError();
+    if (final_err != cudaSuccess) {
+        std::cerr << "CUDA error after translated search: " << cudaGetErrorString(final_err) << std::endl;
         
         // Try to recover without destroying the engine
         // First, clear the error
@@ -1233,7 +1395,7 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
         uint32_t pair_idx = paired_read_info[i].read_idx;
         
         for (uint32_t j = 0; j < match_counts[i]; j++) {
-            ProteinMatch& match = matches[i * 10 + j];  // Using 10 as max matches per read
+            ProteinMatch& match = matches[i * MAX_MATCHES_PER_READ + j];
             pairAssignments[pair_idx].push_back({
                 match.gene_id,
                 match.species_id,
@@ -1267,7 +1429,7 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
                     
                     // Find the match in the results
                     for (uint32_t j = 0; j < match_counts[read_idx]; j++) {
-                        ProteinMatch& match = matches[read_idx * 10 + j];
+                        ProteinMatch& match = matches[read_idx * MAX_MATCHES_PER_READ + j];
                         if (match.gene_id == assignments[idx].gene_id && 
                             match.species_id == assignments[idx].species_id) {
                             match.alignment_score *= CONCORDANCE_BONUS;
@@ -1281,7 +1443,7 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
                 for (int idx : gs_pair.second) {
                     int read_idx = assignments[idx].read_idx;
                     for (uint32_t j = 0; j < match_counts[read_idx]; j++) {
-                        ProteinMatch& match = matches[read_idx * 10 + j];
+                        ProteinMatch& match = matches[read_idx * MAX_MATCHES_PER_READ + j];
                         if (match.gene_id == assignments[idx].gene_id && 
                             match.species_id == assignments[idx].species_id) {
                             match.alignment_score *= DISCORD_PENALTY;
@@ -1298,8 +1460,8 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
     for (int i = 0; i < num_reads; i++) {
         if (match_counts[i] > 1) {
             std::sort(
-                matches + i * 10,
-                matches + i * 10 + match_counts[i],
+                matches + i * MAX_MATCHES_PER_READ,
+                matches + i * MAX_MATCHES_PER_READ + match_counts[i],
                 [](const ProteinMatch& a, const ProteinMatch& b) {
                     return a.alignment_score > b.alignment_score;
                 }

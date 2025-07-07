@@ -19,7 +19,7 @@
 namespace cg = cooperative_groups;
 
 // Debug macros
-#define DEBUG_TRANS 0
+#define DEBUG_TRANS 1
 #define DEBUG_PRINT(fmt, ...) if(DEBUG_TRANS) { printf("[TRANS DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 // Enhanced constants for protein k-mer approach
@@ -28,9 +28,10 @@ namespace cg = cooperative_groups;
 #define MAX_PROTEIN_LENGTH 200
 #define PROTEIN_KMER_SIZE 8         // Increased from 5 to 8 amino acids for better specificity
 #define MIN_PEPTIDE_LENGTH 20       // Minimum peptide length to consider
-#define MIN_SEED_HITS 1            // Require only one k-mer hit for extension
-#define EXTENSION_THRESHOLD 15     // Minimum amino acids for valid match
-#define MIN_IDENTITY_THRESHOLD 0.8f // Minimum 80% identity for valid protein match
+#define MIN_SEED_HITS 3            // Increase from 1 to 3 - require at least 3 k-mer hits
+#define EXTENSION_THRESHOLD 30     // Increase from 15 to 30 - minimum 30 amino acids
+#define MIN_IDENTITY_THRESHOLD 0.9f // Increase from 0.8f to 0.9f - 90% identity required
+#define MIN_ALIGNMENT_LENGTH 30     // Minimum alignment length in amino acids
 #define SW_SCORE_THRESHOLD 75.0f   // Threshold for Smith-Waterman alignment to detect mutations
 #define AA_ALPHABET_SIZE 24
 
@@ -533,7 +534,7 @@ __global__ void enhanced_protein_kmer_match_kernel(
             // Extend left from seed (allow some mismatches)
             int left_extend = 0;
             int left_mismatches = 0;
-            const int max_mismatches = 2;  // Allow up to 2 mismatches during extension
+            const int max_mismatches = 1;  // Reduced from 2 to 1 - stricter extension
             
             while (seed_query_pos - left_extend > 0 && 
                    seed_ref_pos - left_extend > 0 &&
@@ -594,6 +595,12 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 temp_match.alignment_score = query_span * 2.0f - total_mismatches * 4.0f;  // Penalize mismatches
                 temp_match.used_smith_waterman = false;
                 
+                // Debug identity calculation
+                if (tid == 0 && match_count < 3) {  // Debug first few matches of first read
+                    printf("[IDENTITY DEBUG] Read %d, Match %d: mismatches=%d, span=%d, identity=%.4f\n", 
+                           tid, match_count, total_mismatches, query_span, temp_match.identity);
+                }
+                
                 // Add coverage tracking
                 temp_match.gene_length = protein_db->seq_lengths[protein_id];
                 temp_match.coverage_start = min_ref;
@@ -653,6 +660,12 @@ __global__ void enhanced_protein_kmer_match_kernel(
                             temp_match.identity = (float)(sw_length - sw_num_mutations) / sw_length;
                             temp_match.used_smith_waterman = true;
                             
+                            // Debug SW identity calculation
+                            if (tid == 0 && match_count < 3) {
+                                printf("[SW IDENTITY DEBUG] Read %d, Match %d: mutations=%d, length=%d, identity=%.4f\n", 
+                                       tid, match_count, sw_num_mutations, sw_length, temp_match.identity);
+                            }
+                            
                             // Update coverage tracking after SW alignment
                             temp_match.coverage_start = temp_match.ref_start;
                             temp_match.coverage_end = temp_match.ref_start + sw_length;
@@ -662,8 +675,16 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 
                 // Skip mutation detection - not needed for AMR gene presence/absence
                                 
-                // Only accept matches with sufficient identity
-                if (temp_match.identity >= MIN_IDENTITY_THRESHOLD) {
+                // Debug threshold check
+                if (tid == 0 && match_count < 3) {
+                    printf("[THRESHOLD CHECK] Identity %.4f vs threshold %.4f, Length %d vs min %d - %s\n", 
+                           temp_match.identity, MIN_IDENTITY_THRESHOLD,
+                           temp_match.match_length, MIN_ALIGNMENT_LENGTH,
+                           (temp_match.identity >= MIN_IDENTITY_THRESHOLD && temp_match.match_length >= MIN_ALIGNMENT_LENGTH) ? "PASS" : "FAIL");
+                }
+                
+                // Only accept matches with sufficient identity and length
+                if (temp_match.identity >= MIN_IDENTITY_THRESHOLD && temp_match.match_length >= MIN_ALIGNMENT_LENGTH) {
                     read_matches[match_count] = temp_match;
                     match_count++;
                 }
@@ -700,6 +721,14 @@ private:
 public:
     TranslatedSearchEngine(int batch_size = 10000, bool enable_sw = false) 
         : max_batch_size(batch_size), smith_waterman_enabled(enable_sw) {
+        
+        printf("[TRANS ENGINE] Initializing with batch_size=%d, SW=%s\n", 
+               batch_size, enable_sw ? "enabled" : "disabled");
+        
+        if (batch_size <= 0 || batch_size > 1000000) {
+            printf("[TRANS ENGINE ERROR] Invalid batch size: %d\n", batch_size);
+            return;
+        }
         
         DEBUG_PRINT("Initializing TranslatedSearchEngine (batch=%d, SW=%s)", 
                    batch_size, enable_sw ? "enabled" : "disabled");
@@ -1050,6 +1079,8 @@ public:
         ProteinMatch* results,
         uint32_t* result_counts
     ) {
+        DEBUG_PRINT("searchTranslatedReads: num_reads=%d, max_batch_size=%d", num_reads, max_batch_size);
+        
         if (num_reads > max_batch_size) {
             DEBUG_PRINT("ERROR: num_reads (%d) exceeds max_batch_size (%d)", num_reads, max_batch_size);
             return;
@@ -1061,11 +1092,15 @@ public:
         }
         
         cudaError_t err;
+        
+        // Clear frame counts
         err = cudaMemset(d_frame_counts, 0, num_reads * sizeof(uint32_t));
         if (err != cudaSuccess) {
             DEBUG_PRINT("ERROR: Failed to reset frame counts: %s", cudaGetErrorString(err));
             return;
         }
+        
+        // Clear match counts  
         err = cudaMemset(d_match_counts, 0, num_reads * sizeof(uint32_t));
         if (err != cudaSuccess) {
             DEBUG_PRINT("ERROR: Failed to reset match counts: %s", cudaGetErrorString(err));
@@ -1075,11 +1110,19 @@ public:
         int block_size = 256;
         int grid_size = (num_reads + block_size - 1) / block_size;
         
+        DEBUG_PRINT("Launching kernels with grid_size=%d, block_size=%d", grid_size, block_size);
+        
         // Stage 1: 6-frame translation
         six_frame_translate_kernel<<<grid_size, block_size>>>(
             d_reads, d_read_lengths, d_read_offsets,
             num_reads, d_translated_frames, d_frame_counts
         );
+        
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            DEBUG_PRINT("ERROR after launching translation kernel: %s", cudaGetErrorString(err));
+            return;
+        }
         
         err = cudaDeviceSynchronize();
         if (err != cudaSuccess) {
@@ -1095,6 +1138,12 @@ public:
             smith_waterman_enabled
         );
         
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            DEBUG_PRINT("ERROR after launching protein matching kernel: %s", cudaGetErrorString(err));
+            return;
+        }
+        
         err = cudaDeviceSynchronize();
         if (err != cudaSuccess) {
             DEBUG_PRINT("ERROR: Enhanced protein matching kernel failed: %s", cudaGetErrorString(err));
@@ -1102,9 +1151,16 @@ public:
         }
         
         // Copy results
-        err = cudaMemcpy(results, d_matches, num_reads * 32 * sizeof(ProteinMatch), cudaMemcpyDeviceToHost);
+        size_t copy_size = num_reads * 32 * sizeof(ProteinMatch);
+        DEBUG_PRINT("Attempting to copy %zu bytes (%d reads * 32 * %zu bytes per match)", 
+                    copy_size, num_reads, sizeof(ProteinMatch));
+        DEBUG_PRINT("d_matches pointer: %p, results pointer: %p", d_matches, results);
+        
+        err = cudaMemcpy(results, d_matches, copy_size, cudaMemcpyDeviceToHost);
+        
         if (err != cudaSuccess) {
             DEBUG_PRINT("ERROR: Failed to copy protein matches: %s", cudaGetErrorString(err));
+            DEBUG_PRINT("Failed copy parameters: src=%p, dst=%p, size=%zu", d_matches, results, copy_size);
             return;
         }
         err = cudaMemcpy(result_counts, d_match_counts, num_reads * sizeof(uint32_t), cudaMemcpyDeviceToHost);
@@ -1156,13 +1212,26 @@ extern "C" {
         void* results,
         uint32_t* result_counts
     ) {
-        if (!engine) return -1;
+        printf("[SEARCH DEBUG] Entering search_translated_reads\n");
+        printf("[SEARCH DEBUG] engine=%p, num_reads=%d\n", engine, num_reads);
+        
+        if (!engine) {
+            printf("[SEARCH ERROR] Engine is null!\n");
+            return -1;
+        }
+        
         TranslatedSearchEngine* te = static_cast<TranslatedSearchEngine*>(engine);
+        
+        printf("[SEARCH DEBUG] Calling searchTranslatedReads...\n");
+        
         te->searchTranslatedReads(
             d_reads, d_read_lengths, d_read_offsets,
             d_reads_to_process, num_reads,
             static_cast<ProteinMatch*>(results), result_counts
         );
+        
+        printf("[SEARCH DEBUG] searchTranslatedReads completed\n");
+        
         return 0;
     }
 }

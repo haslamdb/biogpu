@@ -103,6 +103,8 @@ struct GeneAbundance {
 
 class AMRDetectionPipeline {
 private:
+    static constexpr size_t MAX_MATCHES_PER_READ = 32;  // Must match what's in the kernel
+    
     // Configuration
     AMRDetectionConfig config;
     

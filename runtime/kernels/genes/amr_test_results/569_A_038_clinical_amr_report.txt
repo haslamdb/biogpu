@@ -2,7 +2,7 @@ CLINICAL ANTIMICROBIAL RESISTANCE REPORT
 =====================================
 
 Sample: 569_A_038
-Report Generated: 2025-07-07 15:58:00
+Report Generated: 2025-07-07 16:02:26
 
 SUMMARY
 -------

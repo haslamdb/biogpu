@@ -839,9 +839,12 @@ public:
                    batch_size, enable_sw ? "enabled" : "disabled");
         
         // Validate and adjust batch size
-        if (batch_size <= 0 || batch_size > 100000) {
+        if (batch_size <= 0) {
             printf("[AMR ENGINE WARNING] Invalid batch size %d, using default 8192\n", batch_size);
             max_batch_size = 8192;
+        } else if (batch_size > 200000) {
+            printf("[AMR ENGINE WARNING] Batch size %d too large, capping at 200000\n", batch_size);
+            max_batch_size = 200000;
         }
         
         // Initialize pointers
@@ -1312,9 +1315,26 @@ public:
         }
         
         // Initialize arrays
-        CUDA_CHECK(cudaMemset(d_frame_counts, 0, num_reads * sizeof(uint32_t)));
-        CUDA_CHECK(cudaMemset(d_match_counts, 0, num_reads * sizeof(uint32_t)));
-        CUDA_CHECK(cudaMemset(d_matches, 0, num_reads * MAX_MATCHES_PER_READ * sizeof(ProteinMatch)));
+        err = cudaMemset(d_frame_counts, 0, num_reads * sizeof(uint32_t));
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] cudaMemset d_frame_counts failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
+        
+        err = cudaMemset(d_match_counts, 0, num_reads * sizeof(uint32_t));
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] cudaMemset d_match_counts failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
+        
+        err = cudaMemset(d_matches, 0, num_reads * MAX_MATCHES_PER_READ * sizeof(ProteinMatch));
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] cudaMemset d_matches failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
         
         // Configure kernel launch parameters
         int block_size = 256;
@@ -1333,8 +1353,19 @@ public:
             num_reads, d_translated_frames, d_frame_counts
         );
         
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] six_frame_translate_kernel launch failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
+        
+        err = cudaDeviceSynchronize();
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] six_frame_translate_kernel sync failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
         
         // Stage 2: Enhanced protein matching for AMR detection
         enhanced_protein_kmer_match_kernel<<<grid_size, block_size>>>(
@@ -1344,15 +1375,42 @@ public:
             smith_waterman_enabled
         );
         
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
+        err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] enhanced_protein_kmer_match_kernel launch failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
+        
+        err = cudaDeviceSynchronize();
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] enhanced_protein_kmer_match_kernel sync failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
         
         // Copy results back to host
         size_t matches_size = num_reads * MAX_MATCHES_PER_READ * sizeof(ProteinMatch);
         size_t counts_size = num_reads * sizeof(uint32_t);
         
-        CUDA_CHECK(cudaMemcpy(results, d_matches, matches_size, cudaMemcpyDeviceToHost));
-        CUDA_CHECK(cudaMemcpy(result_counts, d_match_counts, counts_size, cudaMemcpyDeviceToHost));
+        DEBUG_PRINT("Copying results: num_reads=%d, matches_size=%zu bytes, counts_size=%zu bytes", 
+                    num_reads, matches_size, counts_size);
+        DEBUG_PRINT("Source buffer d_matches=%p, dest buffer results=%p", d_matches, results);
+        DEBUG_PRINT("sizeof(ProteinMatch)=%zu, MAX_MATCHES_PER_READ=%d", sizeof(ProteinMatch), MAX_MATCHES_PER_READ);
+        
+        err = cudaMemcpy(results, d_matches, matches_size, cudaMemcpyDeviceToHost);
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] cudaMemcpy results failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
+        
+        err = cudaMemcpy(result_counts, d_match_counts, counts_size, cudaMemcpyDeviceToHost);
+        if (err != cudaSuccess) {
+            printf("[AMR SEARCH ERROR] cudaMemcpy result_counts failed: %s\n", cudaGetErrorString(err));
+            cudaGetLastError(); // Clear error state
+            return false;
+        }
         
         DEBUG_PRINT("AMR search completed successfully");
         return true;

@@ -49,7 +49,8 @@ struct ProteinMatch {
 
 AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg) 
     : config(cfg), current_batch_size(0), total_reads_processed(0),
-      translated_search_engine(nullptr), search_engine_initialized(false) {
+      translated_search_engine(nullptr), search_engine_initialized(false),
+      engine_capacity((cfg.reads_per_batch * 2) + (cfg.reads_per_batch / 5)) {
     
     // Initialize CUDA
     initializeGeneticCode();
@@ -113,13 +114,12 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     initializeCoverageStats();
     
     // Create translated search engine with Smith-Waterman
-    // Use the exact batch size we'll process (no multiplication needed)
-    int engine_batch_size = config.reads_per_batch * 2 + 20000; // Add buffer
-    
-    std::cout << "Creating translated search engine with batch size: " << engine_batch_size << std::endl;
+    // In AMRDetectionPipeline constructor initialization, ensure consistency:
+    std::cout << "Creating search engine for batch size: " << engine_capacity << std::endl;
+    std::cout << "This should match max GPU allocation: " << ((config.reads_per_batch * 2) + (config.reads_per_batch / 5)) << std::endl;
     
     // Use the SW version as in the resistance pipeline
-    translated_search_engine = create_translated_search_engine_with_sw(engine_batch_size, true);
+    translated_search_engine = create_translated_search_engine_with_sw(engine_capacity, true);
     if (!translated_search_engine) {
         std::cerr << "Failed to create translated search engine" << std::endl;
         return false;
@@ -155,12 +155,12 @@ void AMRDetectionPipeline::allocateGPUMemory() {
     size_t max_batch = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);  // 220,000 instead of 200,000
     size_t max_read_len = config.max_read_length;
     
-    std::cout << "=== GPU Memory Allocation Debug ===" << std::endl;
-    std::cout << "Config reads_per_batch: " << config.reads_per_batch << std::endl;
-    std::cout << "Engine batch size: " << (config.reads_per_batch * 2) << std::endl;
-    std::cout << "Max batch with safety margin: " << max_batch << std::endl;
-    std::cout << "Max read length: " << config.max_read_length << std::endl;
-    std::cout << "Total read memory: " << (max_batch * max_read_len) << " bytes" << std::endl;
+    std::cout << "=== MEMORY ALLOCATION DEBUG ===" << std::endl;
+    std::cout << "config.reads_per_batch: " << config.reads_per_batch << std::endl;
+    std::cout << "max_batch calculated: " << max_batch << std::endl;
+    std::cout << "Allocating for reads: " << (max_batch * max_read_len) << " bytes" << std::endl;
+    std::cout << "Allocating read_offsets: " << (max_batch * sizeof(int)) << " bytes" << std::endl;
+    std::cout << "Allocating read_lengths: " << (max_batch * sizeof(int)) << " bytes" << std::endl;
     
     // Read data - no longer merging reads, just process them separately
     size_t max_single_read_len = max_read_len;
@@ -327,6 +327,18 @@ void AMRDetectionPipeline::buildBloomFilter() {
 }
 
 void AMRDetectionPipeline::copyReadsToGPU(const std::vector<std::string>& reads) {
+    // Debug input reads
+    std::cout << "DEBUG copyReadsToGPU: Processing " << reads.size() << " reads" << std::endl;
+    for (int i = 0; i < std::min(5, (int)reads.size()); i++) {
+        std::cout << "  Read " << i << ": length=" << reads[i].length() << std::endl;
+    }
+    
+    // Validate input
+    if (reads.empty()) {
+        std::cerr << "ERROR: reads vector is empty!" << std::endl;
+        return;
+    }
+    
     // Prepare reads in GPU-friendly format
     std::vector<char> concatenated_reads;
     std::vector<int> offsets;
@@ -341,6 +353,18 @@ void AMRDetectionPipeline::copyReadsToGPU(const std::vector<std::string>& reads)
         offsets.push_back(concatenated_reads.size());
         lengths.push_back(read.length());
         concatenated_reads.insert(concatenated_reads.end(), read.begin(), read.end());
+    }
+    
+    // Debug built arrays
+    std::cout << "DEBUG: Built " << offsets.size() << " offsets, " << lengths.size() << " lengths" << std::endl;
+    for (int i = 0; i < std::min(5, (int)lengths.size()); i++) {
+        std::cout << "  Length[" << i << "]=" << lengths[i] << std::endl;
+    }
+    
+    // Validate sizes
+    if (offsets.size() != lengths.size()) {
+        std::cerr << "ERROR: Size mismatch - offsets: " << offsets.size() 
+                  << ", lengths: " << lengths.size() << std::endl;
     }
     
     // Copy to GPU
@@ -359,14 +383,37 @@ void AMRDetectionPipeline::copyReadsToGPU(const std::vector<std::string>& reads)
 
 void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
                                        const std::vector<std::string>& read_ids) {
+    // At the start of processBatch():
+    std::cout << "\n### processBatch ENTRY ###" << std::endl;
+    std::cout << "current_batch_size before processing: " << current_batch_size << std::endl;
+    std::cout << "total_reads_processed before: " << total_reads_processed << std::endl;
+    std::cout << "Input reads.size(): " << reads.size() << std::endl;
+    
+    // At the start of processBatch(), add:
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "WARNING: Clearing existing CUDA error: " << cudaGetErrorString(err) << std::endl;
+        // Clear the error but continue
+    }
+    
     if (reads.empty()) return;
     
+    // Reset current_batch_size
     current_batch_size = reads.size();
+    std::cout << "Set current_batch_size to: " << current_batch_size << std::endl;
+    
     total_reads_processed += current_batch_size;
     std::cout << "Processing batch of " << current_batch_size << " reads" << std::endl;
     
     // Copy reads to GPU
     copyReadsToGPU(reads);
+    
+    // After copyReadsToGPU(), add:
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "ERROR: CUDA error after copyReadsToGPU: " << cudaGetErrorString(err) << std::endl;
+        return; // Don't continue with corrupted state
+    }
     
     // Debug: Verify the offsets are correct
     std::vector<int> h_offsets(current_batch_size);
@@ -565,7 +612,6 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     }
     
     // Get engine capacity
-    int engine_capacity = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);  // Match our allocation
     if (current_batch_size > engine_capacity) {
         std::cerr << "ERROR: current_batch_size (" << current_batch_size 
                   << ") exceeds engine capacity (" << engine_capacity << ")" << std::endl;
@@ -1337,6 +1383,37 @@ void AMRDetectionPipeline::resetTranslatedSearchEngine() {
 void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& reads1,
                                               const std::vector<std::string>& reads2,
                                               const std::vector<std::string>& read_ids) {
+    // At the very start of processBatchPaired():
+    std::cout << "### RESETTING PIPELINE STATE ###" << std::endl;
+    
+    // Clear paired read info from previous batch
+    paired_read_info.clear();
+    
+    // Reset batch size 
+    current_batch_size = 0;
+    
+    std::cout << "Pipeline state reset completed" << std::endl;
+    
+    std::cout << "\n### processBatchPaired ENTRY ###" << std::endl;
+    std::cout << "Input validation:" << std::endl;
+    std::cout << "  reads1.size(): " << reads1.size() << std::endl;
+    std::cout << "  reads2.size(): " << reads2.size() << std::endl;
+    std::cout << "  read_ids.size(): " << read_ids.size() << std::endl;
+
+    // Check for empty reads in input
+    int empty_r1 = 0, empty_r2 = 0;
+    for (const auto& read : reads1) {
+        if (read.empty()) empty_r1++;
+    }
+    for (const auto& read : reads2) {
+        if (read.empty()) empty_r2++;
+    }
+
+    if (empty_r1 > 0 || empty_r2 > 0) {
+        std::cout << "WARNING: Found " << empty_r1 << " empty R1 and " 
+                  << empty_r2 << " empty R2 reads in input!" << std::endl;
+    }
+    
     if (reads1.empty() && reads2.empty()) return;
     
     // Pre-allocate for 2x reads (R1 and R2 separate)
@@ -1382,6 +1459,19 @@ void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& re
                 r1_idx                       // Points to R1
             });
         }
+    }
+    
+    // Debug output after building all_reads vector
+    std::cout << "DEBUG processBatchPaired: Built " << all_reads.size() << " total reads from " 
+              << num_pairs << " pairs" << std::endl;
+              
+    // Check for empty reads
+    int empty_count = 0;
+    for (const auto& read : all_reads) {
+        if (read.empty()) empty_count++;
+    }
+    if (empty_count > 0) {
+        std::cout << "WARNING: Found " << empty_count << " empty reads in all_reads vector!" << std::endl;
     }
     
     // Process all reads together (R1 and R2 separately)

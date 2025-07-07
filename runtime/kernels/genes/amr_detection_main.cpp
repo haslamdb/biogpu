@@ -51,10 +51,22 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
             // Read quality line
             if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
             
+            // Check for empty sequence
+            if (seq.empty()) {
+                std::cerr << "WARNING: Empty sequence at line group starting with: " << header << std::endl;
+                continue;  // Skip this read
+            }
+            
             // Add read (extract ID by removing @)
             if (!seq.empty() && !header.empty()) {
                 std::string id = header.substr(1);  // Remove '@'
                 reads.push_back({id, seq});
+                
+                // Debug output for first 10 reads
+                if (reads.size() < 10) {
+                    std::cout << "DEBUG: Read " << reads.size() << " - ID: '" << id << "', Length: " << seq.length() << std::endl;
+                }
+                
                 count++;
                 
                 if (max_reads > 0 && count >= max_reads) {
@@ -83,10 +95,22 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
                 std::getline(file, plus) && 
                 std::getline(file, quality)) {
                 
+                // Check for empty sequence
+                if (seq.empty()) {
+                    std::cerr << "WARNING: Empty sequence at line group starting with: " << header << std::endl;
+                    continue;  // Skip this read
+                }
+                
                 // Add read if sequence is not empty
                 if (!seq.empty() && !header.empty()) {
                     std::string id = header.substr(1);  // Remove '@'
                     reads.push_back({id, seq});
+                    
+                    // Debug output for first 10 reads
+                    if (reads.size() < 10) {
+                        std::cout << "DEBUG: Read " << reads.size() << " - ID: '" << id << "', Length: " << seq.length() << std::endl;
+                    }
+                    
                     count++;
                     
                     if (max_reads > 0 && count >= max_reads) {
@@ -211,13 +235,16 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         int start_idx = batch * batch_size;
         int end_idx = std::min(start_idx + batch_size, num_pairs);
         
-        std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
-                  << " (read pairs " << start_idx << "-" << end_idx << ")" << std::endl;
+        std::cout << "\n=== BATCH TRANSITION DEBUG ===" << std::endl;
+        std::cout << "Starting batch " << (batch + 1) << "/" << num_batches << std::endl;
+        std::cout << "Batch range: pairs " << start_idx << " to " << end_idx << std::endl;
         
         // Extract reads and IDs for this batch
         std::vector<std::string> batch_reads1;
         std::vector<std::string> batch_reads2;
         std::vector<std::string> batch_ids;
+        
+        std::cout << "Extracting reads for batch..." << std::endl;
         
         for (int i = start_idx; i < end_idx; i++) {
             // Skip pairs where either read is empty
@@ -228,8 +255,24 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
             }
         }
         
+        std::cout << "Batch " << (batch + 1) << " extracted: " 
+                  << batch_reads1.size() << " R1, " 
+                  << batch_reads2.size() << " R2, " 
+                  << batch_ids.size() << " IDs" << std::endl;
+        
+        // Validate first few reads in batch
+        for (int i = 0; i < std::min(3, (int)batch_reads1.size()); i++) {
+            std::cout << "  R1[" << i << "]: length=" << batch_reads1[i].length() << std::endl;
+            std::cout << "  R2[" << i << "]: length=" << batch_reads2[i].length() << std::endl;
+        }
+        
+        std::cout << "Calling processBatchPaired..." << std::endl;
+        
         // Process batch of paired reads
         pipeline.processBatchPaired(batch_reads1, batch_reads2, batch_ids);
+        
+        std::cout << "Batch " << (batch + 1) << " completed successfully" << std::endl;
+        std::cout << "=== END BATCH TRANSITION DEBUG ===" << std::endl;
         
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();

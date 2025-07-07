@@ -1,0 +1,21 @@
+CLINICAL ANTIMICROBIAL RESISTANCE REPORT
+=====================================
+
+Sample: synthetic_sample
+Report Generated: 2025-07-07 12:19:33
+
+SUMMARY
+-------
+Total reads processed: 10000000
+Reads with AMR genes: 0
+Total AMR genes detected: 0
+High confidence genes: 0
+Drug classes affected: 0
+
+RESISTANCE BY DRUG CLASS
+------------------------
+
+DETAILED GENE LIST
+------------------
+Gene                          Drug Class          Coverage(%) Depth     TPM       Confidence
+--------------------------------------------------------------------------------------------

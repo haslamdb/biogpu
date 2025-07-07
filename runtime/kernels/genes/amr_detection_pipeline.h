@@ -148,6 +148,7 @@ private:
     // Translated search engine (reused across batches)
     void* translated_search_engine;
     bool search_engine_initialized;
+    int engine_capacity;  // Maximum batch size for search engine
     
     // Paired-end read tracking
     std::vector<PairedReadInfo> paired_read_info;

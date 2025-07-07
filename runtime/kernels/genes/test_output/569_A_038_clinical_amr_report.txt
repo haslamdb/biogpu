@@ -1,0 +1,28 @@
+CLINICAL ANTIMICROBIAL RESISTANCE REPORT
+=====================================
+
+Sample: 569_A_038
+Report Generated: 2025-07-07 10:28:07
+
+SUMMARY
+-------
+Total reads processed: 3405007
+Reads with AMR genes: 10424
+Total AMR genes detected: 2
+High confidence genes: 0
+Drug classes affected: 1
+
+RESISTANCE BY DRUG CLASS
+------------------------
+
+AMINOGLYCOSIDE:
+  Genes detected: 2
+  High confidence: 0
+  Clinical interpretation: LOW CONFIDENCE: Weak evidence of resistance. Susceptibility testing recommended.
+
+DETAILED GENE LIST
+------------------
+Gene                          Drug Class          Coverage(%) Depth     TPM       Confidence
+--------------------------------------------------------------------------------------------
+aac(6')-Ib-G                  AMINOGLYCOSIDE      0.0         0.0       0.00      LOW
+aph(3')-IId                   AMINOGLYCOSIDE      0.0         0.0       0.00      LOW

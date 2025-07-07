@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
         std::cerr << "\nOptions:" << std::endl;
         std::cerr << "  --use-bloom-filter    Use bloom filter for pre-screening (default: disabled)" << std::endl;
         std::cerr << "  --no-merge           Don't merge paired-end reads" << std::endl;
-        std::cerr << "  --min-identity <f>   Minimum identity threshold (default: 0.85)" << std::endl;
+        std::cerr << "  --min-identity <f>   Minimum identity threshold (default: 0.90)" << std::endl;
         std::cerr << "  --min-coverage <f>   Minimum coverage threshold (default: 0.80)" << std::endl;
         return 1;
     }
@@ -390,7 +390,7 @@ int main(int argc, char** argv) {
     config.kmer_length = 31;
     config.minimizer_k = 15;
     config.minimizer_w = 10;
-    config.min_identity = 0.85f;
+    config.min_identity = 0.90f;
     config.min_coverage = 0.80f;
     config.min_alignment_length = 50;
     config.band_width = 15;

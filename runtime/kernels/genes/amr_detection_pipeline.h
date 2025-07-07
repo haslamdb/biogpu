@@ -33,7 +33,7 @@ struct AMRDetectionConfig {
     int protein_kmer_size = 8;              // For protein alignment after translation
     
     // Alignment parameters
-    float min_identity = 0.85f;             // Minimum identity for AMR match
+    float min_identity = 0.90f;             // Minimum identity for AMR match
     float min_coverage = 0.80f;             // Minimum coverage of AMR gene
     int min_alignment_length = 50;          // Minimum alignment length (aa)
     int band_width = 15;                    // Band width for banded SW

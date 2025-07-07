@@ -765,25 +765,43 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                 pairInfo = &paired_read_info[i];
             }
             
+            // Debug output for first few reads with hits
+            if (i < 5 && hit_counts[i] > 0) {
+                for (uint32_t j = 0; j < std::min(hit_counts[i], 3u); j++) {
+                    ProteinMatch& pm = protein_matches[i * MAX_MATCHES_PER_READ + j];
+                    std::cout << "DEBUG: Read " << i << " Match " << j << ":" << std::endl;
+                    std::cout << "  protein_id=" << pm.protein_id << ", gene_id=" << pm.gene_id << std::endl;
+                    std::cout << "  identity=" << pm.identity << ", match_length=" << pm.match_length << std::endl;
+                    std::cout << "  ref_start=" << pm.ref_start << ", query_start=" << pm.query_start << std::endl;
+                    std::cout << "  alignment_score=" << pm.alignment_score << std::endl;
+                    
+                    // Check what gene this is
+                    if (pm.gene_id < gene_entries.size()) {
+                        std::cout << "  gene_name=" << gene_entries[pm.gene_id].gene_name << std::endl;
+                        std::cout << "  drug_class=" << gene_entries[pm.gene_id].class_ << std::endl;
+                    }
+                }
+            }
+            
             for (uint32_t j = 0; j < hit_counts[i]; j++) {
                 ProteinMatch& pm = protein_matches[i * MAX_MATCHES_PER_READ + j];
                 AMRHit hit = {};
                 
                 hit.read_id = pm.read_id;
-                hit.gene_id = pm.protein_id;  // Using protein_id as gene_id
+                hit.gene_id = pm.gene_id;  // Use gene_id, not protein_id
                 hit.ref_start = pm.ref_start;
                 hit.ref_end = pm.ref_start + pm.match_length;
                 hit.read_start = pm.query_start;
                 hit.read_end = pm.query_start + pm.match_length;
                 hit.identity = pm.identity;
-                hit.coverage = (float)pm.match_length / gene_entries[pm.protein_id].protein_length;
+                hit.coverage = (float)pm.match_length / gene_entries[pm.gene_id].protein_length;
                 hit.frame = pm.frame;
                 hit.is_complete_gene = (pm.ref_start == 0 && 
-                                       hit.ref_end >= gene_entries[pm.protein_id].protein_length * 0.95);
+                                       hit.ref_end >= gene_entries[pm.gene_id].protein_length * 0.95);
                 hit.concordant = pm.concordant;  // Copy concordance information
                 
-                strncpy(hit.gene_name, gene_entries[pm.protein_id].gene_name, 63);
-                strncpy(hit.drug_class, gene_entries[pm.protein_id].class_, 31);
+                strncpy(hit.gene_name, gene_entries[pm.gene_id].gene_name, 63);
+                strncpy(hit.drug_class, gene_entries[pm.gene_id].class_, 31);
                 
                 // Include concordance information in debug output
                 if (pairInfo) {

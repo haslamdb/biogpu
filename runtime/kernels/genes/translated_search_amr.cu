@@ -28,7 +28,7 @@ namespace cg = cooperative_groups;
 #define MAX_PROTEIN_LENGTH 200
 #define PROTEIN_KMER_SIZE 8         // Increased from 5 to 8 amino acids for better specificity
 #define MIN_PEPTIDE_LENGTH 20       // Minimum peptide length to consider
-#define MIN_SEED_HITS 3            // Increase from 1 to 3 - require at least 3 k-mer hits
+#define MIN_SEED_HITS 2            // Require at least 2 k-mer hits for better balance
 #define EXTENSION_THRESHOLD 30     // Increase from 15 to 30 - minimum 30 amino acids
 #define MIN_IDENTITY_THRESHOLD 0.9f // Increase from 0.8f to 0.9f - 90% identity required
 #define MIN_ALIGNMENT_LENGTH 30     // Minimum alignment length in amino acids

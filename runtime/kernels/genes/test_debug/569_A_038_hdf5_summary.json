@@ -1,0 +1,5 @@
+{
+  "hdf5_output": "test_debug/569_A_038_amr_results.h5",
+  "total_amr_hits": 49008,
+  "total_genes_detected": 2
+}

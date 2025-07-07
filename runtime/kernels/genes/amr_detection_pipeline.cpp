@@ -333,6 +333,11 @@ void AMRDetectionPipeline::copyReadsToGPU(const std::vector<std::string>& reads)
     std::vector<int> lengths;
     
     for (const auto& read : reads) {
+        // Skip empty reads
+        if (read.empty()) {
+            std::cerr << "WARNING: Skipping empty read" << std::endl;
+            continue;
+        }
         offsets.push_back(concatenated_reads.size());
         lengths.push_back(read.length());
         concatenated_reads.insert(concatenated_reads.end(), read.begin(), read.end());

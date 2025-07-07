@@ -1,0 +1,3 @@
+gene_name	drug_class	read_count	percent_coverage	mean_depth	tpkm	rpm	confidence
+aac(6')-Ib-G	AMINOGLYCOSIDE	26	0	0	0	0	LOW
+aph(3')-IId	AMINOGLYCOSIDE	48982	0	0	0	0	LOW

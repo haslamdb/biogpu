@@ -33,41 +33,32 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
         }
         
         char buffer[4096];
-        std::string line;
         int count = 0;
         
+        // Read FASTQ in groups of 4 lines (like resistance pipeline)
         while (gzgets(gz_file, buffer, sizeof(buffer))) {
-            line = buffer;
-            // Remove newline
-            if (!line.empty() && line.back() == '\n') line.pop_back();
+            std::string header = buffer;
+            header.pop_back(); // Remove newline
             
-            if (!line.empty() && line[0] == '@') {
-                std::string id = line.substr(1);  // Remove '@'
+            // Read sequence line
+            if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
+            std::string seq = buffer;
+            seq.pop_back(); // Remove newline
+            
+            // Read + line
+            if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
+            
+            // Read quality line
+            if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
+            
+            // Add read (extract ID by removing @)
+            if (!seq.empty() && !header.empty()) {
+                std::string id = header.substr(1);  // Remove '@'
+                reads.push_back({id, seq});
+                count++;
                 
-                // Read exactly 4 lines per FASTQ entry
-                if (gzgets(gz_file, buffer, sizeof(buffer))) {
-                    std::string seq = buffer;
-                    if (!seq.empty() && seq.back() == '\n') seq.pop_back();
-                    
-                    if (gzgets(gz_file, buffer, sizeof(buffer))) {
-                        std::string plus = buffer;
-                        if (!plus.empty() && plus.back() == '\n') plus.pop_back();
-                        
-                        if (gzgets(gz_file, buffer, sizeof(buffer))) {
-                            std::string quality = buffer;
-                            if (!quality.empty() && quality.back() == '\n') quality.pop_back();
-                            
-                            // Validate FASTQ format
-                            if (!plus.empty() && plus[0] == '+' && !seq.empty()) {
-                                reads.push_back({id, seq});
-                                count++;
-                                
-                                if (max_reads > 0 && count >= max_reads) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                if (max_reads > 0 && count >= max_reads) {
+                    break;
                 }
             }
         }
@@ -82,27 +73,24 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
             return reads;
         }
         
-        std::string line;
+        std::string header, seq, plus, quality;
         int count = 0;
         
-        while (std::getline(file, line)) {
-            if (!line.empty() && line[0] == '@') {
-                std::string id = line.substr(1);  // Remove '@'
-                std::string seq, plus, quality;
+        // Read FASTQ in groups of 4 lines (like resistance pipeline)
+        while (std::getline(file, header)) {
+            // Read the next 3 lines
+            if (std::getline(file, seq) && 
+                std::getline(file, plus) && 
+                std::getline(file, quality)) {
                 
-                // Read exactly 4 lines per FASTQ entry
-                if (std::getline(file, seq) && 
-                    std::getline(file, plus) && 
-                    std::getline(file, quality)) {
+                // Add read if sequence is not empty
+                if (!seq.empty() && !header.empty()) {
+                    std::string id = header.substr(1);  // Remove '@'
+                    reads.push_back({id, seq});
+                    count++;
                     
-                    // Validate FASTQ format
-                    if (!plus.empty() && plus[0] == '+' && !seq.empty()) {
-                        reads.push_back({id, seq});
-                        count++;
-                        
-                        if (max_reads > 0 && count >= max_reads) {
-                            break;
-                        }
+                    if (max_reads > 0 && count >= max_reads) {
+                        break;
                     }
                 }
             }
@@ -232,9 +220,12 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         std::vector<std::string> batch_ids;
         
         for (int i = start_idx; i < end_idx; i++) {
-            batch_ids.push_back(reads_r1[i].first);
-            batch_reads1.push_back(reads_r1[i].second);
-            batch_reads2.push_back(reads_r2[i].second);
+            // Skip pairs where either read is empty
+            if (!reads_r1[i].second.empty() && !reads_r2[i].second.empty()) {
+                batch_ids.push_back(reads_r1[i].first);
+                batch_reads1.push_back(reads_r1[i].second);
+                batch_reads2.push_back(reads_r2[i].second);
+            }
         }
         
         // Process batch of paired reads
@@ -338,8 +329,11 @@ void processSample(AMRDetectionPipeline& pipeline,
         std::vector<std::string> batch_ids;
         
         for (int i = start_idx; i < end_idx; i++) {
-            batch_ids.push_back(fastq_data[i].first);
-            batch_reads.push_back(fastq_data[i].second);
+            // Skip empty reads
+            if (!fastq_data[i].second.empty()) {
+                batch_ids.push_back(fastq_data[i].first);
+                batch_reads.push_back(fastq_data[i].second);
+            }
         }
         
         // Process batch

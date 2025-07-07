@@ -213,8 +213,8 @@ void AMRDetectionPipeline::allocateGPUMemory() {
     // Bloom filter results (always allocate for consistency)
     cudaMalloc(&d_read_passes_filter, max_batch * sizeof(bool));
     
-    // Hits (max 10 per read)
-    cudaMalloc(&d_amr_hits, max_batch * 10 * sizeof(AMRHit));
+    // Hits (max MAX_MATCHES_PER_READ per read)
+    cudaMalloc(&d_amr_hits, max_batch * MAX_MATCHES_PER_READ * sizeof(AMRHit));
     cudaMalloc(&d_hit_counts, max_batch * sizeof(uint32_t));
     
     // Coverage statistics
@@ -819,10 +819,37 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
         }
     }
     
-    // Copy converted hits back to GPU
+    // Copy converted hits back to GPU in the correct layout
     if (!amr_hits.empty()) {
-        cudaMemcpy(d_amr_hits, amr_hits.data(), 
-                   amr_hits.size() * sizeof(AMRHit), cudaMemcpyHostToDevice);
+        // Copy hit counts to GPU
+        std::vector<uint32_t> gpu_hit_counts(current_batch_size, 0);
+        
+        // Count hits per read for GPU storage
+        for (const auto& hit : amr_hits) {
+            if (hit.read_id < current_batch_size) {
+                gpu_hit_counts[hit.read_id]++;
+            }
+        }
+        
+        // Copy hits to GPU in the correct layout (grouped by read)
+        std::vector<AMRHit> gpu_hits_layout(current_batch_size * MAX_MATCHES_PER_READ);
+        std::vector<uint32_t> hit_index(current_batch_size, 0);
+        
+        for (const auto& hit : amr_hits) {
+            uint32_t read_id = hit.read_id;
+            uint32_t idx = hit_index[read_id]++;
+            if (idx < MAX_MATCHES_PER_READ) {
+                gpu_hits_layout[read_id * MAX_MATCHES_PER_READ + idx] = hit;
+            }
+        }
+        
+        // Copy to GPU
+        cudaMemcpy(d_amr_hits, gpu_hits_layout.data(), 
+                   gpu_hits_layout.size() * sizeof(AMRHit), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_hit_counts, gpu_hit_counts.data(), 
+                   gpu_hit_counts.size() * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        
+        std::cout << "Copied " << amr_hits.size() << " hits to GPU" << std::endl;
     }
     
     // Cleanup (but don't destroy the search engine - it's reused)
@@ -946,22 +973,29 @@ std::vector<AMRHit> AMRDetectionPipeline::getAMRHits() {
     cudaMemcpy(hit_counts.data(), d_hit_counts, 
                current_batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
     
-    // Calculate total hits
+    // Debug: Print hit counts
     int total_hits = 0;
     for (auto count : hit_counts) {
         total_hits += count;
     }
+    std::cout << "DEBUG getAMRHits: current_batch_size=" << current_batch_size 
+              << ", total_hits=" << total_hits << std::endl;
     
     if (total_hits > 0) {
-        // Copy all hits
-        std::vector<AMRHit> batch_hits(current_batch_size * 10);
+        // Copy all hits - use MAX_MATCHES_PER_READ instead of hardcoded 10
+        std::vector<AMRHit> batch_hits(current_batch_size * MAX_MATCHES_PER_READ);
         cudaMemcpy(batch_hits.data(), d_amr_hits, 
                    batch_hits.size() * sizeof(AMRHit), cudaMemcpyDeviceToHost);
         
-        // Extract actual hits
+        // Extract actual hits and debug first few
         for (int i = 0; i < current_batch_size; i++) {
             for (uint32_t j = 0; j < hit_counts[i]; j++) {
-                all_hits.push_back(batch_hits[i * 10 + j]);
+                AMRHit& hit = batch_hits[i * MAX_MATCHES_PER_READ + j];
+                if (all_hits.size() < 5) {  // Debug first 5 hits
+                    std::cout << "  Hit " << all_hits.size() << ": gene_id=" << hit.gene_id 
+                              << ", identity=" << hit.identity << std::endl;
+                }
+                all_hits.push_back(hit);
             }
         }
     }

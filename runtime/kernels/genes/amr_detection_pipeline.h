@@ -201,6 +201,7 @@ public:
     void calculateAbundanceMetrics();
     
     // EM algorithm methods
+    void resolveAmbiguousAssignmentsEM();  // Main entry point for EM
     void runKallistoStyleEM();
     void buildGeneFamiliesMap();
     void buildSequenceSimilarityMatrix();
@@ -219,8 +220,9 @@ public:
     std::vector<AMRCoverageStats> getCoverageStats();
     
     // Methods for EM algorithm with accumulated hits
-    void setAccumulatedHits(const std::vector<AMRHit>& hits) { accumulated_hits = hits; }
-    std::vector<AMRHit> getAllAccumulatedHits() const { return accumulated_hits; }
+    void setAccumulatedHits(const std::vector<AMRHit>& hits);
+    std::vector<AMRHit> getAllAccumulatedHits() const;
+    void addBatchHits(const std::vector<AMRHit>& batch_hits);
     
     // Get database information
     uint32_t getNumGenes() const { 
@@ -316,8 +318,6 @@ private:
     // Paired-end concordance scoring (Note: ProteinMatch is defined in cpp file)
     void applyPairedConcordanceScoring(void* matches, uint32_t* match_counts, int num_reads);
     
-    // Add new private method declaration
-    void resolveAmbiguousAssignmentsEM();
     
     // Gene family extraction methods
     std::string extractGeneFamily(const std::string& gene_name);

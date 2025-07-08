@@ -954,10 +954,8 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
     std::cout << "Genes with coverage: " << genes_with_coverage << std::endl;
     std::cout << "Total RPK sum: " << total_rpk << std::endl;
     
-    // Only run simple EM if not using full EM algorithm
-    if (!config.use_em) {
-        resolveAmbiguousAssignmentsEM();
-    }
+    // REMOVED: resolveAmbiguousAssignmentsEM() call - this should NOT be here!
+    // EM should only be called explicitly from main after all batches
     
     // Second pass: calculate TPM
     if (total_rpk > 0) {
@@ -1609,30 +1607,48 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
     }
 }
 
+// Add these implementations
+void AMRDetectionPipeline::setAccumulatedHits(const std::vector<AMRHit>& hits) {
+    accumulated_hits = hits;
+    std::cout << "Set " << accumulated_hits.size() << " accumulated hits for EM processing" << std::endl;
+}
+
+std::vector<AMRHit> AMRDetectionPipeline::getAllAccumulatedHits() const {
+    return accumulated_hits;
+}
+
+void AMRDetectionPipeline::addBatchHits(const std::vector<AMRHit>& batch_hits) {
+    accumulated_hits.insert(accumulated_hits.end(), batch_hits.begin(), batch_hits.end());
+    std::cout << "Added " << batch_hits.size() << " hits to accumulated total (now " 
+              << accumulated_hits.size() << " total)" << std::endl;
+}
+
 void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
-    std::cout << "\n=== Resolving Ambiguous Read Assignments with Simple EM (finalizeCoverageStats) ===" << std::endl;
+    std::cout << "\n=== Resolving Ambiguous Read Assignments with Kallisto-style EM ===" << std::endl;
     
-    // Use accumulated hits if available (from EM algorithm), otherwise use current batch
-    std::vector<AMRHit> all_hits = accumulated_hits.empty() ? getAMRHits() : accumulated_hits;
-    if (all_hits.empty()) {
-        std::cout << "No hits to resolve" << std::endl;
+    // This method should only be called when EM is enabled and we have accumulated hits
+    if (accumulated_hits.empty()) {
+        std::cout << "No accumulated hits to resolve" << std::endl;
         return;
     }
     
-    std::cout << "Input: " << all_hits.size() << " total hits" << std::endl;
+    std::cout << "Input: " << accumulated_hits.size() << " total accumulated hits" << std::endl;
     
-    // Build read assignments with quality filtering
-    buildReadAssignments(all_hits);
+    // Build read assignments with quality filtering using accumulated hits
+    buildReadAssignments(accumulated_hits);
     
     if (read_assignments.empty()) {
         std::cout << "No high-quality assignments to resolve" << std::endl;
         return;
     }
     
-    // For simple EM, just do basic assignment without full EM algorithm
-    // The full EM algorithm is called separately when --em flag is used
+    // Run the full EM algorithm
+    runKallistoStyleEM();
     
-    std::cout << "Simple assignment resolution complete (not full EM)" << std::endl;
+    // Update coverage statistics based on EM results
+    updateCoverageStatsFromKallistoEM();
+    
+    // Generate reports
     reportEMResults();
     analyzeBetaLactamaseAssignments();
     
@@ -2243,19 +2259,11 @@ void AMRDetectionPipeline::applyFamilyConstraints() {
 }
 
 void AMRDetectionPipeline::runKallistoStyleEM() {
-    std::cout << "\n=== Running MAIN Kallisto-style EM Algorithm (--em flag) ===" << std::endl;
-    
-    // First, build read assignments from all accumulated hits
-    if (accumulated_hits.empty()) {
-        std::cout << "ERROR: No accumulated hits available for EM algorithm!" << std::endl;
-        return;
-    }
-    
-    std::cout << "Processing " << accumulated_hits.size() << " accumulated hits..." << std::endl;
-    buildReadAssignments(accumulated_hits);
+    std::cout << "\n=== Running Kallisto-style EM Algorithm ===" << std::endl;
+    std::cout << "Processing " << read_assignments.size() << " read assignments" << std::endl;
     
     if (read_assignments.empty()) {
-        std::cout << "No high-quality assignments found in accumulated hits" << std::endl;
+        std::cout << "No read assignments available for EM" << std::endl;
         return;
     }
     

@@ -221,6 +221,13 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     // Collect all AMR hits across batches
     std::vector<AMRHit> all_amr_hits;
     
+    // Initialize accumulated hits if EM is enabled
+    if (config.use_em) {
+        std::vector<AMRHit> empty_hits;
+        pipeline.setAccumulatedHits(empty_hits);
+        std::cout << "EM enabled - will accumulate hits across all batches" << std::endl;
+    }
+    
     // Process in batches
     const int batch_size = config.reads_per_batch;
     int num_pairs = std::min(reads_r1.size(), reads_r2.size());
@@ -258,8 +265,13 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         
         std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
         
-        // Accumulate hits
+        // Accumulate hits both locally and in pipeline for EM
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
+        
+        // Also accumulate in pipeline if EM is enabled
+        if (config.use_em && !batch_hits.empty()) {
+            pipeline.addBatchHits(batch_hits);
+        }
         
         std::cout << "Total accumulated hits so far: " << all_amr_hits.size() << std::endl;
         
@@ -267,32 +279,32 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         hdf5_writer.addAMRHits(batch_hits);
     }
     
-    // Debug: Check EM configuration
-    std::cout << "\n--- EM Configuration Check ---" << std::endl;
-    std::cout << "config.use_em = " << (config.use_em ? "true" : "false") << std::endl;
-    std::cout << "Total accumulated hits: " << all_amr_hits.size() << std::endl;
-    std::cout << "------------------------------" << std::endl;
-    
-    // Run EM algorithm if enabled
+    // NOW run EM algorithm AFTER all batches are processed
     if (config.use_em) {
-        std::cout << "\n=== Running EM Algorithm ===" << std::endl;
+        std::cout << "\n=== Running EM Algorithm on All Accumulated Hits ===" << std::endl;
         std::cout << "Total hits before EM: " << all_amr_hits.size() << std::endl;
         
-        // Pass all accumulated hits to the pipeline for EM processing
-        pipeline.setAccumulatedHits(all_amr_hits);
-        
-        // Debug: verify hits were set
+        // Verify accumulated hits are set correctly
         auto verify_hits = pipeline.getAllAccumulatedHits();
-        std::cout << "Hits set in pipeline: " << verify_hits.size() << std::endl;
+        std::cout << "Hits accumulated in pipeline: " << verify_hits.size() << std::endl;
         
-        pipeline.runKallistoStyleEM();
+        if (verify_hits.size() != all_amr_hits.size()) {
+            std::cerr << "WARNING: Mismatch in accumulated hits count!" << std::endl;
+            std::cerr << "Local count: " << all_amr_hits.size() << std::endl;
+            std::cerr << "Pipeline count: " << verify_hits.size() << std::endl;
+            
+            // Synchronize by setting the accumulated hits explicitly
+            pipeline.setAccumulatedHits(all_amr_hits);
+        }
         
-        // Get updated hits after EM adjustment
-        all_amr_hits = pipeline.getAllAccumulatedHits();
-        std::cout << "Total hits after EM: " << all_amr_hits.size() << std::endl;
+        // Run the EM algorithm (this will use accumulated hits, not just last batch)
+        pipeline.resolveAmbiguousAssignmentsEM();
+        
+        // Get updated coverage stats after EM (the EM updates these internally)
+        std::cout << "EM algorithm completed - coverage stats updated" << std::endl;
     }
     
-    // Finalize coverage statistics after all batches
+    // Finalize coverage statistics after all batches (and EM if enabled)
     std::cout << "\nFinalizing coverage statistics..." << std::endl;
     pipeline.finalizeCoverageStats();
     
@@ -412,8 +424,13 @@ void processSample(AMRDetectionPipeline& pipeline,
         
         std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
         
-        // Accumulate hits
+        // Accumulate hits both locally and in pipeline for EM
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
+        
+        // Also accumulate in pipeline if EM is enabled
+        if (config.use_em && !batch_hits.empty()) {
+            pipeline.addBatchHits(batch_hits);
+        }
         
         std::cout << "Total accumulated hits so far: " << all_amr_hits.size() << std::endl;
         

@@ -160,14 +160,15 @@ pipeline ComprehensiveAMR {
 - **Longitudinal monitoring**: Track resistance evolution during treatment
 - **Outbreak surveillance**: Rapid identification of resistance patterns
 
-### 📊 **Validated Performance Metrics**
+### 📊 **Validated Performance Targets and Metrics**
 - **Speed**: Process 10-50M reads in <5 minutes on single GPU
 - **Sensitivity**: >99% for known resistance mutations and genes
-- **Specificity**: >99.5% with optimized filtering algorithms
+- **Accuracy**: EM algorithm improves multi-mapping read assignment
+- **Specificity**: >97.5% with optimized filtering algorithms
 - **Scalability**: Handles clinical batches of 100+ samples efficiently
-- **Accuracy**: EM algorithm improves multi-mapping read assignment by 15-20%
 
-## Performance Achievements
+
+## Performance Targets
 
 - ✅ Process >10 million reads in <2 minutes on single GPU
 - ✅ >99% sensitivity for known resistance mutations and genes

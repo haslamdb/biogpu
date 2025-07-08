@@ -1143,14 +1143,20 @@ public:
                     protein_ids[protein_idx] = std::stoi(json_content.substr(id_start, id_end - id_start));
                 }
                 
-                // Parse gene_id
+                // When parsing the JSON metadata, use the protein index as gene_id
+                // or extract from the gene_name field
+                gene_ids[protein_idx] = protein_idx; // Simple approach: each protein is its own gene
+                // OR parse from the JSON if available
                 size_t gene_pos = json_content.find("\"gene_id\":", pos);
                 if (gene_pos != std::string::npos && gene_pos < pos + 1000) {
                     gene_pos += 10;
                     size_t gene_start = json_content.find_first_of("0123456789", gene_pos);
                     size_t gene_end = json_content.find_first_not_of("0123456789", gene_start);
                     if (gene_start != std::string::npos && gene_end != std::string::npos) {
-                        gene_ids[protein_idx] = std::stoi(json_content.substr(gene_start, gene_end - gene_start));
+                        // Still parse it but use protein_idx as the actual gene_id
+                        int parsed_gene_id = std::stoi(json_content.substr(gene_start, gene_end - gene_start));
+                        // For now, use protein index as gene_id to ensure unique mapping
+                        gene_ids[protein_idx] = protein_idx;
                     }
                 }
                 
@@ -1224,7 +1230,7 @@ public:
             size_t avg_protein_len = remaining_size / num_proteins;
             for (uint32_t i = 0; i < num_proteins; i++) {
                 protein_ids[i] = i;
-                gene_ids[i] = i / 10;  // Group proteins into genes
+                gene_ids[i] = i;  // Each protein is its own gene
                 species_ids[i] = i % 20;  // Distribute across species
                 seq_offsets[i] = i * avg_protein_len;
                 seq_lengths[i] = (i == num_proteins - 1) ? 

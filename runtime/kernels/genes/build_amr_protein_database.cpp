@@ -24,9 +24,7 @@ struct ProteinEntry {
 };
 
 // Parse AMRProt.fa header format
-// Format examples:
-// >0|WP_001572351.1|1|1|parC|Fluoroquinolone resistance ParC
-// >0|AAA16360.1|1|1|stxA2b|...
+// Format: >0|WP_033990638.1|1|1|blaPDC-11|blaPDC|hydrolase|2|CEPHALOSPORIN|BETA-LACTAM|class_C_beta-lactamase_PDC-11
 void parseAMRProtHeader(const std::string& header, ProteinEntry& entry) {
     std::vector<std::string> parts;
     std::stringstream ss(header);
@@ -36,45 +34,57 @@ void parseAMRProtHeader(const std::string& header, ProteinEntry& entry) {
         parts.push_back(part);
     }
     
-    if (parts.size() >= 5) {
-        entry.accession = parts[1];
-        entry.gene_id = std::stoi(parts[2]);
-        entry.species_id = std::stoi(parts[3]);
-        entry.gene_name = parts[4];
+    // Based on actual format:
+    // >0|WP_033990638.1|1|1|blaPDC-11|blaPDC|hydrolase|2|CEPHALOSPORIN|BETA-LACTAM|class_C_beta-lactamase_PDC-11
+    if (parts.size() >= 10) {
+        entry.accession = parts[1];        // WP_033990638.1
+        entry.gene_id = std::stoi(parts[0]); // 0
+        entry.gene_name = parts[4];        // blaPDC-11
+        entry.gene_family = parts[5];      // blaPDC
+        entry.drug_class = parts[9];       // BETA-LACTAM
+        entry.species_id = 0; // No species info available
         
-        // Extract gene family from gene name (e.g., "blaKPC-2" -> "blaKPC")
-        std::string name = entry.gene_name;
-        size_t dash_pos = name.find('-');
-        if (dash_pos != std::string::npos) {
-            entry.gene_family = name.substr(0, dash_pos);
+        // Alternative drug class in position 8
+        if (entry.drug_class.empty() && parts.size() > 8) {
+            entry.drug_class = parts[8];   // CEPHALOSPORIN
+        }
+    } else if (parts.size() >= 5) {
+        entry.accession = parts[1];
+        // Use the index (first field) as gene_id for now
+        entry.gene_id = std::stoi(parts[0]);
+        entry.species_id = 0; // No species info available
+        entry.gene_name = parts[4]; // e.g., "blaPDC-11"
+        
+        // Extract gene family from parts[5] if available
+        if (parts.size() > 5) {
+            entry.gene_family = parts[5]; // e.g., "blaPDC"
         } else {
-            entry.gene_family = name;
+            // Fallback to extracting from gene name
+            size_t dash_pos = entry.gene_name.find('-');
+            if (dash_pos != std::string::npos) {
+                entry.gene_family = entry.gene_name.substr(0, dash_pos);
+            } else {
+                entry.gene_family = entry.gene_name;
+            }
         }
         
-        // Try to infer drug class from gene name
-        std::string gene_lower = entry.gene_name;
-        std::transform(gene_lower.begin(), gene_lower.end(), gene_lower.begin(), ::tolower);
-        
-        if (gene_lower.find("bla") == 0) {
-            entry.drug_class = "BETA_LACTAM";
-        } else if (gene_lower.find("van") == 0) {
-            entry.drug_class = "GLYCOPEPTIDE";
-        } else if (gene_lower.find("tet") == 0) {
-            entry.drug_class = "TETRACYCLINE";
-        } else if (gene_lower.find("qnr") == 0 || gene_lower == "parc" || gene_lower == "pare" || 
-                   gene_lower == "gyra" || gene_lower == "gyrb") {
-            entry.drug_class = "FLUOROQUINOLONE";
-        } else if (gene_lower.find("aac") == 0 || gene_lower.find("ant") == 0 || 
-                   gene_lower.find("aph") == 0) {
-            entry.drug_class = "AMINOGLYCOSIDE";
-        } else if (gene_lower.find("mcr") == 0) {
-            entry.drug_class = "POLYMYXIN";
-        } else if (gene_lower.find("oxa") == 0) {
-            entry.drug_class = "BETA_LACTAM";
-        } else if (gene_lower.find("sul") == 0) {
-            entry.drug_class = "SULFONAMIDE";
+        // Extract drug class from later fields
+        if (parts.size() > 9) {
+            entry.drug_class = parts[9]; // e.g., "BETA-LACTAM"
+        } else if (parts.size() > 8) {
+            entry.drug_class = parts[8]; // e.g., "CEPHALOSPORIN"
         } else {
-            entry.drug_class = "UNKNOWN";
+            // Fallback to inferring from gene name
+            std::string gene_lower = entry.gene_name;
+            std::transform(gene_lower.begin(), gene_lower.end(), gene_lower.begin(), ::tolower);
+            
+            if (gene_lower.find("bla") == 0) {
+                entry.drug_class = "BETA-LACTAM";
+            } else if (gene_lower.find("tet") == 0) {
+                entry.drug_class = "TETRACYCLINE";
+            } else {
+                entry.drug_class = "UNKNOWN";
+            }
         }
     }
 }

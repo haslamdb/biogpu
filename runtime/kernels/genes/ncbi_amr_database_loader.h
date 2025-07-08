@@ -291,10 +291,20 @@ private:
         // Try to extract gene name from various header formats
         // Look for patterns like blaKPC, vanA, mecA, etc.
         
-        // First check for AMRProt.fa format: 0|AAA16360.1|1|1|gene_name|...
+        // First check for pipe-delimited formats
         if (header.find('|') != std::string::npos) {
-            std::vector<std::string> parts = splitString(header, '|');
-            if (parts.size() >= 5 && parts[0].length() <= 2) {
+            // Split only the part before any space
+            size_t space_pos = header.find(' ');
+            std::string header_part = (space_pos != std::string::npos) ? header.substr(0, space_pos) : header;
+            std::vector<std::string> parts = splitString(header_part, '|');
+            
+            // DNA format: 0|WP_001039466.1|NG_051690.1|1|1|tet(D)|tet(D)|...
+            if (parts.size() >= 7 && parts[0].length() <= 2) {
+                // Return the gene name from parts[5]
+                return parts[5];
+            }
+            // Protein format: 0|AAA16360.1|1|1|gene_name|...
+            else if (parts.size() >= 5 && parts[0].length() <= 2) {
                 // Return the gene name from parts[4]
                 return parts[4];
             }

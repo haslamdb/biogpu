@@ -1467,7 +1467,6 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
     // Create a map of read pairs to their matches
     struct GeneAssignment {
         uint32_t gene_id;
-        uint32_t species_id;
         float score;
         int read_idx;
     };
@@ -1487,7 +1486,6 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
             ProteinMatch& match = matches[i * MAX_MATCHES_PER_READ + j];
             pairAssignments[pair_idx].push_back({
                 match.gene_id,
-                match.species_id,
                 match.alignment_score,
                 i
             });
@@ -1501,26 +1499,25 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
     for (auto& pair : pairAssignments) {
         auto& assignments = pair.second;
         
-        // Check for concordant gene/species assignments
-        std::map<std::pair<uint32_t, uint32_t>, std::vector<int>> geneSpeciesPairs;
+        // Remove species_id from the pairing logic
+        // Just use gene_id for concordance checking
+        std::map<uint32_t, std::vector<int>> genePairs;
         
         for (size_t i = 0; i < assignments.size(); i++) {
-            auto key = std::make_pair(assignments[i].gene_id, assignments[i].species_id);
-            geneSpeciesPairs[key].push_back(i);
+            genePairs[assignments[i].gene_id].push_back(i);
         }
         
         // Apply bonuses/penalties
-        for (auto& gs_pair : geneSpeciesPairs) {
-            if (gs_pair.second.size() >= 2) {
-                // Concordant: both reads map to same gene/species
-                for (int idx : gs_pair.second) {
+        for (auto& g_pair : genePairs) {
+            if (g_pair.second.size() >= 2) {
+                // Concordant: both reads map to same gene
+                for (int idx : g_pair.second) {
                     int read_idx = assignments[idx].read_idx;
                     
                     // Find the match in the results
                     for (uint32_t j = 0; j < match_counts[read_idx]; j++) {
                         ProteinMatch& match = matches[read_idx * MAX_MATCHES_PER_READ + j];
-                        if (match.gene_id == assignments[idx].gene_id && 
-                            match.species_id == assignments[idx].species_id) {
+                        if (match.gene_id == assignments[idx].gene_id) {
                             match.alignment_score *= CONCORDANCE_BONUS;
                             match.concordant = true;
                             break;
@@ -1528,13 +1525,12 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
                     }
                 }
             } else {
-                // Discordant: only one read maps to this gene/species
-                for (int idx : gs_pair.second) {
+                // Discordant: only one read maps to this gene
+                for (int idx : g_pair.second) {
                     int read_idx = assignments[idx].read_idx;
                     for (uint32_t j = 0; j < match_counts[read_idx]; j++) {
                         ProteinMatch& match = matches[read_idx * MAX_MATCHES_PER_READ + j];
-                        if (match.gene_id == assignments[idx].gene_id && 
-                            match.species_id == assignments[idx].species_id) {
+                        if (match.gene_id == assignments[idx].gene_id) {
                             match.alignment_score *= DISCORD_PENALTY;
                             match.concordant = false;
                             break;

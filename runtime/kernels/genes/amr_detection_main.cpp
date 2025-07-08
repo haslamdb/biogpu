@@ -257,16 +257,27 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();
         
+        std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
+        
         // Accumulate hits
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
+        
+        std::cout << "Total accumulated hits so far: " << all_amr_hits.size() << std::endl;
         
         // Write batch hits to HDF5
         hdf5_writer.addAMRHits(batch_hits);
     }
     
+    // Finalize coverage statistics after all batches
+    std::cout << "\nFinalizing coverage statistics..." << std::endl;
+    pipeline.finalizeCoverageStats();
+    
     // Get final coverage statistics and gene entries
     auto coverage_stats = pipeline.getCoverageStats();
-    auto gene_entries = pipeline.getGeneEntries();  // Now using the new getter method
+    auto gene_entries = pipeline.getGeneEntries();
+    
+    std::cout << "Total AMR hits accumulated: " << all_amr_hits.size() << std::endl;
+    std::cout << "Gene entries available: " << gene_entries.size() << std::endl;
     
     // Write coverage stats to HDF5
     hdf5_writer.addCoverageStats(coverage_stats, gene_entries);
@@ -280,12 +291,15 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     hdf5_writer.finalize(json_summary);
     
     // Generate clinical report with all accumulated hits
+    std::cout << "\nGenerating clinical report..." << std::endl;
+    std::cout << "Passing " << all_amr_hits.size() << " hits to report generator" << std::endl;
     report_generator.processAMRResults(all_amr_hits, coverage_stats, 
                                       gene_entries, num_pairs);
     report_generator.generateReports();
     
     // Write basic TSV results (backward compatibility)
     std::string output_prefix = output_dir + "/" + sample_name;
+    std::cout << "\nWriting TSV results..." << std::endl;
     pipeline.writeResults(output_prefix);
     pipeline.exportAbundanceTable(output_prefix + "_abundance.tsv");
     
@@ -373,8 +387,12 @@ void processSample(AMRDetectionPipeline& pipeline,
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();
         
+        std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
+        
         // Accumulate hits
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
+        
+        std::cout << "Total accumulated hits so far: " << all_amr_hits.size() << std::endl;
         
         // Write batch hits to HDF5
         hdf5_writer.addAMRHits(batch_hits);
@@ -402,6 +420,7 @@ void processSample(AMRDetectionPipeline& pipeline,
     
     // Write basic TSV results (backward compatibility)
     std::string output_prefix = output_dir + "/" + sample_name;
+    std::cout << "\nWriting TSV results..." << std::endl;
     pipeline.writeResults(output_prefix);
     pipeline.exportAbundanceTable(output_prefix + "_abundance.tsv");
     

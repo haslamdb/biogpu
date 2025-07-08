@@ -149,6 +149,10 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
         return false;
     }
     
+    // Initialize coverage statistics after database is loaded
+    initializeCoverageStats();
+    std::cout << "Coverage statistics initialized" << std::endl;
+    
     return true;
 }
 
@@ -438,12 +442,10 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
         // Pass nullptr to indicate all reads should be processed
         performTranslatedAlignment();
         
-        // Skip per-batch statistics to avoid memory corruption
-        // Statistics will be collected at the end for all batches
-        std::cout << "Batch completed successfully" << std::endl;
+        // Update coverage statistics with hits from this batch
+        updateCoverageStatsFromHits();
         
-        // Skip per-batch calculations to avoid memory corruption
-        // These will be done once at the end for all batches
+        std::cout << "Batch completed successfully" << std::endl;
         return;
     }
     
@@ -452,11 +454,10 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     screenWithBloomFilter();
     performTranslatedAlignment();
     
-    // Skip per-batch statistics to avoid memory corruption
-    // Statistics will be collected at the end for all batches
-    std::cout << "Batch completed successfully" << std::endl;
+    // Update coverage statistics with hits from this batch
+    updateCoverageStatsFromHits();
     
-    // Skip per-batch calculations to avoid memory corruption
+    std::cout << "Batch completed successfully" << std::endl;
 }
 
 void AMRDetectionPipeline::generateMinimizers() {
@@ -854,30 +855,96 @@ void AMRDetectionPipeline::extendAlignments() {
     cudaFree(d_protein_lengths);
 }
 
-void AMRDetectionPipeline::calculateCoverageStats() {
+void AMRDetectionPipeline::updateCoverageStatsFromHits() {
+    // Get hits from current batch
+    std::vector<uint32_t> hit_counts(current_batch_size);
+    cudaMemcpy(hit_counts.data(), d_hit_counts, 
+               current_batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+    
+    // Update stats for each hit
+    std::vector<AMRHit> batch_hits(current_batch_size * MAX_MATCHES_PER_READ);
+    cudaMemcpy(batch_hits.data(), d_amr_hits, 
+               batch_hits.size() * sizeof(AMRHit), cudaMemcpyDeviceToHost);
+    
+    int hits_processed = 0;
+    for (int i = 0; i < current_batch_size; i++) {
+        for (uint32_t j = 0; j < hit_counts[i]; j++) {
+            AMRHit& hit = batch_hits[i * MAX_MATCHES_PER_READ + j];
+            
+            // Simple accumulation - no position tracking yet
+            if (hit.gene_id < h_coverage_stats.size()) {
+                h_coverage_stats[hit.gene_id].total_reads++;
+                h_coverage_stats[hit.gene_id].total_bases_mapped += 
+                    (hit.ref_end - hit.ref_start) * 3; // Convert AA to nucleotides
+                
+                // Track coverage range
+                if (h_coverage_stats[hit.gene_id].covered_positions == 0) {
+                    h_coverage_stats[hit.gene_id].covered_positions = hit.ref_end - hit.ref_start;
+                } else {
+                    // This is simplified - you may want more sophisticated range tracking
+                    h_coverage_stats[hit.gene_id].covered_positions = 
+                        std::max(h_coverage_stats[hit.gene_id].covered_positions,
+                                (uint32_t)(hit.ref_end - hit.ref_start));
+                }
+                hits_processed++;
+            }
+        }
+    }
+    
+    std::cout << "Updated coverage stats with " << hits_processed << " hits from current batch" << std::endl;
+}
+
+void AMRDetectionPipeline::finalizeCoverageStats() {
     uint32_t num_genes = amr_db->getNumGenes();
     
-    // Update coverage with current batch
-    launch_update_coverage_stats_kernel(
-        d_amr_hits,
-        d_hit_counts,
-        d_coverage_stats,
-        current_batch_size,
-        num_genes
-    );
+    std::cout << "\n=== Finalizing Coverage Stats ===" << std::endl;
+    std::cout << "Total reads processed: " << total_reads_processed << std::endl;
     
-    cudaDeviceSynchronize();
+    // Get gene information
+    std::vector<AMRGeneEntry> gene_entries(num_genes);
+    cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
+               num_genes * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
     
-    // Finalize statistics
-    AMRGeneEntry* d_gene_entries = amr_db->getGPUGeneEntries();
+    // Calculate final metrics
+    int genes_with_coverage = 0;
+    for (uint32_t i = 0; i < num_genes; i++) {
+        auto& stats = h_coverage_stats[i];
+        
+        if (stats.total_reads > 0) {
+            genes_with_coverage++;
+            stats.gene_length = gene_entries[i].protein_length;
+            
+            // Simple coverage calculation for metagenomics
+            // Don't require full position tracking which causes memory issues
+            stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
+            stats.mean_depth = (float)stats.total_reads / stats.gene_length;
+            
+            // Calculate abundance metrics
+            if (total_reads_processed > 0) {
+                stats.rpkm = (stats.total_reads * 1e9) / 
+                            (stats.gene_length * 3 * total_reads_processed);
+            }
+            
+            // Debug first few
+            if (genes_with_coverage <= 5) {
+                std::cout << "Gene " << i << " (" << gene_entries[i].gene_name << "): "
+                          << stats.total_reads << " reads, "
+                          << stats.percent_coverage << "% coverage, "
+                          << stats.mean_depth << " depth" << std::endl;
+            }
+        }
+    }
     
-    launch_finalize_coverage_stats_kernel(
-        d_coverage_stats,
-        d_gene_entries,
-        num_genes
-    );
+    std::cout << "Genes with coverage: " << genes_with_coverage << std::endl;
     
-    cudaDeviceSynchronize();
+    // Copy final stats to GPU if needed
+    cudaMemcpy(d_coverage_stats, h_coverage_stats.data(),
+               num_genes * sizeof(AMRCoverageStats), cudaMemcpyHostToDevice);
+}
+
+void AMRDetectionPipeline::calculateCoverageStats() {
+    // This is now just a wrapper that calls finalizeCoverageStats
+    finalizeCoverageStats();
 }
 
 std::vector<AMRHit> AMRDetectionPipeline::getAMRHits() {
@@ -893,6 +960,10 @@ std::vector<AMRHit> AMRDetectionPipeline::getAMRHits() {
         total_hits += count;
     }
     
+    std::cout << "\n=== getAMRHits Debug ===" << std::endl;
+    std::cout << "Current batch size: " << current_batch_size << std::endl;
+    std::cout << "Total hits in GPU memory: " << total_hits << std::endl;
+    
     if (total_hits > 0) {
         // Copy all hits - use MAX_MATCHES_PER_READ instead of hardcoded 10
         std::vector<AMRHit> batch_hits(current_batch_size * MAX_MATCHES_PER_READ);
@@ -900,13 +971,26 @@ std::vector<AMRHit> AMRDetectionPipeline::getAMRHits() {
                    batch_hits.size() * sizeof(AMRHit), cudaMemcpyDeviceToHost);
         
         // Extract actual hits and debug first few
+        int hits_shown = 0;
         for (int i = 0; i < current_batch_size; i++) {
             for (uint32_t j = 0; j < hit_counts[i]; j++) {
                 AMRHit& hit = batch_hits[i * MAX_MATCHES_PER_READ + j];
                 all_hits.push_back(hit);
+                
+                // Debug first few hits
+                if (hits_shown < 5) {
+                    std::cout << "Hit " << hits_shown << ": Gene=" << hit.gene_name 
+                              << " Identity=" << hit.identity 
+                              << " Coverage=" << hit.coverage 
+                              << " Drug=" << hit.drug_class << std::endl;
+                    hits_shown++;
+                }
             }
         }
     }
+    
+    std::cout << "Total hits returned: " << all_hits.size() << std::endl;
+    std::cout << "========================\n" << std::endl;
     
     return all_hits;
 }
@@ -917,6 +1001,19 @@ std::vector<AMRCoverageStats> AMRDetectionPipeline::getCoverageStats() {
     
     cudaMemcpy(stats.data(), d_coverage_stats, 
                num_genes * sizeof(AMRCoverageStats), cudaMemcpyDeviceToHost);
+    
+    // Debug coverage stats
+    int genes_with_coverage = 0;
+    for (uint32_t i = 0; i < num_genes; i++) {
+        if (stats[i].total_reads > 0) {
+            genes_with_coverage++;
+            if (genes_with_coverage <= 5) {
+                std::cout << "Coverage Stats - Gene " << i << ": reads=" << stats[i].total_reads 
+                          << " coverage=" << stats[i].percent_coverage << "%" << std::endl;
+            }
+        }
+    }
+    std::cout << "Total genes with coverage > 0: " << genes_with_coverage << " out of " << num_genes << std::endl;
     
     return stats;
 }

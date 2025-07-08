@@ -46,18 +46,37 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
                                                    int total_reads) {
     total_reads_processed = total_reads;
     
+    // Debug logging
+    std::cout << "\n=== Clinical Report Generator Debug ===" << std::endl;
+    std::cout << "Total AMR hits received: " << hits.size() << std::endl;
+    std::cout << "Total coverage stats entries: " << coverage_stats.size() << std::endl;
+    std::cout << "Total gene entries: " << gene_entries.size() << std::endl;
+    std::cout << "Total reads processed: " << total_reads << std::endl;
+    
     // Count reads with AMR hits
     std::set<uint32_t> reads_with_hits;
     for (const auto& hit : hits) {
         reads_with_hits.insert(hit.read_id);
     }
     reads_with_amr_hits = reads_with_hits.size();
+    std::cout << "Unique reads with AMR hits: " << reads_with_amr_hits << std::endl;
     
     // Process coverage statistics and build gene summaries
+    int genes_with_coverage = 0;
     for (size_t i = 0; i < coverage_stats.size(); i++) {
         const auto& stats = coverage_stats[i];
         if (stats.total_reads > 0) {  // Gene was detected
+            genes_with_coverage++;
             const auto& gene_entry = gene_entries[i];
+            
+            // Debug first few genes
+            if (genes_with_coverage <= 5) {
+                std::cout << "\nGene " << i << " detected:" << std::endl;
+                std::cout << "  Name: " << gene_entry.gene_name << std::endl;
+                std::cout << "  Total reads: " << stats.total_reads << std::endl;
+                std::cout << "  Coverage: " << stats.percent_coverage << "%" << std::endl;
+                std::cout << "  Mean depth: " << stats.mean_depth << std::endl;
+            }
             
             GeneSummary summary;
             summary.gene_name = std::string(gene_entry.gene_name);
@@ -109,6 +128,12 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
             gene_summaries[summary.gene_name] = summary;
             total_genes_detected++;
             
+            // Debug logging for confidence levels
+            if (genes_with_coverage <= 5) {
+                std::cout << "  Average identity: " << avg_identity << std::endl;
+                std::cout << "  Confidence level: " << summary.confidence_level << std::endl;
+            }
+            
             // Update drug class summary
             auto& drug_summary = drug_class_summaries[summary.drug_class];
             drug_summary.drug_class = summary.drug_class;
@@ -153,6 +178,21 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
     for (auto& [drug_class, summary] : drug_class_summaries) {
         summary.clinical_interpretation = generateDrugClassInterpretation(summary);
     }
+    
+    // Final debug summary
+    std::cout << "\n=== Clinical Report Summary ===" << std::endl;
+    std::cout << "Total genes with coverage > 0: " << genes_with_coverage << std::endl;
+    std::cout << "Total genes detected (in summaries): " << total_genes_detected << std::endl;
+    std::cout << "Total drug classes affected: " << drug_class_summaries.size() << std::endl;
+    std::cout << "High confidence genes: " << high_confidence_genes << std::endl;
+    
+    // List drug classes
+    std::cout << "\nDrug classes detected:" << std::endl;
+    for (const auto& [drug_class, summary] : drug_class_summaries) {
+        std::cout << "  " << drug_class << ": " << summary.genes_detected.size() 
+                  << " genes (High: " << summary.high_confidence_genes.size() << ")" << std::endl;
+    }
+    std::cout << "==============================\n" << std::endl;
 }
 
 std::string ClinicalAMRReportGenerator::getConfidenceLevel(float coverage, float depth, float identity, const std::string& gene_family) {

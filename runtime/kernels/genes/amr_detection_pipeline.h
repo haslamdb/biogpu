@@ -190,6 +190,8 @@ public:
     void performTranslatedAlignment();
     void extendAlignments();
     void calculateCoverageStats();
+    void updateCoverageStatsFromHits();  // Lightweight per-batch update
+    void finalizeCoverageStats();        // Heavy calculation after all batches
     void calculateAbundanceMetrics();
     
     // Coverage stats management
@@ -250,6 +252,11 @@ public:
     
     // Clear accumulated results (useful between samples)
     void clearResults() {
+        // Finalize stats before clearing if we have processed reads
+        if (total_reads_processed > 0 && !h_coverage_stats.empty()) {
+            finalizeCoverageStats();
+        }
+        
         // Clear host-side coverage statistics
         h_coverage_stats.clear();
         
@@ -270,6 +277,11 @@ public:
         // Reset batch info
         current_batch_size = 0;
         total_reads_processed = 0;
+        
+        // Re-initialize coverage stats for next sample
+        if (amr_db) {
+            initializeCoverageStats();
+        }
     }
     
 private:

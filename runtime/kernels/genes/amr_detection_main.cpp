@@ -265,13 +265,8 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         
         std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
         
-        // Accumulate hits both locally and in pipeline for EM
+        // Accumulate hits locally for reporting
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
-        
-        // Also accumulate in pipeline if EM is enabled
-        if (config.use_em && !batch_hits.empty()) {
-            pipeline.addBatchHits(batch_hits);
-        }
         
         std::cout << "Total accumulated hits so far: " << all_amr_hits.size() << std::endl;
         
@@ -280,24 +275,20 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     }
     
     // NOW run EM algorithm AFTER all batches are processed
+    std::cout << "\n=== CHECKING IF EM SHOULD RUN ===" << std::endl;
+    std::cout << "config.use_em = " << (config.use_em ? "true" : "false") << std::endl;
+    std::cout << "all_amr_hits.size() = " << all_amr_hits.size() << std::endl;
+    
     if (config.use_em) {
+        std::cout << "\n=== CALLING EM ALGORITHM ===" << std::endl;
         std::cout << "\n=== Running EM Algorithm on All Accumulated Hits ===" << std::endl;
         std::cout << "Total hits before EM: " << all_amr_hits.size() << std::endl;
         
-        // Verify accumulated hits are set correctly
-        auto verify_hits = pipeline.getAllAccumulatedHits();
-        std::cout << "Hits accumulated in pipeline: " << verify_hits.size() << std::endl;
+        // Set accumulated hits in pipeline explicitly
+        pipeline.setAccumulatedHits(all_amr_hits);
+        std::cout << "Set " << all_amr_hits.size() << " hits for EM processing" << std::endl;
         
-        if (verify_hits.size() != all_amr_hits.size()) {
-            std::cerr << "WARNING: Mismatch in accumulated hits count!" << std::endl;
-            std::cerr << "Local count: " << all_amr_hits.size() << std::endl;
-            std::cerr << "Pipeline count: " << verify_hits.size() << std::endl;
-            
-            // Synchronize by setting the accumulated hits explicitly
-            pipeline.setAccumulatedHits(all_amr_hits);
-        }
-        
-        // Run the EM algorithm (this will use accumulated hits, not just last batch)
+        // Run the EM algorithm
         pipeline.resolveAmbiguousAssignmentsEM();
         
         // Get updated coverage stats after EM (the EM updates these internally)
@@ -424,13 +415,8 @@ void processSample(AMRDetectionPipeline& pipeline,
         
         std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
         
-        // Accumulate hits both locally and in pipeline for EM
+        // Accumulate hits locally for reporting
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
-        
-        // Also accumulate in pipeline if EM is enabled
-        if (config.use_em && !batch_hits.empty()) {
-            pipeline.addBatchHits(batch_hits);
-        }
         
         std::cout << "Total accumulated hits so far: " << all_amr_hits.size() << std::endl;
         
@@ -517,36 +503,71 @@ int main(int argc, char** argv) {
     // Additional configuration for paired-end processing
     bool merge_paired_reads = true;
     
+    // Debug: Show all arguments
+    std::cout << "Total arguments: " << argc << std::endl;
+    for (int i = 0; i < argc; i++) {
+        std::cout << "argv[" << i << "] = '" << argv[i] << "'" << std::endl;
+    }
+    
     // Optional: Parse additional config from command line
-    for (int i = 4; i < argc; i += 2) {
+    int i = 4;
+    while (i < argc) {
         std::string arg = argv[i];
+        std::cout << "Processing argument " << i << ": '" << arg << "'" << std::endl;
+        
+        // Handle flags without values first
+        if (arg == "--no-merge") {
+            merge_paired_reads = false;
+            i++; // Move to next argument
+            continue;
+        } else if (arg == "--use-bloom-filter") {
+            config.use_bloom_filter = true;
+            i++; // Move to next argument
+            continue;
+        } else if (arg == "--em") {
+            config.use_em = true;
+            std::cout << "EM algorithm ENABLED via command line" << std::endl;
+            i++; // Move to next argument
+            continue;
+        }
+        
+        // Handle arguments with values
         if (i + 1 < argc) {
             if (arg == "--min-identity") {
                 config.min_identity = std::stof(argv[i + 1]);
+                i += 2; // Skip the value
             } else if (arg == "--min-coverage") {
                 config.min_coverage = std::stof(argv[i + 1]);
+                i += 2; // Skip the value
             } else if (arg == "--kmer-length") {
                 config.kmer_length = std::stoi(argv[i + 1]);
+                i += 2; // Skip the value
             } else if (arg == "--batch-size") {
                 config.reads_per_batch = std::stoi(argv[i + 1]);
+                i += 2; // Skip the value
             } else if (arg == "--protein-db") {
                 config.protein_db_path = argv[i + 1];
-            } else if (arg == "--no-merge") {
-                merge_paired_reads = false;
-                i--; // This flag doesn't take a value
-            } else if (arg == "--use-bloom-filter") {
-                config.use_bloom_filter = true;
-                i--; // This flag doesn't take a value
-            } else if (arg == "--em") {
-                config.use_em = true;
-                i--; // This flag doesn't take a value
+                i += 2; // Skip the value
             } else if (arg == "--em-iterations") {
                 config.em_iterations = std::stoi(argv[i + 1]);
+                i += 2; // Skip the value
             } else if (arg == "--min-hit-coverage") {
                 config.min_hit_coverage = std::stof(argv[i + 1]);
+                i += 2; // Skip the value
+            } else {
+                // Unknown argument with no handler
+                std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
+                i++; // Skip it
             }
+        } else {
+            // No value available for this argument
+            std::cerr << "Warning: Unknown argument '" << arg << "'" << std::endl;
+            i++; // Skip it
         }
     }
+    
+    std::cout << "Final configuration:" << std::endl;
+    std::cout << "  use_em: " << (config.use_em ? "true" : "false") << std::endl;
     
     std::cout << "=== Clinical Diagnostic Pipeline: Antibiotic Resistance Gene Detection ===" << std::endl;
     std::cout << "Purpose: Detect resistance genes in patient microbiome samples for treatment guidance" << std::endl;

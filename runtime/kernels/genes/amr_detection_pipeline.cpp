@@ -445,6 +445,16 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
         // Pass nullptr to indicate all reads should be processed
         performTranslatedAlignment();
         
+        // Get hits from this batch IMMEDIATELY after alignment
+        auto batch_hits = getAMRHits();
+        
+        // Accumulate hits for EM if enabled
+        if (config.use_em && !batch_hits.empty()) {
+            accumulated_hits.insert(accumulated_hits.end(), batch_hits.begin(), batch_hits.end());
+            std::cout << "Accumulated " << batch_hits.size() << " hits (total: " 
+                      << accumulated_hits.size() << ")" << std::endl;
+        }
+        
         // Update coverage statistics with hits from this batch
         updateCoverageStatsFromHits();
         
@@ -456,6 +466,16 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     generateMinimizers();
     screenWithBloomFilter();
     performTranslatedAlignment();
+    
+    // Get hits from this batch IMMEDIATELY after alignment
+    auto batch_hits = getAMRHits();
+    
+    // Accumulate hits for EM if enabled
+    if (config.use_em && !batch_hits.empty()) {
+        accumulated_hits.insert(accumulated_hits.end(), batch_hits.begin(), batch_hits.end());
+        std::cout << "Accumulated " << batch_hits.size() << " hits (total: " 
+                  << accumulated_hits.size() << ")" << std::endl;
+    }
     
     // Update coverage statistics with hits from this batch
     updateCoverageStatsFromHits();
@@ -1624,6 +1644,16 @@ void AMRDetectionPipeline::addBatchHits(const std::vector<AMRHit>& batch_hits) {
 }
 
 void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
+    std::cout << "=== EM ENTRY POINT REACHED ===" << std::endl;
+    std::cout << "\n=== STARTING EM ALGORITHM ===" << std::endl;
+    std::cout << "EM enabled: " << (config.use_em ? "YES" : "NO") << std::endl;
+    std::cout << "Accumulated hits: " << accumulated_hits.size() << std::endl;
+    
+    if (!config.use_em) {
+        std::cout << "EM algorithm is disabled - skipping" << std::endl;
+        return;
+    }
+    
     std::cout << "\n=== Resolving Ambiguous Read Assignments with Kallisto-style EM ===" << std::endl;
     
     // This method should only be called when EM is enabled and we have accumulated hits

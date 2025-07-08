@@ -6,7 +6,7 @@ BioGPU is a comprehensive GPU-accelerated framework for real-time metagenomic an
 
 ## Functional Pipelines
 
-### 1. Fluoroquinolone Resistance Mutation Detection (✅ Fully Functional)
+### 1. Fluoroquinolone Resistance Mutation Detection 
 - **Key Innovation**: Tracks allele frequency (wild-type vs resistant) enabling monitoring of mutation frequency changes over time
 - **Features**:
   - GPU-accelerated mutation scanning in quinolone resistance-determining regions (QRDRs)
@@ -15,7 +15,7 @@ BioGPU is a comprehensive GPU-accelerated framework for real-time metagenomic an
   - Clinical-grade reporting with confidence scores
   - Optimized for longitudinal studies and treatment monitoring
 
-### 2. AMR Gene Detection and Quantitation (✅ Fully Functional)
+### 2. AMR Gene Detection and Quantitation 
 - **Key Innovation**: Employs Expectation-Maximization (EM) algorithm for accurate assignment of multi-mapping reads
 - **Features**:
   - Comprehensive AMR gene detection across all major antibiotic classes

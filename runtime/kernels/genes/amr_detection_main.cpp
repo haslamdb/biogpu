@@ -198,7 +198,6 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     
     // Disable auto-flush during batch processing for better performance
     hdf5_writer.setAutoFlush(false);
-    std::cout << "HDF5 auto-flush disabled for batch processing optimization" << std::endl;
     
     // Create clinical report generator
     std::string report_prefix = output_dir + "/" + sample_name;
@@ -266,6 +265,20 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         
         // Write batch hits to HDF5
         hdf5_writer.addAMRHits(batch_hits);
+    }
+    
+    // Run EM algorithm if enabled
+    if (config.use_em) {
+        std::cout << "\n=== Running EM Algorithm ===" << std::endl;
+        std::cout << "Total hits before EM: " << all_amr_hits.size() << std::endl;
+        
+        // Pass all accumulated hits to the pipeline for EM processing
+        pipeline.setAccumulatedHits(all_amr_hits);
+        pipeline.runKallistoStyleEM();
+        
+        // Get updated hits after EM adjustment
+        all_amr_hits = pipeline.getAllAccumulatedHits();
+        std::cout << "Total hits after EM: " << all_amr_hits.size() << std::endl;
     }
     
     // Finalize coverage statistics after all batches
@@ -338,7 +351,6 @@ void processSample(AMRDetectionPipeline& pipeline,
     
     // Disable auto-flush during batch processing for better performance
     hdf5_writer.setAutoFlush(false);
-    std::cout << "HDF5 auto-flush disabled for batch processing optimization" << std::endl;
     
     // Create clinical report generator
     std::string report_prefix = output_dir + "/" + sample_name;
@@ -447,6 +459,9 @@ int main(int argc, char** argv) {
         std::cerr << "  --no-merge           Don't merge paired-end reads" << std::endl;
         std::cerr << "  --min-identity <f>   Minimum identity threshold (default: 0.90)" << std::endl;
         std::cerr << "  --min-coverage <f>   Minimum coverage threshold (default: 0.80)" << std::endl;
+        std::cerr << "  --em                 Enable EM algorithm for multi-mapping reads" << std::endl;
+        std::cerr << "  --em-iterations <n>  Number of EM iterations (default: 10)" << std::endl;
+        std::cerr << "  --min-hit-coverage <f> Minimum hit coverage for EM (default: none)" << std::endl;
         return 1;
     }
     
@@ -494,6 +509,13 @@ int main(int argc, char** argv) {
             } else if (arg == "--use-bloom-filter") {
                 config.use_bloom_filter = true;
                 i--; // This flag doesn't take a value
+            } else if (arg == "--em") {
+                config.use_em = true;
+                i--; // This flag doesn't take a value
+            } else if (arg == "--em-iterations") {
+                config.em_iterations = std::stoi(argv[i + 1]);
+            } else if (arg == "--min-hit-coverage") {
+                config.min_hit_coverage = std::stof(argv[i + 1]);
             }
         }
     }
@@ -509,6 +531,11 @@ int main(int argc, char** argv) {
     std::cout << "  DNA k-mer length: " << config.kmer_length << std::endl;
     std::cout << "  Protein k-mer size: " << config.protein_kmer_size << std::endl;
     std::cout << "  Batch size: " << config.reads_per_batch << std::endl;
+    if (config.use_em) {
+        std::cout << "  EM algorithm: ENABLED (" << config.em_iterations << " iterations)" << std::endl;
+    } else {
+        std::cout << "  EM algorithm: DISABLED" << std::endl;
+    }
     
     // Initialize pipeline
     AMRDetectionPipeline pipeline(config);

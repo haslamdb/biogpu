@@ -54,6 +54,12 @@ struct AMRDetectionConfig {
     
     // Database paths
     std::string protein_db_path = "amr_protein_db";  // Default location
+    
+    // EM algorithm parameters
+    bool use_em = false;               // Enable EM algorithm for multi-mapping reads
+    int em_iterations = 10;            // Number of EM iterations
+    float em_convergence = 0.001f;     // Convergence threshold
+    float min_hit_coverage = -1.0f;    // Minimum coverage for high quality hits (-1 = no threshold)
 };
 
 // Structure to hold minimizer information
@@ -194,6 +200,16 @@ public:
     void finalizeCoverageStats();        // Heavy calculation after all batches
     void calculateAbundanceMetrics();
     
+    // EM algorithm methods
+    void runKallistoStyleEM();
+    void buildGeneFamiliesMap();
+    void buildSequenceSimilarityMatrix();
+    void initializeGeneAbundances();
+    void normalizeInitialAbundances();
+    void updateAssignmentProbabilities();
+    void updateGeneAbundances();
+    void applyFamilyConstraints();
+    
     // Coverage stats management
     void initializeCoverageStats();
     void freeCoverageStats();
@@ -201,6 +217,10 @@ public:
     // Get results
     std::vector<AMRHit> getAMRHits();
     std::vector<AMRCoverageStats> getCoverageStats();
+    
+    // Methods for EM algorithm with accumulated hits
+    void setAccumulatedHits(const std::vector<AMRHit>& hits) { accumulated_hits = hits; }
+    std::vector<AMRHit> getAllAccumulatedHits() const { return accumulated_hits; }
     
     // Get database information
     uint32_t getNumGenes() const { 
@@ -298,6 +318,61 @@ private:
     
     // Add new private method declaration
     void resolveAmbiguousAssignmentsEM();
+    
+    // Gene family extraction methods
+    std::string extractGeneFamily(const std::string& gene_name);
+    
+    // Hit filtering and assignment building
+    float calculateAssignmentScore(const AMRHit& hit);
+    bool isHighQualityHit(const AMRHit& hit);
+    void buildReadAssignments(const std::vector<AMRHit>& all_hits);
+    
+    // Sequence similarity calculation
+    float calculateNameSimilarity(const std::string& name1, const std::string& name2);
+    std::pair<std::string, std::string> parseGeneName(const std::string& name);
+    float calculateCTXMSimilarity(const std::string& var1, const std::string& var2);
+    float calculateTEMSimilarity(const std::string& var1, const std::string& var2);
+    
+    // Gene abundance initialization
+    float getGeneFamilyPrior(const std::string& family, const std::string& gene_name);
+    
+    // Integration and reporting
+    void updateCoverageStatsFromKallistoEM();
+    void reportEMResults();
+    void analyzeBetaLactamaseAssignments();
+    
+    // Enhanced EM data structures for Kallisto-style gene assignment
+    struct ReadAssignment {
+        uint32_t read_id;
+        std::vector<uint32_t> candidate_genes;
+        std::vector<float> alignment_scores;
+        std::vector<float> assignment_probabilities;
+        float total_score;
+        bool high_quality;  // Filter for Smith-Waterman score >= 100
+    };
+
+    struct GeneAbundanceInfo {
+        uint32_t gene_id;
+        std::string gene_name;
+        std::string gene_family;
+        float effective_length;     // Length adjusted for mappability
+        float abundance;           // Current abundance estimate (RPKM-like)
+        float total_reads;         // Expected number of reads assigned
+        float prior_weight;        // Prior probability based on known prevalence
+    };
+
+    // Add these as private member variables:
+    std::map<std::string, std::vector<uint32_t>> gene_families_map;
+    std::vector<std::vector<float>> gene_similarity_matrix;
+    std::vector<ReadAssignment> read_assignments;
+    std::map<uint32_t, GeneAbundanceInfo> gene_abundance_info;
+    std::vector<AMRHit> accumulated_hits;  // Store all hits across batches
+
+    // Configuration constants for EM
+    static constexpr float MIN_SMITH_WATERMAN_SCORE = 30.0f;  // Lowered for identity*length scoring
+    static constexpr float EM_CONVERGENCE_THRESHOLD = 0.001f;
+    static constexpr int MAX_EM_ITERATIONS = 100;
+    static constexpr float SIMILARITY_WEIGHT = 0.3f;  // Weight for sequence similarity in EM
 };
 
 #endif // AMR_DETECTION_PIPELINE_H

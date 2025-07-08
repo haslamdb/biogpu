@@ -11,6 +11,8 @@
 #include <iomanip>
 #include <cfloat>
 #include <cmath>
+#include <cctype>
+#include <limits>
 #include <cuda_runtime.h>
 
 // CUDA error checking macro
@@ -952,8 +954,10 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
     std::cout << "Genes with coverage: " << genes_with_coverage << std::endl;
     std::cout << "Total RPK sum: " << total_rpk << std::endl;
     
-    // Add this line before "// Second pass: calculate TPM"
-    resolveAmbiguousAssignmentsEM();
+    // Only run simple EM if not using full EM algorithm
+    if (!config.use_em) {
+        resolveAmbiguousAssignmentsEM();
+    }
     
     // Second pass: calculate TPM
     if (total_rpk > 0) {
@@ -1606,193 +1610,841 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
 }
 
 void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
-    std::cout << "\n=== Resolving Ambiguous Read Assignments with EM ===" << std::endl;
+    std::cout << "\n=== Resolving Ambiguous Read Assignments with Kallisto-style EM ===" << std::endl;
     
-    // Get all hits from current batch
-    std::vector<AMRHit> all_hits = getAMRHits();
+    // Use accumulated hits if available (from EM algorithm), otherwise use current batch
+    std::vector<AMRHit> all_hits = accumulated_hits.empty() ? getAMRHits() : accumulated_hits;
     if (all_hits.empty()) {
         std::cout << "No hits to resolve" << std::endl;
         return;
     }
     
-    // 1. Group all hits by read_id
-    std::map<uint32_t, std::vector<AMRHit>> hits_by_read;
-    for (const auto& hit : all_hits) {
-        hits_by_read[hit.read_id].push_back(hit);
-    }
+    std::cout << "Input: " << all_hits.size() << " total hits" << std::endl;
     
-    // 2. Identify reads with multiple gene assignments
-    struct AmbiguousRead {
-        uint32_t read_id;
-        std::vector<uint32_t> gene_ids;
-        std::vector<float> alignment_scores;
-        std::vector<double> assignment_probs;
-    };
+    // Build read assignments with quality filtering
+    buildReadAssignments(all_hits);
     
-    std::map<uint32_t, AmbiguousRead> ambiguous_reads;
-    std::map<uint32_t, double> gene_abundances;
-    
-    int unambiguous_count = 0;
-    int ambiguous_count = 0;
-    
-    for (const auto& [read_id, read_hits] : hits_by_read) {
-        if (read_hits.size() == 1) {
-            // Unambiguous read
-            gene_abundances[read_hits[0].gene_id] += 1.0;
-            unambiguous_count++;
-        } else if (read_hits.size() > 1) {
-            // Ambiguous read
-            AmbiguousRead ar;
-            ar.read_id = read_id;
-            
-            for (const auto& hit : read_hits) {
-                ar.gene_ids.push_back(hit.gene_id);
-                // Use identity * coverage as alignment score
-                ar.alignment_scores.push_back(hit.identity * hit.coverage);
-            }
-            
-            // Initialize with equal probabilities
-            ar.assignment_probs.resize(ar.gene_ids.size(), 1.0 / ar.gene_ids.size());
-            ambiguous_reads[read_id] = ar;
-            ambiguous_count++;
-        }
-    }
-    
-    std::cout << "Unambiguous reads: " << unambiguous_count << std::endl;
-    std::cout << "Ambiguous reads: " << ambiguous_count << std::endl;
-    
-    if (ambiguous_count == 0) {
-        std::cout << "No ambiguous reads to resolve" << std::endl;
+    if (read_assignments.empty()) {
+        std::cout << "No high-quality assignments to resolve" << std::endl;
         return;
     }
     
-    // 3. Initialize gene abundances with pseudocounts for genes only seen in ambiguous reads
-    std::set<uint32_t> all_genes;
-    for (const auto& [read_id, ar] : ambiguous_reads) {
-        for (uint32_t gene_id : ar.gene_ids) {
-            all_genes.insert(gene_id);
-            if (gene_abundances.find(gene_id) == gene_abundances.end()) {
-                gene_abundances[gene_id] = 0.1; // Pseudocount
+    // Run Kallisto-style EM algorithm
+    runKallistoStyleEM();
+    
+    // Update coverage statistics
+    updateCoverageStatsFromKallistoEM();
+    
+    // Generate reports
+    reportEMResults();
+    analyzeBetaLactamaseAssignments();
+    
+    std::cout << "Kallisto-style EM resolution complete" << std::endl;
+}
+
+std::string AMRDetectionPipeline::extractGeneFamily(const std::string& gene_name) {
+    std::string name = gene_name;
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+    
+    // Beta-lactamase families (highly important for clinical decisions)
+    if (name.find("ctx-m") == 0) return "CTX-M";
+    if (name.find("tem-") == 0 || name.find("tem") == 0) return "TEM";
+    if (name.find("shv-") == 0 || name.find("shv") == 0) return "SHV";
+    if (name.find("oxa-") == 0 || name.find("oxa") == 0) return "OXA";
+    if (name.find("kpc-") == 0 || name.find("kpc") == 0) return "KPC";
+    if (name.find("ndm-") == 0 || name.find("ndm") == 0) return "NDM";
+    if (name.find("vim-") == 0 || name.find("vim") == 0) return "VIM";
+    if (name.find("imp-") == 0 || name.find("imp") == 0) return "IMP";
+    
+    // Quinolone resistance families
+    if (name.find("qnr") == 0) {
+        // Extract qnrA, qnrB, qnrC, etc.
+        size_t alpha_pos = name.find_first_of("abcdefghijklmnopqrstuvwxyz", 3);
+        if (alpha_pos != std::string::npos && alpha_pos < 5) {
+            return "qnr" + std::string(1, std::toupper(name[alpha_pos]));
+        }
+        return "qnr";
+    }
+    if (name.find("qep") == 0) return "qepA";
+    if (name.find("aac(6')-ib-cr") != std::string::npos) return "aac6-Ib-cr";
+    
+    // Aminoglycoside resistance families
+    if (name.find("aac(6')") == 0) return "aac6";
+    if (name.find("aac(3)") == 0) return "aac3";
+    if (name.find("ant(2\")") == 0) return "ant2";
+    if (name.find("ant(3\")") == 0) return "ant3";
+    if (name.find("aph(3')") == 0) return "aph3";
+    if (name.find("aph(6)") == 0) return "aph6";
+    if (name.find("arma") == 0) return "armA";
+    if (name.find("rmta") == 0) return "rmtA";
+    if (name.find("rmtb") == 0) return "rmtB";
+    
+    // Tetracycline resistance
+    if (name.find("tet(") == 0) {
+        size_t paren_pos = name.find('(');
+        size_t close_paren = name.find(')', paren_pos);
+        if (paren_pos != std::string::npos && close_paren != std::string::npos) {
+            return "tet" + name.substr(paren_pos, close_paren - paren_pos + 1);
+        }
+        return "tet";
+    }
+    
+    // Macrolide resistance
+    if (name.find("erm") == 0) return "erm";
+    if (name.find("mef") == 0) return "mef";
+    if (name.find("mph") == 0) return "mph";
+    
+    // Vancomycin resistance
+    if (name.find("van") == 0) {
+        if (name.length() > 3) {
+            return "van" + std::string(1, std::toupper(name[3]));
+        }
+        return "van";
+    }
+    
+    // Colistin resistance (very important clinically)
+    if (name.find("mcr-") == 0 || name.find("mcr") == 0) return "mcr";
+    
+    // Sulfonamide resistance
+    if (name.find("sul") == 0) return "sul";
+    
+    // Generic pattern extraction for unknown families
+    // Extract before dash or number
+    size_t dash_pos = name.find('-');
+    if (dash_pos != std::string::npos) {
+        return name.substr(0, dash_pos);
+    }
+    
+    // Remove trailing numbers
+    size_t num_pos = name.find_first_of("0123456789");
+    if (num_pos != std::string::npos && num_pos > 0) {
+        return name.substr(0, num_pos);
+    }
+    
+    return name;  // Return as-is if no pattern matched
+}
+
+void AMRDetectionPipeline::buildGeneFamiliesMap() {
+    gene_families_map.clear();
+    
+    std::cout << "Building gene families map..." << std::endl;
+    
+    for (size_t i = 0; i < gene_entries.size(); i++) {
+        std::string family = extractGeneFamily(gene_entries[i].gene_name);
+        gene_families_map[family].push_back(i);
+    }
+    
+    std::cout << "Built " << gene_families_map.size() << " gene families:" << std::endl;
+    
+    // Report family sizes (helpful for debugging)
+    for (const auto& [family, gene_ids] : gene_families_map) {
+        if (gene_ids.size() > 1) {  // Only report multi-gene families
+            std::cout << "  " << family << ": " << gene_ids.size() << " variants" << std::endl;
+            
+            // Show first few variants for important families
+            if (gene_ids.size() <= 5) {
+                std::cout << "    Variants: ";
+                for (size_t i = 0; i < gene_ids.size(); i++) {
+                    if (i > 0) std::cout << ", ";
+                    std::cout << gene_entries[gene_ids[i]].gene_name;
+                }
+                std::cout << std::endl;
             }
         }
     }
+}
+
+float AMRDetectionPipeline::calculateAssignmentScore(const AMRHit& hit) {
+    // Multi-factor scoring for assignment quality
+    float identity_score = hit.identity;
+    float coverage_score = hit.coverage;
     
-    // 4. Run EM iterations
-    const int MAX_ITERATIONS = 50;
-    const double CONVERGENCE_THRESHOLD = 0.001;
+    // Length penalty: favor longer alignments
+    float length_penalty = std::min(1.0f, (float)(hit.ref_end - hit.ref_start) / 50.0f);
     
-    for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
-        std::map<uint32_t, double> new_abundances;
-        
-        // Initialize with unambiguous counts
-        for (const auto& [read_id, read_hits] : hits_by_read) {
-            if (read_hits.size() == 1) {
-                new_abundances[read_hits[0].gene_id] += 1.0;
+    // Concordance bonus for paired-end reads
+    float concordance_bonus = hit.concordant ? 1.2f : 1.0f;
+    
+    // Frame penalty: prefer certain frames (optional)
+    float frame_penalty = (abs(hit.frame) <= 3) ? 1.0f : 0.9f;
+    
+    return identity_score * coverage_score * length_penalty * concordance_bonus * frame_penalty;
+}
+
+bool AMRDetectionPipeline::isHighQualityHit(const AMRHit& hit) {
+    // Apply quality filters
+    
+    // Smith-Waterman score filter (primary filter)
+    // Note: We need to add alignment_score to AMRHit structure or use a proxy
+    // Use identity * alignment_length as proxy (ignore gene coverage for quality)
+    float alignment_length = hit.ref_end - hit.ref_start;
+    float proxy_score = hit.identity * alignment_length;
+    
+    // Debug output for first few hits
+    // Note: This will show debug for every call, consider adding a member variable to track this
+    static thread_local int debug_count = 0;
+    if (debug_count < 5) {
+        std::cout << "  Hit debug: Gene=" << hit.gene_name 
+                  << " Identity=" << hit.identity 
+                  << " Coverage=" << hit.coverage 
+                  << " Length=" << alignment_length
+                  << " ProxyScore=" << proxy_score
+                  << " (MIN_SCORE=" << MIN_SMITH_WATERMAN_SCORE << ")" << std::endl;
+        debug_count++;
+    }
+    
+    if (proxy_score < MIN_SMITH_WATERMAN_SCORE) {
+        return false;
+    }
+    
+    // Minimum identity threshold
+    if (hit.identity < 0.85f) {
+        return false;
+    }
+    
+    // Minimum coverage threshold (only apply if configured)
+    if (config.min_hit_coverage >= 0.0f && hit.coverage < config.min_hit_coverage) {
+        return false;
+    }
+    
+    // Minimum alignment length
+    if ((hit.ref_end - hit.ref_start) < 20) {
+        return false;
+    }
+    
+    return true;
+}
+
+void AMRDetectionPipeline::buildReadAssignments(const std::vector<AMRHit>& all_hits) {
+    read_assignments.clear();
+    std::map<uint32_t, ReadAssignment> read_map;
+    
+    std::cout << "Building read assignments from " << all_hits.size() << " hits..." << std::endl;
+    
+    int high_quality_hits = 0;
+    int filtered_hits = 0;
+    
+    // Group hits by read_id and filter for quality
+    for (const auto& hit : all_hits) {
+        if (isHighQualityHit(hit)) {
+            high_quality_hits++;
+            
+            auto& assignment = read_map[hit.read_id];
+            assignment.read_id = hit.read_id;
+            assignment.candidate_genes.push_back(hit.gene_id);
+            
+            float score = calculateAssignmentScore(hit);
+            assignment.alignment_scores.push_back(score);
+            assignment.high_quality = true;
+        } else {
+            filtered_hits++;
+        }
+    }
+    
+    std::cout << "Quality filtering results:" << std::endl;
+    std::cout << "  High quality hits: " << high_quality_hits << std::endl;
+    std::cout << "  Filtered out: " << filtered_hits << std::endl;
+    
+    // Convert to vector and calculate total scores
+    for (auto& [read_id, assignment] : read_map) {
+        if (assignment.candidate_genes.size() >= 1) {
+            // Calculate total score for normalization
+            assignment.total_score = 0.0f;
+            for (float score : assignment.alignment_scores) {
+                assignment.total_score += score;
             }
+            
+            // Initialize probabilities uniformly for now
+            assignment.assignment_probabilities.resize(assignment.candidate_genes.size(), 
+                                                     1.0f / assignment.candidate_genes.size());
+            
+            read_assignments.push_back(assignment);
+        }
+    }
+    
+    // Report assignment statistics
+    int multi_assignment_reads = 0;
+    int total_assignments = 0;
+    
+    for (const auto& assignment : read_assignments) {
+        total_assignments += assignment.candidate_genes.size();
+        if (assignment.candidate_genes.size() > 1) {
+            multi_assignment_reads++;
+        }
+    }
+    
+    std::cout << "Assignment statistics:" << std::endl;
+    std::cout << "  Reads with assignments: " << read_assignments.size() << std::endl;
+    std::cout << "  Reads with multiple candidates: " << multi_assignment_reads << std::endl;
+    std::cout << "  Average candidates per read: " << 
+                 (read_assignments.empty() ? 0.0f : (float)total_assignments / read_assignments.size()) << std::endl;
+}
+
+float AMRDetectionPipeline::calculateNameSimilarity(const std::string& name1, const std::string& name2) {
+    if (name1 == name2) return 1.0f;
+    
+    // Parse gene names into family and variant
+    auto [family1, variant1] = parseGeneName(name1);
+    auto [family2, variant2] = parseGeneName(name2);
+    
+    if (family1 != family2) {
+        // Different families have low similarity
+        return 0.05f;
+    }
+    
+    // Same family, different variants
+    if (variant1.empty() || variant2.empty()) {
+        return 0.7f;  // One has no variant info
+    }
+    
+    if (variant1 == variant2) {
+        return 0.95f;  // Same variant (should be identical)
+    }
+    
+    // Different variants of same family
+    // Special cases for known relationships
+    if (family1 == "CTX-M") {
+        // CTX-M variants have complex relationships
+        return calculateCTXMSimilarity(variant1, variant2);
+    } else if (family1 == "TEM") {
+        return calculateTEMSimilarity(variant1, variant2);
+    } else if (family1 == "qnrA" || family1 == "qnrB" || family1 == "qnrC") {
+        return 0.8f;  // qnr variants are quite similar
+    }
+    
+    // Default similarity for same family, different variants
+    return 0.7f;
+}
+
+std::pair<std::string, std::string> AMRDetectionPipeline::parseGeneName(const std::string& name) {
+    std::string family = extractGeneFamily(name);
+    
+    // Extract variant part
+    size_t family_len = family.length();
+    if (name.length() > family_len) {
+        std::string remainder = name.substr(family_len);
+        
+        // Remove common separators
+        if (!remainder.empty() && (remainder[0] == '-' || remainder[0] == '_')) {
+            remainder = remainder.substr(1);
         }
         
-        // E-step: Update assignment probabilities
-        for (auto& [read_id, ar] : ambiguous_reads) {
-            double total_weighted = 0.0;
-            std::vector<double> weighted_abundances;
-            
-            // Calculate weighted abundances
-            for (size_t i = 0; i < ar.gene_ids.size(); i++) {
-                uint32_t gene_id = ar.gene_ids[i];
-                double abundance = gene_abundances[gene_id];
-                double weight = ar.alignment_scores[i];
-                double weighted = abundance * weight;
-                weighted_abundances.push_back(weighted);
-                total_weighted += weighted;
+        return {family, remainder};
+    }
+    
+    return {family, ""};
+}
+
+float AMRDetectionPipeline::calculateCTXMSimilarity(const std::string& var1, const std::string& var2) {
+    // CTX-M variants grouped by phylogenetic relationships
+    static const std::map<std::string, int> ctxm_groups = {
+        {"1", 1}, {"3", 1}, {"10", 1}, {"11", 1}, {"12", 1}, {"15", 1}, {"23", 1}, {"28", 1},
+        {"2", 2}, {"4", 2}, {"5", 2}, {"6", 2}, {"7", 2}, {"20", 2},
+        {"8", 3}, {"40", 3}, {"41", 3},
+        {"9", 4}, {"13", 4}, {"14", 4}, {"16", 4}, {"17", 4}, {"18", 4}, {"19", 4}, {"21", 4},
+        {"25", 5}, {"26", 5}, {"27", 5}, {"39", 5}, {"42", 5}
+    };
+    
+    auto it1 = ctxm_groups.find(var1);
+    auto it2 = ctxm_groups.find(var2);
+    
+    if (it1 != ctxm_groups.end() && it2 != ctxm_groups.end()) {
+        if (it1->second == it2->second) {
+            return 0.9f;  // Same phylogenetic group
+        } else {
+            return 0.6f;  // Different groups
+        }
+    }
+    
+    return 0.7f;  // Unknown variants
+}
+
+float AMRDetectionPipeline::calculateTEMSimilarity(const std::string& var1, const std::string& var2) {
+    // TEM variants: TEM-1 is ancestral, others are derivatives
+    if (var1 == "1" || var2 == "1") {
+        return 0.8f;  // High similarity to TEM-1
+    }
+    
+    // Other TEM variants
+    return 0.75f;
+}
+
+void AMRDetectionPipeline::buildSequenceSimilarityMatrix() {
+    size_t n = gene_entries.size();
+    gene_similarity_matrix.assign(n, std::vector<float>(n, 0.0f));
+    
+    std::cout << "Building sequence similarity matrix for " << n << " genes..." << std::endl;
+    
+    // Calculate pairwise similarities
+    for (size_t i = 0; i < n; i++) {
+        gene_similarity_matrix[i][i] = 1.0f;  // Self-similarity
+        
+        for (size_t j = i + 1; j < n; j++) {
+            float similarity = calculateNameSimilarity(gene_entries[i].gene_name, 
+                                                     gene_entries[j].gene_name);
+            gene_similarity_matrix[i][j] = similarity;
+            gene_similarity_matrix[j][i] = similarity;
+        }
+        
+        // Progress reporting for large matrices
+        if (i % 100 == 0 && i > 0) {
+            std::cout << "  Processed " << i << "/" << n << " genes" << std::endl;
+        }
+    }
+    
+    // Report high-similarity pairs for verification
+    std::cout << "High similarity gene pairs (>0.8):" << std::endl;
+    int high_sim_count = 0;
+    for (size_t i = 0; i < n && high_sim_count < 20; i++) {
+        for (size_t j = i + 1; j < n && high_sim_count < 20; j++) {
+            if (gene_similarity_matrix[i][j] > 0.8f) {
+                std::cout << "  " << gene_entries[i].gene_name << " <-> " 
+                          << gene_entries[j].gene_name << ": " 
+                          << std::fixed << std::setprecision(2) 
+                          << gene_similarity_matrix[i][j] << std::endl;
+                high_sim_count++;
             }
+        }
+    }
+}
+
+float AMRDetectionPipeline::getGeneFamilyPrior(const std::string& family, const std::string& gene_name) {
+    // Known common variants get higher priors based on clinical prevalence
+    static const std::map<std::string, float> common_variants = {
+        // CTX-M family (very common ESBLs)
+        {"CTX-M-15", 3.0f}, {"CTX-M-1", 2.5f}, {"CTX-M-14", 2.0f}, 
+        {"CTX-M-27", 1.8f}, {"CTX-M-3", 1.5f}, {"CTX-M-2", 1.3f},
+        
+        // TEM family
+        {"TEM-1", 2.5f}, {"TEM-52", 1.8f}, {"TEM-116", 1.5f}, {"TEM-135", 1.3f},
+        
+        // SHV family
+        {"SHV-1", 2.0f}, {"SHV-12", 1.5f}, {"SHV-5", 1.3f}, {"SHV-2", 1.2f},
+        
+        // Carbapenemases (high priority)
+        {"KPC-2", 2.0f}, {"KPC-3", 1.8f}, {"NDM-1", 2.2f}, {"NDM-5", 1.5f},
+        {"OXA-48", 1.8f}, {"OXA-181", 1.3f}, {"VIM-1", 1.5f}, {"IMP-1", 1.3f},
+        
+        // Quinolone resistance
+        {"qnrA1", 1.5f}, {"qnrB1", 1.8f}, {"qnrB2", 1.3f}, {"qnrB4", 1.2f},
+        {"qnrB6", 1.1f}, {"qnrC", 1.0f}, {"qnrS1", 1.4f},
+        
+        // Aminoglycoside resistance
+        {"aac(6')-Ib", 1.8f}, {"aac(6')-Ib-cr", 1.5f}, {"aac(3)-Ia", 1.3f},
+        {"ant(2\")-Ia", 1.2f}, {"aph(3')-Ia", 1.4f}, {"armA", 1.6f}, {"rmtB", 1.3f},
+        
+        // Colistin resistance (rare but critical)
+        {"mcr-1", 0.8f}, {"mcr-2", 0.3f}, {"mcr-3", 0.2f},
+        
+        // Vancomycin resistance (rare but critical)
+        {"vanA", 0.5f}, {"vanB", 0.3f}, {"vanC", 0.2f}
+    };
+    
+    auto it = common_variants.find(gene_name);
+    if (it != common_variants.end()) {
+        return it->second;
+    }
+    
+    // Family-level priors for variants not specifically listed
+    static const std::map<std::string, float> family_priors = {
+        {"CTX-M", 1.5f}, {"TEM", 1.3f}, {"SHV", 1.2f},
+        {"KPC", 1.0f}, {"NDM", 1.0f}, {"OXA", 1.1f}, {"VIM", 0.8f}, {"IMP", 0.7f},
+        {"qnrA", 1.0f}, {"qnrB", 1.2f}, {"qnrC", 0.8f}, {"qnrS", 1.0f},
+        {"aac6", 1.2f}, {"aac3", 1.0f}, {"ant2", 0.9f}, {"ant3", 0.8f},
+        {"aph3", 1.0f}, {"armA", 1.0f}, {"rmtA", 0.8f}, {"rmtB", 0.9f},
+        {"tet", 1.1f}, {"sul", 1.0f}, {"erm", 0.9f}, {"mef", 0.8f},
+        {"mcr", 0.3f}, {"vanA", 0.3f}, {"vanB", 0.2f}
+    };
+    
+    auto family_it = family_priors.find(family);
+    if (family_it != family_priors.end()) {
+        return family_it->second;
+    }
+    
+    return 1.0f;  // Default prior
+}
+
+void AMRDetectionPipeline::initializeGeneAbundances() {
+    gene_abundance_info.clear();
+    
+    std::cout << "Initializing gene abundances with clinical priors..." << std::endl;
+    
+    for (size_t i = 0; i < gene_entries.size(); i++) {
+        GeneAbundanceInfo info;
+        info.gene_id = i;
+        info.gene_name = gene_entries[i].gene_name;
+        info.gene_family = extractGeneFamily(gene_entries[i].gene_name);
+        
+        // Effective length (protein length converted to nucleotides)
+        info.effective_length = gene_entries[i].protein_length * 3.0f;
+        
+        // Clinical prevalence prior
+        info.prior_weight = getGeneFamilyPrior(info.gene_family, info.gene_name);
+        
+        // Initialize abundance with prior (will be updated by EM)
+        info.abundance = info.prior_weight;
+        info.total_reads = 0.0f;
+        
+        gene_abundance_info[i] = info;
+    }
+    
+    // Report high-priority genes
+    std::cout << "High-priority genes (prior > 1.5):" << std::endl;
+    int count = 0;
+    for (const auto& [gene_id, info] : gene_abundance_info) {
+        if (info.prior_weight > 1.5f && count < 15) {
+            std::cout << "  " << info.gene_name << " (" << info.gene_family 
+                      << "): prior = " << std::fixed << std::setprecision(1) 
+                      << info.prior_weight << std::endl;
+            count++;
+        }
+    }
+    
+    std::cout << "Initialized " << gene_abundance_info.size() << " genes" << std::endl;
+}
+
+void AMRDetectionPipeline::normalizeInitialAbundances() {
+    // Normalize abundances within families to prevent dominance
+    std::map<std::string, float> family_totals;
+    std::map<std::string, int> family_counts;
+    
+    // Calculate family totals
+    for (const auto& [gene_id, info] : gene_abundance_info) {
+        family_totals[info.gene_family] += info.abundance;
+        family_counts[info.gene_family]++;
+    }
+    
+    // Apply gentle normalization within families with multiple members
+    for (auto& [gene_id, info] : gene_abundance_info) {
+        if (family_counts[info.gene_family] > 1) {
+            float family_avg = family_totals[info.gene_family] / family_counts[info.gene_family];
             
-            // Update probabilities
-            if (total_weighted > 0) {
-                for (size_t i = 0; i < ar.gene_ids.size(); i++) {
-                    ar.assignment_probs[i] = weighted_abundances[i] / total_weighted;
+            // Gentle normalization: move 30% toward family average
+            info.abundance = 0.7f * info.abundance + 0.3f * family_avg;
+        }
+    }
+    
+    std::cout << "Applied family-level abundance normalization" << std::endl;
+}
+
+void AMRDetectionPipeline::updateAssignmentProbabilities() {
+    // E-step: Update assignment probabilities based on current abundances
+    
+    for (auto& assignment : read_assignments) {
+        std::vector<float> weights;
+        weights.reserve(assignment.candidate_genes.size());
+        
+        for (size_t i = 0; i < assignment.candidate_genes.size(); i++) {
+            uint32_t gene_id = assignment.candidate_genes[i];
+            float alignment_score = assignment.alignment_scores[i];
+            
+            const auto& gene_info = gene_abundance_info.at(gene_id);
+            
+            // Kallisto-style weight: abundance / effective_length
+            float abundance_weight = gene_info.abundance / (gene_info.effective_length + 1e-10f);
+            
+            // Sequence similarity boost
+            float similarity_boost = 1.0f;
+            if (SIMILARITY_WEIGHT > 0 && assignment.candidate_genes.size() > 1) {
+                float max_similarity_contribution = 0.0f;
+                
+                for (size_t j = 0; j < assignment.candidate_genes.size(); j++) {
+                    if (i != j) {
+                        uint32_t other_gene = assignment.candidate_genes[j];
+                        float similarity = gene_similarity_matrix[gene_id][other_gene];
+                        float other_abundance = gene_abundance_info.at(other_gene).abundance;
+                        
+                        max_similarity_contribution = std::max(max_similarity_contribution, 
+                                                             similarity * other_abundance);
+                    }
                 }
+                
+                similarity_boost = 1.0f + SIMILARITY_WEIGHT * max_similarity_contribution;
             }
+            
+            // Combined weight
+            float weight = alignment_score * abundance_weight * similarity_boost;
+            weights.push_back(weight);
         }
         
-        // M-step: Update gene abundances
-        // Add fractional counts from ambiguous reads
-        for (const auto& [read_id, ar] : ambiguous_reads) {
-            for (size_t i = 0; i < ar.gene_ids.size(); i++) {
-                new_abundances[ar.gene_ids[i]] += ar.assignment_probs[i];
-            }
+        // Normalize to probabilities
+        float total_weight = 0.0f;
+        for (float w : weights) {
+            total_weight += w;
         }
         
-        // Add pseudocounts to prevent zeros
-        for (uint32_t gene_id : all_genes) {
-            if (new_abundances[gene_id] < 0.1) {
-                new_abundances[gene_id] = 0.1;
+        if (total_weight > 0) {
+            for (size_t i = 0; i < weights.size(); i++) {
+                assignment.assignment_probabilities[i] = weights[i] / total_weight;
             }
+        } else {
+            // Fallback to uniform distribution
+            float uniform_prob = 1.0f / assignment.candidate_genes.size();
+            std::fill(assignment.assignment_probabilities.begin(), 
+                     assignment.assignment_probabilities.end(), uniform_prob);
+        }
+    }
+}
+
+void AMRDetectionPipeline::updateGeneAbundances() {
+    // M-step: Update gene abundances based on assignment probabilities
+    
+    // Reset read counts
+    for (auto& [gene_id, info] : gene_abundance_info) {
+        info.total_reads = 0.0f;
+    }
+    
+    // Accumulate fractional read assignments
+    for (const auto& assignment : read_assignments) {
+        for (size_t i = 0; i < assignment.candidate_genes.size(); i++) {
+            uint32_t gene_id = assignment.candidate_genes[i];
+            float probability = assignment.assignment_probabilities[i];
+            
+            gene_abundance_info[gene_id].total_reads += probability;
+        }
+    }
+    
+    // Update abundances (RPKM-like calculation)
+    for (auto& [gene_id, info] : gene_abundance_info) {
+        // Include prior in abundance calculation
+        float prior_contribution = 0.1f * info.prior_weight;  // 10% weight to prior
+        
+        // RPKM = (reads * 1000) / (gene_length_kb)
+        float rpkm = (info.total_reads + prior_contribution) / (info.effective_length / 1000.0f);
+        
+        info.abundance = rpkm;
+    }
+}
+
+void AMRDetectionPipeline::applyFamilyConstraints() {
+    // Optional: Apply constraints within gene families
+    const float FAMILY_SMOOTHING = 0.05f;  // 5% smoothing within families
+    
+    for (const auto& [family_name, gene_ids] : gene_families_map) {
+        if (gene_ids.size() <= 1) continue;
+        
+        // Calculate family statistics
+        float family_total_abundance = 0.0f;
+        float family_total_reads = 0.0f;
+        
+        for (uint32_t gene_id : gene_ids) {
+            family_total_abundance += gene_abundance_info[gene_id].abundance;
+            family_total_reads += gene_abundance_info[gene_id].total_reads;
+        }
+        
+        if (family_total_reads > 0) {
+            float family_mean_abundance = family_total_abundance / gene_ids.size();
+            
+            // Apply gentle smoothing toward family mean
+            for (uint32_t gene_id : gene_ids) {
+                auto& info = gene_abundance_info[gene_id];
+                info.abundance = (1.0f - FAMILY_SMOOTHING) * info.abundance + 
+                                FAMILY_SMOOTHING * family_mean_abundance;
+            }
+        }
+    }
+}
+
+void AMRDetectionPipeline::runKallistoStyleEM() {
+    std::cout << "\n=== Running Kallisto-style EM Algorithm ===" << std::endl;
+    
+    // First, build read assignments from all accumulated hits
+    if (accumulated_hits.empty()) {
+        std::cout << "ERROR: No accumulated hits available for EM algorithm!" << std::endl;
+        return;
+    }
+    
+    std::cout << "Processing " << accumulated_hits.size() << " accumulated hits..." << std::endl;
+    buildReadAssignments(accumulated_hits);
+    
+    if (read_assignments.empty()) {
+        std::cout << "No high-quality assignments found in accumulated hits" << std::endl;
+        return;
+    }
+    
+    // Initialize
+    buildGeneFamiliesMap();
+    buildSequenceSimilarityMatrix();
+    initializeGeneAbundances();
+    normalizeInitialAbundances();
+    
+    std::cout << "Starting EM iterations..." << std::endl;
+    
+    float prev_likelihood = -std::numeric_limits<float>::infinity();
+    
+    for (int iter = 0; iter < MAX_EM_ITERATIONS; iter++) {
+        // E-step
+        updateAssignmentProbabilities();
+        
+        // M-step
+        updateGeneAbundances();
+        
+        // Optional family constraints
+        if (iter % 5 == 0) {  // Apply every 5 iterations
+            applyFamilyConstraints();
         }
         
         // Check convergence
-        double max_change = 0.0;
-        for (const auto& [gene_id, new_abundance] : new_abundances) {
-            double old_abundance = gene_abundances[gene_id];
-            double change = std::abs(new_abundance - old_abundance);
-            max_change = std::max(max_change, change);
+        float max_change = 0.0f;
+        for (const auto& [gene_id, info] : gene_abundance_info) {
+            // Track changes in genes with significant reads
+            if (info.total_reads > 0.1f) {
+                max_change = std::max(max_change, std::abs(info.abundance));
+            }
         }
         
-        gene_abundances = new_abundances;
+        if (iter % 10 == 0 || iter < 5) {
+            std::cout << "EM iteration " << iter << ", max abundance change: " 
+                      << std::fixed << std::setprecision(4) << max_change << std::endl;
+        }
         
-        if (max_change < CONVERGENCE_THRESHOLD) {
-            std::cout << "EM converged after " << (iter + 1) << " iterations" << std::endl;
+        // Convergence check
+        if (iter > 5 && max_change < EM_CONVERGENCE_THRESHOLD) {
+            std::cout << "EM converged after " << iter + 1 << " iterations" << std::endl;
             break;
         }
-        
-        if (iter == MAX_ITERATIONS - 1) {
-            std::cout << "EM reached maximum iterations" << std::endl;
-        }
     }
     
-    // 5. Update h_coverage_stats with resolved counts
-    // First, scale existing stats to account for ambiguous assignments
-    std::map<uint32_t, double> original_counts;
-    for (uint32_t i = 0; i < h_coverage_stats.size(); i++) {
-        if (h_coverage_stats[i].total_reads > 0) {
-            original_counts[i] = h_coverage_stats[i].total_reads;
-        }
-    }
+    std::cout << "EM algorithm completed" << std::endl;
     
-    // Apply EM-resolved abundances
-    for (const auto& [gene_id, abundance] : gene_abundances) {
-        if (gene_id < h_coverage_stats.size()) {
-            // Update total reads with EM-resolved count
-            h_coverage_stats[gene_id].total_reads = static_cast<uint32_t>(std::round(abundance));
+    // Update coverage statistics and report results
+    updateCoverageStatsFromKallistoEM();
+    reportEMResults();
+}
+
+void AMRDetectionPipeline::updateCoverageStatsFromKallistoEM() {
+    // Update coverage statistics based on Kallisto-style EM results
+    std::cout << "Updating coverage statistics from EM results..." << std::endl;
+    
+    for (const auto& [gene_id, info] : gene_abundance_info) {
+        if (gene_id < h_coverage_stats.size() && info.total_reads > 0.01f) {
+            // Update read count with EM result
+            h_coverage_stats[gene_id].total_reads = std::round(info.total_reads);
             
-            // Scale other metrics proportionally if we had original counts
-            if (original_counts.find(gene_id) != original_counts.end() && original_counts[gene_id] > 0) {
-                double scale_factor = abundance / original_counts[gene_id];
+            // Calculate TPM and RPKM based on EM abundances
+            h_coverage_stats[gene_id].rpkm = info.abundance;  // This is already RPKM-like
+            
+            // Proportional update of other metrics
+            if (h_coverage_stats[gene_id].total_reads > 0) {
+                float original_reads = h_coverage_stats[gene_id].total_reads;
+                float scale_factor = info.total_reads / std::max(1.0f, original_reads);
+                
                 h_coverage_stats[gene_id].total_bases_mapped = 
-                    static_cast<uint32_t>(h_coverage_stats[gene_id].total_bases_mapped * scale_factor);
+                    std::round(h_coverage_stats[gene_id].total_bases_mapped * scale_factor);
+            }
+        }
+    }
+}
+
+void AMRDetectionPipeline::reportEMResults() {
+    std::cout << "\n=== EM Assignment Results by Gene Family ===" << std::endl;
+    
+    // Sort families by total abundance
+    std::vector<std::pair<std::string, float>> family_abundances;
+    
+    for (const auto& [family_name, gene_ids] : gene_families_map) {
+        float family_total = 0.0f;
+        for (uint32_t gene_id : gene_ids) {
+            family_total += gene_abundance_info[gene_id].total_reads;
+        }
+        
+        if (family_total > 0.1f) {  // Only report families with significant reads
+            family_abundances.push_back({family_name, family_total});
+        }
+    }
+    
+    std::sort(family_abundances.begin(), family_abundances.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+    
+    // Report top families
+    for (const auto& [family_name, family_total] : family_abundances) {
+        const auto& gene_ids = gene_families_map[family_name];
+        
+        std::vector<std::pair<float, std::string>> family_genes;
+        for (uint32_t gene_id : gene_ids) {
+            const auto& info = gene_abundance_info[gene_id];
+            if (info.total_reads > 0.01f) {
+                family_genes.push_back({info.total_reads, info.gene_name});
+            }
+        }
+        
+        if (!family_genes.empty()) {
+            std::sort(family_genes.begin(), family_genes.end(),
+                     [](const auto& a, const auto& b) { return a.first > b.first; });
+            
+            std::cout << "\n" << family_name << " family (total: " 
+                      << std::fixed << std::setprecision(1) << family_total << " reads):" << std::endl;
+            
+            for (const auto& [reads, name] : family_genes) {
+                float percentage = (reads / family_total) * 100.0f;
+                std::cout << "  " << std::setw(15) << std::left << name << ": " 
+                          << std::setw(6) << std::fixed << std::setprecision(1) << reads 
+                          << " reads (" << std::setw(4) << percentage << "%)" << std::endl;
+            }
+        }
+    }
+}
+
+void AMRDetectionPipeline::analyzeBetaLactamaseAssignments() {
+    std::cout << "\n=== Beta-lactamase Family Analysis ===" << std::endl;
+    
+    // Use accumulated hits for analysis (not just current batch)
+    auto hits = accumulated_hits;
+    std::map<std::string, std::vector<AMRHit>> beta_lactamase_hits;
+    
+    for (const auto& hit : hits) {
+        if (hit.gene_id < gene_entries.size()) {
+            std::string gene_name = gene_entries[hit.gene_id].gene_name;
+            std::string family = extractGeneFamily(gene_name);
+            
+            // Check if it's a beta-lactamase family
+            if (family == "CTX-M" || family == "TEM" || family == "SHV" || 
+                family == "OXA" || family == "KPC" || family == "NDM" || 
+                family == "VIM" || family == "IMP") {
+                beta_lactamase_hits[family].push_back(hit);
             }
         }
     }
     
-    // Report resolution summary
-    std::cout << "\nEM Resolution Summary:" << std::endl;
-    int genes_with_ambiguous = 0;
-    for (const auto& [gene_id, abundance] : gene_abundances) {
-        bool had_ambiguous = false;
-        for (const auto& [read_id, ar] : ambiguous_reads) {
-            if (std::find(ar.gene_ids.begin(), ar.gene_ids.end(), gene_id) != ar.gene_ids.end()) {
-                had_ambiguous = true;
-                break;
+    for (const auto& [family, family_hits] : beta_lactamase_hits) {
+        std::map<std::string, int> variant_counts;
+        std::set<uint32_t> unique_reads;
+        std::map<std::string, float> variant_em_reads;
+        
+        // Count raw hits
+        for (const auto& hit : family_hits) {
+            std::string gene_name = gene_entries[hit.gene_id].gene_name;
+            variant_counts[gene_name]++;
+            unique_reads.insert(hit.read_id);
+        }
+        
+        // Get EM-assigned reads for this family
+        for (uint32_t gene_id : gene_families_map[family]) {
+            const auto& info = gene_abundance_info[gene_id];
+            if (info.total_reads > 0.01f) {
+                variant_em_reads[info.gene_name] = info.total_reads;
             }
         }
-        if (had_ambiguous) {
-            genes_with_ambiguous++;
-            if (genes_with_ambiguous <= 5 && gene_id < gene_entries.size()) {
-                std::cout << "  Gene " << gene_entries[gene_id].gene_name 
-                          << ": " << std::fixed << std::setprecision(2) 
-                          << abundance << " reads" << std::endl;
+        
+        std::cout << "\n" << family << " family analysis:" << std::endl;
+        std::cout << "  Raw hits: " << family_hits.size() << std::endl;
+        std::cout << "  Unique reads: " << unique_reads.size() << std::endl;
+        std::cout << "  Avg hits per read: " << std::fixed << std::setprecision(2) 
+                  << (unique_reads.empty() ? 0.0f : (float)family_hits.size() / unique_reads.size()) << std::endl;
+        
+        std::cout << "  Raw variant distribution:" << std::endl;
+        for (const auto& [variant, count] : variant_counts) {
+            std::cout << "    " << std::setw(15) << std::left << variant 
+                      << ": " << std::setw(4) << count << " hits" << std::endl;
+        }
+        
+        if (!variant_em_reads.empty()) {
+            std::cout << "  EM-resolved distribution:" << std::endl;
+            for (const auto& [variant, em_reads] : variant_em_reads) {
+                std::cout << "    " << std::setw(15) << std::left << variant 
+                          << ": " << std::setw(6) << std::fixed << std::setprecision(1) 
+                          << em_reads << " reads" << std::endl;
             }
         }
     }
-    std::cout << "Total genes with ambiguous assignments: " << genes_with_ambiguous << std::endl;
-    std::cout << "===========================================\n" << std::endl;
 }

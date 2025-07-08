@@ -1,0 +1,68 @@
+[
+  {
+    "id": 0,
+    "accession": "WP_TEST001",
+    "gene_name": "blaKPC-2",
+    "gene_family": "blaKPC",
+    "drug_class": "BETA_LACTAM",
+    "gene_id": 1,
+    "species_id": 1,
+    "length": 107,
+    "offset": 0
+  },
+  {
+    "id": 1,
+    "accession": "WP_TEST002",
+    "gene_name": "blaKPC-3",
+    "gene_family": "blaKPC",
+    "drug_class": "BETA_LACTAM",
+    "gene_id": 1,
+    "species_id": 2,
+    "length": 107,
+    "offset": 107
+  },
+  {
+    "id": 2,
+    "accession": "WP_TEST003",
+    "gene_name": "qnrA1",
+    "gene_family": "qnrA1",
+    "drug_class": "FLUOROQUINOLONE",
+    "gene_id": 2,
+    "species_id": 1,
+    "length": 126,
+    "offset": 214
+  },
+  {
+    "id": 3,
+    "accession": "WP_TEST004",
+    "gene_name": "vanA",
+    "gene_family": "vanA",
+    "drug_class": "GLYCOPEPTIDE",
+    "gene_id": 3,
+    "species_id": 1,
+    "length": 48,
+    "offset": 340
+  },
+  {
+    "id": 4,
+    "accession": "WP_TEST005",
+    "gene_name": "mecA",
+    "gene_family": "mecA",
+    "drug_class": "UNKNOWN",
+    "gene_id": 4,
+    "species_id": 1,
+    "length": 80,
+    "offset": 388
+  },
+  {
+    "id": 5,
+    "accession": "WP_TEST006",
+    "gene_name": "aac6-Ib",
+    "gene_family": "aac6",
+    "drug_class": "AMINOGLYCOSIDE",
+    "gene_id": 5,
+    "species_id": 1,
+    "length": 78,
+    "offset": 468
+  }
+]

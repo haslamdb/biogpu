@@ -23,6 +23,7 @@ public:
     
     struct GeneSummary {
         std::string gene_name;
+        std::string gene_family;
         std::string drug_class;
         uint32_t read_count;
         float percent_coverage;
@@ -34,6 +35,14 @@ public:
         std::vector<std::string> sample_hits;  // For multi-sample analysis
     };
     
+    struct GeneFamilySummary {
+        std::string gene_family;
+        std::vector<std::string> gene_variants;  // e.g., blaKPC-2, blaKPC-3
+        float total_tpm;
+        float total_reads;
+        float max_identity;
+    };
+    
 private:
     std::string output_path;
     std::string sample_name;
@@ -41,6 +50,7 @@ private:
     // Collected data
     std::map<std::string, DrugClassSummary> drug_class_summaries;
     std::map<std::string, GeneSummary> gene_summaries;
+    std::map<std::string, GeneFamilySummary> gene_family_summaries;
     
     // Statistics
     int total_reads_processed;

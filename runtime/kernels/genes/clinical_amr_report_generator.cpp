@@ -48,6 +48,7 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
             
             GeneSummary summary;
             summary.gene_name = std::string(gene_entry.gene_name);
+            summary.gene_family = std::string(gene_entry.gene_family);
             summary.drug_class = std::string(gene_entry.class_);
             summary.read_count = stats.total_reads;
             summary.percent_coverage = stats.percent_coverage;
@@ -91,6 +92,18 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
                 drug_summary.low_confidence_genes.push_back(summary.gene_name);
             }
         }
+    }
+    
+    // Aggregate by gene family
+    gene_family_summaries.clear();
+    for (const auto& [gene_name, summary] : gene_summaries) {
+        auto& family_summary = gene_family_summaries[summary.gene_family];
+        family_summary.gene_family = summary.gene_family;
+        family_summary.gene_variants.push_back(gene_name);
+        family_summary.total_tpm += summary.tpm;
+        family_summary.total_reads += summary.read_count;
+        family_summary.max_identity = std::max(family_summary.max_identity, 
+                                               summary.percent_coverage / 100.0f);
     }
     
     // Generate clinical interpretations for each drug class
@@ -254,10 +267,47 @@ void ClinicalAMRReportGenerator::generateHTMLReport() {
         html << "</div>\n";
     }
     
+    // Gene Family Analysis
+    html << "<h2>Gene Families Detected</h2>\n";
+    html << "<div class='summary'>\n";
+    html << "<p>Gene families group related resistance genes that may have similar functions or evolutionary origins.</p>\n";
+    html << "</div>\n";
+    
+    // Sort gene families by total TPM
+    std::vector<std::pair<std::string, GeneFamilySummary>> sorted_families(
+        gene_family_summaries.begin(), gene_family_summaries.end()
+    );
+    std::sort(sorted_families.begin(), sorted_families.end(),
+        [](const auto& a, const auto& b) {
+            return a.second.total_tpm > b.second.total_tpm;
+        }
+    );
+    
+    html << "<table>\n";
+    html << "<tr><th>Gene Family</th><th>Variants Detected</th><th>Total Reads</th>"
+         << "<th>Total TPM</th><th>Max Identity</th></tr>\n";
+    
+    for (const auto& [family_name, family_summary] : sorted_families) {
+        html << "<tr>\n";
+        html << "<td><strong>" << family_name << "</strong></td>\n";
+        html << "<td>";
+        for (size_t i = 0; i < family_summary.gene_variants.size(); i++) {
+            if (i > 0) html << ", ";
+            html << family_summary.gene_variants[i];
+        }
+        html << "</td>\n";
+        html << "<td>" << static_cast<int>(family_summary.total_reads) << "</td>\n";
+        html << "<td>" << std::fixed << std::setprecision(2) << family_summary.total_tpm << "</td>\n";
+        html << "<td>" << std::fixed << std::setprecision(1) << (family_summary.max_identity * 100) << "%</td>\n";
+        html << "</tr>\n";
+    }
+    
+    html << "</table>\n";
+    
     // Detailed Gene Table
     html << "<h2>Detected Resistance Genes</h2>\n";
     html << "<table>\n";
-    html << "<tr><th>Gene</th><th>Drug Class</th><th>Coverage (%)</th><th>Depth</th>"
+    html << "<tr><th>Gene</th><th>Gene Family</th><th>Drug Class</th><th>Coverage (%)</th><th>Depth</th>"
          << "<th>TPM</th><th>Confidence</th><th>Complete Gene</th></tr>\n";
     
     // Sort genes by TPM for display
@@ -278,6 +328,7 @@ void ClinicalAMRReportGenerator::generateHTMLReport() {
         
         html << "<tr class='" << row_class << "'>\n";
         html << "<td><strong>" << gene_name << "</strong></td>\n";
+        html << "<td>" << summary.gene_family << "</td>\n";
         html << "<td>" << summary.drug_class << "</td>\n";
         html << "<td>" << std::fixed << std::setprecision(1) << summary.percent_coverage << "</td>\n";
         html << "<td>" << std::fixed << std::setprecision(1) << summary.mean_depth << "</td>\n";
@@ -437,10 +488,11 @@ void ClinicalAMRReportGenerator::generateJSONReport() {
 void ClinicalAMRReportGenerator::generateTSVReports() {
     // Gene abundance table
     std::ofstream abundance(output_path + "_amr_abundance.tsv");
-    abundance << "gene_name\tdrug_class\tread_count\tpercent_coverage\tmean_depth\ttpkm\trpm\tconfidence\n";
+    abundance << "gene_name\tgene_family\tdrug_class\tread_count\tpercent_coverage\tmean_depth\ttpkm\trpm\tconfidence\n";
     
     for (const auto& [gene_name, summary] : gene_summaries) {
         abundance << gene_name << "\t"
+                 << summary.gene_family << "\t"
                  << summary.drug_class << "\t"
                  << summary.read_count << "\t"
                  << summary.percent_coverage << "\t"
@@ -465,6 +517,27 @@ void ClinicalAMRReportGenerator::generateTSVReports() {
                     << summary.max_tpm << "\n";
     }
     drug_summary.close();
+    
+    // Gene family summary
+    std::ofstream family_summary(output_path + "_gene_family_summary.tsv");
+    family_summary << "gene_family\tnum_variants\tvariant_names\ttotal_reads\ttotal_tpm\tmax_identity\n";
+    
+    for (const auto& [family_name, summary] : gene_family_summaries) {
+        family_summary << family_name << "\t"
+                      << summary.gene_variants.size() << "\t";
+        
+        // Join variant names with semicolons
+        for (size_t i = 0; i < summary.gene_variants.size(); i++) {
+            if (i > 0) family_summary << ";";
+            family_summary << summary.gene_variants[i];
+        }
+        
+        family_summary << "\t"
+                      << static_cast<int>(summary.total_reads) << "\t"
+                      << summary.total_tpm << "\t"
+                      << summary.max_identity << "\n";
+    }
+    family_summary.close();
 }
 
 std::string ClinicalAMRReportGenerator::getCurrentTimestamp() {

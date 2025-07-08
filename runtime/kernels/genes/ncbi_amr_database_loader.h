@@ -735,6 +735,14 @@ public:
         for (const auto& pair : class_counts) {
             std::cout << "  " << pair.first << ": " << pair.second << " genes" << std::endl;
         }
+        
+        // Print sample of gene mappings for validation
+        std::cout << "\nSample gene mappings (first 10):" << std::endl;
+        for (size_t i = 0; i < std::min(size_t(10), amr_genes.size()); i++) {
+            std::cout << "  [" << i << "] " << amr_genes[i].gene_name 
+                      << " -> family: " << amr_genes[i].gene_family
+                      << ", class: " << amr_genes[i].class_ << std::endl;
+        }
     }
 };
 

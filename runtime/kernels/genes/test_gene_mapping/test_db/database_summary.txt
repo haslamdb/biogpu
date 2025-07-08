@@ -1,0 +1,20 @@
+AMR Protein Database Summary
+===========================
+Total proteins: 6
+Total k-mers: 405
+K-mer size: 8
+
+Drug classes:
+  AMINOGLYCOSIDE: 1
+  BETA_LACTAM: 2
+  FLUOROQUINOLONE: 1
+  GLYCOPEPTIDE: 1
+  UNKNOWN: 1
+
+Example proteins:
+  blaKPC-2 (BETA_LACTAM): 107 aa
+  blaKPC-3 (BETA_LACTAM): 107 aa
+  qnrA1 (FLUOROQUINOLONE): 126 aa
+  vanA (GLYCOPEPTIDE): 48 aa
+  mecA (UNKNOWN): 80 aa
+  aac6-Ib (AMINOGLYCOSIDE): 78 aa

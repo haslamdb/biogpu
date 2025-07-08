@@ -161,6 +161,9 @@ public:
     // Initialize pipeline
     bool initialize(const std::string& amr_db_path);
     
+    // Validation
+    void validateGeneMappings();
+    
     // Process a batch of reads
     void processBatch(const std::vector<std::string>& reads,
                      const std::vector<std::string>& read_ids);

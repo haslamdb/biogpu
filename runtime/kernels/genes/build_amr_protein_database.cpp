@@ -79,12 +79,61 @@ void parseAMRProtHeader(const std::string& header, ProteinEntry& entry) {
     }
 }
 
+#ifdef TEST_GENE_FAMILY_EXTRACTION
+void testGeneFamilyExtraction() {
+    std::cout << "\n=== Testing Gene Family Extraction ===" << std::endl;
+    
+    std::vector<std::pair<std::string, std::string>> test_cases = {
+        {"blaKPC-2", "blaKPC"},
+        {"qnrA1", "qnrA1"},
+        {"vanA", "vanA"},
+        {"aac(6')-Ib", "aac(6')"},
+        {"tet(M)", "tet(M)"},
+        {"mecA", "mecA"},
+        {"blaOXA-48", "blaOXA"},
+        {"blaKPC-3", "blaKPC"},
+        {"blaNDM-1", "blaNDM"},
+        {"armA", "armA"}
+    };
+    
+    std::cout << "Test cases:" << std::endl;
+    for (const auto& [gene_name, expected_family] : test_cases) {
+        // Extract gene family using same logic as parseAMRProtHeader
+        std::string name = gene_name;
+        size_t dash_pos = name.find('-');
+        std::string actual_family;
+        if (dash_pos != std::string::npos) {
+            actual_family = name.substr(0, dash_pos);
+        } else {
+            actual_family = name;
+        }
+        
+        bool passed = (actual_family == expected_family);
+        std::cout << "  " << gene_name << " -> " << actual_family 
+                  << " (expected: " << expected_family << ") " 
+                  << (passed ? "PASS" : "FAIL") << std::endl;
+    }
+    
+    std::cout << "\nTest complete!" << std::endl;
+}
+#endif
+
 int main(int argc, char** argv) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <AMRProt.fa> <output_dir>" << std::endl;
         std::cerr << "Builds protein reference database for clinical AMR gene detection" << std::endl;
+        #ifdef TEST_GENE_FAMILY_EXTRACTION
+        std::cerr << "       " << argv[0] << " --test  (run gene family extraction tests)" << std::endl;
+        #endif
         return 1;
     }
+    
+    #ifdef TEST_GENE_FAMILY_EXTRACTION
+    if (std::string(argv[1]) == "--test") {
+        testGeneFamilyExtraction();
+        return 0;
+    }
+    #endif
     
     std::string input_file = argv[1];
     std::string output_dir = argv[2];

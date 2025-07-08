@@ -90,6 +90,7 @@ void HDF5AMRWriter::createDatasets() {
     
     H5::StrType str_type(H5::PredType::C_S1, H5T_VARIABLE);
     hits_group.createDataSet("gene_name", str_type, dataspace, plist);
+    hits_group.createDataSet("gene_family", str_type, dataspace, plist);
     hits_group.createDataSet("drug_class", str_type, dataspace, plist);
     
     hits_group.createDataSet("identity", H5::PredType::NATIVE_FLOAT, dataspace, plist);
@@ -137,6 +138,7 @@ void HDF5AMRWriter::addAMRHits(const std::vector<AMRHit>& hits) {
         read_ids.push_back(hit.read_id);
         gene_ids.push_back(hit.gene_id);
         gene_names.push_back(std::string(hit.gene_name));
+        gene_families.push_back(std::string(hit.gene_family));
         drug_classes.push_back(std::string(hit.drug_class));
         identities.push_back(hit.identity);
         coverages.push_back(hit.coverage);
@@ -225,13 +227,16 @@ void HDF5AMRWriter::flush() {
             
             // Convert string vectors to char* arrays for HDF5
             std::vector<const char*> gene_name_ptrs;
+            std::vector<const char*> gene_family_ptrs;
             std::vector<const char*> drug_class_ptrs;
             for (size_t i = 0; i < gene_names.size(); i++) {
                 gene_name_ptrs.push_back(gene_names[i].c_str());
+                gene_family_ptrs.push_back(gene_families[i].c_str());
                 drug_class_ptrs.push_back(drug_classes[i].c_str());
             }
             
             extendAndWrite(hits_group, "gene_name", gene_name_ptrs.data(), str_type, gene_names.size());
+            extendAndWrite(hits_group, "gene_family", gene_family_ptrs.data(), str_type, gene_families.size());
             extendAndWrite(hits_group, "drug_class", drug_class_ptrs.data(), str_type, drug_classes.size());
             
             extendAndWrite(hits_group, "identity", identities.data(), 
@@ -258,6 +263,7 @@ void HDF5AMRWriter::flush() {
             read_ids.clear();
             gene_ids.clear();
             gene_names.clear();
+            gene_families.clear();
             drug_classes.clear();
             identities.clear();
             coverages.clear();

@@ -79,6 +79,32 @@ AMRDetectionPipeline::~AMRDetectionPipeline() {
     freeGPUMemory();
 }
 
+void AMRDetectionPipeline::validateGeneMappings() {
+    std::cout << "\n=== Gene Mapping Validation ===" << std::endl;
+    
+    // Get first 10 gene entries
+    std::vector<AMRGeneEntry> entries = getGeneEntries();
+    std::cout << "First 10 gene entries from database:" << std::endl;
+    for (size_t i = 0; i < std::min(size_t(10), entries.size()); i++) {
+        std::cout << "  [" << i << "] gene_name: " << entries[i].gene_name
+                  << ", gene_family: " << entries[i].gene_family
+                  << ", class: " << entries[i].class_ << std::endl;
+    }
+    
+    // Check for common gene families
+    std::map<std::string, int> family_counts;
+    for (const auto& entry : entries) {
+        family_counts[entry.gene_family]++;
+    }
+    
+    std::cout << "\nGene family distribution:" << std::endl;
+    for (const auto& [family, count] : family_counts) {
+        if (count > 1) {  // Only show families with multiple genes
+            std::cout << "  " << family << ": " << count << " genes" << std::endl;
+        }
+    }
+}
+
 bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     std::cout << "Initializing AMR detection pipeline..." << std::endl;
     
@@ -101,6 +127,9 @@ bool AMRDetectionPipeline::initialize(const std::string& amr_db_path) {
     }
     
     amr_db->printDatabaseStats();
+    
+    // Validate gene mappings
+    validateGeneMappings();
     
     // Allocate GPU memory
     allocateGPUMemory();
@@ -738,8 +767,9 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                     
                     // Check what gene this is
                     if (pm.gene_id < gene_entries.size()) {
-                        std::cout << "  gene_name=" << gene_entries[pm.gene_id].gene_name << std::endl;
-                        std::cout << "  drug_class=" << gene_entries[pm.gene_id].class_ << std::endl;
+                        std::cout << "  gene_name=" << gene_entries[pm.gene_id].gene_name 
+                                  << ", gene_family=" << gene_entries[pm.gene_id].gene_family
+                                  << ", drug_class=" << gene_entries[pm.gene_id].class_ << std::endl;
                     }
                 }
             }

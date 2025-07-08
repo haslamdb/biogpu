@@ -1,0 +1,7 @@
+read_id	gene_name	drug_class	identity	coverage	ref_start	ref_end	frame	complete_gene	concordant
+0	NC_000002	UNKNOWN	1.68468	inf	15	52	1	N	N
+0	NC_000002	UNKNOWN	1.68468	inf	15	52	1	N	N
+0	NC_000002	UNKNOWN	1.68468	inf	15	52	1	N	N
+0	NC_000002	UNKNOWN	1.68468	inf	15	52	1	N	N
+2	pã·€~V		1.56667	5.42165e-09	0	20	1	N	N
+2	pã·€~V		1.74074	7.31923e-09	21	48	1	N	N

@@ -561,5 +561,30 @@ int main(int argc, char** argv) {
     std::cout << "Clinical reports and results written to: " << output_dir << std::endl;
     std::cout << "These results can guide antibiotic selection for patient treatment" << std::endl;
     
+    // Check for validation mode
+    bool validate_mode = false;
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == "--validate") {
+            validate_mode = true;
+            break;
+        }
+    }
+    
+    if (validate_mode) {
+        std::cout << "\n=== VALIDATION MODE ===" << std::endl;
+        std::cout << "Please verify the following in the output files:" << std::endl;
+        std::cout << "1. Gene families are correctly extracted (e.g., blaKPC-2 -> blaKPC)" << std::endl;
+        std::cout << "2. Gene IDs match the FASTA headers" << std::endl;
+        std::cout << "3. Multiple variants of same family are grouped together" << std::endl;
+        std::cout << "4. TSV files contain gene_family column" << std::endl;
+        std::cout << "5. HDF5 files contain gene_family dataset" << std::endl;
+        std::cout << "\nCheck the following output files:" << std::endl;
+        std::cout << "  - " << output_dir << "_amr_abundance.tsv" << std::endl;
+        std::cout << "  - " << output_dir << "_gene_family_summary.tsv" << std::endl;
+        std::cout << "  - " << output_dir << "_clinical_amr_report.html" << std::endl;
+        std::cout << "  - " << output_dir << "_clinical_amr_report.json" << std::endl;
+        std::cout << "  - " << output_dir << ".h5 (HDF5 output)" << std::endl;
+    }
+    
     return 0;
 }

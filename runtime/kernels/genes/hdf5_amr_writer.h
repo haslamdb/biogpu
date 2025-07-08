@@ -17,6 +17,7 @@ private:
     std::vector<uint32_t> read_ids;
     std::vector<uint32_t> gene_ids;
     std::vector<std::string> gene_names;
+    std::vector<std::string> gene_families;
     std::vector<std::string> drug_classes;
     std::vector<float> identities;
     std::vector<float> coverages;

@@ -45,6 +45,9 @@ private:
     uint64_t total_hits_written;
     uint64_t total_genes_detected;
     
+    // Control automatic flushing
+    bool auto_flush_enabled;
+    
 public:
     HDF5AMRWriter(const std::string& output_path);
     ~HDF5AMRWriter();
@@ -60,6 +63,10 @@ public:
     
     void flush();
     void finalize(const std::string& json_summary_path);
+    
+    // Control when flushing happens
+    void setAutoFlush(bool enable) { auto_flush_enabled = enable; }
+    void manualFlush() { flush(); }
     
 private:
     void createDatasets();

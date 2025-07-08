@@ -7,7 +7,7 @@
 #include <sstream>
 
 HDF5AMRWriter::HDF5AMRWriter(const std::string& output_path) 
-    : filename(output_path), total_hits_written(0), total_genes_detected(0) {
+    : filename(output_path), total_hits_written(0), total_genes_detected(0), auto_flush_enabled(true) {
     
     try {
         file = new H5::H5File(output_path, H5F_ACC_TRUNC);
@@ -151,8 +151,8 @@ void HDF5AMRWriter::addAMRHits(const std::vector<AMRHit>& hits) {
     
     total_hits_written += hits.size();
     
-    // Flush if buffer is large
-    if (read_ids.size() > 100000) {
+    // Flush if buffer is large and auto-flush is enabled
+    if (auto_flush_enabled && read_ids.size() > 100000) {
         flush();
     }
 }

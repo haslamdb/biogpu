@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono>
 #include "ncbi_amr_database_loader.h"
 #include "sample_csv_parser.h"  // Reuse from FQ pipeline
 // #include "bloom_filter.h"       // Reuse bloom filter
@@ -32,11 +33,15 @@ struct AMRDetectionConfig {
     // Protein search parameters
     int protein_kmer_size = 8;              // For protein alignment after translation
     
-    // Alignment parameters
-    float min_identity = 0.90f;             // Minimum identity for AMR match
-    float min_coverage = 0.80f;             // Minimum coverage of AMR gene
-    int min_alignment_length = 50;          // Minimum alignment length (aa)
+    // Alignment parameters (increased stringency)
+    float min_identity = 0.95f;             // Minimum identity for AMR match (increased from 0.90f)
+    float min_coverage = 0.90f;             // Minimum coverage of AMR gene (increased from 0.80f)
+    int min_alignment_length = 75;          // Minimum alignment length (aa) (increased from 50)
     int band_width = 15;                    // Band width for banded SW
+    
+    // Paired-end concordance parameters
+    float concordance_bonus = 2.0f;         // Bonus for concordant pairs
+    float discord_penalty = 0.5f;           // Penalty for discordant pairs
     
     // Batch processing
     int reads_per_batch = 100000;
@@ -142,6 +147,11 @@ private:
     // Batch processing
     int current_batch_size;
     uint64_t total_reads_processed;
+    
+    // Performance tracking
+    std::chrono::steady_clock::time_point processing_start_time;
+    uint64_t reads_processed_checkpoint;
+    std::chrono::steady_clock::time_point last_performance_report;
     
     // Gene entries from database
     std::vector<AMRGeneEntry> gene_entries;

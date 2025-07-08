@@ -13,9 +13,9 @@ public:
     struct DrugClassSummary {
         std::string drug_class;
         std::vector<std::string> genes_detected;
-        std::vector<std::string> high_confidence_genes;  // >90% coverage
-        std::vector<std::string> moderate_confidence_genes;  // 50-90% coverage
-        std::vector<std::string> low_confidence_genes;  // <50% coverage
+        std::vector<std::string> high_confidence_genes;  // ≥95% identity, ≥20% coverage, ≥2x depth
+        std::vector<std::string> moderate_confidence_genes;  // ≥90% identity, ≥10% coverage, ≥1x depth
+        std::vector<std::string> low_confidence_genes;  // Below moderate thresholds
         int total_reads;
         float max_tpm;
         std::string clinical_interpretation;
@@ -60,6 +60,7 @@ private:
     
     // Clinical interpretations
     std::map<std::string, std::string> drug_class_interpretations;
+    std::map<std::string, float> critical_gene_thresholds;
     
 public:
     ClinicalAMRReportGenerator(const std::string& output_path, const std::string& sample_name);
@@ -73,12 +74,13 @@ public:
     
 private:
     void initializeDrugClassInterpretations();
+    void initializeCriticalGeneThresholds();
     void generateHTMLReport();
     void generateTextReport();
     void generateJSONReport();
     void generateTSVReports();
     
-    std::string getConfidenceLevel(float coverage, float depth);
+    std::string getConfidenceLevel(float coverage, float depth, float identity = 0.0f, const std::string& gene_family = "");
     std::string generateDrugClassInterpretation(const DrugClassSummary& summary);
     std::string getCurrentTimestamp();
 };

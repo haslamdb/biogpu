@@ -30,7 +30,6 @@ struct ProteinMatch {
     int8_t frame;
     uint32_t protein_id;
     uint32_t gene_id;
-    uint32_t species_id;
     uint16_t query_start;    // Position in translated frame
     uint16_t ref_start;      // Position in reference protein
     uint16_t match_length;
@@ -50,7 +49,12 @@ struct ProteinMatch {
 AMRDetectionPipeline::AMRDetectionPipeline(const AMRDetectionConfig& cfg) 
     : config(cfg), current_batch_size(0), total_reads_processed(0),
       translated_search_engine(nullptr), search_engine_initialized(false),
-      engine_capacity((cfg.reads_per_batch * 2) + (cfg.reads_per_batch / 5)) {
+      engine_capacity((cfg.reads_per_batch * 2) + (cfg.reads_per_batch / 5)),
+      reads_processed_checkpoint(0) {
+    
+    // Initialize performance tracking
+    processing_start_time = std::chrono::steady_clock::now();
+    last_performance_report = processing_start_time;
     
     // Initialize CUDA
     initializeGeneticCode();
@@ -383,8 +387,42 @@ void AMRDetectionPipeline::processBatch(const std::vector<std::string>& reads,
     total_reads_processed += current_batch_size;
     std::cout << "Processing batch of " << current_batch_size << " reads" << std::endl;
     
-    // Copy reads to GPU
+    // Performance reporting
+    auto current_time = std::chrono::steady_clock::now();
+    auto time_since_last_report = std::chrono::duration_cast<std::chrono::seconds>(
+        current_time - last_performance_report).count();
+    
+    if (time_since_last_report >= 60) {  // Report every minute
+        auto total_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            current_time - processing_start_time).count();
+        uint64_t reads_since_checkpoint = total_reads_processed - reads_processed_checkpoint;
+        
+        if (time_since_last_report > 0) {
+            double reads_per_minute = reads_since_checkpoint * 60.0 / time_since_last_report;
+            double reads_per_second = reads_since_checkpoint / static_cast<double>(time_since_last_report);
+            
+            std::cout << "\n=== Performance Report ===" << std::endl;
+            std::cout << "Total reads processed: " << total_reads_processed << std::endl;
+            std::cout << "Reads in last period: " << reads_since_checkpoint << std::endl;
+            std::cout << "Throughput: " << std::fixed << std::setprecision(1) 
+                      << reads_per_minute << " reads/minute (" 
+                      << reads_per_second << " reads/second)" << std::endl;
+            std::cout << "Total elapsed time: " << total_elapsed << " seconds" << std::endl;
+            std::cout << "========================\n" << std::endl;
+        }
+        
+        reads_processed_checkpoint = total_reads_processed;
+        last_performance_report = current_time;
+    }
+    
+    // Copy reads to GPU with timing
+    auto copy_start = std::chrono::high_resolution_clock::now();
     copyReadsToGPU(reads);
+    auto copy_end = std::chrono::high_resolution_clock::now();
+    auto copy_duration = std::chrono::duration_cast<std::chrono::milliseconds>(copy_end - copy_start);
+    if (copy_duration.count() > 100) {  // Report if takes more than 100ms
+        std::cout << "GPU copy time: " << copy_duration.count() << "ms" << std::endl;
+    }
     
     // After copyReadsToGPU(), add:
     err = cudaGetLastError();
@@ -473,6 +511,8 @@ void AMRDetectionPipeline::screenWithBloomFilter() {
 }
 
 void AMRDetectionPipeline::performTranslatedAlignment() {
+    auto align_start = std::chrono::high_resolution_clock::now();
+    
     // Check if search engine is initialized
     if (!translated_search_engine || !search_engine_initialized) {
         std::cerr << "Translated search engine not initialized" << std::endl;
@@ -673,11 +713,10 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
                 
                 // Include concordance information in debug output
                 if (pairInfo) {
-                    printf("Read %d %s: Gene %d (Species %d) - Score: %.2f %s\n",
+                    printf("Read %d %s: Gene %d - Score: %.2f %s\n",
                         pairInfo->read_idx,
                         pairInfo->is_read2 ? "R2" : "R1",
                         pm.gene_id,
-                        pm.species_id,
                         pm.alignment_score,
                         pm.concordant ? "[CONCORDANT]" : "[DISCORDANT]");
                 }
@@ -755,6 +794,13 @@ void AMRDetectionPipeline::performTranslatedAlignment() {
     }
     
     std::cout << "Found " << total_hits << " AMR hits using translated search" << std::endl;
+    
+    // Report timing
+    auto align_end = std::chrono::high_resolution_clock::now();
+    auto align_duration = std::chrono::duration_cast<std::chrono::milliseconds>(align_end - align_start);
+    if (align_duration.count() > 500) {  // Report if takes more than 500ms
+        std::cout << "Translated alignment time: " << align_duration.count() << "ms" << std::endl;
+    }
 }
 
 void AMRDetectionPipeline::extendAlignments() {
@@ -1210,6 +1256,37 @@ void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& re
     
     if (reads1.empty() && reads2.empty()) return;
     
+    // Update total reads processed for paired-end
+    total_reads_processed += std::min(reads1.size(), reads2.size());
+    
+    // Performance reporting
+    auto current_time = std::chrono::steady_clock::now();
+    auto time_since_last_report = std::chrono::duration_cast<std::chrono::seconds>(
+        current_time - last_performance_report).count();
+    
+    if (time_since_last_report >= 60) {  // Report every minute
+        auto total_elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            current_time - processing_start_time).count();
+        uint64_t reads_since_checkpoint = total_reads_processed - reads_processed_checkpoint;
+        
+        if (time_since_last_report > 0) {
+            double reads_per_minute = reads_since_checkpoint * 60.0 / time_since_last_report;
+            double reads_per_second = reads_since_checkpoint / static_cast<double>(time_since_last_report);
+            
+            std::cout << "\n=== Performance Report (Paired-End) ===" << std::endl;
+            std::cout << "Total read pairs processed: " << total_reads_processed << std::endl;
+            std::cout << "Read pairs in last period: " << reads_since_checkpoint << std::endl;
+            std::cout << "Throughput: " << std::fixed << std::setprecision(1) 
+                      << reads_per_minute << " read pairs/minute (" 
+                      << reads_per_second << " read pairs/second)" << std::endl;
+            std::cout << "Total elapsed time: " << total_elapsed << " seconds" << std::endl;
+            std::cout << "=====================================\n" << std::endl;
+        }
+        
+        reads_processed_checkpoint = total_reads_processed;
+        last_performance_report = current_time;
+    }
+    
     // Pre-allocate for 2x reads (R1 and R2 separate)
     int num_pairs = std::min(reads1.size(), reads2.size());
     int max_reads = num_pairs * 2;
@@ -1326,9 +1403,9 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
         }
     }
     
-    // Apply concordance bonus
-    const float CONCORDANCE_BONUS = 1.5f;  // 50% score boost for concordant pairs
-    const float DISCORD_PENALTY = 0.8f;    // 20% penalty for discordant pairs
+    // Apply concordance bonus (increased stringency)
+    const float CONCORDANCE_BONUS = 2.0f;  // 100% score boost for concordant pairs (increased from 1.5f)
+    const float DISCORD_PENALTY = 0.5f;    // 50% penalty for discordant pairs (decreased from 0.8f)
     
     for (auto& pair : pairAssignments) {
         auto& assignments = pair.second;

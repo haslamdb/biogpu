@@ -196,6 +196,10 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     std::string protein_db_path = config.protein_db_path;
     hdf5_writer.initialize(sample_name, dna_db_path, protein_db_path);
     
+    // Disable auto-flush during batch processing for better performance
+    hdf5_writer.setAutoFlush(false);
+    std::cout << "HDF5 auto-flush disabled for batch processing optimization" << std::endl;
+    
     // Create clinical report generator
     std::string report_prefix = output_dir + "/" + sample_name;
     ClinicalAMRReportGenerator report_generator(report_prefix, sample_name);
@@ -267,6 +271,10 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     // Write coverage stats to HDF5
     hdf5_writer.addCoverageStats(coverage_stats, gene_entries);
     
+    // Manually flush all buffered data before finalizing
+    std::cout << "Flushing all buffered HDF5 data..." << std::endl;
+    hdf5_writer.manualFlush();
+    
     // Finalize HDF5
     std::string json_summary = output_dir + "/" + sample_name + "_hdf5_summary.json";
     hdf5_writer.finalize(json_summary);
@@ -313,6 +321,10 @@ void processSample(AMRDetectionPipeline& pipeline,
     std::string dna_db_path = config.protein_db_path;
     std::string protein_db_path = config.protein_db_path;
     hdf5_writer.initialize(sample_name, dna_db_path, protein_db_path);
+    
+    // Disable auto-flush during batch processing for better performance
+    hdf5_writer.setAutoFlush(false);
+    std::cout << "HDF5 auto-flush disabled for batch processing optimization" << std::endl;
     
     // Create clinical report generator
     std::string report_prefix = output_dir + "/" + sample_name;
@@ -374,6 +386,10 @@ void processSample(AMRDetectionPipeline& pipeline,
     
     // Write coverage stats to HDF5
     hdf5_writer.addCoverageStats(coverage_stats, gene_entries);
+    
+    // Manually flush all buffered data before finalizing
+    std::cout << "Flushing all buffered HDF5 data..." << std::endl;
+    hdf5_writer.manualFlush();
     
     // Finalize HDF5
     std::string json_summary = output_dir + "/" + sample_name + "_hdf5_summary.json";

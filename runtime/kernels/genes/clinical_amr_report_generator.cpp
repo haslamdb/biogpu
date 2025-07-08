@@ -11,6 +11,7 @@ ClinicalAMRReportGenerator::ClinicalAMRReportGenerator(const std::string& output
     : output_path(output), sample_name(sample), total_reads_processed(0), 
       reads_with_amr_hits(0), total_genes_detected(0), high_confidence_genes(0) {
     initializeDrugClassInterpretations();
+    initializeCriticalGeneThresholds();
 }
 
 void ClinicalAMRReportGenerator::initializeDrugClassInterpretations() {
@@ -24,6 +25,18 @@ void ClinicalAMRReportGenerator::initializeDrugClassInterpretations() {
         {"COLISTIN", "Colistin resistance detected. Critical resistance - immediate consultation with infectious disease specialist recommended."},
         {"SULFONAMIDE", "Sulfonamide resistance detected. Consider alternative antibiotics."},
         {"UNKNOWN", "Resistance genes of unknown class detected. Further investigation recommended."}
+    };
+}
+
+void ClinicalAMRReportGenerator::initializeCriticalGeneThresholds() {
+    // Critical genes requiring higher identity thresholds
+    critical_gene_thresholds = {
+        {"mcr", 0.98f},      // Colistin resistance - extremely critical
+        {"vanA", 0.97f},     // Vancomycin resistance
+        {"vanB", 0.97f},     // Vancomycin resistance
+        {"blaKPC", 0.96f},   // Carbapenem resistance
+        {"blaNDM", 0.96f},   // Carbapenem resistance
+        {"blaOXA-48", 0.96f} // Carbapenem resistance
     };
 }
 
@@ -57,11 +70,31 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
             summary.rpkm = stats.rpkm;
             summary.is_complete_gene = false;  // Will update based on hits
             
-            // Determine confidence level
-            summary.confidence_level = getConfidenceLevel(stats.percent_coverage, stats.mean_depth);
+            // Calculate average identity from hits for this gene
+            float avg_identity = 0.0f;
+            int identity_count = 0;
+            for (const auto& hit : hits) {
+                if (hit.gene_id == i) {
+                    avg_identity += hit.identity;
+                    identity_count++;
+                }
+            }
+            if (identity_count > 0) {
+                avg_identity /= identity_count;
+            }
             
-            // Count high confidence genes
-            if (stats.percent_coverage > 90.0f && stats.mean_depth > 10.0f) {
+            // Determine confidence level with identity and gene family
+            summary.confidence_level = getConfidenceLevel(stats.percent_coverage, stats.mean_depth, avg_identity, summary.gene_family);
+            
+            // Count high confidence genes using metagenomics criteria
+            // Check if this is a critical gene with higher threshold
+            float min_identity_high = 0.95f;
+            auto thresh_it = critical_gene_thresholds.find(summary.gene_family);
+            if (thresh_it != critical_gene_thresholds.end()) {
+                min_identity_high = thresh_it->second;
+            }
+            
+            if (avg_identity >= min_identity_high && stats.percent_coverage >= 20.0f && stats.mean_depth >= 2.0f) {
                 high_confidence_genes++;
             }
             
@@ -83,10 +116,20 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
             drug_summary.total_reads += summary.read_count;
             drug_summary.max_tpm = std::max(drug_summary.max_tpm, summary.tpm);
             
-            // Categorize by confidence
-            if (stats.percent_coverage > 90.0f) {
+            // Categorize by confidence using metagenomics criteria
+            // Note: avg_identity was already calculated above
+            
+            // Check critical gene thresholds for categorization
+            float min_identity_for_category = 0.95f;
+            std::string gene_family_str = gene_entries[i].gene_family;
+            auto cat_thresh_it = critical_gene_thresholds.find(gene_family_str);
+            if (cat_thresh_it != critical_gene_thresholds.end()) {
+                min_identity_for_category = cat_thresh_it->second;
+            }
+            
+            if (avg_identity >= min_identity_for_category && stats.percent_coverage >= 20.0f && stats.mean_depth >= 2.0f) {
                 drug_summary.high_confidence_genes.push_back(summary.gene_name);
-            } else if (stats.percent_coverage > 50.0f) {
+            } else if (avg_identity >= 0.90f && stats.percent_coverage >= 10.0f && stats.mean_depth >= 1.0f) {
                 drug_summary.moderate_confidence_genes.push_back(summary.gene_name);
             } else {
                 drug_summary.low_confidence_genes.push_back(summary.gene_name);
@@ -112,10 +155,18 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
     }
 }
 
-std::string ClinicalAMRReportGenerator::getConfidenceLevel(float coverage, float depth) {
-    if (coverage > 90.0f && depth > 10.0f) {
+std::string ClinicalAMRReportGenerator::getConfidenceLevel(float coverage, float depth, float identity, const std::string& gene_family) {
+    // Check if this is a critical gene requiring higher thresholds
+    float min_identity_high = 0.95f;
+    auto it = critical_gene_thresholds.find(gene_family);
+    if (it != critical_gene_thresholds.end()) {
+        min_identity_high = it->second;
+    }
+    
+    // Metagenomics-appropriate criteria focusing on identity and presence
+    if (identity >= min_identity_high && coverage >= 0.20f && depth >= 2.0f) {
         return "HIGH";
-    } else if (coverage > 50.0f && depth > 5.0f) {
+    } else if (identity >= 0.90f && coverage >= 0.10f && depth >= 1.0f) {
         return "MODERATE";
     } else {
         return "LOW";

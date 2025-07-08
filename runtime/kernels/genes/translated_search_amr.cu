@@ -37,11 +37,11 @@ namespace cg = cooperative_groups;
 #define MAX_READ_LENGTH 1000
 #define PROTEIN_KMER_SIZE 8
 #define MIN_PEPTIDE_LENGTH 20
-#define MIN_SEED_HITS 1
+#define MIN_SEED_HITS 2               // Increased from 1 for higher stringency
 #define EXTENSION_THRESHOLD 15
-#define MIN_IDENTITY_THRESHOLD 0.75f  // Slightly more lenient for AMR detection
-#define MIN_ALIGNMENT_LENGTH 12       // Reduced for short AMR peptides
-#define SW_SCORE_THRESHOLD 60.0f      // More sensitive for resistance mutations
+#define MIN_IDENTITY_THRESHOLD 0.85f  // Increased from 0.75f for higher stringency
+#define MIN_ALIGNMENT_LENGTH 20       // Increased from 12 for higher quality
+#define SW_SCORE_THRESHOLD 80.0f      // Increased from 60.0f for higher stringency
 #define AA_ALPHABET_SIZE 24
 #define MAX_SEEDS_PER_FRAME 100
 #define MAX_PROTEIN_SEEDS 20
@@ -179,7 +179,6 @@ struct ProteinMatch {
     int8_t frame;
     uint32_t protein_id;
     uint32_t gene_id;
-    uint32_t species_id;
     uint16_t query_start;    // Position in translated frame
     uint16_t ref_start;      // Position in reference protein
     uint16_t match_length;
@@ -211,7 +210,6 @@ struct ProteinDatabase {
     // Protein metadata with bounds checking
     uint32_t* protein_ids;
     uint32_t* gene_ids;
-    uint32_t* species_ids;
     uint16_t* seq_lengths;
     uint32_t* seq_offsets;
     
@@ -725,7 +723,6 @@ __global__ void enhanced_protein_kmer_match_kernel(
                 temp_match.frame = frame.frame;
                 temp_match.protein_id = protein_id;
                 temp_match.gene_id = protein_db->gene_ids[protein_id];
-                temp_match.species_id = protein_db->species_ids[protein_id];
                 temp_match.query_start = match_query_start;
                 temp_match.ref_start = match_ref_start;
                 temp_match.match_length = match_length;
@@ -932,7 +929,6 @@ private:
                 if (h_db.position_data) cudaFree(h_db.position_data);
                 if (h_db.protein_ids) cudaFree(h_db.protein_ids);
                 if (h_db.gene_ids) cudaFree(h_db.gene_ids);
-                if (h_db.species_ids) cudaFree(h_db.species_ids);
                 if (h_db.seq_lengths) cudaFree(h_db.seq_lengths);
                 if (h_db.seq_offsets) cudaFree(h_db.seq_offsets);
                 if (h_db.sequences) cudaFree(h_db.sequences);
@@ -1111,7 +1107,6 @@ public:
         // Initialize metadata vectors with bounds checking
         std::vector<uint32_t> protein_ids(num_proteins);
         std::vector<uint32_t> gene_ids(num_proteins);
-        std::vector<uint32_t> species_ids(num_proteins);
         std::vector<uint16_t> seq_lengths(num_proteins);
         std::vector<uint32_t> seq_offsets(num_proteins);
         std::vector<uint8_t> is_amr_gene(num_proteins, 0);  // Use uint8_t instead of bool
@@ -1173,17 +1168,6 @@ public:
                     }
                 }
                 
-                // Parse species_id
-                size_t species_pos = json_content.find("\"species_id\":", pos);
-                if (species_pos != std::string::npos && species_pos < pos + 1000) {
-                    species_pos += 13;
-                    size_t species_start = json_content.find_first_of("0123456789", species_pos);
-                    size_t species_end = json_content.find_first_not_of("0123456789", species_start);
-                    if (species_start != std::string::npos && species_end != std::string::npos) {
-                        species_ids[protein_idx] = std::stoi(json_content.substr(species_start, species_end - species_start));
-                    }
-                }
-                
                 // Parse sequence length
                 size_t length_pos = json_content.find("\"length\":", pos);
                 if (length_pos != std::string::npos && length_pos < pos + 1000) {
@@ -1214,9 +1198,9 @@ public:
                 current_offset += seq_lengths[protein_idx];
                 
                 if (protein_idx < 5) {  // Debug first 5 proteins
-                    printf("[AMR DB] Protein[%zu]: id=%d, gene_id=%d, species_id=%d\n",
+                    printf("[AMR DB] Protein[%zu]: id=%d, gene_id=%d\n",
                            protein_idx, protein_ids[protein_idx], 
-                           gene_ids[protein_idx], species_ids[protein_idx]);
+                           gene_ids[protein_idx]);
                 }
                 
                 protein_idx++;
@@ -1231,7 +1215,6 @@ public:
             for (uint32_t i = 0; i < num_proteins; i++) {
                 protein_ids[i] = i;
                 gene_ids[i] = i;  // Each protein is its own gene
-                species_ids[i] = i % 20;  // Distribute across species
                 seq_offsets[i] = i * avg_protein_len;
                 seq_lengths[i] = (i == num_proteins - 1) ? 
                                 (remaining_size - seq_offsets[i]) : avg_protein_len;
@@ -1265,7 +1248,6 @@ public:
         CUDA_CHECK(cudaMalloc(&h_db.position_data, position_data.size() * sizeof(uint32_t)));
         CUDA_CHECK(cudaMalloc(&h_db.protein_ids, num_proteins * sizeof(uint32_t)));
         CUDA_CHECK(cudaMalloc(&h_db.gene_ids, num_proteins * sizeof(uint32_t)));
-        CUDA_CHECK(cudaMalloc(&h_db.species_ids, num_proteins * sizeof(uint32_t)));
         CUDA_CHECK(cudaMalloc(&h_db.seq_lengths, num_proteins * sizeof(uint16_t)));
         CUDA_CHECK(cudaMalloc(&h_db.seq_offsets, num_proteins * sizeof(uint32_t)));
         CUDA_CHECK(cudaMalloc(&h_db.sequences, all_sequences.size() * sizeof(char)));
@@ -1303,8 +1285,6 @@ public:
         CUDA_CHECK(cudaMemcpy(h_db.protein_ids, protein_ids.data(), 
                              num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
         CUDA_CHECK(cudaMemcpy(h_db.gene_ids, gene_ids.data(), 
-                             num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
-        CUDA_CHECK(cudaMemcpy(h_db.species_ids, species_ids.data(), 
                              num_proteins * sizeof(uint32_t), cudaMemcpyHostToDevice));
         CUDA_CHECK(cudaMemcpy(h_db.seq_lengths, seq_lengths.data(), 
                              num_proteins * sizeof(uint16_t), cudaMemcpyHostToDevice));

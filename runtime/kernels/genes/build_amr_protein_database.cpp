@@ -19,7 +19,6 @@ struct ProteinEntry {
     std::string drug_class;
     std::string sequence;
     uint32_t gene_id;
-    uint32_t species_id;
     uint16_t length;
 };
 
@@ -42,7 +41,6 @@ void parseAMRProtHeader(const std::string& header, ProteinEntry& entry) {
         entry.gene_name = parts[4];        // blaPDC-11
         entry.gene_family = parts[5];      // blaPDC
         entry.drug_class = parts[9];       // BETA-LACTAM
-        entry.species_id = 0; // No species info available
         
         // Alternative drug class in position 8
         if (entry.drug_class.empty() && parts.size() > 8) {
@@ -52,7 +50,6 @@ void parseAMRProtHeader(const std::string& header, ProteinEntry& entry) {
         entry.accession = parts[1];
         // Use the index (first field) as gene_id for now
         entry.gene_id = std::stoi(parts[0]);
-        entry.species_id = 0; // No species info available
         entry.gene_name = parts[4]; // e.g., "blaPDC-11"
         
         // Extract gene family from parts[5] if available
@@ -252,7 +249,6 @@ int main(int argc, char** argv) {
         meta_out << "    \"gene_family\": \"" << p.gene_family << "\"," << std::endl;
         meta_out << "    \"drug_class\": \"" << p.drug_class << "\"," << std::endl;
         meta_out << "    \"gene_id\": " << p.gene_id << "," << std::endl;
-        meta_out << "    \"species_id\": " << p.species_id << "," << std::endl;
         meta_out << "    \"length\": " << p.length << "," << std::endl;
         meta_out << "    \"offset\": " << offset << std::endl;
         meta_out << "  }" << (i < proteins.size() - 1 ? "," : "") << std::endl;

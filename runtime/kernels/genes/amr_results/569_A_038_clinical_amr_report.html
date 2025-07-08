@@ -29,12 +29,13 @@ tr:nth-child(even) { background-color: #f2f2f2; }
 <h1>Clinical Antimicrobial Resistance Report</h1>
 <div class='summary'>
 <p><strong>Sample:</strong> 569_A_038</p>
-<p><strong>Report Generated:</strong> 2025-07-07 22:53:57</p>
+<p><strong>Report Generated:</strong> 2025-07-07 23:11:02</p>
 <p><strong>Analysis Type:</strong> Metagenomic AMR Gene Detection</p>
 </div>
 <h2>Executive Summary</h2>
-<div class='alert alert-success'>
-<strong>No antimicrobial resistance genes detected.</strong> Standard antibiotic therapy may be appropriate based on clinical presentation.
+<div class='alert alert-danger'>
+<strong>157 antimicrobial resistance genes detected</strong> (10 with high confidence).<br>
+Antibiotic selection should be guided by the resistance profile below.
 </div>
 <div class='stats-grid'>
 <div class='stat-box'>
@@ -46,29 +47,1524 @@ tr:nth-child(even) { background-color: #f2f2f2; }
 <div class='stat-label'>Reads with AMR Genes</div>
 </div>
 <div class='stat-box'>
-<div class='stat-number'>0</div>
+<div class='stat-number'>157</div>
 <div class='stat-label'>AMR Genes Detected</div>
 </div>
 <div class='stat-box'>
-<div class='stat-number'>0</div>
+<div class='stat-number'>2</div>
 <div class='stat-label'>Drug Classes Affected</div>
 </div>
 </div>
 <h2>Resistance by Drug Class</h2>
+<div class='summary'>
+<h3>AMINOGLYCOSIDE</h3>
+<p><strong>Clinical Interpretation:</strong> HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aac(6')_Serra, aacA37, aac(6')-Id, ant(2'')-Ia, aacA-ENT2, aac(6')-It, ant(2'')-Ia, aacA-ACI4, aac(6')_E550, aac(6')-Ia</p>
+<p><strong>Genes Detected:</strong> 118 (High confidence: 10)</p>
+<p><strong>Total Reads:</strong> 10801</p>
+<p><strong>Maximum TPM:</strong> 0.00</p>
+</div>
+<div class='summary'>
+<h3>BETA_LACTAM</h3>
+<p><strong>Clinical Interpretation:</strong> MODERATE CONFIDENCE: Possible resistance. Consider susceptibility testing. Genes detected: blaGIM-2, blaCTX-M-147, blaCTX-M-90, blaCTX-M-91, blaCTX-M-176</p>
+<p><strong>Genes Detected:</strong> 39 (High confidence: 0)</p>
+<p><strong>Total Reads:</strong> 3287</p>
+<p><strong>Maximum TPM:</strong> 0.00</p>
+</div>
 <h2>Gene Families Detected</h2>
 <div class='summary'>
 <p>Gene families group related resistance genes that may have similar functions or evolutionary origins.</p>
 </div>
 <table>
 <tr><th>Gene Family</th><th>Variants Detected</th><th>Total Reads</th><th>Total TPM</th><th>Max Identity</th></tr>
+<tr>
+<td><strong>blaCTX</strong></td>
+<td>blaCTX-M-102, blaCTX-M-112, blaCTX-M-113, blaCTX-M-124, blaCTX-M-126, blaCTX-M-147, blaCTX-M-151, blaCTX-M-161, blaCTX-M-173, blaCTX-M-175, blaCTX-M-176, blaCTX-M-177, blaCTX-M-41, blaCTX-M-43, blaCTX-M-46, blaCTX-M-48, blaCTX-M-52, blaCTX-M-54, blaCTX-M-68, blaCTX-M-69, blaCTX-M-84, blaCTX-M-85, blaCTX-M-88, blaCTX-M-90, blaCTX-M-91</td>
+<td>2382</td>
+<td>0.00</td>
+<td>17.1%</td>
+</tr>
+<tr>
+<td><strong>ant(2'')</strong></td>
+<td>ant(2'')-Ia</td>
+<td>458</td>
+<td>0.00</td>
+<td>28.1%</td>
+</tr>
+<tr>
+<td><strong>ant(3'')</strong></td>
+<td>ant(3'')-IIa, ant(3'')-IIc, ant(3'')-Ia</td>
+<td>7</td>
+<td>0.00</td>
+<td>18.6%</td>
+</tr>
+<tr>
+<td><strong>ant(6)</strong></td>
+<td>ant(6)-Ia</td>
+<td>8</td>
+<td>0.00</td>
+<td>16.5%</td>
+</tr>
+<tr>
+<td><strong>aph(2'')</strong></td>
+<td>aph(2'')-IIa, aph(2'')-IVa, aph(2'')-Ia, aph(2'')-If, aph(2'')-Ig, aph(2'')-Ii</td>
+<td>344</td>
+<td>0.00</td>
+<td>16.6%</td>
+</tr>
+<tr>
+<td><strong>aph(3'')</strong></td>
+<td>aph(3'')-Ia, aph(3'')-Ib, aph(3'')-Ic</td>
+<td>131</td>
+<td>0.00</td>
+<td>19.6%</td>
+</tr>
+<tr>
+<td><strong>aph(3')</strong></td>
+<td>aph(3')-IIIa, aph(3')-Ia, aph(3')-VIIIb, aph(3')-Va, aph(3')-Vb, aph(3')-Vc, aph(3')-XV</td>
+<td>729</td>
+<td>0.00</td>
+<td>18.5%</td>
+</tr>
+<tr>
+<td><strong>aph(6)</strong></td>
+<td>aph(6)-Ic, aph(6)-Smalt</td>
+<td>4</td>
+<td>0.00</td>
+<td>13.2%</td>
+</tr>
+<tr>
+<td><strong>blaCMY</strong></td>
+<td>blaCMY-81, blaCMY-85, blaCMY-87, blaCMY-90</td>
+<td>186</td>
+<td>0.00</td>
+<td>13.1%</td>
+</tr>
+<tr>
+<td><strong>aacA47</strong></td>
+<td>aacA47</td>
+<td>81</td>
+<td>0.00</td>
+<td>27.0%</td>
+</tr>
+<tr>
+<td><strong>blaDHA</strong></td>
+<td>blaDHA-10, blaDHA-24</td>
+<td>56</td>
+<td>0.00</td>
+<td>12.6%</td>
+</tr>
+<tr>
+<td><strong>blaEC</strong></td>
+<td>blaEC-18</td>
+<td>25</td>
+<td>0.00</td>
+<td>11.6%</td>
+</tr>
+<tr>
+<td><strong>blaESP</strong></td>
+<td>blaESP-1</td>
+<td>9</td>
+<td>0.00</td>
+<td>14.8%</td>
+</tr>
+<tr>
+<td><strong>blaFOX</strong></td>
+<td>blaFOX-13</td>
+<td>8</td>
+<td>0.00</td>
+<td>12.3%</td>
+</tr>
+<tr>
+<td><strong>blaGES</strong></td>
+<td>blaGES-23, blaGES-25, blaGES-8</td>
+<td>100</td>
+<td>0.00</td>
+<td>17.4%</td>
+</tr>
+<tr>
+<td><strong>blaGIM</strong></td>
+<td>blaGIM-2</td>
+<td>512</td>
+<td>0.00</td>
+<td>17.5%</td>
+</tr>
+<tr>
+<td><strong>blaGOB</strong></td>
+<td>blaGOB-11</td>
+<td>9</td>
+<td>0.00</td>
+<td>13.7%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_Entco</strong></td>
+<td>aac(6')_Entco</td>
+<td>67</td>
+<td>0.00</td>
+<td>26.2%</td>
+</tr>
+<tr>
+<td><strong>aac(3)</strong></td>
+<td>aac(3)-I, aac(3)-IId, aac(3)-IIe, aac(3)-IVb, aac(3)-Ia, aac(3)-Ic, aac(3)-Id, aac(3)-Ih, aac(3)-VIII, aac(3)-VIa, aac(3)-XI</td>
+<td>86</td>
+<td>0.00</td>
+<td>30.3%</td>
+</tr>
+<tr>
+<td><strong>aac(6')</strong></td>
+<td>aac(6')-31, aac(6')-35, aac(6')-F72, aac(6')-I30, aac(6')-IIc, aac(6')-Ia, aac(6')-Iaa, aac(6')-Iae, aac(6')-Iaf, aac(6')-Iag, aac(6')-Iai, aac(6')-Ib', aac(6')-Ib-AKT, aac(6')-Ib-D181Y, aac(6')-Ib-G, aac(6')-Ib-cr11, aac(6')-Ib-cr4, aac(6')-Ib-cr5, aac(6')-Ic, aac(6')-Id, aac(6')-Ie_fam, aac(6')-Il, aac(6')-Is, aac(6')-It, aac(6')-Iu, aac(6')-Iv, aac(6')-set_A</td>
+<td>4671</td>
+<td>0.00</td>
+<td>34.2%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_E111</strong></td>
+<td>aac(6')_E111</td>
+<td>98</td>
+<td>0.00</td>
+<td>29.7%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_E141</strong></td>
+<td>aac(6')_E141</td>
+<td>2</td>
+<td>0.00</td>
+<td>23.5%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_E550</strong></td>
+<td>aac(6')_E550</td>
+<td>336</td>
+<td>0.00</td>
+<td>34.5%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_E553</strong></td>
+<td>aac(6')_E553</td>
+<td>239</td>
+<td>0.00</td>
+<td>33.6%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_E606</strong></td>
+<td>aac(6')_E606</td>
+<td>3</td>
+<td>0.00</td>
+<td>23.6%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_E963</strong></td>
+<td>aac(6')_E963</td>
+<td>2</td>
+<td>0.00</td>
+<td>31.8%</td>
+</tr>
+<tr>
+<td><strong>aac(2')</strong></td>
+<td>aac(2')-IIa, aac(2')-Ib, aac(2')-Id</td>
+<td>33</td>
+<td>0.00</td>
+<td>25.5%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_Serra</strong></td>
+<td>aac(6')_Serra</td>
+<td>98</td>
+<td>0.00</td>
+<td>29.3%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_Strep</strong></td>
+<td>aac(6')_Strep</td>
+<td>8</td>
+<td>0.00</td>
+<td>28.3%</td>
+</tr>
+<tr>
+<td><strong>aac(6')_Yersi</strong></td>
+<td>aac(6')_Yersi</td>
+<td>6</td>
+<td>0.00</td>
+<td>29.9%</td>
+</tr>
+<tr>
+<td><strong>aacA</strong></td>
+<td>aacA-ACI4, aacA-ACI5, aacA-ACI6, aacA-ENT1, aacA-ENT2, aacA-STR-13, aacA-STR-7</td>
+<td>1014</td>
+<td>0.00</td>
+<td>34.2%</td>
+</tr>
+<tr>
+<td><strong>aacA34</strong></td>
+<td>aacA34</td>
+<td>1</td>
+<td>0.00</td>
+<td>17.7%</td>
+</tr>
+<tr>
+<td><strong>aacA37</strong></td>
+<td>aacA37</td>
+<td>548</td>
+<td>0.00</td>
+<td>37.3%</td>
+</tr>
+<tr>
+<td><strong>aacA43</strong></td>
+<td>aacA43</td>
+<td>2</td>
+<td>0.00</td>
+<td>11.2%</td>
+</tr>
 </table>
 <h2>Detected Resistance Genes</h2>
 <table>
 <tr><th>Gene</th><th>Gene Family</th><th>Drug Class</th><th>Coverage (%)</th><th>Depth</th><th>TPM</th><th>Confidence</th><th>Complete Gene</th></tr>
+<tr class='high-confidence'>
+<td><strong>aph(3')-Ia</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>18.4</td>
+<td>2.3</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-124</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>7.2</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-113</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>15.1</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-112</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>0.5</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-102</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>11.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCMY-90</strong></td>
+<td>blaCMY</td>
+<td>BETA_LACTAM</td>
+<td>11.5</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCMY-87</strong></td>
+<td>blaCMY</td>
+<td>BETA_LACTAM</td>
+<td>11.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCMY-85</strong></td>
+<td>blaCMY</td>
+<td>BETA_LACTAM</td>
+<td>13.1</td>
+<td>0.4</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCMY-81</strong></td>
+<td>blaCMY</td>
+<td>BETA_LACTAM</td>
+<td>5.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(6)-Smalt</strong></td>
+<td>aph(6)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>8.1</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(6)-Ic</strong></td>
+<td>aph(6)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>13.2</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3')-XV</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>17.0</td>
+<td>0.2</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3')-Vc</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>18.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3')-Vb</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>14.0</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3')-Va</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>14.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3')-VIIIb</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>11.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-126</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>7.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3')-IIIa</strong></td>
+<td>aph(3')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>15.1</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3'')-Ic</strong></td>
+<td>aph(3'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>19.6</td>
+<td>0.5</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3'')-Ib</strong></td>
+<td>aph(3'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>7.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(3'')-Ia</strong></td>
+<td>aph(3'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>13.2</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(2'')-Ii</strong></td>
+<td>aph(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>16.1</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(2'')-Ig</strong></td>
+<td>aph(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>11.4</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(2'')-If</strong></td>
+<td>aph(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>9.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(2'')-Ia</strong></td>
+<td>aph(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>10.4</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(2'')-IVa</strong></td>
+<td>aph(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>16.6</td>
+<td>1.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aph(2'')-IIa</strong></td>
+<td>aph(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>10.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>ant(6)-Ia</strong></td>
+<td>ant(6)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>16.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>ant(3'')-Ia</strong></td>
+<td>ant(3'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>13.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>ant(3'')-IIc</strong></td>
+<td>ant(3'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>14.4</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>ant(3'')-IIa</strong></td>
+<td>ant(3'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>18.6</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-69</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>6.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaGOB-11</strong></td>
+<td>blaGOB</td>
+<td>BETA_LACTAM</td>
+<td>13.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>blaGIM-2</strong></td>
+<td>blaGIM</td>
+<td>BETA_LACTAM</td>
+<td>17.5</td>
+<td>2.0</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaGES-8</strong></td>
+<td>blaGES</td>
+<td>BETA_LACTAM</td>
+<td>6.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaGES-25</strong></td>
+<td>blaGES</td>
+<td>BETA_LACTAM</td>
+<td>17.4</td>
+<td>0.3</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaGES-23</strong></td>
+<td>blaGES</td>
+<td>BETA_LACTAM</td>
+<td>6.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaFOX-13</strong></td>
+<td>blaFOX</td>
+<td>BETA_LACTAM</td>
+<td>12.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaESP-1</strong></td>
+<td>blaESP</td>
+<td>BETA_LACTAM</td>
+<td>14.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaEC-18</strong></td>
+<td>blaEC</td>
+<td>BETA_LACTAM</td>
+<td>11.6</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaDHA-24</strong></td>
+<td>blaDHA</td>
+<td>BETA_LACTAM</td>
+<td>12.6</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaDHA-10</strong></td>
+<td>blaDHA</td>
+<td>BETA_LACTAM</td>
+<td>10.0</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>blaCTX-M-91</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>2.1</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='moderate-confidence'>
+<td><strong>blaCTX-M-90</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>1.2</td>
+<td>0.00</td>
+<td>MODERATE</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-88</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-85</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>15.1</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-84</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>ant(2'')-Ia</strong></td>
+<td>ant(2'')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>28.1</td>
+<td>2.6</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-68</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>11.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-54</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>10.6</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-52</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>16.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-48</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>6.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-46</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>16.4</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-43</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>7.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-41</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>16.4</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-177</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>15.4</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='moderate-confidence'>
+<td><strong>blaCTX-M-176</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>1.0</td>
+<td>0.00</td>
+<td>MODERATE</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-175</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>11.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-173</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-161</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>0.3</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>blaCTX-M-151</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>10.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>blaCTX-M-147</strong></td>
+<td>blaCTX</td>
+<td>BETA_LACTAM</td>
+<td>17.1</td>
+<td>2.5</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='moderate-confidence'>
+<td><strong>aac(6')-35</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>27.8</td>
+<td>1.4</td>
+<td>0.00</td>
+<td>MODERATE</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib-cr4</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>16.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib-cr11</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>10.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib-G</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>22.7</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib-D181Y</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>17.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib-AKT</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>23.8</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib'</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>11.9</td>
+<td>0.9</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iai</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>25.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iag</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>29.2</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iaf</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>27.2</td>
+<td>0.3</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iae</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>10.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iaa</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>34.2</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aac(6')-Ia</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>26.9</td>
+<td>15.2</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-IIc</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>13.4</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-I30</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>22.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-F72</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>25.0</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ib-cr5</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>19.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-31</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>23.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-XI</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>25.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-VIa</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>16.7</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-VIII</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>15.6</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-Ih</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>24.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-Id</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>19.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-Ic</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>22.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-Ia</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>24.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-IVb</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>18.4</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-IIe</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>9.1</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-IId</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>11.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(3)-I</strong></td>
+<td>aac(3)</td>
+<td>AMINOGLYCOSIDE</td>
+<td>30.3</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(2')-Id</strong></td>
+<td>aac(2')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>23.7</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(2')-Ib</strong></td>
+<td>aac(2')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>25.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_E963</strong></td>
+<td>aac(6')_E963</td>
+<td>AMINOGLYCOSIDE</td>
+<td>31.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA47</strong></td>
+<td>aacA47</td>
+<td>AMINOGLYCOSIDE</td>
+<td>27.0</td>
+<td>0.4</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA43</strong></td>
+<td>aacA43</td>
+<td>AMINOGLYCOSIDE</td>
+<td>11.2</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aacA37</strong></td>
+<td>aacA37</td>
+<td>AMINOGLYCOSIDE</td>
+<td>37.3</td>
+<td>4.1</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA34</strong></td>
+<td>aacA34</td>
+<td>AMINOGLYCOSIDE</td>
+<td>17.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA-STR-7</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>27.8</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA-STR-13</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>29.8</td>
+<td>0.2</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aacA-ENT2</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>27.3</td>
+<td>3.3</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA-ENT1</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>25.7</td>
+<td>0.1</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA-ACI6</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>14.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aacA-ACI5</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>34.0</td>
+<td>0.2</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aacA-ACI4</strong></td>
+<td>aacA</td>
+<td>AMINOGLYCOSIDE</td>
+<td>34.2</td>
+<td>2.2</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_Yersi</strong></td>
+<td>aac(6')_Yersi</td>
+<td>AMINOGLYCOSIDE</td>
+<td>29.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_Strep</strong></td>
+<td>aac(6')_Strep</td>
+<td>AMINOGLYCOSIDE</td>
+<td>28.3</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_Serra</strong></td>
+<td>aac(6')_Serra</td>
+<td>AMINOGLYCOSIDE</td>
+<td>29.3</td>
+<td>0.7</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_Entco</strong></td>
+<td>aac(6')_Entco</td>
+<td>AMINOGLYCOSIDE</td>
+<td>26.2</td>
+<td>0.4</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(2')-IIa</strong></td>
+<td>aac(2')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>7.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_E606</strong></td>
+<td>aac(6')_E606</td>
+<td>AMINOGLYCOSIDE</td>
+<td>23.6</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='moderate-confidence'>
+<td><strong>aac(6')_E553</strong></td>
+<td>aac(6')_E553</td>
+<td>AMINOGLYCOSIDE</td>
+<td>33.6</td>
+<td>1.6</td>
+<td>0.00</td>
+<td>MODERATE</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aac(6')_E550</strong></td>
+<td>aac(6')_E550</td>
+<td>AMINOGLYCOSIDE</td>
+<td>34.5</td>
+<td>2.3</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_E141</strong></td>
+<td>aac(6')_E141</td>
+<td>AMINOGLYCOSIDE</td>
+<td>23.5</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')_E111</strong></td>
+<td>aac(6')_E111</td>
+<td>AMINOGLYCOSIDE</td>
+<td>29.7</td>
+<td>0.7</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-set_A</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>10.8</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iv</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>22.4</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Iu</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>25.9</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aac(6')-It</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>34.0</td>
+<td>2.8</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='moderate-confidence'>
+<td><strong>aac(6')-Is</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>34.0</td>
+<td>1.6</td>
+<td>0.00</td>
+<td>MODERATE</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Il</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>32.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ie_fam</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>4.1</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
+<tr class='high-confidence'>
+<td><strong>aac(6')-Id</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>33.3</td>
+<td>2.8</td>
+<td>0.00</td>
+<td>HIGH</td>
+<td>No</td>
+</tr>
+<tr class='low-confidence'>
+<td><strong>aac(6')-Ic</strong></td>
+<td>aac(6')</td>
+<td>AMINOGLYCOSIDE</td>
+<td>17.7</td>
+<td>0.0</td>
+<td>0.00</td>
+<td>LOW</td>
+<td>No</td>
+</tr>
 </table>
 <h2>Clinical Recommendations</h2>
 <div class='summary'>
 <ul>
+<li>High-confidence resistance genes detected. Avoid antibiotics from affected drug classes.</li>
+<li>Consider antibiotic susceptibility testing to confirm resistance profile.</li>
+<li>Consult local antibiogram data for empiric therapy guidance.</li>
 </ul>
 </div>
 <div class='summary' style='margin-top: 40px; text-align: center; font-size: 0.9em;'>

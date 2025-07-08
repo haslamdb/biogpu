@@ -164,14 +164,38 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
     
     // Aggregate by gene family
     gene_family_summaries.clear();
+    std::map<std::string, std::vector<float>> family_identities; // Store all identities for averaging
+    
     for (const auto& [gene_name, summary] : gene_summaries) {
         auto& family_summary = gene_family_summaries[summary.gene_family];
         family_summary.gene_family = summary.gene_family;
         family_summary.gene_variants.push_back(gene_name);
         family_summary.total_tpm += summary.tpm;
         family_summary.total_reads += summary.read_count;
-        family_summary.max_identity = std::max(family_summary.max_identity, 
-                                               summary.percent_coverage / 100.0f);
+        
+        // Store identities for this gene family (need to calculate from hits)
+        // We'll update this after processing all hits
+    }
+    
+    // Calculate average identity per gene family from hits
+    std::map<std::string, float> family_identity_sums;
+    std::map<std::string, int> family_identity_counts;
+    
+    for (const auto& hit : hits) {
+        if (hit.gene_id < gene_entries.size()) {
+            std::string gene_family(gene_entries[hit.gene_id].gene_family);
+            family_identity_sums[gene_family] += hit.identity;
+            family_identity_counts[gene_family]++;
+        }
+    }
+    
+    // Update family summaries with average identity
+    for (auto& [family_name, summary] : gene_family_summaries) {
+        if (family_identity_counts[family_name] > 0) {
+            summary.mean_identity = family_identity_sums[family_name] / family_identity_counts[family_name];
+        } else {
+            summary.mean_identity = 0.0f;
+        }
     }
     
     // Generate clinical interpretations for each drug class
@@ -376,7 +400,7 @@ void ClinicalAMRReportGenerator::generateHTMLReport() {
     
     html << "<table>\n";
     html << "<tr><th>Gene Family</th><th>Variants Detected</th><th>Total Reads</th>"
-         << "<th>Total TPM</th><th>Max Identity</th></tr>\n";
+         << "<th>Total TPM</th><th>Mean Identity</th></tr>\n";
     
     for (const auto& [family_name, family_summary] : sorted_families) {
         html << "<tr>\n";
@@ -389,7 +413,7 @@ void ClinicalAMRReportGenerator::generateHTMLReport() {
         html << "</td>\n";
         html << "<td>" << static_cast<int>(family_summary.total_reads) << "</td>\n";
         html << "<td>" << std::fixed << std::setprecision(2) << family_summary.total_tpm << "</td>\n";
-        html << "<td>" << std::fixed << std::setprecision(1) << (family_summary.max_identity * 100) << "%</td>\n";
+        html << "<td>" << std::fixed << std::setprecision(1) << (family_summary.mean_identity * 100) << "%</td>\n";
         html << "</tr>\n";
     }
     
@@ -611,7 +635,7 @@ void ClinicalAMRReportGenerator::generateTSVReports() {
     
     // Gene family summary
     std::ofstream family_summary(output_path + "_gene_family_summary.tsv");
-    family_summary << "gene_family\tnum_variants\tvariant_names\ttotal_reads\ttotal_tpm\tmax_identity\n";
+    family_summary << "gene_family\tnum_variants\tvariant_names\ttotal_reads\ttotal_tpm\tmean_identity\n";
     
     for (const auto& [family_name, summary] : gene_family_summaries) {
         family_summary << family_name << "\t"
@@ -626,7 +650,7 @@ void ClinicalAMRReportGenerator::generateTSVReports() {
         family_summary << "\t"
                       << static_cast<int>(summary.total_reads) << "\t"
                       << summary.total_tpm << "\t"
-                      << summary.max_identity << "\n";
+                      << summary.mean_identity << "\n";
     }
     family_summary.close();
 }

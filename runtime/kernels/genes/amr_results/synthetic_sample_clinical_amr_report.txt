@@ -2,7 +2,7 @@ CLINICAL ANTIMICROBIAL RESISTANCE REPORT
 =====================================
 
 Sample: synthetic_sample
-Report Generated: 2025-07-07 22:55:39
+Report Generated: 2025-07-07 23:13:38
 
 SUMMARY
 -------

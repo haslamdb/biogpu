@@ -907,6 +907,9 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
     
     // Calculate final metrics
     int genes_with_coverage = 0;
+    double total_rpk = 0.0; // For TPM calculation
+    
+    // First pass: calculate RPK (reads per kilobase) for each gene
     for (uint32_t i = 0; i < num_genes; i++) {
         auto& stats = h_coverage_stats[i];
         
@@ -919,10 +922,19 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
             stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
             stats.mean_depth = (float)stats.total_reads / stats.gene_length;
             
-            // Calculate abundance metrics
+            // Calculate RPKM and RPK for TPM
             if (total_reads_processed > 0) {
-                stats.rpkm = (stats.total_reads * 1e9) / 
-                            (stats.gene_length * 3 * total_reads_processed);
+                // Gene length in kilobases (protein length * 3 for nucleotides / 1000)
+                double gene_length_kb = (stats.gene_length * 3.0) / 1000.0;
+                
+                if (gene_length_kb > 0) {
+                    // RPKM = (reads * 10^6) / (gene_length_kb * total_reads)
+                    stats.rpkm = (stats.total_reads * 1e6) / (gene_length_kb * total_reads_processed);
+                    
+                    // RPK for TPM calculation
+                    double rpk = stats.total_reads / gene_length_kb;
+                    total_rpk += rpk;
+                }
             }
             
             // Debug first few
@@ -930,12 +942,38 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
                 std::cout << "Gene " << i << " (" << gene_entries[i].gene_name << "): "
                           << stats.total_reads << " reads, "
                           << stats.percent_coverage << "% coverage, "
-                          << stats.mean_depth << " depth" << std::endl;
+                          << stats.mean_depth << " depth, "
+                          << "RPKM=" << stats.rpkm << std::endl;
             }
         }
     }
     
     std::cout << "Genes with coverage: " << genes_with_coverage << std::endl;
+    std::cout << "Total RPK sum: " << total_rpk << std::endl;
+    
+    // Second pass: calculate TPM
+    if (total_rpk > 0) {
+        for (uint32_t i = 0; i < num_genes; i++) {
+            auto& stats = h_coverage_stats[i];
+            
+            if (stats.total_reads > 0 && stats.gene_length > 0) {
+                double gene_length_kb = (stats.gene_length * 3.0) / 1000.0;
+                if (gene_length_kb > 0) {
+                    double rpk = stats.total_reads / gene_length_kb;
+                    stats.tpm = (rpk / total_rpk) * 1e6;
+                    
+                    // Debug TPM calculation for first few genes
+                    if (i < 5 && stats.tpm > 0) {
+                        std::cout << "Gene " << i << " TPM calculation: "
+                                  << "reads=" << stats.total_reads 
+                                  << ", length_kb=" << gene_length_kb
+                                  << ", rpk=" << rpk
+                                  << ", tpm=" << stats.tpm << std::endl;
+                    }
+                }
+            }
+        }
+    }
     
     // Copy final stats to GPU if needed
     cudaMemcpy(d_coverage_stats, h_coverage_stats.data(),

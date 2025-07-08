@@ -40,7 +40,7 @@ public:
         std::vector<std::string> gene_variants;  // e.g., blaKPC-2, blaKPC-3
         float total_tpm;
         float total_reads;
-        float max_identity;
+        float mean_identity;  // Average identity across all hits in this family
     };
     
 private:

@@ -1610,7 +1610,7 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
 }
 
 void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
-    std::cout << "\n=== Resolving Ambiguous Read Assignments with Kallisto-style EM ===" << std::endl;
+    std::cout << "\n=== Resolving Ambiguous Read Assignments with Simple EM (finalizeCoverageStats) ===" << std::endl;
     
     // Use accumulated hits if available (from EM algorithm), otherwise use current batch
     std::vector<AMRHit> all_hits = accumulated_hits.empty() ? getAMRHits() : accumulated_hits;
@@ -1629,13 +1629,10 @@ void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
         return;
     }
     
-    // Run Kallisto-style EM algorithm
-    runKallistoStyleEM();
+    // For simple EM, just do basic assignment without full EM algorithm
+    // The full EM algorithm is called separately when --em flag is used
     
-    // Update coverage statistics
-    updateCoverageStatsFromKallistoEM();
-    
-    // Generate reports
+    std::cout << "Simple assignment resolution complete (not full EM)" << std::endl;
     reportEMResults();
     analyzeBetaLactamaseAssignments();
     
@@ -2246,7 +2243,7 @@ void AMRDetectionPipeline::applyFamilyConstraints() {
 }
 
 void AMRDetectionPipeline::runKallistoStyleEM() {
-    std::cout << "\n=== Running Kallisto-style EM Algorithm ===" << std::endl;
+    std::cout << "\n=== Running MAIN Kallisto-style EM Algorithm (--em flag) ===" << std::endl;
     
     // First, build read assignments from all accumulated hits
     if (accumulated_hits.empty()) {

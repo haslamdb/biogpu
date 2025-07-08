@@ -267,6 +267,12 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         hdf5_writer.addAMRHits(batch_hits);
     }
     
+    // Debug: Check EM configuration
+    std::cout << "\n--- EM Configuration Check ---" << std::endl;
+    std::cout << "config.use_em = " << (config.use_em ? "true" : "false") << std::endl;
+    std::cout << "Total accumulated hits: " << all_amr_hits.size() << std::endl;
+    std::cout << "------------------------------" << std::endl;
+    
     // Run EM algorithm if enabled
     if (config.use_em) {
         std::cout << "\n=== Running EM Algorithm ===" << std::endl;
@@ -274,6 +280,11 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         
         // Pass all accumulated hits to the pipeline for EM processing
         pipeline.setAccumulatedHits(all_amr_hits);
+        
+        // Debug: verify hits were set
+        auto verify_hits = pipeline.getAllAccumulatedHits();
+        std::cout << "Hits set in pipeline: " << verify_hits.size() << std::endl;
+        
         pipeline.runKallistoStyleEM();
         
         // Get updated hits after EM adjustment
@@ -577,6 +588,12 @@ int main(int argc, char** argv) {
         
         // Clear any accumulated results from previous samples
         pipeline.clearResults();
+        
+        // Clear accumulated hits for new sample when EM is enabled
+        if (config.use_em) {
+            std::vector<AMRHit> empty_hits;
+            pipeline.setAccumulatedHits(empty_hits);
+        }
         
         if (sample.isPairedEnd()) {
             // Process paired-end reads

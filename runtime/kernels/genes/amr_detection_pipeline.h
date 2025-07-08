@@ -295,6 +295,9 @@ private:
     
     // Paired-end concordance scoring (Note: ProteinMatch is defined in cpp file)
     void applyPairedConcordanceScoring(void* matches, uint32_t* match_counts, int num_reads);
+    
+    // Add new private method declaration
+    void resolveAmbiguousAssignmentsEM();
 };
 
 #endif // AMR_DETECTION_PIPELINE_H

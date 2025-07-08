@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <iomanip>
 #include <cfloat>
+#include <cmath>
 #include <cuda_runtime.h>
 
 // CUDA error checking macro
@@ -951,6 +952,9 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
     std::cout << "Genes with coverage: " << genes_with_coverage << std::endl;
     std::cout << "Total RPK sum: " << total_rpk << std::endl;
     
+    // Add this line before "// Second pass: calculate TPM"
+    resolveAmbiguousAssignmentsEM();
+    
     // Second pass: calculate TPM
     if (total_rpk > 0) {
         for (uint32_t i = 0; i < num_genes; i++) {
@@ -1599,4 +1603,196 @@ void AMRDetectionPipeline::applyPairedConcordanceScoring(
             );
         }
     }
+}
+
+void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
+    std::cout << "\n=== Resolving Ambiguous Read Assignments with EM ===" << std::endl;
+    
+    // Get all hits from current batch
+    std::vector<AMRHit> all_hits = getAMRHits();
+    if (all_hits.empty()) {
+        std::cout << "No hits to resolve" << std::endl;
+        return;
+    }
+    
+    // 1. Group all hits by read_id
+    std::map<uint32_t, std::vector<AMRHit>> hits_by_read;
+    for (const auto& hit : all_hits) {
+        hits_by_read[hit.read_id].push_back(hit);
+    }
+    
+    // 2. Identify reads with multiple gene assignments
+    struct AmbiguousRead {
+        uint32_t read_id;
+        std::vector<uint32_t> gene_ids;
+        std::vector<float> alignment_scores;
+        std::vector<double> assignment_probs;
+    };
+    
+    std::map<uint32_t, AmbiguousRead> ambiguous_reads;
+    std::map<uint32_t, double> gene_abundances;
+    
+    int unambiguous_count = 0;
+    int ambiguous_count = 0;
+    
+    for (const auto& [read_id, read_hits] : hits_by_read) {
+        if (read_hits.size() == 1) {
+            // Unambiguous read
+            gene_abundances[read_hits[0].gene_id] += 1.0;
+            unambiguous_count++;
+        } else if (read_hits.size() > 1) {
+            // Ambiguous read
+            AmbiguousRead ar;
+            ar.read_id = read_id;
+            
+            for (const auto& hit : read_hits) {
+                ar.gene_ids.push_back(hit.gene_id);
+                // Use identity * coverage as alignment score
+                ar.alignment_scores.push_back(hit.identity * hit.coverage);
+            }
+            
+            // Initialize with equal probabilities
+            ar.assignment_probs.resize(ar.gene_ids.size(), 1.0 / ar.gene_ids.size());
+            ambiguous_reads[read_id] = ar;
+            ambiguous_count++;
+        }
+    }
+    
+    std::cout << "Unambiguous reads: " << unambiguous_count << std::endl;
+    std::cout << "Ambiguous reads: " << ambiguous_count << std::endl;
+    
+    if (ambiguous_count == 0) {
+        std::cout << "No ambiguous reads to resolve" << std::endl;
+        return;
+    }
+    
+    // 3. Initialize gene abundances with pseudocounts for genes only seen in ambiguous reads
+    std::set<uint32_t> all_genes;
+    for (const auto& [read_id, ar] : ambiguous_reads) {
+        for (uint32_t gene_id : ar.gene_ids) {
+            all_genes.insert(gene_id);
+            if (gene_abundances.find(gene_id) == gene_abundances.end()) {
+                gene_abundances[gene_id] = 0.1; // Pseudocount
+            }
+        }
+    }
+    
+    // 4. Run EM iterations
+    const int MAX_ITERATIONS = 50;
+    const double CONVERGENCE_THRESHOLD = 0.001;
+    
+    for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
+        std::map<uint32_t, double> new_abundances;
+        
+        // Initialize with unambiguous counts
+        for (const auto& [read_id, read_hits] : hits_by_read) {
+            if (read_hits.size() == 1) {
+                new_abundances[read_hits[0].gene_id] += 1.0;
+            }
+        }
+        
+        // E-step: Update assignment probabilities
+        for (auto& [read_id, ar] : ambiguous_reads) {
+            double total_weighted = 0.0;
+            std::vector<double> weighted_abundances;
+            
+            // Calculate weighted abundances
+            for (size_t i = 0; i < ar.gene_ids.size(); i++) {
+                uint32_t gene_id = ar.gene_ids[i];
+                double abundance = gene_abundances[gene_id];
+                double weight = ar.alignment_scores[i];
+                double weighted = abundance * weight;
+                weighted_abundances.push_back(weighted);
+                total_weighted += weighted;
+            }
+            
+            // Update probabilities
+            if (total_weighted > 0) {
+                for (size_t i = 0; i < ar.gene_ids.size(); i++) {
+                    ar.assignment_probs[i] = weighted_abundances[i] / total_weighted;
+                }
+            }
+        }
+        
+        // M-step: Update gene abundances
+        // Add fractional counts from ambiguous reads
+        for (const auto& [read_id, ar] : ambiguous_reads) {
+            for (size_t i = 0; i < ar.gene_ids.size(); i++) {
+                new_abundances[ar.gene_ids[i]] += ar.assignment_probs[i];
+            }
+        }
+        
+        // Add pseudocounts to prevent zeros
+        for (uint32_t gene_id : all_genes) {
+            if (new_abundances[gene_id] < 0.1) {
+                new_abundances[gene_id] = 0.1;
+            }
+        }
+        
+        // Check convergence
+        double max_change = 0.0;
+        for (const auto& [gene_id, new_abundance] : new_abundances) {
+            double old_abundance = gene_abundances[gene_id];
+            double change = std::abs(new_abundance - old_abundance);
+            max_change = std::max(max_change, change);
+        }
+        
+        gene_abundances = new_abundances;
+        
+        if (max_change < CONVERGENCE_THRESHOLD) {
+            std::cout << "EM converged after " << (iter + 1) << " iterations" << std::endl;
+            break;
+        }
+        
+        if (iter == MAX_ITERATIONS - 1) {
+            std::cout << "EM reached maximum iterations" << std::endl;
+        }
+    }
+    
+    // 5. Update h_coverage_stats with resolved counts
+    // First, scale existing stats to account for ambiguous assignments
+    std::map<uint32_t, double> original_counts;
+    for (uint32_t i = 0; i < h_coverage_stats.size(); i++) {
+        if (h_coverage_stats[i].total_reads > 0) {
+            original_counts[i] = h_coverage_stats[i].total_reads;
+        }
+    }
+    
+    // Apply EM-resolved abundances
+    for (const auto& [gene_id, abundance] : gene_abundances) {
+        if (gene_id < h_coverage_stats.size()) {
+            // Update total reads with EM-resolved count
+            h_coverage_stats[gene_id].total_reads = static_cast<uint32_t>(std::round(abundance));
+            
+            // Scale other metrics proportionally if we had original counts
+            if (original_counts.find(gene_id) != original_counts.end() && original_counts[gene_id] > 0) {
+                double scale_factor = abundance / original_counts[gene_id];
+                h_coverage_stats[gene_id].total_bases_mapped = 
+                    static_cast<uint32_t>(h_coverage_stats[gene_id].total_bases_mapped * scale_factor);
+            }
+        }
+    }
+    
+    // Report resolution summary
+    std::cout << "\nEM Resolution Summary:" << std::endl;
+    int genes_with_ambiguous = 0;
+    for (const auto& [gene_id, abundance] : gene_abundances) {
+        bool had_ambiguous = false;
+        for (const auto& [read_id, ar] : ambiguous_reads) {
+            if (std::find(ar.gene_ids.begin(), ar.gene_ids.end(), gene_id) != ar.gene_ids.end()) {
+                had_ambiguous = true;
+                break;
+            }
+        }
+        if (had_ambiguous) {
+            genes_with_ambiguous++;
+            if (genes_with_ambiguous <= 5 && gene_id < gene_entries.size()) {
+                std::cout << "  Gene " << gene_entries[gene_id].gene_name 
+                          << ": " << std::fixed << std::setprecision(2) 
+                          << abundance << " reads" << std::endl;
+            }
+        }
+    }
+    std::cout << "Total genes with ambiguous assignments: " << genes_with_ambiguous << std::endl;
+    std::cout << "===========================================\n" << std::endl;
 }

@@ -196,13 +196,6 @@ int main(int argc, char** argv) {
     
     std::cout << "Loaded " << proteins.size() << " AMR protein sequences" << std::endl;
     
-    // Debug: Print first 5 proteins to verify ordering
-    std::cout << "\nFirst 5 proteins in order:" << std::endl;
-    for (size_t i = 0; i < std::min(size_t(5), proteins.size()); i++) {
-        std::cout << "  [" << i << "] " << proteins[i].accession 
-                  << " gene_id=" << proteins[i].gene_id 
-                  << " gene_name=" << proteins[i].gene_name << std::endl;
-    }
     
     // Statistics
     std::map<std::string, int> drug_class_counts;

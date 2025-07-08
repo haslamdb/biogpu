@@ -62,10 +62,6 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
                 std::string id = header.substr(1);  // Remove '@'
                 reads.push_back({id, seq});
                 
-                // Debug output for first 10 reads
-                if (reads.size() < 10) {
-                    std::cout << "DEBUG: Read " << reads.size() << " - ID: '" << id << "', Length: " << seq.length() << std::endl;
-                }
                 
                 count++;
                 
@@ -106,10 +102,6 @@ std::vector<std::pair<std::string, std::string>> readFastq(const std::string& fi
                     std::string id = header.substr(1);  // Remove '@'
                     reads.push_back({id, seq});
                     
-                    // Debug output for first 10 reads
-                    if (reads.size() < 10) {
-                        std::cout << "DEBUG: Read " << reads.size() << " - ID: '" << id << "', Length: " << seq.length() << std::endl;
-                    }
                     
                     count++;
                     
@@ -235,16 +227,14 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         int start_idx = batch * batch_size;
         int end_idx = std::min(start_idx + batch_size, num_pairs);
         
-        std::cout << "\n=== BATCH TRANSITION DEBUG ===" << std::endl;
-        std::cout << "Starting batch " << (batch + 1) << "/" << num_batches << std::endl;
-        std::cout << "Batch range: pairs " << start_idx << " to " << end_idx << std::endl;
+        std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
+                  << " (pairs " << start_idx << "-" << end_idx << ")" << std::endl;
         
         // Extract reads and IDs for this batch
         std::vector<std::string> batch_reads1;
         std::vector<std::string> batch_reads2;
         std::vector<std::string> batch_ids;
         
-        std::cout << "Extracting reads for batch..." << std::endl;
         
         for (int i = start_idx; i < end_idx; i++) {
             // Skip pairs where either read is empty
@@ -255,24 +245,10 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
             }
         }
         
-        std::cout << "Batch " << (batch + 1) << " extracted: " 
-                  << batch_reads1.size() << " R1, " 
-                  << batch_reads2.size() << " R2, " 
-                  << batch_ids.size() << " IDs" << std::endl;
-        
-        // Validate first few reads in batch
-        for (int i = 0; i < std::min(3, (int)batch_reads1.size()); i++) {
-            std::cout << "  R1[" << i << "]: length=" << batch_reads1[i].length() << std::endl;
-            std::cout << "  R2[" << i << "]: length=" << batch_reads2[i].length() << std::endl;
-        }
-        
-        std::cout << "Calling processBatchPaired..." << std::endl;
         
         // Process batch of paired reads
         pipeline.processBatchPaired(batch_reads1, batch_reads2, batch_ids);
         
-        std::cout << "Batch " << (batch + 1) << " completed successfully" << std::endl;
-        std::cout << "=== END BATCH TRANSITION DEBUG ===" << std::endl;
         
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();
@@ -561,30 +537,6 @@ int main(int argc, char** argv) {
     std::cout << "Clinical reports and results written to: " << output_dir << std::endl;
     std::cout << "These results can guide antibiotic selection for patient treatment" << std::endl;
     
-    // Check for validation mode
-    bool validate_mode = false;
-    for (int i = 1; i < argc; i++) {
-        if (std::string(argv[i]) == "--validate") {
-            validate_mode = true;
-            break;
-        }
-    }
-    
-    if (validate_mode) {
-        std::cout << "\n=== VALIDATION MODE ===" << std::endl;
-        std::cout << "Please verify the following in the output files:" << std::endl;
-        std::cout << "1. Gene families are correctly extracted (e.g., blaKPC-2 -> blaKPC)" << std::endl;
-        std::cout << "2. Gene IDs match the FASTA headers" << std::endl;
-        std::cout << "3. Multiple variants of same family are grouped together" << std::endl;
-        std::cout << "4. TSV files contain gene_family column" << std::endl;
-        std::cout << "5. HDF5 files contain gene_family dataset" << std::endl;
-        std::cout << "\nCheck the following output files:" << std::endl;
-        std::cout << "  - " << output_dir << "_amr_abundance.tsv" << std::endl;
-        std::cout << "  - " << output_dir << "_gene_family_summary.tsv" << std::endl;
-        std::cout << "  - " << output_dir << "_clinical_amr_report.html" << std::endl;
-        std::cout << "  - " << output_dir << "_clinical_amr_report.json" << std::endl;
-        std::cout << "  - " << output_dir << ".h5 (HDF5 output)" << std::endl;
-    }
     
     return 0;
 }

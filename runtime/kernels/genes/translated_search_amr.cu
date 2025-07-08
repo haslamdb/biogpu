@@ -19,9 +19,9 @@
 namespace cg = cooperative_groups;
 
 // Debug and safety macros
-#define DEBUG_AMR 1
+#define DEBUG_AMR 0
 #define BOUNDS_CHECK 1
-#define DEBUG_PRINT(fmt, ...) if(DEBUG_AMR) { printf("[AMR DEBUG] %s:%d: " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); }
+#define DEBUG_PRINT(fmt, ...) // Disabled
 #define CUDA_CHECK(call) do { \
     cudaError_t err = call; \
     if (err != cudaSuccess) { \

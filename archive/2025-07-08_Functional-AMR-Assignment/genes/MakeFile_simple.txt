@@ -1,0 +1,59 @@
+# Makefile for simplified translated search
+
+# CUDA compiler
+NVCC = nvcc
+
+# Compiler flags
+NVCC_FLAGS = -std=c++14 -O3 -arch=sm_61 -Xcompiler -fPIC
+INCLUDES = -I.
+LIBS = -lcuda -lcudart
+
+# Target executable
+TARGET = simple_translated_search_test
+
+# Source files
+CUDA_SOURCES = simplified_translated_search.cu
+CPP_SOURCES = simple_test_main.cpp
+
+# Object files
+CUDA_OBJECTS = $(CUDA_SOURCES:.cu=.o)
+CPP_OBJECTS = $(CPP_SOURCES:.cpp=.o)
+OBJECTS = $(CUDA_OBJECTS) $(CPP_OBJECTS)
+
+# Default target
+all: $(TARGET)
+
+# Link the final executable
+$(TARGET): $(OBJECTS)
+	$(NVCC) $(NVCC_FLAGS) $(OBJECTS) -o $@ $(LIBS)
+
+# Compile CUDA source files
+%.o: %.cu
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -c $< -o $@
+
+# Compile C++ source files
+%.o: %.cpp
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -c $< -o $@
+
+# Clean build files
+clean:
+	rm -f $(OBJECTS) $(TARGET)
+
+# Install (optional)
+install: $(TARGET)
+	cp $(TARGET) /usr/local/bin/
+
+# Debug build
+debug: NVCC_FLAGS += -g -G -DDEBUG
+debug: $(TARGET)
+
+# Print help
+help:
+	@echo "Available targets:"
+	@echo "  all     - Build the executable (default)"
+	@echo "  clean   - Remove build files"
+	@echo "  debug   - Build with debug symbols"
+	@echo "  install - Install to /usr/local/bin"
+	@echo "  help    - Show this help"
+
+.PHONY: all clean debug install help

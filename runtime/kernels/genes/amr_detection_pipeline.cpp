@@ -889,29 +889,48 @@ void AMRDetectionPipeline::updateCoverageStatsFromHits() {
     cudaMemcpy(batch_hits.data(), d_amr_hits, 
                batch_hits.size() * sizeof(AMRHit), cudaMemcpyDeviceToHost);
     
+    // Track actual positions covered for each gene using sets
+    // Static to persist across batches within a sample
+    static std::map<uint32_t, std::set<uint32_t>> gene_covered_positions;
+    static bool first_batch = true;
+    
+    // Clear on first batch of a new sample
+    if (first_batch && total_reads_processed == 0) {
+        gene_covered_positions.clear();
+        first_batch = false;
+    }
+    
     int hits_processed = 0;
     for (int i = 0; i < current_batch_size; i++) {
         for (uint32_t j = 0; j < hit_counts[i]; j++) {
             AMRHit& hit = batch_hits[i * MAX_MATCHES_PER_READ + j];
             
-            // Simple accumulation - no position tracking yet
             if (hit.gene_id < h_coverage_stats.size()) {
+                // Update read count and bases mapped
                 h_coverage_stats[hit.gene_id].total_reads++;
                 h_coverage_stats[hit.gene_id].total_bases_mapped += 
                     (hit.ref_end - hit.ref_start) * 3; // Convert AA to nucleotides
                 
-                // Track coverage range
-                if (h_coverage_stats[hit.gene_id].covered_positions == 0) {
-                    h_coverage_stats[hit.gene_id].covered_positions = hit.ref_end - hit.ref_start;
-                } else {
-                    // This is simplified - you may want more sophisticated range tracking
-                    h_coverage_stats[hit.gene_id].covered_positions = 
-                        std::max(h_coverage_stats[hit.gene_id].covered_positions,
-                                (uint32_t)(hit.ref_end - hit.ref_start));
+                // Track actual positions covered (in amino acid coordinates)
+                for (uint16_t pos = hit.ref_start; pos < hit.ref_end; pos++) {
+                    gene_covered_positions[hit.gene_id].insert(pos);
                 }
+                
+                // Update covered_positions with actual count of unique positions
+                h_coverage_stats[hit.gene_id].covered_positions = 
+                    gene_covered_positions[hit.gene_id].size();
+                
                 hits_processed++;
             }
         }
+    }
+    
+    // Note: The static map will persist across batches within a sample
+    // It should be cleared when clearResults() is called between samples
+    
+    // Reset first_batch flag after processing hits
+    if (hits_processed > 0 && total_reads_processed > 0) {
+        first_batch = true;  // Reset for next sample
     }
     
     std::cout << "Updated coverage stats with " << hits_processed << " hits from current batch" << std::endl;
@@ -940,10 +959,20 @@ void AMRDetectionPipeline::finalizeCoverageStats() {
             genes_with_coverage++;
             stats.gene_length = gene_entries[i].protein_length;
             
-            // Simple coverage calculation for metagenomics
-            // Don't require full position tracking which causes memory issues
-            stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
-            stats.mean_depth = (float)stats.total_reads / stats.gene_length;
+            // Calculate percent coverage (already set by updateCoverageStatsFromHits)
+            // covered_positions now contains actual unique positions covered
+            if (stats.gene_length > 0) {
+                stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
+            }
+            
+            // Calculate mean depth over covered regions (not entire gene)
+            if (stats.covered_positions > 0) {
+                // total_bases_mapped is in nucleotides, covered_positions is in amino acids
+                // So we need to convert: divide by 3 to get amino acid depth
+                stats.mean_depth = (float)stats.total_bases_mapped / (stats.covered_positions * 3);
+            } else {
+                stats.mean_depth = 0.0f;
+            }
             
             // Calculate RPKM and RPK for TPM
             if (total_reads_processed > 0) {
@@ -1265,9 +1294,11 @@ void AMRDetectionPipeline::calculateAbundanceMetrics() {
             // Calculate percent coverage
             stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
             
-            // Calculate mean depth
+            // Calculate mean depth over covered regions
             if (stats.covered_positions > 0) {
-                stats.mean_depth = (float)stats.total_bases_mapped / stats.covered_positions;
+                // total_bases_mapped is in nucleotides, covered_positions is in amino acids
+                // So we need to convert: divide by 3 to get amino acid depth
+                stats.mean_depth = (float)stats.total_bases_mapped / (stats.covered_positions * 3);
             } else {
                 stats.mean_depth = 0.0f;
             }
@@ -1407,6 +1438,24 @@ void AMRDetectionPipeline::resetTranslatedSearchEngine() {
 void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& reads1,
                                               const std::vector<std::string>& reads2,
                                               const std::vector<std::string>& read_ids) {
+    
+    // Enhanced paired-end processing strategy:
+    // 1. Process R1 and R2 reads maintaining their pair relationship
+    // 2. During alignment phase:
+    //    - Search both R1 and R2 against the database
+    //    - Track which genes each read maps to
+    //    - Identify concordant pairs (both reads map to same gene)
+    // 3. Scoring adjustments:
+    //    - Concordant pairs: Boost alignment scores significantly (2.0x)
+    //    - Discordant pairs: Penalize scores (0.5x)
+    //    - Use fragment length distribution for additional scoring
+    // 4. For EM algorithm:
+    //    - Treat read pairs as single units for assignment
+    //    - Prefer assigning pairs to genes where both reads map
+    // 5. Benefits:
+    //    - Increased specificity for closely related genes
+    //    - Reduced false positives from spurious single-read alignments
+    //    - Better resolution of multi-mapping reads
     
     // Clear paired read info from previous batch
     paired_read_info.clear();

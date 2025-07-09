@@ -105,15 +105,8 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
             // Determine confidence level with identity and gene family
             summary.confidence_level = getConfidenceLevel(stats.percent_coverage, stats.mean_depth, avg_identity, summary.gene_family);
             
-            // Count high confidence genes using metagenomics criteria
-            // Check if this is a critical gene with higher threshold
-            float min_identity_high = 0.95f;
-            auto thresh_it = critical_gene_thresholds.find(summary.gene_family);
-            if (thresh_it != critical_gene_thresholds.end()) {
-                min_identity_high = thresh_it->second;
-            }
-            
-            if (avg_identity >= min_identity_high && stats.percent_coverage >= 20.0f && stats.mean_depth >= 2.0f) {
+            // Count high confidence genes based on the confidence level
+            if (summary.confidence_level == "HIGH") {
                 high_confidence_genes++;
             }
             
@@ -141,20 +134,10 @@ void ClinicalAMRReportGenerator::processAMRResults(const std::vector<AMRHit>& hi
             drug_summary.total_reads += summary.read_count;
             drug_summary.max_tpm = std::max(drug_summary.max_tpm, summary.tpm);
             
-            // Categorize by confidence using metagenomics criteria
-            // Note: avg_identity was already calculated above
-            
-            // Check critical gene thresholds for categorization
-            float min_identity_for_category = 0.95f;
-            std::string gene_family_str = gene_entries[i].gene_family;
-            auto cat_thresh_it = critical_gene_thresholds.find(gene_family_str);
-            if (cat_thresh_it != critical_gene_thresholds.end()) {
-                min_identity_for_category = cat_thresh_it->second;
-            }
-            
-            if (avg_identity >= min_identity_for_category && stats.percent_coverage >= 20.0f && stats.mean_depth >= 2.0f) {
+            // Use the already-calculated confidence level for consistency
+            if (summary.confidence_level == "HIGH") {
                 drug_summary.high_confidence_genes.push_back(summary.gene_name);
-            } else if (avg_identity >= 0.90f && stats.percent_coverage >= 10.0f && stats.mean_depth >= 1.0f) {
+            } else if (summary.confidence_level == "MODERATE") {
                 drug_summary.moderate_confidence_genes.push_back(summary.gene_name);
             } else {
                 drug_summary.low_confidence_genes.push_back(summary.gene_name);
@@ -228,9 +211,10 @@ std::string ClinicalAMRReportGenerator::getConfidenceLevel(float coverage, float
     }
     
     // Metagenomics-appropriate criteria focusing on identity and presence
-    if (identity >= min_identity_high && coverage >= 0.20f && depth >= 2.0f) {
+    // Note: coverage is passed as percentage (0-100), not fraction
+    if (identity >= min_identity_high && coverage >= 20.0f && depth >= 2.0f) {
         return "HIGH";
-    } else if (identity >= 0.90f && coverage >= 0.10f && depth >= 1.0f) {
+    } else if (identity >= 0.90f && coverage >= 10.0f && depth >= 1.0f) {
         return "MODERATE";
     } else {
         return "LOW";

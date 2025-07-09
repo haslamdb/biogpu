@@ -2,130 +2,154 @@ CLINICAL ANTIMICROBIAL RESISTANCE REPORT
 =====================================
 
 Sample: 569_A_038a
-Report Generated: 2025-07-08 18:42:16
+Report Generated: 2025-07-08 22:01:29
 
 SUMMARY
 -------
 Total reads processed: 3405007
 Reads with AMR genes: 6859
-Total AMR genes detected: 126
-High confidence genes: 1
+Total AMR genes detected: 157
+High confidence genes: 80
 Drug classes affected: 2
 
 RESISTANCE BY DRUG CLASS
 ------------------------
 
 AMINOGLYCOSIDE:
-  Genes detected: 91
-  High confidence: 1
-  Clinical interpretation: HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aac(6')-Ia
+  Genes detected: 118
+  High confidence: 60
+  Clinical interpretation: HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aacA-ACI5, ant(2'')-Ia, aph(3'')-Ic, aph(3')-IIIa, aacA-ACI5, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')_Strep, aac(3)-VIII, aac(3)-I, aac(3)-VIa, aac(6')-I30, aac(6')-Iaf, ant(6)-Ia, aac(6')_Serra, aac(6')-Is, aacA37, aac(6')-Ib-G, aac(2')-Id, aac(6')-Ib-AKT, aac(6')-Id, ant(2'')-Ia, aac(6')-Ib-G, aacA-ENT1, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')-IIc, aac(6')-Ib-G, aac(6')_Entco, aac(6')_E553, aacA-ENT2, aac(6')-Ib', aph(3')-Ia, aac(6')-It, ant(2'')-Ia, aac(6')-35, aacA-ACI5, aac(6')-31, aac(6')_Strep, aac(6')_E111, aacA-ACI4, aac(6')-Ib-G, aacA-STR-7, aph(2'')-IVa, aac(2')-Ib, aac(6')_Yersi, aac(6')_Serra, aac(3)-IVb, aac(6')_Serra, aph(2'')-Ii, aacA-STR-13, aacA47, aac(6')_E550, aac(6')-Iag, aac(6')-Ib-G, aac(6')-Ib-AKT, aac(6')-Iaa, aacA-ACI5, aac(6')_Serra, aac(6')-Ia
 
 BETA_LACTAM:
-  Genes detected: 35
-  High confidence: 0
-  Clinical interpretation: MODERATE CONFIDENCE: Possible resistance. Consider susceptibility testing. Genes detected: blaCTX-M-147, blaCTX-M-90
+  Genes detected: 39
+  High confidence: 20
+  Clinical interpretation: HIGH CONFIDENCE: Beta-lactam resistance detected. Consider alternative antibiotics such as fluoroquinolones or aminoglycosides if susceptible. Genes detected: blaESP-1, blaCTX-M-113, blaGIM-2, blaCMY-87, blaCTX-M-46, blaGOB-11, blaCTX-M-41, blaGES-25, blaCMY-85, blaCTX-M-173, blaCTX-M-147, blaCTX-M-84, blaCTX-M-85, blaCTX-M-88, blaCTX-M-90, blaCTX-M-161, blaCTX-M-112, blaEC-18, blaCTX-M-91, blaCTX-M-176
 
 DETAILED GENE LIST
 ------------------
 Gene                          Drug Class          Coverage(%) Depth     TPM       Confidence
 --------------------------------------------------------------------------------------------
-aac(6')-Ia                    AMINOGLYCOSIDE      26.9        4.0       145745.19 HIGH
-blaCTX-M-147                  BETA_LACTAM         17.1        2.2       79663.94  HIGH
-aac(6')-Id                    AMINOGLYCOSIDE      33.3        2.0       72096.07  MODERATE
-aacA37                        AMINOGLYCOSIDE      37.3        1.5       53893.31  MODERATE
-aac(6')_E550                  AMINOGLYCOSIDE      34.5        1.4       52057.33  MODERATE
-ant(2'')-Ia                   AMINOGLYCOSIDE      28.1        1.2       44241.14  MODERATE
-aac(6')-Is                    AMINOGLYCOSIDE      34.0        1.2       44189.82  MODERATE
-aac(6')-It                    AMINOGLYCOSIDE      34.0        1.2       43202.34  MODERATE
-blaCTX-M-90                   BETA_LACTAM         17.1        1.0       37905.62  MODERATE
-aacA-ENT2                     AMINOGLYCOSIDE      27.3        1.0       37678.11  MODERATE
-aacA-ACI4                     AMINOGLYCOSIDE      34.2        0.8       30573.05  LOW
-blaCTX-M-91                   BETA_LACTAM         17.1        0.8       29951.65  LOW
-aac(6')-35                    AMINOGLYCOSIDE      27.8        0.8       27217.47  LOW
-aac(6')_E553                  AMINOGLYCOSIDE      33.6        0.7       26791.25  LOW
-blaGIM-2                      BETA_LACTAM         17.5        0.6       20675.16  LOW
-aph(3')-Ia                    AMINOGLYCOSIDE      18.4        0.5       17477.89  LOW
-blaCTX-M-176                  BETA_LACTAM         17.1        0.4       13422.32  LOW
-aph(3'')-Ic                   AMINOGLYCOSIDE      19.6        0.4       12950.54  LOW
-aacA47                        AMINOGLYCOSIDE      27.0        0.3       12162.04  LOW
-blaCTX-M-112                  BETA_LACTAM         17.1        0.3       10315.30  LOW
-blaCTX-M-161                  BETA_LACTAM         17.1        0.3       9196.77   LOW
-aac(6')_Entco                 AMINOGLYCOSIDE      26.2        0.2       8923.76   LOW
-aacA-ACI5                     AMINOGLYCOSIDE      34.0        0.2       6418.63   LOW
-aac(6')_E111                  AMINOGLYCOSIDE      29.7        0.2       5756.34   LOW
-aac(6')_Serra                 AMINOGLYCOSIDE      29.3        0.1       5431.15   LOW
-blaGES-25                     BETA_LACTAM         17.4        0.1       4788.26   LOW
-aacA-STR-7                    AMINOGLYCOSIDE      27.8        0.1       3215.57   LOW
-aac(6')-Ib'                   AMINOGLYCOSIDE      11.9        0.1       3110.57   LOW
-blaDHA-24                     BETA_LACTAM         12.6        0.1       2865.00   LOW
-aac(6')-Iaf                   AMINOGLYCOSIDE      27.2        0.1       2366.74   LOW
-blaCTX-M-88                   BETA_LACTAM         17.1        0.1       2361.33   LOW
-aac(3)-VIa                    AMINOGLYCOSIDE      16.7        0.1       2177.40   LOW
-aac(6')-Ib-G                  AMINOGLYCOSIDE      22.7        0.1       2157.78   LOW
-aph(3')-XV                    AMINOGLYCOSIDE      17.0        0.1       1917.21   LOW
-aac(2')-Id                    AMINOGLYCOSIDE      23.7        0.0       1719.90   LOW
-blaCMY-85                     BETA_LACTAM         13.1        0.0       1710.00   LOW
-aac(3)-VIII                   AMINOGLYCOSIDE      15.6        0.0       1638.09   LOW
-aph(2'')-Ia                   AMINOGLYCOSIDE      10.4        0.0       1512.08   LOW
-aph(3')-IIIa                  AMINOGLYCOSIDE      15.1        0.0       1506.38   LOW
-aac(6')-Iaa                   AMINOGLYCOSIDE      34.2        0.0       1491.37   LOW
-aacA-ENT1                     AMINOGLYCOSIDE      25.7        0.0       1189.83   LOW
-aac(6')-IIc                   AMINOGLYCOSIDE      13.4        0.0       1122.37   LOW
-aac(2')-Ib                    AMINOGLYCOSIDE      25.5        0.0       1110.92   LOW
-aac(3)-IVb                    AMINOGLYCOSIDE      18.4        0.0       1091.43   LOW
-aac(6')_Yersi                 AMINOGLYCOSIDE      29.9        0.0       987.48    LOW
-blaCTX-M-177                  BETA_LACTAM         15.4        0.0       869.96    LOW
-blaCTX-M-84                   BETA_LACTAM         17.1        0.0       869.96    LOW
-blaCMY-90                     BETA_LACTAM         11.5        0.0       855.00    LOW
-blaCTX-M-151                  BETA_LACTAM         10.5        0.0       832.88    LOW
-aac(6')-31                    AMINOGLYCOSIDE      23.8        0.0       784.65    LOW
-blaFOX-13                     BETA_LACTAM         12.3        0.0       758.02    LOW
-aac(3)-XI                     AMINOGLYCOSIDE      25.5        0.0       730.67    LOW
-aac(2')-IIa                   AMINOGLYCOSIDE      7.7         0.0       695.21    LOW
-aac(6')-Iag                   AMINOGLYCOSIDE      29.2        0.0       648.04    LOW
-blaGES-23                     BETA_LACTAM         6.9         0.0       630.03    LOW
-blaCTX-M-69                   BETA_LACTAM         6.8         0.0       621.40    LOW
-aac(6')-Ib-cr11               AMINOGLYCOSIDE      10.8        0.0       588.49    LOW
-blaCMY-87                     BETA_LACTAM         11.5        0.0       570.00    LOW
-blaCTX-M-124                  BETA_LACTAM         7.2         0.0       497.12    LOW
-blaCTX-M-52                   BETA_LACTAM         16.8        0.0       497.12    LOW
-blaCTX-M-41                   BETA_LACTAM         16.4        0.0       497.12    LOW
-blaGOB-11                     BETA_LACTAM         13.7        0.0       495.43    LOW
-aac(6')-Il                    AMINOGLYCOSIDE      32.7        0.0       474.38    LOW
-aac(6')_E963                  AMINOGLYCOSIDE      31.8        0.0       471.30    LOW
-aac(3)-I                      AMINOGLYCOSIDE      30.3        0.0       468.26    LOW
-aac(6')-Ib-AKT                AMINOGLYCOSIDE      23.8        0.0       392.32    LOW
-aacA43                        AMINOGLYCOSIDE      11.2        0.0       386.06    LOW
-aac(3)-IIe                    AMINOGLYCOSIDE      9.1         0.0       379.34    LOW
-blaESP-1                      BETA_LACTAM         14.8        0.0       374.12    LOW
-blaCTX-M-68                   BETA_LACTAM         11.3        0.0       372.84    LOW
-blaCTX-M-102                  BETA_LACTAM         11.3        0.0       372.84    LOW
-blaCTX-M-173                  BETA_LACTAM         17.1        0.0       372.84    LOW
-aph(3')-Va                    AMINOGLYCOSIDE      14.5        0.0       269.81    LOW
-aacA-ACI6                     AMINOGLYCOSIDE      14.3        0.0       246.87    LOW
-aac(6')-Iu                    AMINOGLYCOSIDE      25.9        0.0       246.87    LOW
-aacA34                        AMINOGLYCOSIDE      17.7        0.0       246.87    LOW
-aac(6')_E606                  AMINOGLYCOSIDE      23.6        0.0       245.20    LOW
-aph(2'')-Ig                   AMINOGLYCOSIDE      11.4        0.0       236.42    LOW
-aac(3)-Id                     AMINOGLYCOSIDE      19.5        0.0       228.24    LOW
-aac(6')_Strep                 AMINOGLYCOSIDE      28.3        0.0       218.61    LOW
-aac(6')-F72                   AMINOGLYCOSIDE      25.0        0.0       197.23    LOW
-aac(6')-Iae                   AMINOGLYCOSIDE      10.9        0.0       197.23    LOW
-aac(6')-set_A                 AMINOGLYCOSIDE      10.8        0.0       196.16    LOW
-aac(6')-Ib-D181Y              AMINOGLYCOSIDE      17.8        0.0       196.16    LOW
-aac(6')-Ib-cr5                AMINOGLYCOSIDE      19.5        0.0       196.16    LOW
-ant(3'')-Ia                   AMINOGLYCOSIDE      11.1        0.0       138.51    LOW
-ant(3'')-IIa                  AMINOGLYCOSIDE      18.6        0.0       137.98    LOW
-aph(3'')-Ib                   AMINOGLYCOSIDE      7.5         0.0       135.41    LOW
-aph(6)-Smalt                  AMINOGLYCOSIDE      8.1         0.0       133.91    LOW
-aph(3'')-Ia                   AMINOGLYCOSIDE      13.2        0.0       132.93    LOW
-aac(3)-IId                    AMINOGLYCOSIDE      11.5        0.0       126.45    LOW
-blaGES-8                      BETA_LACTAM         6.9         0.0       126.01    LOW
-blaCTX-M-48                   BETA_LACTAM         6.8         0.0       124.28    LOW
-blaCTX-M-46                   BETA_LACTAM         16.4        0.0       124.28    LOW
-blaCTX-M-43                   BETA_LACTAM         7.9         0.0       124.28    LOW
-blaCTX-M-126                  BETA_LACTAM         7.5         0.0       124.28    LOW
-blaCTX-M-113                  BETA_LACTAM         15.1        0.0       124.28    LOW
-blaDHA-10                     BETA_LACTAM         10.0        0.0       95.50     LOW
-blaCMY-81                     BETA_LACTAM         5.5         0.0       95.00     LOW
-aac(6')-Ie_fam                AMINOGLYCOSIDE      4.1         0.0       74.98     LOW
+aac(6')-Ia                    AMINOGLYCOSIDE      50.5        1087.2    213034.00 HIGH
+aacA37                        AMINOGLYCOSIDE      417.9       35.1      57280.22  HIGH
+aacA-ENT2                     AMINOGLYCOSIDE      175.4       70.3      46458.64  HIGH
+aac(6')-Id                    AMINOGLYCOSIDE      235.3       44.3      39124.76  HIGH
+aac(6')-It                    AMINOGLYCOSIDE      224.5       47.6      38684.55  HIGH
+ant(2'')-Ia                   AMINOGLYCOSIDE      165.7       60.5      36039.14  HIGH
+blaCTX-M-147                  BETA_LACTAM         182.2       52.9      34680.42  HIGH
+aph(3')-Ia                    AMINOGLYCOSIDE      77.2        106.1     32904.92  HIGH
+aac(6')_E550                  AMINOGLYCOSIDE      129.0       59.9      32456.39  HIGH
+aacA-ACI4                     AMINOGLYCOSIDE      190.4       40.0      30315.39  HIGH
+blaCTX-M-91                   BETA_LACTAM         128.4       59.3      28732.46  HIGH
+blaGIM-2                      BETA_LACTAM         73.3        80.3      28570.98  HIGH
+aac(6')_E553                  AMINOGLYCOSIDE      79.2        73.7      22466.76  HIGH
+aac(6')-Is                    AMINOGLYCOSIDE      127.9       46.8      22391.31  HIGH
+aac(6')-35                    AMINOGLYCOSIDE      165.0       30.8      19686.88  HIGH
+blaCTX-M-90                   BETA_LACTAM         74.3        60.6      16644.68  HIGH
+blaCTX-M-176                  BETA_LACTAM         110.6       31.8      14054.44  HIGH
+aph(2'')-IVa                  AMINOGLYCOSIDE      40.4        90.5      13960.10  HIGH
+aac(6')-Ib'                   AMINOGLYCOSIDE      64.0        47.6      12505.78  HIGH
+aac(6')_E111                  AMINOGLYCOSIDE      31.7        59.0      9466.45   HIGH
+aac(6')_Serra                 AMINOGLYCOSIDE      31.3        59.0      9337.65   HIGH
+aph(3'')-Ic                   AMINOGLYCOSIDE      41.2        43.1      7030.70   HIGH
+blaCTX-M-112                  BETA_LACTAM         55.5        28.6      6619.50   HIGH
+aacA47                        AMINOGLYCOSIDE      104.9       13.8      6132.57   HIGH
+blaCMY-85                     BETA_LACTAM         108.4       13.6      5389.93   HIGH
+aac(6')_Entco                 AMINOGLYCOSIDE      106.6       10.9      5128.05   HIGH
+blaGES-25                     BETA_LACTAM         34.4        31.7      4571.56   HIGH
+aac(6')-Iaf                   AMINOGLYCOSIDE      108.7       9.3       4415.08   HIGH
+blaCTX-M-161                  BETA_LACTAM         48.6        22.9      3837.39   HIGH
+aacA-STR-13                   AMINOGLYCOSIDE      29.8        19.7      2870.89   HIGH
+aacA-ACI5                     AMINOGLYCOSIDE      41.5        19.0      2667.90   HIGH
+aph(3')-XV                    AMINOGLYCOSIDE      33.2        15.0      2378.46   MODERATE
+blaDHA-24                     BETA_LACTAM         13.2        34.3      2027.25   MODERATE
+aac(6')-Ib-G                  AMINOGLYCOSIDE      41.6        10.0      1892.77   HIGH
+blaCTX-M-46                   BETA_LACTAM         27.7        12.7      1726.83   HIGH
+aacA-STR-7                    AMINOGLYCOSIDE      78.5        4.9       1684.32   HIGH
+blaCTX-M-177                  BETA_LACTAM         45.2        6.6       1678.86   MODERATE
+aph(3')-IIIa                  AMINOGLYCOSIDE      24.2        14.5      1638.49   HIGH
+aac(2')-Id                    AMINOGLYCOSIDE      83.9        5.6       1460.39   HIGH
+aac(6')-Iaa                   AMINOGLYCOSIDE      100.0       3.5       1247.15   HIGH
+blaCTX-M-113                  BETA_LACTAM         42.8        6.2       1199.18   HIGH
+blaCMY-90                     BETA_LACTAM         32.5        8.9       1173.32   MODERATE
+blaCTX-M-84                   BETA_LACTAM         62.7        4.6       1103.25   HIGH
+aac(3)-VIa                    AMINOGLYCOSIDE      26.7        10.4      980.45    HIGH
+aac(3)-IVb                    AMINOGLYCOSIDE      60.9        4.3       947.81    HIGH
+blaEC-18                      BETA_LACTAM         31.7        6.2       926.35    HIGH
+blaCTX-M-88                   BETA_LACTAM         48.3        4.1       911.38    HIGH
+aac(6')-Ib-AKT                AMINOGLYCOSIDE      38.9        4.1       908.53    HIGH
+aac(3)-VIII                   AMINOGLYCOSIDE      38.2        5.7       875.40    HIGH
+aac(3)-I                      AMINOGLYCOSIDE      69.0        3.5       813.28    HIGH
+aacA-ENT1                     AMINOGLYCOSIDE      108.2       1.6       765.38    MODERATE
+blaCTX-M-173                  BETA_LACTAM         37.0        4.1       719.51    HIGH
+aac(6')_Strep                 AMINOGLYCOSIDE      103.6       1.5       675.01    MODERATE
+aph(2'')-Ia                   AMINOGLYCOSIDE      11.5        12.8      671.14    MODERATE
+aac(6')-31                    AMINOGLYCOSIDE      65.4        2.4       605.69    HIGH
+aac(6')-Iag                   AMINOGLYCOSIDE      56.0        3.3       583.60    HIGH
+aac(6')_Yersi                 AMINOGLYCOSIDE      60.5        2.7       571.69    HIGH
+aph(2'')-If                   AMINOGLYCOSIDE      12.8        7.8       518.76    MODERATE
+aac(3)-XI                     AMINOGLYCOSIDE      71.1        1.6       470.02    MODERATE
+blaESP-1                      BETA_LACTAM         25.8        3.8       433.19    HIGH
+aac(6')-IIc                   AMINOGLYCOSIDE      23.7        3.0       433.19    HIGH
+blaGOB-11                     BETA_LACTAM         31.1        2.9       430.23    HIGH
+aac(2')-Ib                    AMINOGLYCOSIDE      63.8        2.1       428.77    HIGH
+blaCTX-M-85                   BETA_LACTAM         41.4        2.4       383.74    HIGH
+ant(6)-Ia                     AMINOGLYCOSIDE      28.7        3.5       369.81    HIGH
+blaCTX-M-151                  BETA_LACTAM         10.5        6.2       367.38    MODERATE
+aac(6')-Ib-cr5                AMINOGLYCOSIDE      43.8        1.3       302.84    MODERATE
+blaFOX-13                     BETA_LACTAM         44.9        1.5       292.56    MODERATE
+blaCTX-M-41                   BETA_LACTAM         28.8        3.0       287.80    HIGH
+aac(6')_E606                  AMINOGLYCOSIDE      39.9        1.6       283.92    MODERATE
+aph(2'')-Ii                   AMINOGLYCOSIDE      32.6        2.3       282.01    HIGH
+aac(3)-Ih                     AMINOGLYCOSIDE      47.7        1.5       274.64    MODERATE
+aac(3)-Ia                     AMINOGLYCOSIDE      47.1        1.5       271.09    MODERATE
+aac(2')-IIa                   AMINOGLYCOSIDE      7.7         5.0       268.32    LOW
+aac(3)-Ic                     AMINOGLYCOSIDE      37.6        1.6       267.64    MODERATE
+aph(3')-Va                    AMINOGLYCOSIDE      42.0        1.6       260.34    MODERATE
+blaGES-23                     BETA_LACTAM         6.9         5.0       243.17    LOW
+blaCTX-M-52                   BETA_LACTAM         33.6        1.9       239.84    MODERATE
+blaCTX-M-69                   BETA_LACTAM         6.8         5.0       239.84    LOW
+aac(6')-Ib-cr11               AMINOGLYCOSIDE      10.8        3.0       227.13    MODERATE
+aac(6')-I30                   AMINOGLYCOSIDE      22.7        2.7       227.13    HIGH
+blaCMY-87                     BETA_LACTAM         23.3        2.7       220.00    HIGH
+ant(3'')-IIc                  AMINOGLYCOSIDE      36.9        1.3       213.03    MODERATE
+aph(3')-Vc                    AMINOGLYCOSIDE      18.5        3.9       211.42    MODERATE
+aph(3')-Vb                    AMINOGLYCOSIDE      25.7        2.0       211.42    MODERATE
+blaCTX-M-124                  BETA_LACTAM         7.2         3.9       191.87    LOW
+aac(6')-Iu                    AMINOGLYCOSIDE      42.2        1.0       190.56    MODERATE
+aac(6')_E141                  AMINOGLYCOSIDE      23.5        1.9       188.01    MODERATE
+aac(6')-Il                    AMINOGLYCOSIDE      32.7        2.0       183.09    MODERATE
+aac(6')_E963                  AMINOGLYCOSIDE      31.8        1.9       181.90    MODERATE
+aac(6')-Ib-D181Y              AMINOGLYCOSIDE      17.8        1.6       151.42    MODERATE
+aph(6)-Ic                     AMINOGLYCOSIDE      13.2        2.8       149.54    MODERATE
+aacA43                        AMINOGLYCOSIDE      11.2        2.0       149.01    MODERATE
+aac(6')-Iai                   AMINOGLYCOSIDE      25.9        1.9       148.22    MODERATE
+aac(3)-IIe                    AMINOGLYCOSIDE      16.4        1.6       146.41    MODERATE
+blaCTX-M-102                  BETA_LACTAM         11.3        2.4       143.90    MODERATE
+blaCTX-M-175                  BETA_LACTAM         11.3        2.4       143.90    MODERATE
+blaCTX-M-68                   BETA_LACTAM         11.3        2.4       143.90    MODERATE
+ant(3'')-Ia                   AMINOGLYCOSIDE      14.1        1.6       106.92    MODERATE
+aph(3'')-Ia                   AMINOGLYCOSIDE      13.6        1.6       102.61    MODERATE
+aac(3)-IId                    AMINOGLYCOSIDE      20.6        1.0       97.61     MODERATE
+aac(6')-Ic                    AMINOGLYCOSIDE      17.7        1.0       95.28     MODERATE
+aac(6')-Iv                    AMINOGLYCOSIDE      22.4        1.0       95.28     MODERATE
+aacA34                        AMINOGLYCOSIDE      17.7        1.0       95.28     MODERATE
+aacA-ACI6                     AMINOGLYCOSIDE      14.3        1.0       95.28     MODERATE
+aph(2'')-Ig                   AMINOGLYCOSIDE      11.4        1.9       91.25     MODERATE
+aac(3)-Id                     AMINOGLYCOSIDE      19.5        1.0       88.09     MODERATE
+aac(6')-Iae                   AMINOGLYCOSIDE      10.9        1.0       76.12     MODERATE
+aac(6')-F72                   AMINOGLYCOSIDE      25.0        1.0       76.12     LOW
+aac(6')-Ib-cr4                AMINOGLYCOSIDE      16.8        1.0       75.71     MODERATE
+aac(6')-set_A                 AMINOGLYCOSIDE      10.8        1.0       75.71     MODERATE
+aph(3')-VIIIb                 AMINOGLYCOSIDE      11.9        1.0       53.87     MODERATE
+ant(3'')-IIa                  AMINOGLYCOSIDE      18.6        1.0       53.26     MODERATE
+aph(3'')-Ib                   AMINOGLYCOSIDE      7.5         1.0       52.26     LOW
+aph(6)-Smalt                  AMINOGLYCOSIDE      8.1         1.0       51.68     LOW
+blaGES-8                      BETA_LACTAM         6.9         1.0       48.63     LOW
+blaCTX-M-54                   BETA_LACTAM         10.6        1.0       47.97     MODERATE
+blaCTX-M-48                   BETA_LACTAM         6.8         1.0       47.97     LOW
+blaCTX-M-43                   BETA_LACTAM         7.9         1.0       47.97     LOW
+blaCTX-M-126                  BETA_LACTAM         7.5         1.0       47.97     LOW
+aph(2'')-IIa                  AMINOGLYCOSIDE      10.3        1.0       46.69     MODERATE
+blaDHA-10                     BETA_LACTAM         10.0        1.0       36.86     MODERATE
+blaCMY-81                     BETA_LACTAM         5.5         1.0       36.67     LOW
+aac(6')-Ie_fam                AMINOGLYCOSIDE      4.1         1.0       28.94     LOW

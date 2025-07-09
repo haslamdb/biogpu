@@ -1569,6 +1569,60 @@ void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& re
     current_batch_size = all_reads.size();
     if (current_batch_size > 0) {
         processBatch(all_reads, all_read_ids);
+        
+        // After processing, build pair alignment information
+        current_pair_alignments.clear();
+        current_pair_alignments.reserve(num_pairs);
+
+        // Get the hits from this batch
+        auto batch_hits = getAMRHits();
+
+        // Build alignment information for each pair
+        for (int pair_idx = 0; pair_idx < num_pairs; pair_idx++) {
+            ReadPairAlignment pair_align;
+            pair_align.pair_id = pair_idx;
+            pair_align.r1_read_idx = pair_idx * 2;
+            pair_align.r2_read_idx = pair_idx * 2 + 1;
+            
+            // Collect R1 and R2 hits for this pair
+            for (const auto& hit : batch_hits) {
+                if (hit.read_id == pair_align.r1_read_idx) {
+                    pair_align.r1_gene_ids.push_back(hit.gene_id);
+                    pair_align.r1_scores.push_back(hit.identity * (hit.ref_end - hit.ref_start));
+                } else if (hit.read_id == pair_align.r2_read_idx) {
+                    pair_align.r2_gene_ids.push_back(hit.gene_id);
+                    pair_align.r2_scores.push_back(hit.identity * (hit.ref_end - hit.ref_start));
+                }
+            }
+            
+            // Find concordant genes (present in both R1 and R2)
+            for (size_t i = 0; i < pair_align.r1_gene_ids.size(); i++) {
+                for (size_t j = 0; j < pair_align.r2_gene_ids.size(); j++) {
+                    if (pair_align.r1_gene_ids[i] == pair_align.r2_gene_ids[j]) {
+                        pair_align.concordant_genes.push_back(pair_align.r1_gene_ids[i]);
+                        pair_align.concordant_scores.push_back(
+                            pair_align.r1_scores[i] + pair_align.r2_scores[j]
+                        );
+                    }
+                }
+            }
+            
+            if (pair_align.hasAlignment()) {
+                current_pair_alignments.push_back(pair_align);
+            }
+        }
+
+        std::cout << "Pair alignment summary:" << std::endl;
+        std::cout << "  Total pairs: " << num_pairs << std::endl;
+        std::cout << "  Pairs with alignments: " << current_pair_alignments.size() << std::endl;
+        int concordant_count = 0;
+        for (const auto& pa : current_pair_alignments) {
+            if (pa.isConcordant()) concordant_count++;
+        }
+        std::cout << "  Concordant pairs: " << concordant_count << std::endl;
+        
+        // Apply integrated paired-end scoring
+        integratePairedEndScoring();
     }
 }
 
@@ -2531,4 +2585,66 @@ void AMRDetectionPipeline::analyzeBetaLactamaseAssignments() {
             }
         }
     }
+}
+
+void AMRDetectionPipeline::integratePairedEndScoring() {
+    if (current_pair_alignments.empty()) return;
+    
+    std::cout << "\nIntegrating paired-end scoring..." << std::endl;
+    
+    // Create a map of read_id to best gene assignment considering pairs
+    std::map<uint32_t, uint32_t> read_to_best_gene;
+    std::map<uint32_t, float> read_to_best_score;
+    
+    for (const auto& pair_align : current_pair_alignments) {
+        if (pair_align.isConcordant()) {
+            // For concordant pairs, strongly prefer the concordant gene
+            uint32_t best_gene = pair_align.concordant_genes[0];
+            float best_score = pair_align.concordant_scores[0];
+            
+            for (size_t i = 1; i < pair_align.concordant_genes.size(); i++) {
+                if (pair_align.concordant_scores[i] > best_score) {
+                    best_gene = pair_align.concordant_genes[i];
+                    best_score = pair_align.concordant_scores[i];
+                }
+            }
+            
+            // Apply concordance bonus
+            best_score *= config.concordance_bonus;
+            
+            read_to_best_gene[pair_align.r1_read_idx] = best_gene;
+            read_to_best_gene[pair_align.r2_read_idx] = best_gene;
+            read_to_best_score[pair_align.r1_read_idx] = best_score;
+            read_to_best_score[pair_align.r2_read_idx] = best_score;
+            
+        } else {
+            // For discordant pairs, use individual best hits with penalty
+            if (!pair_align.r1_gene_ids.empty()) {
+                size_t best_idx = 0;
+                for (size_t i = 1; i < pair_align.r1_scores.size(); i++) {
+                    if (pair_align.r1_scores[i] > pair_align.r1_scores[best_idx]) {
+                        best_idx = i;
+                    }
+                }
+                read_to_best_gene[pair_align.r1_read_idx] = pair_align.r1_gene_ids[best_idx];
+                read_to_best_score[pair_align.r1_read_idx] = 
+                    pair_align.r1_scores[best_idx] * config.discord_penalty;
+            }
+            
+            if (!pair_align.r2_gene_ids.empty()) {
+                size_t best_idx = 0;
+                for (size_t i = 1; i < pair_align.r2_scores.size(); i++) {
+                    if (pair_align.r2_scores[i] > pair_align.r2_scores[best_idx]) {
+                        best_idx = i;
+                    }
+                }
+                read_to_best_gene[pair_align.r2_read_idx] = pair_align.r2_gene_ids[best_idx];
+                read_to_best_score[pair_align.r2_read_idx] = 
+                    pair_align.r2_scores[best_idx] * config.discord_penalty;
+            }
+        }
+    }
+    
+    std::cout << "Paired-end scoring applied to " << read_to_best_gene.size() 
+              << " reads" << std::endl;
 }

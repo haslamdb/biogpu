@@ -117,6 +117,36 @@ struct GeneAbundance {
     float coverage_breadth;  // Percentage of gene covered
 };
 
+// Structure to track alignments for a read pair
+struct ReadPairAlignment {
+    uint32_t pair_id;
+    uint32_t r1_read_idx;
+    uint32_t r2_read_idx;
+    
+    // R1 alignments
+    std::vector<uint32_t> r1_gene_ids;
+    std::vector<float> r1_scores;
+    
+    // R2 alignments  
+    std::vector<uint32_t> r2_gene_ids;
+    std::vector<float> r2_scores;
+    
+    // Concordant gene matches
+    std::vector<uint32_t> concordant_genes;
+    std::vector<float> concordant_scores;
+    
+    // Fragment length if concordant
+    int32_t fragment_length = -1;
+    
+    bool hasAlignment() const { 
+        return !r1_gene_ids.empty() || !r2_gene_ids.empty(); 
+    }
+    
+    bool isConcordant() const {
+        return !concordant_genes.empty();
+    }
+};
+
 class AMRDetectionPipeline {
 private:
     static constexpr size_t MAX_MATCHES_PER_READ = 32;  // Must match what's in the kernel
@@ -169,6 +199,10 @@ private:
     
     // Paired-end read tracking
     std::vector<PairedReadInfo> paired_read_info;
+    
+    // Enhanced paired-end alignment tracking
+    std::vector<ReadPairAlignment> read_pair_alignments;
+    std::vector<ReadPairAlignment> current_pair_alignments;
     
 public:
     AMRDetectionPipeline(const AMRDetectionConfig& cfg);
@@ -317,6 +351,9 @@ private:
     
     // Paired-end concordance scoring (Note: ProteinMatch is defined in cpp file)
     void applyPairedConcordanceScoring(void* matches, uint32_t* match_counts, int num_reads);
+    
+    // Enhanced paired-end scoring integration
+    void integratePairedEndScoring();
     
     
     // Gene family extraction methods

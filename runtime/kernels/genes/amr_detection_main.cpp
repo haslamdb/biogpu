@@ -216,7 +216,7 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     }
     
     std::cout << "R1 reads: " << reads_r1.size() << ", R2 reads: " << reads_r2.size() << std::endl;
-    std::cout << "Processing paired-end reads separately..." << std::endl;
+    std::cout << "Processing paired-end reads with enhanced paired-end handling..." << std::endl;
     
     // Collect all AMR hits across batches
     std::vector<AMRHit> all_amr_hits;
@@ -240,24 +240,25 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
                   << " (pairs " << start_idx << "-" << end_idx << ")" << std::endl;
         
-        // Extract reads and IDs for this batch
-        std::vector<std::string> batch_reads1;
-        std::vector<std::string> batch_reads2;
-        std::vector<std::string> batch_ids;
-        
+        // Build read pair data for new approach
+        std::vector<ReadPairData> batch_pairs;
+        batch_pairs.reserve(end_idx - start_idx);
         
         for (int i = start_idx; i < end_idx; i++) {
             // Skip pairs where either read is empty
             if (!reads_r1[i].second.empty() && !reads_r2[i].second.empty()) {
-                batch_ids.push_back(reads_r1[i].first);
-                batch_reads1.push_back(reads_r1[i].second);
-                batch_reads2.push_back(reads_r2[i].second);
+                ReadPairData pair_data;
+                pair_data.read1_seq = reads_r1[i].second;
+                pair_data.read2_seq = reads_r2[i].second;
+                pair_data.read1_id = reads_r1[i].first + "_R1";
+                pair_data.read2_id = reads_r2[i].first + "_R2";
+                pair_data.pair_index = i;
+                batch_pairs.push_back(pair_data);
             }
         }
         
-        
-        // Process batch of paired reads
-        pipeline.processBatchPaired(batch_reads1, batch_reads2, batch_ids);
+        // Process batch of paired reads with new approach
+        pipeline.processPairedBatch(batch_pairs);
         
         
         // Get results from this batch
@@ -634,9 +635,9 @@ int main(int argc, char** argv) {
         }
         
         if (sample.isPairedEnd()) {
-            // Process paired-end reads
+            // Process paired-end reads with enhanced handling (no merging)
             processSamplePaired(pipeline, sample.sample_name, 
-                               sample.read1_path, sample.read2_path, output_dir, config, merge_paired_reads);
+                               sample.read1_path, sample.read2_path, output_dir, config, false);
         } else {
             // Process single-end reads
             processSample(pipeline, sample.sample_name, sample.read1_path, output_dir, config);

@@ -1626,6 +1626,359 @@ void AMRDetectionPipeline::processBatchPaired(const std::vector<std::string>& re
     }
 }
 
+void AMRDetectionPipeline::processPairedBatch(const std::vector<ReadPairData>& read_pairs) {
+    if (read_pairs.empty()) {
+        return;
+    }
+    
+    // Track read processing performance
+    total_reads_processed += read_pairs.size();
+    
+    // Performance reporting
+    auto current_time = std::chrono::steady_clock::now();
+    double time_since_last_report = std::chrono::duration<double>(
+        current_time - last_performance_report).count();
+    
+    if (time_since_last_report >= 60.0) {  // Report every minute
+        double total_elapsed = std::chrono::duration<double>(
+            current_time - processing_start_time).count();
+        uint64_t reads_since_checkpoint = total_reads_processed - reads_processed_checkpoint;
+        
+        if (time_since_last_report > 0) {
+            double reads_per_minute = reads_since_checkpoint * 60.0 / time_since_last_report;
+            double reads_per_second = reads_since_checkpoint / static_cast<double>(time_since_last_report);
+            
+            std::cout << "\n=== Performance Report (Paired-End Improved) ===" << std::endl;
+            std::cout << "Total read pairs processed: " << total_reads_processed << std::endl;
+            std::cout << "Read pairs in last period: " << reads_since_checkpoint << std::endl;
+            std::cout << "Throughput: " << std::fixed << std::setprecision(1) 
+                      << reads_per_minute << " read pairs/minute (" 
+                      << reads_per_second << " read pairs/second)" << std::endl;
+            std::cout << "Total elapsed time: " << total_elapsed << " seconds" << std::endl;
+            std::cout << "=====================================\n" << std::endl;
+        }
+        
+        reads_processed_checkpoint = total_reads_processed;
+        last_performance_report = current_time;
+    }
+    
+    // Clear previous batch data
+    paired_read_info.clear();
+    current_pair_alignments.clear();
+    
+    // Prepare separate reads for processing
+    std::vector<std::string> all_reads;
+    std::vector<std::string> all_read_ids;
+    all_reads.reserve(read_pairs.size() * 2);
+    all_read_ids.reserve(read_pairs.size() * 2);
+    paired_read_info.reserve(read_pairs.size() * 2);
+    
+    // Process each read pair, keeping R1 and R2 separate
+    for (size_t i = 0; i < read_pairs.size(); i++) {
+        const auto& pair = read_pairs[i];
+        
+        // Add R1
+        if (!pair.read1_seq.empty()) {
+            all_reads.push_back(pair.read1_seq);
+            all_read_ids.push_back(pair.read1_id);
+            
+            uint32_t r1_idx = all_reads.size() - 1;
+            paired_read_info.push_back({
+                pair.pair_index,              // Original pair index
+                false,                        // This is R1
+                r1_idx + 1                   // Points to R2 (will be next)
+            });
+        }
+        
+        // Add R2
+        if (!pair.read2_seq.empty()) {
+            all_reads.push_back(pair.read2_seq);
+            all_read_ids.push_back(pair.read2_id);
+            
+            uint32_t r2_idx = all_reads.size() - 1;
+            paired_read_info.push_back({
+                pair.pair_index,              // Original pair index
+                true,                         // This is R2
+                r2_idx - 1                   // Points to R1 (previous)
+            });
+        }
+    }
+    
+    // Check batch size limits
+    int engine_batch_size = (config.reads_per_batch * 2) + (config.reads_per_batch / 5);
+    
+    if (all_reads.size() > engine_batch_size) {
+        // Process in smaller chunks
+        std::cout << "Batch size " << all_reads.size() << " exceeds engine capacity " 
+                  << engine_batch_size << ", processing in chunks" << std::endl;
+        
+        size_t chunk_size = engine_batch_size;
+        for (size_t i = 0; i < all_reads.size(); i += chunk_size) {
+            size_t end = std::min(i + chunk_size, all_reads.size());
+            std::vector<std::string> chunk_reads(all_reads.begin() + i, all_reads.begin() + end);
+            std::vector<std::string> chunk_ids(all_read_ids.begin() + i, all_read_ids.begin() + end);
+            
+            std::cout << "Processing chunk " << (i/chunk_size + 1) << ": reads " << i << "-" << end << std::endl;
+            current_batch_size = chunk_reads.size();
+            processBatch(chunk_reads, chunk_ids);
+        }
+        return;
+    }
+    
+    // Process all reads in single batch
+    current_batch_size = all_reads.size();
+    if (current_batch_size > 0) {
+        processBatch(all_reads, all_read_ids);
+        
+        // After processing, build enhanced pair alignment information
+        auto batch_hits = getAMRHits();
+        
+        // Update hits with paired-end information
+        updateHitsWithPairedInfo(batch_hits, read_pairs);
+        
+        buildEnhancedPairAlignments(batch_hits, read_pairs.size());
+        
+        // Estimate fragment length distribution from concordant pairs
+        if (!fragment_dist_estimated && current_pair_alignments.size() >= 100) {
+            estimateFragmentLengthDistribution(current_pair_alignments);
+        }
+        
+        // Update alignment scores based on fragment length probabilities
+        if (fragment_dist_estimated) {
+            updatePairAlignmentScores(current_pair_alignments);
+        }
+        
+        // Apply integrated paired-end scoring with fragment length info
+        integratePairedEndScoring();
+        
+        // Store the updated hits back to GPU for further processing
+        updateGPUHitsWithPairedInfo(batch_hits);
+    }
+}
+
+void AMRDetectionPipeline::buildEnhancedPairAlignments(
+    const std::vector<AMRHit>& batch_hits, 
+    size_t num_pairs
+) {
+    current_pair_alignments.clear();
+    current_pair_alignments.reserve(num_pairs);
+    
+    // Build alignment information for each pair
+    for (size_t pair_idx = 0; pair_idx < num_pairs; pair_idx++) {
+        ReadPairAlignment pair_align;
+        pair_align.pair_id = pair_idx;
+        pair_align.r1_read_idx = pair_idx * 2;
+        pair_align.r2_read_idx = pair_idx * 2 + 1;
+        
+        // Collect R1 and R2 hits with position information
+        for (const auto& hit : batch_hits) {
+            if (hit.read_id == pair_align.r1_read_idx) {
+                pair_align.r1_gene_ids.push_back(hit.gene_id);
+                pair_align.r1_scores.push_back(hit.identity * (hit.ref_end - hit.ref_start));
+                pair_align.r1_positions.push_back(hit.ref_start);
+                pair_align.r1_frames.push_back(hit.frame);
+            } else if (hit.read_id == pair_align.r2_read_idx) {
+                pair_align.r2_gene_ids.push_back(hit.gene_id);
+                pair_align.r2_scores.push_back(hit.identity * (hit.ref_end - hit.ref_start));
+                pair_align.r2_positions.push_back(hit.ref_start);
+                pair_align.r2_frames.push_back(hit.frame);
+            }
+        }
+        
+        // Find concordant genes and calculate fragment lengths
+        for (size_t i = 0; i < pair_align.r1_gene_ids.size(); i++) {
+            for (size_t j = 0; j < pair_align.r2_gene_ids.size(); j++) {
+                if (pair_align.r1_gene_ids[i] == pair_align.r2_gene_ids[j]) {
+                    uint32_t gene_id = pair_align.r1_gene_ids[i];
+                    
+                    // Get gene length for fragment calculation
+                    AMRGeneEntry gene_entry = getGeneEntry(gene_id);
+                    int32_t gene_length = gene_entry.protein_length;
+                    
+                    // Calculate fragment length
+                    int32_t frag_len = pair_align.calculateFragmentLength(
+                        pair_align.r1_positions[i],
+                        pair_align.r2_positions[j],
+                        gene_length,
+                        150,  // Assume 150bp reads (can be made configurable)
+                        150
+                    );
+                    
+                    if (frag_len > 0) {
+                        pair_align.concordant_genes.push_back(gene_id);
+                        pair_align.concordant_scores.push_back(
+                            pair_align.r1_scores[i] + pair_align.r2_scores[j]
+                        );
+                        pair_align.fragment_lengths.push_back(frag_len);
+                        
+                        // Calculate fragment probability if distribution is known
+                        float frag_prob = fragment_dist_estimated ? 
+                            calculateFragmentLengthProbability(frag_len) : 1.0f;
+                        pair_align.fragment_probabilities.push_back(frag_prob);
+                    }
+                }
+            }
+        }
+        
+        // Find best concordant match
+        if (pair_align.isConcordant()) {
+            float best_score = 0.0f;
+            for (size_t i = 0; i < pair_align.concordant_genes.size(); i++) {
+                float combined_score = pair_align.concordant_scores[i] * 
+                                     pair_align.fragment_probabilities[i];
+                if (combined_score > best_score) {
+                    best_score = combined_score;
+                    pair_align.best_gene_id = pair_align.concordant_genes[i];
+                    pair_align.best_fragment_length = pair_align.fragment_lengths[i];
+                    pair_align.best_concordant_score = combined_score;
+                }
+            }
+        }
+        
+        if (pair_align.hasAlignment()) {
+            current_pair_alignments.push_back(pair_align);
+        }
+    }
+    
+    // Report alignment statistics
+    std::cout << "Enhanced pair alignment summary:" << std::endl;
+    std::cout << "  Total pairs: " << num_pairs << std::endl;
+    std::cout << "  Pairs with alignments: " << current_pair_alignments.size() << std::endl;
+    
+    int concordant_count = 0;
+    float avg_fragment_length = 0.0f;
+    int valid_fragments = 0;
+    
+    for (const auto& pa : current_pair_alignments) {
+        if (pa.isConcordant()) {
+            concordant_count++;
+            if (pa.best_fragment_length > 0) {
+                avg_fragment_length += pa.best_fragment_length;
+                valid_fragments++;
+            }
+        }
+    }
+    
+    std::cout << "  Concordant pairs: " << concordant_count << std::endl;
+    if (valid_fragments > 0) {
+        avg_fragment_length /= valid_fragments;
+        std::cout << "  Average fragment length: " << avg_fragment_length << " bp" << std::endl;
+    }
+}
+
+void AMRDetectionPipeline::estimateFragmentLengthDistribution(
+    const std::vector<ReadPairAlignment>& alignments
+) {
+    std::vector<float> fragment_lengths;
+    
+    // Collect fragment lengths from high-confidence concordant pairs
+    for (const auto& align : alignments) {
+        if (align.isConcordant() && align.best_fragment_length > 0) {
+            // Only use high-scoring pairs for distribution estimation
+            if (align.best_concordant_score > 100.0f) {
+                fragment_lengths.push_back(static_cast<float>(align.best_fragment_length));
+            }
+        }
+    }
+    
+    if (fragment_lengths.size() < 50) {
+        std::cout << "Not enough concordant pairs for fragment length estimation" << std::endl;
+        return;
+    }
+    
+    // Calculate mean
+    float sum = 0.0f;
+    for (float len : fragment_lengths) {
+        sum += len;
+    }
+    estimated_fragment_mean = sum / fragment_lengths.size();
+    
+    // Calculate standard deviation
+    float sq_sum = 0.0f;
+    for (float len : fragment_lengths) {
+        float diff = len - estimated_fragment_mean;
+        sq_sum += diff * diff;
+    }
+    estimated_fragment_std = std::sqrt(sq_sum / fragment_lengths.size());
+    
+    // Remove outliers and recalculate
+    std::vector<float> filtered_lengths;
+    for (float len : fragment_lengths) {
+        float z_score = std::abs(len - estimated_fragment_mean) / estimated_fragment_std;
+        if (z_score <= 2.0f) {  // Keep within 2 standard deviations
+            filtered_lengths.push_back(len);
+        }
+    }
+    
+    if (filtered_lengths.size() >= 30) {
+        // Recalculate with filtered data
+        sum = 0.0f;
+        for (float len : filtered_lengths) {
+            sum += len;
+        }
+        estimated_fragment_mean = sum / filtered_lengths.size();
+        
+        sq_sum = 0.0f;
+        for (float len : filtered_lengths) {
+            float diff = len - estimated_fragment_mean;
+            sq_sum += diff * diff;
+        }
+        estimated_fragment_std = std::sqrt(sq_sum / filtered_lengths.size());
+    }
+    
+    fragment_dist_estimated = true;
+    
+    std::cout << "Fragment length distribution estimated:" << std::endl;
+    std::cout << "  Mean: " << estimated_fragment_mean << " bp" << std::endl;
+    std::cout << "  Std dev: " << estimated_fragment_std << " bp" << std::endl;
+    std::cout << "  Based on " << filtered_lengths.size() << " concordant pairs" << std::endl;
+}
+
+float AMRDetectionPipeline::calculateFragmentLengthProbability(int32_t fragment_length) const {
+    if (!fragment_dist_estimated || fragment_length <= 0) {
+        return 1.0f;  // Neutral probability if no distribution
+    }
+    
+    // Calculate z-score
+    float z = (fragment_length - estimated_fragment_mean) / estimated_fragment_std;
+    
+    // Probability from normal distribution
+    // Using simplified formula: exp(-0.5 * z^2)
+    float prob = std::exp(-0.5f * z * z);
+    
+    // Clamp to reasonable range
+    return std::max(0.01f, std::min(1.0f, prob));
+}
+
+void AMRDetectionPipeline::updatePairAlignmentScores(
+    std::vector<ReadPairAlignment>& alignments
+) {
+    for (auto& align : alignments) {
+        // Recalculate fragment probabilities with estimated distribution
+        for (size_t i = 0; i < align.fragment_lengths.size(); i++) {
+            align.fragment_probabilities[i] = 
+                calculateFragmentLengthProbability(align.fragment_lengths[i]);
+        }
+        
+        // Update best concordant match
+        if (align.isConcordant()) {
+            float best_score = 0.0f;
+            for (size_t i = 0; i < align.concordant_genes.size(); i++) {
+                float combined_score = align.concordant_scores[i] * 
+                                     align.fragment_probabilities[i] *
+                                     config.concordance_bonus;  // Apply concordance bonus
+                                     
+                if (combined_score > best_score) {
+                    best_score = combined_score;
+                    align.best_gene_id = align.concordant_genes[i];
+                    align.best_fragment_length = align.fragment_lengths[i];
+                    align.best_concordant_score = combined_score;
+                }
+            }
+        }
+    }
+}
+
 void AMRDetectionPipeline::applyPairedConcordanceScoring(
     void* matches_ptr,
     uint32_t* match_counts,
@@ -1767,16 +2120,43 @@ void AMRDetectionPipeline::resolveAmbiguousAssignmentsEM() {
     
     std::cout << "Input: " << accumulated_hits.size() << " total accumulated hits" << std::endl;
     
-    // Build read assignments with quality filtering using accumulated hits
-    buildReadAssignments(accumulated_hits);
-    
-    if (read_assignments.empty()) {
-        std::cout << "No high-quality assignments to resolve" << std::endl;
-        return;
+    // Check if we have paired-end data
+    bool has_paired_data = false;
+    for (const auto& hit : accumulated_hits) {
+        if (hit.pair_id != UINT32_MAX && hit.mate_read_id != UINT32_MAX) {
+            has_paired_data = true;
+            break;
+        }
     }
     
-    // Run the full EM algorithm
-    runKallistoStyleEM();
+    if (has_paired_data) {
+        std::cout << "Detected paired-end data - using paired-end aware EM" << std::endl;
+        
+        // Build paired read assignments
+        buildPairedReadAssignments(accumulated_hits);
+        
+        if (paired_read_assignments.empty()) {
+            std::cout << "No paired assignments to resolve" << std::endl;
+            return;
+        }
+        
+        // Run paired-end aware EM
+        runPairedEndEM();
+    } else {
+        // Fall back to single-end EM
+        std::cout << "Using single-end EM algorithm" << std::endl;
+        
+        // Build read assignments with quality filtering using accumulated hits
+        buildReadAssignments(accumulated_hits);
+        
+        if (read_assignments.empty()) {
+            std::cout << "No high-quality assignments to resolve" << std::endl;
+            return;
+        }
+        
+        // Run the full EM algorithm
+        runKallistoStyleEM();
+    }
     
     // Update coverage statistics based on EM results
     updateCoverageStatsFromKallistoEM();
@@ -1967,8 +2347,15 @@ void AMRDetectionPipeline::buildReadAssignments(const std::vector<AMRHit>& all_h
     
     std::cout << "Building read assignments from " << all_hits.size() << " hits..." << std::endl;
     
+    // First, build a map of pair_id to hits for concordance checking
+    std::map<uint32_t, std::vector<const AMRHit*>> pair_hits;
+    for (const auto& hit : all_hits) {
+        pair_hits[hit.pair_id].push_back(&hit);
+    }
+    
     int high_quality_hits = 0;
     int filtered_hits = 0;
+    int concordant_bonuses = 0;
     
     // Group hits by read_id and filter for quality
     for (const auto& hit : all_hits) {
@@ -1980,6 +2367,31 @@ void AMRDetectionPipeline::buildReadAssignments(const std::vector<AMRHit>& all_h
             assignment.candidate_genes.push_back(hit.gene_id);
             
             float score = calculateAssignmentScore(hit);
+            
+            // Apply paired-end concordance bonus if applicable
+            if (hit.concordant && hit.pair_score > 0) {
+                score *= config.concordance_bonus;
+                concordant_bonuses++;
+            }
+            
+            // Check for fragment length probability if we have it
+            if (fragment_dist_estimated && hit.concordant) {
+                // Find the corresponding pair alignment
+                for (const auto& pair_align : read_pair_alignments) {
+                    if ((hit.is_read2 ? pair_align.r2_read_idx : pair_align.r1_read_idx) == hit.read_id) {
+                        // Find this gene in the concordant list
+                        for (size_t i = 0; i < pair_align.concordant_genes.size(); i++) {
+                            if (pair_align.concordant_genes[i] == hit.gene_id) {
+                                float frag_prob = pair_align.fragment_probabilities[i];
+                                score *= frag_prob;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            
             assignment.alignment_scores.push_back(score);
             assignment.high_quality = true;
         } else {
@@ -1990,6 +2402,11 @@ void AMRDetectionPipeline::buildReadAssignments(const std::vector<AMRHit>& all_h
     std::cout << "Quality filtering results:" << std::endl;
     std::cout << "  High quality hits: " << high_quality_hits << std::endl;
     std::cout << "  Filtered out: " << filtered_hits << std::endl;
+    std::cout << "  Concordant bonuses applied: " << concordant_bonuses << std::endl;
+    if (fragment_dist_estimated) {
+        std::cout << "  Fragment length distribution: mean=" << estimated_fragment_mean 
+                  << " bp, std=" << estimated_fragment_std << " bp" << std::endl;
+    }
     
     // Convert to vector and calculate total scores
     for (auto& [read_id, assignment] : read_map) {
@@ -2024,6 +2441,149 @@ void AMRDetectionPipeline::buildReadAssignments(const std::vector<AMRHit>& all_h
     std::cout << "  Reads with multiple candidates: " << multi_assignment_reads << std::endl;
     std::cout << "  Average candidates per read: " << 
                  (read_assignments.empty() ? 0.0f : (float)total_assignments / read_assignments.size()) << std::endl;
+}
+
+void AMRDetectionPipeline::buildPairedReadAssignments(const std::vector<AMRHit>& all_hits) {
+    paired_read_assignments.clear();
+    std::map<uint32_t, PairedReadAssignment> pair_map;
+    
+    std::cout << "Building paired read assignments from " << all_hits.size() << " hits..." << std::endl;
+    
+    // Group hits by pair_id
+    std::map<uint32_t, std::vector<const AMRHit*>> hits_by_pair;
+    for (const auto& hit : all_hits) {
+        if (isHighQualityHit(hit)) {
+            hits_by_pair[hit.pair_id].push_back(&hit);
+        }
+    }
+    
+    std::cout << "Found " << hits_by_pair.size() << " read pairs with hits" << std::endl;
+    
+    // Build assignments for each pair
+    for (const auto& [pair_id, pair_hits] : hits_by_pair) {
+        PairedReadAssignment pair_assign;
+        pair_assign.pair_id = pair_id;
+        
+        // Separate R1 and R2 hits
+        std::vector<const AMRHit*> r1_hits, r2_hits;
+        for (const auto* hit : pair_hits) {
+            if (hit->is_read2) {
+                r2_hits.push_back(hit);
+                pair_assign.r2_read_id = hit->read_id;
+            } else {
+                r1_hits.push_back(hit);
+                pair_assign.r1_read_id = hit->read_id;
+            }
+        }
+        
+        // Process R1 hits
+        std::set<uint32_t> r1_genes;
+        for (const auto* hit : r1_hits) {
+            float score = calculateAssignmentScore(*hit);
+            pair_assign.r1_gene_scores[hit->gene_id] = score;
+            r1_genes.insert(hit->gene_id);
+        }
+        
+        // Process R2 hits
+        std::set<uint32_t> r2_genes;
+        for (const auto* hit : r2_hits) {
+            float score = calculateAssignmentScore(*hit);
+            pair_assign.r2_gene_scores[hit->gene_id] = score;
+            r2_genes.insert(hit->gene_id);
+        }
+        
+        // Find compatible genes (union of R1 and R2 genes)
+        std::set<uint32_t> all_genes;
+        all_genes.insert(r1_genes.begin(), r1_genes.end());
+        all_genes.insert(r2_genes.begin(), r2_genes.end());
+        pair_assign.compatible_genes.assign(all_genes.begin(), all_genes.end());
+        
+        // Calculate concordance scores and fragment information
+        for (uint32_t gene_id : all_genes) {
+            if (pair_assign.isConcordant(gene_id)) {
+                // Both reads hit this gene - calculate combined score
+                float r1_score = pair_assign.r1_gene_scores[gene_id];
+                float r2_score = pair_assign.r2_gene_scores[gene_id];
+                
+                // Find the actual hits to get position information
+                const AMRHit* r1_hit = nullptr;
+                const AMRHit* r2_hit = nullptr;
+                for (const auto* hit : r1_hits) {
+                    if (hit->gene_id == gene_id) {
+                        r1_hit = hit;
+                        break;
+                    }
+                }
+                for (const auto* hit : r2_hits) {
+                    if (hit->gene_id == gene_id) {
+                        r2_hit = hit;
+                        break;
+                    }
+                }
+                
+                if (r1_hit && r2_hit) {
+                    // Calculate fragment length
+                    AMRGeneEntry gene_entry = getGeneEntry(gene_id);
+                    int32_t gene_length = gene_entry.protein_length;
+                    
+                    // For protein alignments, positions are in amino acids
+                    int32_t r1_nt_start = r1_hit->ref_start * 3;
+                    int32_t r2_nt_end = r2_hit->ref_end * 3;
+                    
+                    if (r2_nt_end > r1_nt_start) {
+                        int32_t fragment_length = r2_nt_end - r1_nt_start + 150; // Add read length
+                        pair_assign.fragment_lengths[gene_id] = fragment_length;
+                        
+                        // Calculate fragment probability
+                        float frag_prob = calculateFragmentLengthProbability(fragment_length);
+                        pair_assign.fragment_probabilities[gene_id] = frag_prob;
+                        
+                        // Combined score with concordance bonus and fragment probability
+                        float combined_score = (r1_score + r2_score) * config.concordance_bonus * frag_prob;
+                        pair_assign.concordance_scores[gene_id] = combined_score;
+                    }
+                }
+            }
+        }
+        
+        // Initialize uniform probabilities
+        if (!pair_assign.compatible_genes.empty()) {
+            float uniform_prob = 1.0f / pair_assign.compatible_genes.size();
+            for (uint32_t gene_id : pair_assign.compatible_genes) {
+                pair_assign.assignment_probabilities[gene_id] = uniform_prob;
+            }
+            paired_read_assignments.push_back(pair_assign);
+        }
+    }
+    
+    // Report statistics
+    int concordant_pairs = 0;
+    int discordant_pairs = 0;
+    int single_end_pairs = 0;
+    
+    for (const auto& pair : paired_read_assignments) {
+        bool has_concordant = false;
+        for (uint32_t gene_id : pair.compatible_genes) {
+            if (pair.isConcordant(gene_id)) {
+                has_concordant = true;
+                break;
+            }
+        }
+        
+        if (has_concordant) {
+            concordant_pairs++;
+        } else if (pair.r1_gene_scores.empty() || pair.r2_gene_scores.empty()) {
+            single_end_pairs++;
+        } else {
+            discordant_pairs++;
+        }
+    }
+    
+    std::cout << "Paired assignment statistics:" << std::endl;
+    std::cout << "  Total pairs with assignments: " << paired_read_assignments.size() << std::endl;
+    std::cout << "  Concordant pairs: " << concordant_pairs << std::endl;
+    std::cout << "  Discordant pairs: " << discordant_pairs << std::endl;
+    std::cout << "  Single-end pairs: " << single_end_pairs << std::endl;
 }
 
 float AMRDetectionPipeline::calculateNameSimilarity(const std::string& name1, const std::string& name2) {
@@ -2362,6 +2922,194 @@ void AMRDetectionPipeline::updateGeneAbundances() {
     }
 }
 
+void AMRDetectionPipeline::runPairedEndEM() {
+    std::cout << "\n=== Running Paired-End Aware EM Algorithm ===" << std::endl;
+    
+    if (paired_read_assignments.empty()) {
+        std::cout << "No paired assignments to process" << std::endl;
+        return;
+    }
+    
+    // Initialize gene families, similarity matrix, and abundances
+    buildGeneFamiliesMap();
+    buildSequenceSimilarityMatrix();
+    initializeGeneAbundances();
+    normalizeInitialAbundances();
+    
+    // Store previous abundances for convergence checking
+    std::map<uint32_t, float> prev_abundances;
+    
+    // EM iterations
+    for (int iter = 0; iter < config.em_iterations; iter++) {
+        std::cout << "\nEM Iteration " << (iter + 1) << "/" << config.em_iterations << std::endl;
+        
+        // Store current abundances for convergence check
+        for (const auto& [gene_id, info] : gene_abundance_info) {
+            prev_abundances[gene_id] = info.abundance;
+        }
+        
+        // E-step: Update assignment probabilities
+        updatePairedAssignmentProbabilities();
+        
+        // M-step: Update gene abundances
+        updateGeneAbundancesFromPairs();
+        
+        // Apply family constraints if needed
+        applyFamilyConstraints();
+        
+        // Check convergence
+        float max_change = 0.0f;
+        for (const auto& [gene_id, info] : gene_abundance_info) {
+            float change = std::abs(info.abundance - prev_abundances[gene_id]);
+            max_change = std::max(max_change, change);
+        }
+        
+        std::cout << "Max abundance change: " << max_change << std::endl;
+        
+        if (max_change < config.em_convergence) {
+            std::cout << "EM converged after " << (iter + 1) << " iterations" << std::endl;
+            break;
+        }
+    }
+}
+
+void AMRDetectionPipeline::updatePairedAssignmentProbabilities() {
+    // E-step for paired reads
+    
+    for (auto& pair_assign : paired_read_assignments) {
+        std::map<uint32_t, float> gene_weights;
+        float total_weight = 0.0f;
+        
+        for (uint32_t gene_id : pair_assign.compatible_genes) {
+            float weight = calculatePairProbability(pair_assign, gene_id);
+            gene_weights[gene_id] = weight;
+            total_weight += weight;
+        }
+        
+        // Normalize to probabilities
+        if (total_weight > 0) {
+            for (auto& [gene_id, weight] : gene_weights) {
+                pair_assign.assignment_probabilities[gene_id] = weight / total_weight;
+            }
+        } else {
+            // Fallback to uniform
+            float uniform_prob = 1.0f / pair_assign.compatible_genes.size();
+            for (uint32_t gene_id : pair_assign.compatible_genes) {
+                pair_assign.assignment_probabilities[gene_id] = uniform_prob;
+            }
+        }
+        
+        pair_assign.total_probability = total_weight;
+    }
+}
+
+float AMRDetectionPipeline::calculatePairProbability(
+    const PairedReadAssignment& pair, 
+    uint32_t gene_id
+) {
+    const auto& gene_info = gene_abundance_info.at(gene_id);
+    
+    // Base probability from abundance
+    float abundance_weight = gene_info.abundance / (gene_info.effective_length + 1e-10f);
+    
+    // Alignment scores
+    float alignment_weight = 0.0f;
+    
+    if (pair.isConcordant(gene_id)) {
+        // Concordant pair - use combined score with fragment length probability
+        if (pair.concordance_scores.count(gene_id)) {
+            alignment_weight = pair.concordance_scores.at(gene_id);
+        } else {
+            // Fallback to sum of individual scores
+            alignment_weight = pair.getCombinedScore(gene_id) * config.concordance_bonus;
+        }
+        
+        // Apply fragment length probability if available
+        if (pair.fragment_probabilities.count(gene_id)) {
+            alignment_weight *= pair.fragment_probabilities.at(gene_id);
+        }
+    } else {
+        // Discordant or single-end - use individual scores with penalty
+        alignment_weight = pair.getCombinedScore(gene_id) * config.discord_penalty;
+    }
+    
+    // Sequence similarity boost (if multiple candidates)
+    float similarity_boost = 1.0f;
+    if (SIMILARITY_WEIGHT > 0 && pair.compatible_genes.size() > 1) {
+        float max_similarity_contribution = 0.0f;
+        
+        for (uint32_t other_gene : pair.compatible_genes) {
+            if (other_gene != gene_id) {
+                float similarity = gene_similarity_matrix[gene_id][other_gene];
+                float other_abundance = gene_abundance_info.at(other_gene).abundance;
+                
+                max_similarity_contribution = std::max(max_similarity_contribution, 
+                                                     similarity * other_abundance);
+            }
+        }
+        
+        similarity_boost = 1.0f + SIMILARITY_WEIGHT * max_similarity_contribution;
+    }
+    
+    return alignment_weight * abundance_weight * similarity_boost;
+}
+
+void AMRDetectionPipeline::updateGeneAbundancesFromPairs() {
+    // M-step for paired reads
+    
+    // Reset read counts
+    for (auto& [gene_id, info] : gene_abundance_info) {
+        info.total_reads = 0.0f;
+    }
+    
+    // Accumulate fractional pair assignments
+    for (const auto& pair_assign : paired_read_assignments) {
+        for (const auto& [gene_id, prob] : pair_assign.assignment_probabilities) {
+            // Each pair counts as 2 reads
+            gene_abundance_info[gene_id].total_reads += 2.0f * prob;
+        }
+    }
+    
+    // Also include unpaired reads if we have them
+    for (const auto& assignment : read_assignments) {
+        // Check if this read is part of a pair that was already counted
+        bool is_paired = false;
+        for (const auto& pair : paired_read_assignments) {
+            if (assignment.read_id == pair.r1_read_id || 
+                assignment.read_id == pair.r2_read_id) {
+                is_paired = true;
+                break;
+            }
+        }
+        
+        if (!is_paired) {
+            // This is an orphaned read, count it separately
+            for (size_t i = 0; i < assignment.candidate_genes.size(); i++) {
+                uint32_t gene_id = assignment.candidate_genes[i];
+                float probability = assignment.assignment_probabilities[i];
+                gene_abundance_info[gene_id].total_reads += probability;
+            }
+        }
+    }
+    
+    // Update abundances (RPKM-like calculation)
+    float total_assigned_reads = 0.0f;
+    for (const auto& [gene_id, info] : gene_abundance_info) {
+        total_assigned_reads += info.total_reads;
+    }
+    
+    for (auto& [gene_id, info] : gene_abundance_info) {
+        // Include prior in abundance calculation
+        float prior_contribution = 0.1f * info.prior_weight;
+        
+        // RPKM = (reads * 1e6) / (gene_length_kb * total_reads)
+        float rpkm = ((info.total_reads + prior_contribution) * 1e6f) / 
+                     ((info.effective_length / 1000.0f) * (total_assigned_reads + 1.0f));
+        
+        info.abundance = rpkm;
+    }
+}
+
 void AMRDetectionPipeline::applyFamilyConstraints() {
     // Optional: Apply constraints within gene families
     const float FAMILY_SMOOTHING = 0.05f;  // 5% smoothing within families
@@ -2584,6 +3332,112 @@ void AMRDetectionPipeline::analyzeBetaLactamaseAssignments() {
                           << em_reads << " reads" << std::endl;
             }
         }
+    }
+}
+
+void AMRDetectionPipeline::updateHitsWithPairedInfo(
+    std::vector<AMRHit>& hits, 
+    const std::vector<ReadPairData>& read_pairs
+) {
+    // Create a map for quick lookup of pair information
+    std::map<uint32_t, uint32_t> read_to_pair;
+    std::map<uint32_t, uint32_t> read_to_mate;
+    
+    for (const auto& pair : read_pairs) {
+        // R1 and R2 indices
+        uint32_t r1_idx = pair.pair_index * 2;
+        uint32_t r2_idx = pair.pair_index * 2 + 1;
+        
+        read_to_pair[r1_idx] = pair.pair_index;
+        read_to_pair[r2_idx] = pair.pair_index;
+        read_to_mate[r1_idx] = r2_idx;
+        read_to_mate[r2_idx] = r1_idx;
+    }
+    
+    // Update each hit with paired information
+    for (auto& hit : hits) {
+        if (read_to_pair.count(hit.read_id)) {
+            hit.pair_id = read_to_pair[hit.read_id];
+            hit.is_read2 = (hit.read_id % 2 == 1);  // R2 has odd indices
+            hit.mate_read_id = read_to_mate[hit.read_id];
+        } else {
+            // Single-end or orphaned read
+            hit.pair_id = UINT32_MAX;
+            hit.is_read2 = false;
+            hit.mate_read_id = UINT32_MAX;
+        }
+        
+        // Initialize pair_score to 0 (will be updated later)
+        hit.pair_score = 0.0f;
+    }
+    
+    // Now check for concordant hits
+    std::map<std::pair<uint32_t, uint32_t>, std::vector<AMRHit*>> pair_gene_hits;
+    
+    for (auto& hit : hits) {
+        if (hit.pair_id != UINT32_MAX) {
+            pair_gene_hits[{hit.pair_id, hit.gene_id}].push_back(&hit);
+        }
+    }
+    
+    // Mark concordant hits and calculate pair scores
+    for (auto& [pair_gene, hit_ptrs] : pair_gene_hits) {
+        if (hit_ptrs.size() >= 2) {
+            // Check if we have both R1 and R2
+            bool has_r1 = false, has_r2 = false;
+            float r1_score = 0.0f, r2_score = 0.0f;
+            
+            for (auto* hit : hit_ptrs) {
+                float score = hit->identity * (hit->ref_end - hit->ref_start);
+                if (hit->is_read2) {
+                    has_r2 = true;
+                    r2_score = std::max(r2_score, score);
+                } else {
+                    has_r1 = true;
+                    r1_score = std::max(r1_score, score);
+                }
+            }
+            
+            if (has_r1 && has_r2) {
+                // This is a concordant pair
+                float combined_score = (r1_score + r2_score) * config.concordance_bonus;
+                
+                for (auto* hit : hit_ptrs) {
+                    hit->concordant = true;
+                    hit->pair_score = combined_score;
+                }
+            }
+        }
+    }
+    
+    std::cout << "Updated " << hits.size() << " hits with paired-end information" << std::endl;
+}
+
+void AMRDetectionPipeline::updateGPUHitsWithPairedInfo(const std::vector<AMRHit>& hits) {
+    // Copy updated hits back to GPU
+    if (!hits.empty() && d_amr_hits) {
+        std::vector<AMRHit> gpu_hits(current_batch_size * MAX_MATCHES_PER_READ);
+        
+        // First copy existing hits from GPU
+        cudaMemcpy(gpu_hits.data(), d_amr_hits, 
+                   gpu_hits.size() * sizeof(AMRHit), cudaMemcpyDeviceToHost);
+        
+        // Update with our modified hits
+        size_t hit_idx = 0;
+        for (int i = 0; i < current_batch_size && hit_idx < hits.size(); i++) {
+            for (uint32_t j = 0; j < MAX_MATCHES_PER_READ && hit_idx < hits.size(); j++) {
+                if (hits[hit_idx].read_id == i) {
+                    gpu_hits[i * MAX_MATCHES_PER_READ + j] = hits[hit_idx];
+                    hit_idx++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        // Copy back to GPU
+        cudaMemcpy(d_amr_hits, gpu_hits.data(), 
+                   gpu_hits.size() * sizeof(AMRHit), cudaMemcpyHostToDevice);
     }
 }
 

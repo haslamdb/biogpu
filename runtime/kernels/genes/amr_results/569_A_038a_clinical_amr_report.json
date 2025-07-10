@@ -1,28 +1,28 @@
 {
   "sample_name": "569_A_038a",
-  "report_timestamp": "2025-07-08 22:01:29",
+  "report_timestamp": "2025-07-09 19:42:54",
   "summary": {
     "total_reads": 3405007,
     "reads_with_amr": 6859,
-    "total_genes_detected": 157,
-    "high_confidence_genes": 80,
+    "total_genes_detected": 142,
+    "high_confidence_genes": 73,
     "drug_classes_affected": 2
   },
   "drug_class_analysis": [
     {
       "drug_class": "AMINOGLYCOSIDE",
-      "total_genes": 118,
-      "high_confidence_genes": 60,
-      "total_reads": 10801,
-      "max_tpm": 213034,
-      "clinical_interpretation": "HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aacA-ACI5, ant(2'')-Ia, aph(3'')-Ic, aph(3')-IIIa, aacA-ACI5, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')_Strep, aac(3)-VIII, aac(3)-I, aac(3)-VIa, aac(6')-I30, aac(6')-Iaf, ant(6)-Ia, aac(6')_Serra, aac(6')-Is, aacA37, aac(6')-Ib-G, aac(2')-Id, aac(6')-Ib-AKT, aac(6')-Id, ant(2'')-Ia, aac(6')-Ib-G, aacA-ENT1, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')-IIc, aac(6')-Ib-G, aac(6')_Entco, aac(6')_E553, aacA-ENT2, aac(6')-Ib', aph(3')-Ia, aac(6')-It, ant(2'')-Ia, aac(6')-35, aacA-ACI5, aac(6')-31, aac(6')_Strep, aac(6')_E111, aacA-ACI4, aac(6')-Ib-G, aacA-STR-7, aph(2'')-IVa, aac(2')-Ib, aac(6')_Yersi, aac(6')_Serra, aac(3)-IVb, aac(6')_Serra, aph(2'')-Ii, aacA-STR-13, aacA47, aac(6')_E550, aac(6')-Iag, aac(6')-Ib-G, aac(6')-Ib-AKT, aac(6')-Iaa, aacA-ACI5, aac(6')_Serra, aac(6')-Ia"
+      "total_genes": 103,
+      "high_confidence_genes": 53,
+      "total_reads": 1660,
+      "max_tpm": 152947,
+      "clinical_interpretation": "HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aacA-ACI5, ant(2'')-Ia, aph(3'')-Ic, aph(3')-IIIa, aacA-ACI5, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')_Strep, aac(3)-VIII, aac(3)-I, aac(3)-VIa, aac(6')-I30, aac(6')-Iaf, ant(6)-Ia, aac(6')-Is, aacA37, aac(6')-Ib-G, aac(2')-Id, aac(6')-Ib-AKT, aac(6')-Id, ant(2'')-Ia, aacA-ENT1, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')-IIc, aac(6')-Ib-G, aac(6')_Entco, aacA-ENT2, aph(3')-Ia, aac(6')-It, ant(2'')-Ia, aac(6')-35, aacA-ACI5, aac(6')_Strep, aac(6')_E111, aacA-ACI4, aac(6')-Ib-G, aacA-STR-7, aph(2'')-IVa, aac(2')-Ib, aac(6')_Serra, aac(3)-IVb, aph(2'')-Ii, aacA-STR-13, aacA47, aac(6')_E550, aac(6')-Iag, aac(6')-Ib-G, aac(6')-Ib-AKT, aac(6')-Iaa, aacA-ACI5, aac(6')_Serra, aac(6')-Ia"
     },
     {
       "drug_class": "BETA_LACTAM",
       "total_genes": 39,
       "high_confidence_genes": 20,
-      "total_reads": 3287,
-      "max_tpm": 34680.4,
+      "total_reads": 755,
+      "max_tpm": 43843.9,
       "clinical_interpretation": "HIGH CONFIDENCE: Beta-lactam resistance detected. Consider alternative antibiotics such as fluoroquinolones or aminoglycosides if susceptible. Genes detected: blaESP-1, blaCTX-M-113, blaGIM-2, blaCMY-87, blaCTX-M-46, blaGOB-11, blaCTX-M-41, blaGES-25, blaCMY-85, blaCTX-M-173, blaCTX-M-147, blaCTX-M-84, blaCTX-M-85, blaCTX-M-88, blaCTX-M-90, blaCTX-M-161, blaCTX-M-112, blaEC-18, blaCTX-M-91, blaCTX-M-176"
     }
   ],
@@ -33,7 +33,7 @@
       "read_count": 5,
       "percent_coverage": 7.66284,
       "mean_depth": 5,
-      "tpm": 268.323,
+      "tpm": 1777.22,
       "rpkm": 0.625128,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -44,7 +44,7 @@
       "read_count": 6,
       "percent_coverage": 63.7755,
       "mean_depth": 2.12,
-      "tpm": 428.77,
+      "tpm": 2839.93,
       "rpkm": 0.998929,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -55,7 +55,7 @@
       "read_count": 22,
       "percent_coverage": 83.8863,
       "mean_depth": 5.62712,
-      "tpm": 1460.39,
+      "tpm": 9672.81,
       "rpkm": 3.40236,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -66,7 +66,7 @@
       "read_count": 9,
       "percent_coverage": 69.0323,
       "mean_depth": 3.54206,
-      "tpm": 813.279,
+      "tpm": 5386.71,
       "rpkm": 1.89474,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -77,7 +77,7 @@
       "read_count": 2,
       "percent_coverage": 20.5575,
       "mean_depth": 1,
-      "tpm": 97.6061,
+      "tpm": 646.488,
       "rpkm": 0.227398,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -88,7 +88,7 @@
       "read_count": 3,
       "percent_coverage": 16.3763,
       "mean_depth": 1.55319,
-      "tpm": 146.409,
+      "tpm": 969.733,
       "rpkm": 0.341098,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -99,31 +99,9 @@
       "read_count": 18,
       "percent_coverage": 60.9023,
       "mean_depth": 4.34568,
-      "tpm": 947.807,
+      "tpm": 6277.74,
       "rpkm": 2.20816,
       "confidence_level": "HIGH",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(3)-Ia",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 3,
-      "percent_coverage": 47.0968,
-      "mean_depth": 1.45205,
-      "tpm": 271.093,
-      "rpkm": 0.631581,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(3)-Ic",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 3,
-      "percent_coverage": 37.5796,
-      "mean_depth": 1.55932,
-      "tpm": 267.64,
-      "rpkm": 0.623535,
-      "confidence_level": "MODERATE",
       "is_complete_gene": false
     },
     {
@@ -132,19 +110,8 @@
       "read_count": 1,
       "percent_coverage": 19.4969,
       "mean_depth": 1,
-      "tpm": 88.091,
+      "tpm": 583.466,
       "rpkm": 0.205231,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(3)-Ih",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 3,
-      "percent_coverage": 47.7124,
-      "mean_depth": 1.45205,
-      "tpm": 274.637,
-      "rpkm": 0.639837,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
     },
@@ -154,7 +121,7 @@
       "read_count": 18,
       "percent_coverage": 38.1944,
       "mean_depth": 5.74545,
-      "tpm": 875.405,
+      "tpm": 5798.19,
       "rpkm": 2.03948,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -165,41 +132,19 @@
       "read_count": 21,
       "percent_coverage": 26.6667,
       "mean_depth": 10.3875,
-      "tpm": 980.453,
+      "tpm": 6493.98,
       "rpkm": 2.28422,
-      "confidence_level": "HIGH",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(3)-XI",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 5,
-      "percent_coverage": 71.1409,
-      "mean_depth": 1.60377,
-      "tpm": 470.016,
-      "rpkm": 1.09502,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')-31",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 8,
-      "percent_coverage": 65.4054,
-      "mean_depth": 2.43802,
-      "tpm": 605.685,
-      "rpkm": 1.4111,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
     {
       "gene_name": "aac(6')-35",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 253,
+      "read_count": 5,
       "percent_coverage": 165,
-      "mean_depth": 30.7508,
-      "tpm": 19686.9,
-      "rpkm": 45.8656,
+      "mean_depth": 27.7452,
+      "tpm": 2576.97,
+      "rpkm": 0.906436,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -209,7 +154,7 @@
       "read_count": 1,
       "percent_coverage": 25,
       "mean_depth": 1,
-      "tpm": 76.1222,
+      "tpm": 504.191,
       "rpkm": 0.177346,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -220,7 +165,7 @@
       "read_count": 3,
       "percent_coverage": 22.7027,
       "mean_depth": 2.71429,
-      "tpm": 227.132,
+      "tpm": 1504.4,
       "rpkm": 0.529162,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -231,7 +176,7 @@
       "read_count": 6,
       "percent_coverage": 23.7113,
       "mean_depth": 2.95652,
-      "tpm": 433.19,
+      "tpm": 2869.21,
       "rpkm": 1.00923,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -239,11 +184,11 @@
     {
       "gene_name": "aac(6')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2829,
+      "read_count": 32,
       "percent_coverage": 50.5376,
-      "mean_depth": 1087.23,
-      "tpm": 213034,
-      "rpkm": 496.317,
+      "mean_depth": 1093.09,
+      "tpm": 15960.6,
+      "rpkm": 5.61405,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -253,7 +198,7 @@
       "read_count": 13,
       "percent_coverage": 100,
       "mean_depth": 3.52055,
-      "tpm": 1247.15,
+      "tpm": 8260.44,
       "rpkm": 2.90556,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -264,7 +209,7 @@
       "read_count": 1,
       "percent_coverage": 10.8696,
       "mean_depth": 1,
-      "tpm": 76.1222,
+      "tpm": 504.191,
       "rpkm": 0.177346,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -272,11 +217,11 @@
     {
       "gene_name": "aac(6')-Iaf",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 58,
+      "read_count": 2,
       "percent_coverage": 108.696,
-      "mean_depth": 9.26,
-      "tpm": 4415.08,
-      "rpkm": 10.2861,
+      "mean_depth": 7.79667,
+      "tpm": 1008.38,
+      "rpkm": 0.354692,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -286,30 +231,8 @@
       "read_count": 7,
       "percent_coverage": 55.9524,
       "mean_depth": 3.26596,
-      "tpm": 583.603,
+      "tpm": 3865.46,
       "rpkm": 1.35965,
-      "confidence_level": "HIGH",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')-Iai",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
-      "percent_coverage": 25.9259,
-      "mean_depth": 1.93878,
-      "tpm": 148.217,
-      "rpkm": 0.345309,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')-Ib'",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 375,
-      "percent_coverage": 64.0476,
-      "mean_depth": 47.5762,
-      "tpm": 12505.8,
-      "rpkm": 29.1354,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -319,7 +242,7 @@
       "read_count": 12,
       "percent_coverage": 38.9189,
       "mean_depth": 4.06944,
-      "tpm": 908.528,
+      "tpm": 6017.58,
       "rpkm": 2.11665,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -330,7 +253,7 @@
       "read_count": 2,
       "percent_coverage": 17.8378,
       "mean_depth": 1.60606,
-      "tpm": 151.421,
+      "tpm": 1002.93,
       "rpkm": 0.352775,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -341,7 +264,7 @@
       "read_count": 25,
       "percent_coverage": 41.6216,
       "mean_depth": 10.013,
-      "tpm": 1892.77,
+      "tpm": 12536.6,
       "rpkm": 4.40969,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -352,7 +275,7 @@
       "read_count": 3,
       "percent_coverage": 10.8108,
       "mean_depth": 3,
-      "tpm": 227.132,
+      "tpm": 1504.4,
       "rpkm": 0.529162,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -363,7 +286,7 @@
       "read_count": 1,
       "percent_coverage": 16.7568,
       "mean_depth": 1,
-      "tpm": 75.7107,
+      "tpm": 501.465,
       "rpkm": 0.176387,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -374,7 +297,7 @@
       "read_count": 4,
       "percent_coverage": 43.7838,
       "mean_depth": 1.28395,
-      "tpm": 302.843,
+      "tpm": 2005.86,
       "rpkm": 0.70555,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -385,7 +308,7 @@
       "read_count": 1,
       "percent_coverage": 17.6871,
       "mean_depth": 1,
-      "tpm": 95.2822,
+      "tpm": 631.096,
       "rpkm": 0.221984,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -393,11 +316,11 @@
     {
       "gene_name": "aac(6')-Id",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 419,
+      "read_count": 6,
       "percent_coverage": 235.333,
-      "mean_depth": 44.2918,
-      "tpm": 39124.8,
-      "rpkm": 91.1512,
+      "mean_depth": 41.2323,
+      "tpm": 3710.84,
+      "rpkm": 1.30527,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -407,7 +330,7 @@
       "read_count": 1,
       "percent_coverage": 4.13223,
       "mean_depth": 1,
-      "tpm": 28.939,
+      "tpm": 191.676,
       "rpkm": 0.0674208,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -415,33 +338,33 @@
     {
       "gene_name": "aac(6')-Il",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
-      "percent_coverage": 32.6797,
-      "mean_depth": 1.98,
-      "tpm": 183.091,
-      "rpkm": 0.426558,
+      "read_count": 14,
+      "percent_coverage": 19.6078,
+      "mean_depth": 11,
+      "tpm": 8488.86,
+      "rpkm": 2.98591,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
     },
     {
       "gene_name": "aac(6')-Is",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 235,
+      "read_count": 6,
       "percent_coverage": 127.891,
-      "mean_depth": 46.7553,
-      "tpm": 22391.3,
-      "rpkm": 52.1663,
+      "mean_depth": 48.5372,
+      "tpm": 3786.57,
+      "rpkm": 1.33191,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
     {
       "gene_name": "aac(6')-It",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 406,
+      "read_count": 2,
       "percent_coverage": 224.49,
-      "mean_depth": 47.6212,
-      "tpm": 38684.6,
-      "rpkm": 90.1256,
+      "mean_depth": 55.5,
+      "tpm": 1262.19,
+      "rpkm": 0.443968,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -451,7 +374,7 @@
       "read_count": 2,
       "percent_coverage": 42.1769,
       "mean_depth": 1,
-      "tpm": 190.564,
+      "tpm": 1262.19,
       "rpkm": 0.443968,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -462,7 +385,7 @@
       "read_count": 1,
       "percent_coverage": 22.449,
       "mean_depth": 1,
-      "tpm": 95.2822,
+      "tpm": 631.096,
       "rpkm": 0.221984,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -473,7 +396,7 @@
       "read_count": 1,
       "percent_coverage": 10.8108,
       "mean_depth": 1,
-      "tpm": 75.7107,
+      "tpm": 501.465,
       "rpkm": 0.176387,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -484,7 +407,7 @@
       "read_count": 98,
       "percent_coverage": 31.7241,
       "mean_depth": 58.9565,
-      "tpm": 9466.45,
+      "tpm": 62700.5,
       "rpkm": 22.0545,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -492,55 +415,33 @@
     {
       "gene_name": "aac(6')_E141",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 1,
       "percent_coverage": 23.4899,
-      "mean_depth": 1.94286,
-      "tpm": 188.006,
-      "rpkm": 0.438009,
+      "mean_depth": 1.05714,
+      "tpm": 622.625,
+      "rpkm": 0.219005,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
     },
     {
       "gene_name": "aac(6')_E550",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 336,
+      "read_count": 4,
       "percent_coverage": 128.966,
-      "mean_depth": 59.9358,
-      "tpm": 32456.4,
-      "rpkm": 75.6155,
-      "confidence_level": "HIGH",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')_E553",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 239,
-      "percent_coverage": 79.1946,
-      "mean_depth": 73.661,
-      "tpm": 22466.8,
-      "rpkm": 52.3421,
+      "mean_depth": 55.7041,
+      "tpm": 2559.2,
+      "rpkm": 0.900184,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
     {
       "gene_name": "aac(6')_E606",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 3,
+      "read_count": 1,
       "percent_coverage": 39.8649,
-      "mean_depth": 1.55932,
-      "tpm": 283.915,
-      "rpkm": 0.661453,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')_E963",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
-      "percent_coverage": 31.8182,
-      "mean_depth": 1.93878,
-      "tpm": 181.902,
-      "rpkm": 0.423788,
+      "mean_depth": 1.16384,
+      "tpm": 626.832,
+      "rpkm": 0.220484,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
     },
@@ -550,7 +451,7 @@
       "read_count": 67,
       "percent_coverage": 106.557,
       "mean_depth": 10.9436,
-      "tpm": 5128.05,
+      "tpm": 33965.4,
       "rpkm": 11.9471,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -561,7 +462,7 @@
       "read_count": 98,
       "percent_coverage": 31.2925,
       "mean_depth": 58.9565,
-      "tpm": 9337.65,
+      "tpm": 61847.4,
       "rpkm": 21.7545,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -569,33 +470,22 @@
     {
       "gene_name": "aac(6')_Strep",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 8,
-      "percent_coverage": 103.614,
-      "mean_depth": 1.52907,
-      "tpm": 675.011,
-      "rpkm": 1.57261,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')_Yersi",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 6,
-      "percent_coverage": 60.5442,
-      "mean_depth": 2.65169,
-      "tpm": 571.693,
-      "rpkm": 1.33191,
+      "read_count": 33,
+      "percent_coverage": 28.9157,
+      "mean_depth": 19.6667,
+      "tpm": 18442.4,
+      "rpkm": 6.48702,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
     {
       "gene_name": "aacA-ACI4",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 316,
+      "read_count": 6,
       "percent_coverage": 190.411,
-      "mean_depth": 40.0288,
-      "tpm": 30315.4,
-      "rpkm": 70.6275,
+      "mean_depth": 37.2554,
+      "tpm": 3812.51,
+      "rpkm": 1.34103,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -605,7 +495,7 @@
       "read_count": 28,
       "percent_coverage": 41.4966,
       "mean_depth": 18.9508,
-      "tpm": 2667.9,
+      "tpm": 17670.7,
       "rpkm": 6.21556,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -616,7 +506,7 @@
       "read_count": 1,
       "percent_coverage": 14.2857,
       "mean_depth": 1,
-      "tpm": 95.2822,
+      "tpm": 631.096,
       "rpkm": 0.221984,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -627,7 +517,7 @@
       "read_count": 10,
       "percent_coverage": 108.197,
       "mean_depth": 1.63636,
-      "tpm": 765.381,
+      "tpm": 5069.46,
       "rpkm": 1.78315,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -635,11 +525,11 @@
     {
       "gene_name": "aacA-ENT2",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 607,
+      "read_count": 5,
       "percent_coverage": 175.41,
-      "mean_depth": 70.3271,
-      "tpm": 46458.6,
-      "rpkm": 108.237,
+      "mean_depth": 70.9865,
+      "tpm": 2534.73,
+      "rpkm": 0.891576,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -649,7 +539,7 @@
       "read_count": 33,
       "percent_coverage": 29.8137,
       "mean_depth": 19.6667,
-      "tpm": 2870.89,
+      "tpm": 19015.2,
       "rpkm": 6.68848,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -660,7 +550,7 @@
       "read_count": 19,
       "percent_coverage": 78.481,
       "mean_depth": 4.93548,
-      "tpm": 1684.32,
+      "tpm": 11156,
       "rpkm": 3.92406,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -671,7 +561,7 @@
       "read_count": 1,
       "percent_coverage": 17.6871,
       "mean_depth": 1,
-      "tpm": 95.2822,
+      "tpm": 631.096,
       "rpkm": 0.221984,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -679,11 +569,11 @@
     {
       "gene_name": "aacA37",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 548,
+      "read_count": 3,
       "percent_coverage": 417.91,
-      "mean_depth": 35.1125,
-      "tpm": 57280.2,
-      "rpkm": 133.449,
+      "mean_depth": 34.525,
+      "tpm": 2076.96,
+      "rpkm": 0.73056,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -693,7 +583,7 @@
       "read_count": 2,
       "percent_coverage": 11.1702,
       "mean_depth": 2,
-      "tpm": 149.005,
+      "tpm": 986.926,
       "rpkm": 0.347146,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -701,22 +591,22 @@
     {
       "gene_name": "aacA47",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 81,
+      "read_count": 4,
       "percent_coverage": 104.865,
-      "mean_depth": 13.7938,
-      "tpm": 6132.57,
-      "rpkm": 14.2874,
+      "mean_depth": 13.854,
+      "tpm": 2005.86,
+      "rpkm": 0.70555,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
     {
       "gene_name": "ant(2'')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 458,
+      "read_count": 4,
       "percent_coverage": 165.73,
-      "mean_depth": 60.4814,
-      "tpm": 36039.1,
-      "rpkm": 83.9624,
+      "mean_depth": 56.3616,
+      "tpm": 2084.74,
+      "rpkm": 0.733296,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -726,7 +616,7 @@
       "read_count": 1,
       "percent_coverage": 18.6312,
       "mean_depth": 1,
-      "tpm": 53.2566,
+      "tpm": 352.742,
       "rpkm": 0.124075,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -737,7 +627,7 @@
       "read_count": 4,
       "percent_coverage": 36.8821,
       "mean_depth": 1.34021,
-      "tpm": 213.026,
+      "tpm": 1410.97,
       "rpkm": 0.496299,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -748,7 +638,7 @@
       "read_count": 2,
       "percent_coverage": 14.1221,
       "mean_depth": 1.59459,
-      "tpm": 106.92,
+      "tpm": 708.176,
       "rpkm": 0.249097,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -759,7 +649,7 @@
       "read_count": 8,
       "percent_coverage": 28.7129,
       "mean_depth": 3.48276,
-      "tpm": 369.808,
+      "tpm": 2449.4,
       "rpkm": 0.861563,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -770,7 +660,7 @@
       "read_count": 1,
       "percent_coverage": 10.3333,
       "mean_depth": 1,
-      "tpm": 46.6883,
+      "tpm": 309.237,
       "rpkm": 0.108772,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -781,7 +671,7 @@
       "read_count": 301,
       "percent_coverage": 40.3974,
       "mean_depth": 90.4918,
-      "tpm": 13960.1,
+      "tpm": 92463.9,
       "rpkm": 32.5236,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -792,7 +682,7 @@
       "read_count": 23,
       "percent_coverage": 11.4583,
       "mean_depth": 12.7636,
-      "tpm": 671.144,
+      "tpm": 4445.28,
       "rpkm": 1.5636,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -803,7 +693,7 @@
       "read_count": 11,
       "percent_coverage": 12.7946,
       "mean_depth": 7.81579,
-      "tpm": 518.758,
+      "tpm": 3435.97,
       "rpkm": 1.20858,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -814,7 +704,7 @@
       "read_count": 2,
       "percent_coverage": 11.4007,
       "mean_depth": 1.94286,
-      "tpm": 91.2474,
+      "tpm": 604.372,
       "rpkm": 0.212584,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -825,7 +715,7 @@
       "read_count": 6,
       "percent_coverage": 32.5503,
       "mean_depth": 2.27835,
-      "tpm": 282.01,
+      "tpm": 1867.87,
       "rpkm": 0.657014,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -836,7 +726,7 @@
       "read_count": 2,
       "percent_coverage": 13.5531,
       "mean_depth": 1.59459,
-      "tpm": 102.612,
+      "tpm": 679.642,
       "rpkm": 0.23906,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -847,7 +737,7 @@
       "read_count": 1,
       "percent_coverage": 7.46269,
       "mean_depth": 1,
-      "tpm": 52.263,
+      "tpm": 346.161,
       "rpkm": 0.12176,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -855,11 +745,11 @@
     {
       "gene_name": "aph(3'')-Ic",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 128,
+      "read_count": 2,
       "percent_coverage": 41.1765,
-      "mean_depth": 43.0762,
-      "tpm": 7030.7,
-      "rpkm": 16.3798,
+      "mean_depth": 43.127,
+      "tpm": 727.616,
+      "rpkm": 0.255935,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -869,7 +759,7 @@
       "read_count": 31,
       "percent_coverage": 24.1509,
       "mean_depth": 14.4844,
-      "tpm": 1638.49,
+      "tpm": 10852.5,
       "rpkm": 3.81729,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -877,11 +767,11 @@
     {
       "gene_name": "aph(3')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 639,
+      "read_count": 1,
       "percent_coverage": 77.2059,
-      "mean_depth": 106.119,
-      "tpm": 32904.9,
-      "rpkm": 76.6605,
+      "mean_depth": 154.41,
+      "tpm": 341.07,
+      "rpkm": 0.119969,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -891,7 +781,7 @@
       "read_count": 1,
       "percent_coverage": 11.9231,
       "mean_depth": 1,
-      "tpm": 53.8711,
+      "tpm": 356.812,
       "rpkm": 0.125506,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -902,7 +792,7 @@
       "read_count": 5,
       "percent_coverage": 42.0074,
       "mean_depth": 1.55752,
-      "tpm": 260.343,
+      "tpm": 1724.37,
       "rpkm": 0.606537,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -913,7 +803,7 @@
       "read_count": 4,
       "percent_coverage": 25.6604,
       "mean_depth": 1.95588,
-      "tpm": 211.419,
+      "tpm": 1400.32,
       "rpkm": 0.492554,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -924,7 +814,7 @@
       "read_count": 4,
       "percent_coverage": 18.4906,
       "mean_depth": 3.87755,
-      "tpm": 211.419,
+      "tpm": 1400.32,
       "rpkm": 0.492554,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -935,7 +825,7 @@
       "read_count": 45,
       "percent_coverage": 33.2075,
       "mean_depth": 15.0114,
-      "tpm": 2378.46,
+      "tpm": 15753.6,
       "rpkm": 5.54123,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -946,7 +836,7 @@
       "read_count": 3,
       "percent_coverage": 13.1673,
       "mean_depth": 2.83784,
-      "tpm": 149.535,
+      "tpm": 990.439,
       "rpkm": 0.348381,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -957,7 +847,7 @@
       "read_count": 1,
       "percent_coverage": 8.11808,
       "mean_depth": 1,
-      "tpm": 51.6844,
+      "tpm": 342.329,
       "rpkm": 0.120412,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -968,7 +858,7 @@
       "read_count": 1,
       "percent_coverage": 5.49738,
       "mean_depth": 1,
-      "tpm": 36.6662,
+      "tpm": 242.856,
       "rpkm": 0.0854233,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -979,7 +869,7 @@
       "read_count": 147,
       "percent_coverage": 108.377,
       "mean_depth": 13.6111,
-      "tpm": 5389.93,
+      "tpm": 35699.9,
       "rpkm": 12.5572,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -990,7 +880,7 @@
       "read_count": 6,
       "percent_coverage": 23.2984,
       "mean_depth": 2.65169,
-      "tpm": 219.997,
+      "tpm": 1457.14,
       "rpkm": 0.51254,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1001,7 +891,7 @@
       "read_count": 32,
       "percent_coverage": 32.4607,
       "mean_depth": 8.94355,
-      "tpm": 1173.32,
+      "tpm": 7771.4,
       "rpkm": 2.73354,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1012,7 +902,7 @@
       "read_count": 3,
       "percent_coverage": 11.3014,
       "mean_depth": 2.39394,
-      "tpm": 143.902,
+      "tpm": 953.128,
       "rpkm": 0.335257,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1023,7 +913,7 @@
       "read_count": 138,
       "percent_coverage": 55.4795,
       "mean_depth": 28.5679,
-      "tpm": 6619.5,
+      "tpm": 43843.9,
       "rpkm": 15.4218,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1034,7 +924,7 @@
       "read_count": 25,
       "percent_coverage": 42.8082,
       "mean_depth": 6.2,
-      "tpm": 1199.18,
+      "tpm": 7942.73,
       "rpkm": 2.79381,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1045,7 +935,7 @@
       "read_count": 4,
       "percent_coverage": 7.19178,
       "mean_depth": 3.85714,
-      "tpm": 191.87,
+      "tpm": 1270.84,
       "rpkm": 0.447009,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1056,7 +946,7 @@
       "read_count": 1,
       "percent_coverage": 7.53425,
       "mean_depth": 1,
-      "tpm": 47.9674,
+      "tpm": 317.709,
       "rpkm": 0.111752,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1064,11 +954,11 @@
     {
       "gene_name": "blaCTX-M-147",
       "drug_class": "BETA_LACTAM",
-      "read_count": 723,
+      "read_count": 14,
       "percent_coverage": 182.192,
-      "mean_depth": 52.9474,
-      "tpm": 34680.4,
-      "rpkm": 80.7969,
+      "mean_depth": 53.0796,
+      "tpm": 4447.93,
+      "rpkm": 1.56453,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -1078,7 +968,7 @@
       "read_count": 8,
       "percent_coverage": 10.4918,
       "mean_depth": 6.25,
-      "tpm": 367.383,
+      "tpm": 2433.34,
       "rpkm": 0.855913,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1089,7 +979,7 @@
       "read_count": 80,
       "percent_coverage": 48.6301,
       "mean_depth": 22.9296,
-      "tpm": 3837.39,
+      "tpm": 25416.7,
       "rpkm": 8.94019,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1100,7 +990,7 @@
       "read_count": 15,
       "percent_coverage": 36.9863,
       "mean_depth": 4.12037,
-      "tpm": 719.511,
+      "tpm": 4765.64,
       "rpkm": 1.67629,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1111,7 +1001,7 @@
       "read_count": 3,
       "percent_coverage": 11.3014,
       "mean_depth": 2.39394,
-      "tpm": 143.902,
+      "tpm": 953.128,
       "rpkm": 0.335257,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1119,11 +1009,11 @@
     {
       "gene_name": "blaCTX-M-176",
       "drug_class": "BETA_LACTAM",
-      "read_count": 293,
+      "read_count": 1,
       "percent_coverage": 110.616,
-      "mean_depth": 31.8483,
-      "tpm": 14054.4,
-      "rpkm": 32.7434,
+      "mean_depth": 29.3333,
+      "tpm": 317.709,
+      "rpkm": 0.111752,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -1133,7 +1023,7 @@
       "read_count": 35,
       "percent_coverage": 45.2055,
       "mean_depth": 6.62121,
-      "tpm": 1678.86,
+      "tpm": 11119.8,
       "rpkm": 3.91133,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1144,7 +1034,7 @@
       "read_count": 6,
       "percent_coverage": 28.7671,
       "mean_depth": 2.95238,
-      "tpm": 287.804,
+      "tpm": 1906.26,
       "rpkm": 0.670514,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1155,7 +1045,7 @@
       "read_count": 1,
       "percent_coverage": 7.87671,
       "mean_depth": 1,
-      "tpm": 47.9674,
+      "tpm": 317.709,
       "rpkm": 0.111752,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1166,7 +1056,7 @@
       "read_count": 36,
       "percent_coverage": 27.7397,
       "mean_depth": 12.679,
-      "tpm": 1726.83,
+      "tpm": 11437.5,
       "rpkm": 4.02308,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1177,7 +1067,7 @@
       "read_count": 1,
       "percent_coverage": 6.84932,
       "mean_depth": 1,
-      "tpm": 47.9674,
+      "tpm": 317.709,
       "rpkm": 0.111752,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1188,7 +1078,7 @@
       "read_count": 5,
       "percent_coverage": 33.5616,
       "mean_depth": 1.85714,
-      "tpm": 239.837,
+      "tpm": 1588.55,
       "rpkm": 0.558762,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1199,7 +1089,7 @@
       "read_count": 1,
       "percent_coverage": 10.6164,
       "mean_depth": 1,
-      "tpm": 47.9674,
+      "tpm": 317.709,
       "rpkm": 0.111752,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1210,7 +1100,7 @@
       "read_count": 3,
       "percent_coverage": 11.3014,
       "mean_depth": 2.39394,
-      "tpm": 143.902,
+      "tpm": 953.128,
       "rpkm": 0.335257,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1221,7 +1111,7 @@
       "read_count": 5,
       "percent_coverage": 6.84932,
       "mean_depth": 5,
-      "tpm": 239.837,
+      "tpm": 1588.55,
       "rpkm": 0.558762,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1232,7 +1122,7 @@
       "read_count": 23,
       "percent_coverage": 62.6712,
       "mean_depth": 4.61749,
-      "tpm": 1103.25,
+      "tpm": 7307.31,
       "rpkm": 2.5703,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1243,7 +1133,7 @@
       "read_count": 8,
       "percent_coverage": 41.4384,
       "mean_depth": 2.43802,
-      "tpm": 383.739,
+      "tpm": 2541.67,
       "rpkm": 0.894019,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1254,7 +1144,7 @@
       "read_count": 19,
       "percent_coverage": 48.2877,
       "mean_depth": 4.11348,
-      "tpm": 911.38,
+      "tpm": 6036.47,
       "rpkm": 2.12329,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1262,22 +1152,22 @@
     {
       "gene_name": "blaCTX-M-90",
       "drug_class": "BETA_LACTAM",
-      "read_count": 347,
+      "read_count": 10,
       "percent_coverage": 74.3151,
-      "mean_depth": 60.6498,
-      "tpm": 16644.7,
-      "rpkm": 38.7781,
+      "mean_depth": 60.8879,
+      "tpm": 3177.09,
+      "rpkm": 1.11752,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
     {
       "gene_name": "blaCTX-M-91",
       "drug_class": "BETA_LACTAM",
-      "read_count": 599,
+      "read_count": 4,
       "percent_coverage": 128.425,
-      "mean_depth": 59.32,
-      "tpm": 28732.5,
-      "rpkm": 66.9397,
+      "mean_depth": 62.3964,
+      "tpm": 1270.84,
+      "rpkm": 0.447009,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -1287,7 +1177,7 @@
       "read_count": 1,
       "percent_coverage": 10,
       "mean_depth": 1,
-      "tpm": 36.8591,
+      "tpm": 244.134,
       "rpkm": 0.0858729,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1298,7 +1188,7 @@
       "read_count": 55,
       "percent_coverage": 13.1579,
       "mean_depth": 34.28,
-      "tpm": 2027.25,
+      "tpm": 13427.4,
       "rpkm": 4.72301,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1309,7 +1199,7 @@
       "read_count": 25,
       "percent_coverage": 31.746,
       "mean_depth": 6.19167,
-      "tpm": 926.354,
+      "tpm": 6135.65,
       "rpkm": 2.15818,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1320,7 +1210,7 @@
       "read_count": 9,
       "percent_coverage": 25.7732,
       "mean_depth": 3.78667,
-      "tpm": 433.19,
+      "tpm": 2869.21,
       "rpkm": 1.00923,
       "confidence_level": "HIGH",
       "is_complete_gene": false
@@ -1331,7 +1221,7 @@
       "read_count": 8,
       "percent_coverage": 44.9086,
       "mean_depth": 1.52907,
-      "tpm": 292.563,
+      "tpm": 1937.78,
       "rpkm": 0.681602,
       "confidence_level": "MODERATE",
       "is_complete_gene": false
@@ -1342,7 +1232,7 @@
       "read_count": 5,
       "percent_coverage": 6.94444,
       "mean_depth": 5,
-      "tpm": 243.168,
+      "tpm": 1610.61,
       "rpkm": 0.566522,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1350,11 +1240,11 @@
     {
       "gene_name": "blaGES-25",
       "drug_class": "BETA_LACTAM",
-      "read_count": 94,
+      "read_count": 2,
       "percent_coverage": 34.375,
-      "mean_depth": 31.6768,
-      "tpm": 4571.56,
-      "rpkm": 10.6506,
+      "mean_depth": 31.7003,
+      "tpm": 644.244,
+      "rpkm": 0.226609,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -1364,7 +1254,7 @@
       "read_count": 1,
       "percent_coverage": 6.94444,
       "mean_depth": 1,
-      "tpm": 48.6336,
+      "tpm": 322.122,
       "rpkm": 0.113304,
       "confidence_level": "LOW",
       "is_complete_gene": false
@@ -1372,11 +1262,11 @@
     {
       "gene_name": "blaGIM-2",
       "drug_class": "BETA_LACTAM",
-      "read_count": 512,
+      "read_count": 5,
       "percent_coverage": 73.3068,
-      "mean_depth": 80.3261,
-      "tpm": 28571,
-      "rpkm": 66.5634,
+      "mean_depth": 72.4384,
+      "tpm": 1848.03,
+      "rpkm": 0.650034,
       "confidence_level": "HIGH",
       "is_complete_gene": false
     },
@@ -1386,7 +1276,7 @@
       "read_count": 9,
       "percent_coverage": 31.058,
       "mean_depth": 2.94506,
-      "tpm": 430.233,
+      "tpm": 2849.62,
       "rpkm": 1.00234,
       "confidence_level": "HIGH",
       "is_complete_gene": false

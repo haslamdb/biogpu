@@ -18,6 +18,15 @@ struct PairedReadInfo {
     uint32_t pair_offset;   // Offset to find the paired read results
 };
 
+// Structure to hold paired-end read data
+struct ReadPairData {
+    std::string read1_seq;
+    std::string read2_seq;
+    std::string read1_id;
+    std::string read2_id;
+    uint32_t pair_index;    // Original index in the batch
+};
+
 // Configuration for AMR detection
 struct AMRDetectionConfig {
     // Bloom filter parameters
@@ -42,6 +51,9 @@ struct AMRDetectionConfig {
     // Paired-end concordance parameters
     float concordance_bonus = 2.0f;         // Bonus for concordant pairs
     float discord_penalty = 0.5f;           // Penalty for discordant pairs
+    int expected_fragment_length = 500;     // Expected fragment length
+    int fragment_length_stddev = 100;       // Standard deviation for fragment length
+    float max_fragment_length_zscore = 3.0f; // Max z-score for valid fragments
     
     // Batch processing
     int reads_per_batch = 100000;
@@ -85,6 +97,11 @@ struct AMRHit {
     char gene_name[64];
     char drug_class[32];
     char gene_family[32];
+    // Enhanced paired-end tracking
+    uint32_t pair_id;       // Original read pair ID
+    bool is_read2;          // false for R1, true for R2
+    uint32_t mate_read_id;  // ID of the mate read
+    float pair_score;       // Combined score if concordant
 };
 
 // Coverage tracking per AMR gene
@@ -126,17 +143,25 @@ struct ReadPairAlignment {
     // R1 alignments
     std::vector<uint32_t> r1_gene_ids;
     std::vector<float> r1_scores;
+    std::vector<int32_t> r1_positions;  // Position on reference
+    std::vector<int8_t> r1_frames;      // Translation frame
     
     // R2 alignments  
     std::vector<uint32_t> r2_gene_ids;
     std::vector<float> r2_scores;
+    std::vector<int32_t> r2_positions;  // Position on reference
+    std::vector<int8_t> r2_frames;      // Translation frame
     
     // Concordant gene matches
     std::vector<uint32_t> concordant_genes;
     std::vector<float> concordant_scores;
+    std::vector<int32_t> fragment_lengths;  // Fragment length for each concordant match
+    std::vector<float> fragment_probabilities; // Probability based on fragment length distribution
     
-    // Fragment length if concordant
-    int32_t fragment_length = -1;
+    // Best concordant match
+    int32_t best_fragment_length = -1;
+    uint32_t best_gene_id = UINT32_MAX;
+    float best_concordant_score = 0.0f;
     
     bool hasAlignment() const { 
         return !r1_gene_ids.empty() || !r2_gene_ids.empty(); 
@@ -145,9 +170,86 @@ struct ReadPairAlignment {
     bool isConcordant() const {
         return !concordant_genes.empty();
     }
+    
+    // Calculate fragment length from R1 and R2 positions
+    int32_t calculateFragmentLength(int32_t r1_pos, int32_t r2_pos, 
+                                   int32_t gene_length, int r1_len, int r2_len) const {
+        // For protein alignments, positions are in amino acids
+        // Convert to nucleotide positions and calculate fragment length
+        int32_t r1_nt_pos = r1_pos * 3;
+        int32_t r2_nt_pos = r2_pos * 3;
+        int32_t gene_nt_length = gene_length * 3;
+        
+        // R2 should be downstream of R1 for proper pairs
+        if (r2_nt_pos > r1_nt_pos) {
+            // Fragment spans from R1 start to R2 end
+            return (r2_nt_pos + r2_len) - r1_nt_pos;
+        }
+        return -1; // Invalid fragment
+    }
 };
 
 class AMRDetectionPipeline {
+public:
+    // Enhanced EM data structures for Kallisto-style gene assignment
+    struct ReadAssignment {
+        uint32_t read_id;
+        std::vector<uint32_t> candidate_genes;
+        std::vector<float> alignment_scores;
+        std::vector<float> assignment_probabilities;
+        float total_score;
+        bool high_quality;  // Filter for Smith-Waterman score >= 100
+    };
+    
+    // Pair-centric assignment structure for paired-end EM
+    struct PairedReadAssignment {
+        uint32_t pair_id;
+        uint32_t r1_read_id;
+        uint32_t r2_read_id;
+        
+        // Compatible genes (where both reads can map consistently)
+        std::vector<uint32_t> compatible_genes;
+        
+        // Individual hit information
+        std::map<uint32_t, float> r1_gene_scores;  // gene_id -> score
+        std::map<uint32_t, float> r2_gene_scores;  // gene_id -> score
+        
+        // Paired information
+        std::map<uint32_t, float> concordance_scores;     // gene_id -> combined score
+        std::map<uint32_t, int32_t> fragment_lengths;     // gene_id -> fragment length
+        std::map<uint32_t, float> fragment_probabilities; // gene_id -> P(fragment|gene)
+        
+        // Assignment probabilities for each gene
+        std::map<uint32_t, float> assignment_probabilities;
+        
+        // Total probability normalization factor
+        float total_probability;
+        
+        bool hasR1Hit(uint32_t gene_id) const { return r1_gene_scores.count(gene_id) > 0; }
+        bool hasR2Hit(uint32_t gene_id) const { return r2_gene_scores.count(gene_id) > 0; }
+        bool isConcordant(uint32_t gene_id) const { return hasR1Hit(gene_id) && hasR2Hit(gene_id); }
+        
+        float getCombinedScore(uint32_t gene_id) const {
+            float score = 0.0f;
+            if (hasR1Hit(gene_id)) score += r1_gene_scores.at(gene_id);
+            if (hasR2Hit(gene_id)) score += r2_gene_scores.at(gene_id);
+            if (isConcordant(gene_id) && concordance_scores.count(gene_id)) {
+                score = concordance_scores.at(gene_id);
+            }
+            return score;
+        }
+    };
+
+    struct GeneAbundanceInfo {
+        uint32_t gene_id;
+        std::string gene_name;
+        std::string gene_family;
+        float effective_length;     // Length adjusted for mappability
+        float abundance;           // Current abundance estimate (RPKM-like)
+        float total_reads;         // Expected number of reads assigned
+        float prior_weight;        // Prior probability based on known prevalence
+    };
+
 private:
     static constexpr size_t MAX_MATCHES_PER_READ = 32;  // Must match what's in the kernel
     
@@ -218,10 +320,13 @@ public:
     void processBatch(const std::vector<std::string>& reads,
                      const std::vector<std::string>& read_ids);
     
-    // Process a batch of paired-end reads
+    // Process a batch of paired-end reads (legacy - merges reads)
     void processBatchPaired(const std::vector<std::string>& reads1,
                            const std::vector<std::string>& reads2,
                            const std::vector<std::string>& read_ids);
+    
+    // Process a batch of paired-end reads (new - keeps R1/R2 separate)
+    void processPairedBatch(const std::vector<ReadPairData>& read_pairs);
     
     // Main processing steps
     void buildBloomFilter();
@@ -355,6 +460,16 @@ private:
     // Enhanced paired-end scoring integration
     void integratePairedEndScoring();
     
+    // Fragment length distribution methods
+    void estimateFragmentLengthDistribution(const std::vector<ReadPairAlignment>& alignments);
+    float calculateFragmentLengthProbability(int32_t fragment_length) const;
+    void updatePairAlignmentScores(std::vector<ReadPairAlignment>& alignments);
+    void buildEnhancedPairAlignments(const std::vector<AMRHit>& batch_hits, size_t num_pairs);
+    
+    // Paired-end hit update methods
+    void updateHitsWithPairedInfo(std::vector<AMRHit>& hits, const std::vector<ReadPairData>& read_pairs);
+    void updateGPUHitsWithPairedInfo(const std::vector<AMRHit>& hits);
+    
     
     // Gene family extraction methods
     std::string extractGeneFamily(const std::string& gene_name);
@@ -363,6 +478,13 @@ private:
     float calculateAssignmentScore(const AMRHit& hit);
     bool isHighQualityHit(const AMRHit& hit);
     void buildReadAssignments(const std::vector<AMRHit>& all_hits);
+    void buildPairedReadAssignments(const std::vector<AMRHit>& all_hits);
+    
+    // Paired-end EM methods
+    void runPairedEndEM();
+    void updatePairedAssignmentProbabilities();
+    void updateGeneAbundancesFromPairs();
+    float calculatePairProbability(const PairedReadAssignment& pair, uint32_t gene_id);
     
     // Sequence similarity calculation
     float calculateNameSimilarity(const std::string& name1, const std::string& name2);
@@ -377,31 +499,12 @@ private:
     void updateCoverageStatsFromKallistoEM();
     void reportEMResults();
     void analyzeBetaLactamaseAssignments();
-    
-    // Enhanced EM data structures for Kallisto-style gene assignment
-    struct ReadAssignment {
-        uint32_t read_id;
-        std::vector<uint32_t> candidate_genes;
-        std::vector<float> alignment_scores;
-        std::vector<float> assignment_probabilities;
-        float total_score;
-        bool high_quality;  // Filter for Smith-Waterman score >= 100
-    };
-
-    struct GeneAbundanceInfo {
-        uint32_t gene_id;
-        std::string gene_name;
-        std::string gene_family;
-        float effective_length;     // Length adjusted for mappability
-        float abundance;           // Current abundance estimate (RPKM-like)
-        float total_reads;         // Expected number of reads assigned
-        float prior_weight;        // Prior probability based on known prevalence
-    };
 
     // Add these as private member variables:
     std::map<std::string, std::vector<uint32_t>> gene_families_map;
     std::vector<std::vector<float>> gene_similarity_matrix;
     std::vector<ReadAssignment> read_assignments;
+    std::vector<PairedReadAssignment> paired_read_assignments;  // For paired-end EM
     std::map<uint32_t, GeneAbundanceInfo> gene_abundance_info;
     std::vector<AMRHit> accumulated_hits;  // Store all hits across batches
 
@@ -410,6 +513,11 @@ private:
     static constexpr float EM_CONVERGENCE_THRESHOLD = 0.001f;
     static constexpr int MAX_EM_ITERATIONS = 100;
     static constexpr float SIMILARITY_WEIGHT = 0.3f;  // Weight for sequence similarity in EM
+    
+    // Fragment length distribution (learned from data)
+    float estimated_fragment_mean = 500.0f;
+    float estimated_fragment_std = 100.0f;
+    bool fragment_dist_estimated = false;
 };
 
 #endif // AMR_DETECTION_PIPELINE_H

@@ -6,6 +6,8 @@
 #include <chrono>
 #include <iomanip>
 #include <zlib.h>
+#include <cstring>
+#include <algorithm>
 #include <filesystem>
 #include "amr_detection_pipeline.h"
 #include "sample_csv_parser.h"  // Reuse from your FQ pipeline
@@ -14,163 +16,90 @@
 
 namespace fs = std::filesystem;
 
+// Data structures from resistance pipeline for batch reading
+struct FastqRecord {
+    std::string header;
+    std::string sequence;
+    std::string quality;
+};
+
+struct ReadBatch {
+    char* sequences;
+    int* lengths;
+    int* offsets;
+    int num_reads;
+    int total_bases;
+};
+
 // Function to check if file is gzipped
 bool isGzipped(const std::string& filename) {
     return filename.size() > 3 && filename.substr(filename.size() - 3) == ".gz";
 }
 
-// Function to read FASTQ file (supports gzipped)
-std::vector<std::pair<std::string, std::string>> readFastq(const std::string& filename, 
-                                                           int max_reads = -1) {
-    std::vector<std::pair<std::string, std::string>> reads;
+
+// Batch reading function from resistance pipeline that reads two files efficiently
+bool readBatch(gzFile gz_r1, gzFile gz_r2, std::vector<FastqRecord>& batch_r1,
+               std::vector<FastqRecord>& batch_r2, int max_size) {
+    char buffer[1024];
     
-    if (isGzipped(filename)) {
-        // Read gzipped file
-        gzFile gz_file = gzopen(filename.c_str(), "rb");
-        if (!gz_file) {
-            std::cerr << "Error: Cannot open gzipped file " << filename << std::endl;
-            return reads;
-        }
+    for (int i = 0; i < max_size; i++) {
+        FastqRecord rec1, rec2;
         
-        char buffer[4096];
-        int count = 0;
+        // Read R1
+        if (gzgets(gz_r1, buffer, 1024) == NULL) return i > 0;
+        rec1.header = std::string(buffer);
+        if (gzgets(gz_r1, buffer, 1024) == NULL) return false;
+        rec1.sequence = std::string(buffer);
+        rec1.sequence.pop_back(); // Remove newline
+        if (gzgets(gz_r1, buffer, 1024) == NULL) return false; // +
+        if (gzgets(gz_r1, buffer, 1024) == NULL) return false;
+        rec1.quality = std::string(buffer);
+        rec1.quality.pop_back();
         
-        // Read FASTQ in groups of 4 lines (like resistance pipeline)
-        while (gzgets(gz_file, buffer, sizeof(buffer))) {
-            std::string header = buffer;
-            header.pop_back(); // Remove newline
-            
-            // Read sequence line
-            if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
-            std::string seq = buffer;
-            seq.pop_back(); // Remove newline
-            
-            // Read + line
-            if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
-            
-            // Read quality line
-            if (!gzgets(gz_file, buffer, sizeof(buffer))) break;
-            
-            // Check for empty sequence
-            if (seq.empty()) {
-                std::cerr << "WARNING: Empty sequence at line group starting with: " << header << std::endl;
-                continue;  // Skip this read
-            }
-            
-            // Add read (extract ID by removing @)
-            if (!seq.empty() && !header.empty()) {
-                std::string id = header.substr(1);  // Remove '@'
-                reads.push_back({id, seq});
-                
-                
-                count++;
-                
-                if (max_reads > 0 && count >= max_reads) {
-                    break;
-                }
-            }
-        }
+        // Read R2
+        if (gzgets(gz_r2, buffer, 1024) == NULL) return false;
+        rec2.header = std::string(buffer);
+        if (gzgets(gz_r2, buffer, 1024) == NULL) return false;
+        rec2.sequence = std::string(buffer);
+        rec2.sequence.pop_back();
+        if (gzgets(gz_r2, buffer, 1024) == NULL) return false; // +
+        if (gzgets(gz_r2, buffer, 1024) == NULL) return false;
+        rec2.quality = std::string(buffer);
+        rec2.quality.pop_back();
         
-        gzclose(gz_file);
-    } else {
-        // Read uncompressed file
-        std::ifstream file(filename);
-        
-        if (!file.is_open()) {
-            std::cerr << "Error: Cannot open file " << filename << std::endl;
-            return reads;
-        }
-        
-        std::string header, seq, plus, quality;
-        int count = 0;
-        
-        // Read FASTQ in groups of 4 lines (like resistance pipeline)
-        while (std::getline(file, header)) {
-            // Read the next 3 lines
-            if (std::getline(file, seq) && 
-                std::getline(file, plus) && 
-                std::getline(file, quality)) {
-                
-                // Check for empty sequence
-                if (seq.empty()) {
-                    std::cerr << "WARNING: Empty sequence at line group starting with: " << header << std::endl;
-                    continue;  // Skip this read
-                }
-                
-                // Add read if sequence is not empty
-                if (!seq.empty() && !header.empty()) {
-                    std::string id = header.substr(1);  // Remove '@'
-                    reads.push_back({id, seq});
-                    
-                    
-                    count++;
-                    
-                    if (max_reads > 0 && count >= max_reads) {
-                        break;
-                    }
-                }
-            }
-        }
-        
-        file.close();
+        batch_r1.push_back(rec1);
+        batch_r2.push_back(rec2);
     }
     
-    return reads;
+    return true;
 }
 
-// Function to merge paired-end reads into single longer reads
-std::vector<std::pair<std::string, std::string>> mergePairedReads(
-    const std::vector<std::pair<std::string, std::string>>& reads1,
-    const std::vector<std::pair<std::string, std::string>>& reads2,
-    int merge_gap = 10) {
+// Prepare batch for GPU processing
+ReadBatch prepareBatch(const std::vector<FastqRecord>& records) {
+    ReadBatch batch;
+    batch.num_reads = records.size();
+    batch.total_bases = 0;
     
-    std::vector<std::pair<std::string, std::string>> merged;
-    size_t min_size = std::min(reads1.size(), reads2.size());
-    
-    // Simple merge strategy: concatenate R1 and R2 with N's in between
-    std::string gap_seq(merge_gap, 'N');
-    
-    for (size_t i = 0; i < min_size; i++) {
-        // Extract read ID without /1 or /2 suffix
-        std::string id1 = reads1[i].first;
-        std::string id2 = reads2[i].first;
-        
-        // Remove /1 or /2 suffixes if present (old format)
-        size_t pos1 = id1.find('/');
-        if (pos1 != std::string::npos) id1 = id1.substr(0, pos1);
-        size_t pos2 = id2.find('/');
-        if (pos2 != std::string::npos) id2 = id2.substr(0, pos2);
-        
-        // Handle new Illumina format (e.g., "1:N:0" vs "2:N:0")
-        // Find the first space and check if it's followed by read pair info
-        size_t space1 = id1.find(' ');
-        size_t space2 = id2.find(' ');
-        if (space1 != std::string::npos && space2 != std::string::npos) {
-            // Check if the part after space starts with "1:" or "2:"
-            std::string suffix1 = id1.substr(space1 + 1);
-            std::string suffix2 = id2.substr(space2 + 1);
-            if ((suffix1.length() >= 2 && suffix1[0] == '1' && suffix1[1] == ':') ||
-                (suffix2.length() >= 2 && suffix2[0] == '2' && suffix2[1] == ':')) {
-                // Remove the read pair suffix for comparison
-                id1 = id1.substr(0, space1);
-                id2 = id2.substr(0, space2);
-            }
-        }
-        
-        // Verify paired reads match
-        if (id1 != id2) {
-            std::cerr << "Warning: Read IDs don't match at position " << i 
-                      << ": " << reads1[i].first << " vs " << reads2[i].first << std::endl;
-            continue;
-        }
-        
-        // Merge sequences
-        std::string merged_seq = reads1[i].second + gap_seq + reads2[i].second;
-        merged.push_back({id1 + "_merged", merged_seq});
+    for (const auto& rec : records) {
+        batch.total_bases += rec.sequence.length();
     }
     
-    return merged;
+    batch.sequences = new char[batch.total_bases];
+    batch.lengths = new int[batch.num_reads];
+    batch.offsets = new int[batch.num_reads];
+    
+    int offset = 0;
+    for (int i = 0; i < batch.num_reads; i++) {
+        const std::string& seq = records[i].sequence;
+        memcpy(batch.sequences + offset, seq.c_str(), seq.length());
+        batch.lengths[i] = seq.length();
+        batch.offsets[i] = offset;
+        offset += seq.length();
+    }
+    
+    return batch;
 }
+
 
 // Function to process paired-end sample
 void processSamplePaired(AMRDetectionPipeline& pipeline, 
@@ -203,19 +132,14 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     std::string report_prefix = output_dir + "/" + sample_name;
     ClinicalAMRReportGenerator report_generator(report_prefix, sample_name);
     
-    // Read FASTQ files
-    std::cout << "Reading R1 file: " << fastq_r1 << std::endl;
-    auto reads_r1 = readFastq(fastq_r1);
-    
-    std::cout << "Reading R2 file: " << fastq_r2 << std::endl;
-    auto reads_r2 = readFastq(fastq_r2);
-    
-    if (reads_r1.empty() || reads_r2.empty()) {
-        std::cerr << "No reads found in one or both files" << std::endl;
+    // Open the gzipped FASTQ files
+    gzFile gz_r1 = gzopen(fastq_r1.c_str(), "r");
+    gzFile gz_r2 = gzopen(fastq_r2.c_str(), "r");
+    if (!gz_r1 || !gz_r2) {
+        std::cerr << "Error: Cannot open one or both FASTQ files." << std::endl;
         return;
     }
     
-    std::cout << "R1 reads: " << reads_r1.size() << ", R2 reads: " << reads_r2.size() << std::endl;
     std::cout << "Processing paired-end reads with enhanced paired-end handling..." << std::endl;
     
     // Collect all AMR hits across batches
@@ -228,30 +152,40 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         std::cout << "EM enabled - will accumulate hits across all batches" << std::endl;
     }
     
-    // Process in batches
     const int batch_size = config.reads_per_batch;
-    int num_pairs = std::min(reads_r1.size(), reads_r2.size());
-    int num_batches = (num_pairs + batch_size - 1) / batch_size;
+    int batch_num = 0;
     
-    for (int batch = 0; batch < num_batches; batch++) {
-        int start_idx = batch * batch_size;
-        int end_idx = std::min(start_idx + batch_size, num_pairs);
+    // Loop through the file by reading one batch at a time
+    while (true) {
+        std::vector<FastqRecord> batch_r1_records, batch_r2_records;
+        if (!readBatch(gz_r1, gz_r2, batch_r1_records, batch_r2_records, batch_size)) {
+            break; // End of file
+        }
         
-        std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
-                  << " (pairs " << start_idx << "-" << end_idx << ")" << std::endl;
+        if (batch_r1_records.empty()) {
+            break;
+        }
+        
+        std::cout << "\nProcessing batch " << ++batch_num << std::endl;
         
         // Build read pair data for new approach
         std::vector<ReadPairData> batch_pairs;
-        batch_pairs.reserve(end_idx - start_idx);
+        batch_pairs.reserve(batch_r1_records.size());
         
-        for (int i = start_idx; i < end_idx; i++) {
+        for (size_t i = 0; i < batch_r1_records.size(); ++i) {
+            // Extract read ID by removing the '@' and potential newline
+            std::string header1 = batch_r1_records[i].header;
+            std::string header2 = batch_r2_records[i].header;
+            header1.erase(std::remove(header1.begin(), header1.end(), '\n'), header1.end());
+            header2.erase(std::remove(header2.begin(), header2.end(), '\n'), header2.end());
+            
             // Skip pairs where either read is empty
-            if (!reads_r1[i].second.empty() && !reads_r2[i].second.empty()) {
+            if (!batch_r1_records[i].sequence.empty() && !batch_r2_records[i].sequence.empty()) {
                 ReadPairData pair_data;
-                pair_data.read1_seq = reads_r1[i].second;
-                pair_data.read2_seq = reads_r2[i].second;
-                pair_data.read1_id = reads_r1[i].first + "_R1";
-                pair_data.read2_id = reads_r2[i].first + "_R2";
+                pair_data.read1_seq = batch_r1_records[i].sequence;
+                pair_data.read2_seq = batch_r2_records[i].sequence;
+                pair_data.read1_id = header1.substr(1) + "_R1";  // Remove '@'
+                pair_data.read2_id = header2.substr(1) + "_R2";  // Remove '@'
                 pair_data.pair_index = i;
                 batch_pairs.push_back(pair_data);
             }
@@ -260,11 +194,10 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         // Process batch of paired reads with new approach
         pipeline.processPairedBatch(batch_pairs);
         
-        
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();
         
-        std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
+        std::cout << "Batch " << batch_num << " hits: " << batch_hits.size() << std::endl;
         
         // Accumulate hits locally for reporting
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
@@ -274,6 +207,10 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         // Write batch hits to HDF5
         hdf5_writer.addAMRHits(batch_hits);
     }
+    
+    // Close the files
+    gzclose(gz_r1);
+    gzclose(gz_r2);
     
     // NOW run EM algorithm AFTER all batches are processed
     std::cout << "\n=== CHECKING IF EM SHOULD RUN ===" << std::endl;

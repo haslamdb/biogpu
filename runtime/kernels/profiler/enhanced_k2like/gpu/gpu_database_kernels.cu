@@ -94,10 +94,28 @@ __global__ void extract_minimizers_stateful_kernel(
     if (genome_idx >= num_genomes) return;
 
     const GPUGenomeInfo& genome = genome_info[genome_idx];
+    
+    // Validate genome info
+    if (genome.sequence_offset >= 250000000) { // ~250MB max
+        printf("ERROR: Invalid sequence offset %u for genome %d\n", genome.sequence_offset, genome_idx);
+        return;
+    }
+    
     const char* sequence = sequence_data + genome.sequence_offset;
     const uint32_t seq_length = genome.sequence_length;
+    
+    // Debug output for first few genomes
+    if (genome_idx < 3) {
+        printf("Kernel: Processing genome %d, seq_offset=%u, seq_length=%u, taxon=%u\n", 
+               genome_idx, genome.sequence_offset, seq_length, genome.taxon_id);
+    }
 
-    if (seq_length < params.k) return;
+    if (seq_length < params.k) {
+        if (genome_idx < 5) {
+            printf("Genome %d too short: %u < %u\n", genome_idx, seq_length, params.k);
+        }
+        return;
+    }
 
     // --- Begin stateful minimizer scanner logic (ported from Kraken 2) ---
     const uint32_t window_len = params.k - params.ell + 1;
@@ -108,11 +126,16 @@ __global__ void extract_minimizers_stateful_kernel(
     uint32_t deque_head = 0, deque_tail = 0;
 
     unsigned __int128 current_lmer = 0;
-    uint64_t lmer_mask = (params.ell < 64) ? ((unsigned __int128)1 << (2 * params.ell)) - 1 : (unsigned __int128)-1;
+    uint64_t lmer_mask = (params.ell < 32) ? ((1ULL << (2 * params.ell)) - 1) : UINT64_MAX;
     uint64_t last_minimizer_hash = UINT64_MAX;
 
     // Step 1: Prime the first l-1 bases
     for (uint32_t i = 0; i < params.ell - 1; i++) {
+        if (i >= seq_length) {
+            printf("ERROR: Genome %d trying to access index %u beyond seq_length %u\n", 
+                   genome_idx, i, seq_length);
+            return;
+        }
         uint64_t base = DnaTo2Bit(sequence[i]);
         if (base >= 4) { // Invalid base, restart scan after this point
             // This is a simplification; a full implementation would jump ahead

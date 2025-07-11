@@ -64,6 +64,13 @@ Raw Reads → Quality Control → Parallel Processing → Results Integration �
                                     ├── AMR Gene Quantification (EM Algorithm)
                                     └── Taxonomic Profiling (In Development)
 ```
+## Clinical Applications
+
+### 🧬 **Clinical Deployment**
+- **Real-time resistance screening**: Both point mutations and gene-based resistance detection
+- **Antimicrobial stewardship**: Evidence-based therapy guidance with quantitative metrics
+- **Longitudinal monitoring**: Track resistance evolution during treatment
+- **Outbreak surveillance**: Rapid identification of resistance patterns
 
 ### Key Components
 
@@ -152,8 +159,6 @@ pipeline ComprehensiveAMR {
 }
 ```
 
-## Workflows
-
 ### 📊 **Validated Performance Targets and Metrics**
 - **Speed**: Process 10-50M reads in <5 minutes on single GPU
 - **Sensitivity**: >99% for known resistance mutations and genes
@@ -161,6 +166,7 @@ pipeline ComprehensiveAMR {
 - **Specificity**: >97.5% with optimized filtering algorithms
 - **Scalability**: Handles clinical batches of 100+ samples efficiently
 
+## Workflows
 - 
 #### Microbiome profiling with K-mer Matching with Extension (Kraken2-style)
 - [ ] **Three-phase k-mer matching algorithm**: Implement prefilter → match → extension workflow
@@ -247,13 +253,6 @@ pipeline ComprehensiveAMR {
         best_matches[tid].genome_id = hit.genome_id;
     }
 
-## Clinical Applications
-
-### 🧬 **Clinical Deployment**
-- **Real-time resistance screening**: Both point mutations and gene-based resistance detection
-- **Antimicrobial stewardship**: Evidence-based therapy guidance with quantitative metrics
-- **Longitudinal monitoring**: Track resistance evolution during treatment
-- **Outbreak surveillance**: Rapid identification of resistance patterns
 
 ## Performance Targets
 

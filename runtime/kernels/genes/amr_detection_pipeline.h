@@ -279,8 +279,8 @@ private:
     uint32_t* d_hit_counts;
     
     // Coverage statistics
-    AMRCoverageStats* d_coverage_stats;
     std::vector<AMRCoverageStats> h_coverage_stats;
+    AMRCoverageStats* d_coverage_stats;
     
     // Batch processing
     int current_batch_size;

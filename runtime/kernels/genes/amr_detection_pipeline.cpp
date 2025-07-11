@@ -879,160 +879,70 @@ void AMRDetectionPipeline::extendAlignments() {
 }
 
 void AMRDetectionPipeline::updateCoverageStatsFromHits() {
-    // Get hits from current batch
-    std::vector<uint32_t> hit_counts(current_batch_size);
-    cudaMemcpy(hit_counts.data(), d_hit_counts, 
-               current_batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-    
-    // Update stats for each hit
-    std::vector<AMRHit> batch_hits(current_batch_size * MAX_MATCHES_PER_READ);
-    cudaMemcpy(batch_hits.data(), d_amr_hits, 
-               batch_hits.size() * sizeof(AMRHit), cudaMemcpyDeviceToHost);
-    
-    // Track actual positions covered for each gene using sets
-    // Static to persist across batches within a sample
-    static std::map<uint32_t, std::set<uint32_t>> gene_covered_positions;
-    static bool first_batch = true;
-    
-    // Clear on first batch of a new sample
-    if (first_batch && total_reads_processed == 0) {
-        gene_covered_positions.clear();
-        first_batch = false;
-    }
-    
-    int hits_processed = 0;
-    for (int i = 0; i < current_batch_size; i++) {
-        for (uint32_t j = 0; j < hit_counts[i]; j++) {
-            AMRHit& hit = batch_hits[i * MAX_MATCHES_PER_READ + j];
-            
-            if (hit.gene_id < h_coverage_stats.size()) {
-                // Update read count and bases mapped
-                h_coverage_stats[hit.gene_id].total_reads++;
-                h_coverage_stats[hit.gene_id].total_bases_mapped += 
-                    (hit.ref_end - hit.ref_start) * 3; // Convert AA to nucleotides
-                
-                // Track actual positions covered (in amino acid coordinates)
-                for (uint16_t pos = hit.ref_start; pos < hit.ref_end; pos++) {
-                    gene_covered_positions[hit.gene_id].insert(pos);
-                }
-                
-                // Update covered_positions with actual count of unique positions
-                h_coverage_stats[hit.gene_id].covered_positions = 
-                    gene_covered_positions[hit.gene_id].size();
-                
-                hits_processed++;
-            }
-        }
-    }
-    
-    // Note: The static map will persist across batches within a sample
-    // It should be cleared when clearResults() is called between samples
-    
-    // Reset first_batch flag after processing hits
-    if (hits_processed > 0 && total_reads_processed > 0) {
-        first_batch = true;  // Reset for next sample
-    }
-    
-    std::cout << "Updated coverage stats with " << hits_processed << " hits from current batch" << std::endl;
+    uint32_t num_genes = amr_db->getNumGenes();
+
+    // Launch kernel to update coverage stats directly on the GPU
+    launch_update_coverage_stats_kernel(
+        d_amr_hits,
+        d_hit_counts,
+        d_coverage_stats,
+        current_batch_size,
+        num_genes
+    );
+
+    // Optional: uncomment for debugging, but this will slow down execution
+    // cudaDeviceSynchronize();
+    // CHECK_CUDA_ERROR("update_coverage_stats_kernel");
+    // std::cout << "Updated coverage stats on GPU for batch of " << current_batch_size << " reads." << std::endl;
 }
 
 void AMRDetectionPipeline::finalizeCoverageStats() {
     uint32_t num_genes = amr_db->getNumGenes();
-    
-    std::cout << "\n=== Finalizing Coverage Stats ===" << std::endl;
-    std::cout << "Total reads processed: " << total_reads_processed << std::endl;
-    
-    // Get gene information
-    std::vector<AMRGeneEntry> gene_entries(num_genes);
-    cudaMemcpy(gene_entries.data(), amr_db->getGPUGeneEntries(),
-               num_genes * sizeof(AMRGeneEntry), cudaMemcpyDeviceToHost);
-    
-    // Calculate final metrics
-    int genes_with_coverage = 0;
-    double total_rpk = 0.0; // For TPM calculation
-    
-    // First pass: calculate RPK (reads per kilobase) for each gene
+    if (num_genes == 0 || total_reads_processed == 0) return;
+
+    std::cout << "\nFinalizing coverage statistics on GPU..." << std::endl;
+
+    // Launch kernel to perform final calculations (mean, coverage, etc.) on the GPU
+    launch_finalize_coverage_stats_kernel(
+        d_coverage_stats,
+        amr_db->getGPUGeneEntries(),
+        num_genes
+    );
+    cudaDeviceSynchronize(); // Wait for kernel to finish
+    CHECK_CUDA_ERROR("finalize_coverage_stats_kernel");
+
+    // Now, copy the final, summarized statistics from GPU to host
+    h_coverage_stats.resize(num_genes);
+    cudaMemcpy(h_coverage_stats.data(), d_coverage_stats,
+               num_genes * sizeof(AMRCoverageStats), cudaMemcpyDeviceToHost);
+    CHECK_CUDA_ERROR("copying final coverage stats to host");
+
+    // The rest of the logic (RPKM, TPM) can be done on the host with the small, summarized data
+    double total_rpk = 0.0;
     for (uint32_t i = 0; i < num_genes; i++) {
         auto& stats = h_coverage_stats[i];
-        
         if (stats.total_reads > 0) {
-            genes_with_coverage++;
-            stats.gene_length = gene_entries[i].protein_length;
-            
-            // Calculate percent coverage (already set by updateCoverageStatsFromHits)
-            // covered_positions now contains actual unique positions covered
-            if (stats.gene_length > 0) {
-                stats.percent_coverage = (float)stats.covered_positions / stats.gene_length * 100.0f;
-            }
-            
-            // Calculate mean depth over covered regions (not entire gene)
-            if (stats.covered_positions > 0) {
-                // total_bases_mapped is in nucleotides, covered_positions is in amino acids
-                // So we need to convert: divide by 3 to get amino acid depth
-                stats.mean_depth = (float)stats.total_bases_mapped / (stats.covered_positions * 3);
-            } else {
-                stats.mean_depth = 0.0f;
-            }
-            
-            // Calculate RPKM and RPK for TPM
-            if (total_reads_processed > 0) {
-                // Gene length in kilobases (protein length * 3 for nucleotides / 1000)
-                double gene_length_kb = (stats.gene_length * 3.0) / 1000.0;
-                
-                if (gene_length_kb > 0) {
-                    // RPKM = (reads * 10^6) / (gene_length_kb * total_reads)
-                    stats.rpkm = (stats.total_reads * 1e6) / (gene_length_kb * total_reads_processed);
-                    
-                    // RPK for TPM calculation
-                    double rpk = stats.total_reads / gene_length_kb;
-                    total_rpk += rpk;
-                }
-            }
-            
-            // Debug first few
-            if (genes_with_coverage <= 5) {
-                std::cout << "Gene " << i << " (" << gene_entries[i].gene_name << "): "
-                          << stats.total_reads << " reads, "
-                          << stats.percent_coverage << "% coverage, "
-                          << stats.mean_depth << " depth, "
-                          << "RPKM=" << stats.rpkm << std::endl;
+            double gene_length_kb = (stats.gene_length * 3.0) / 1000.0;
+            if (gene_length_kb > 0) {
+                stats.rpkm = (stats.total_reads * 1e6) / (gene_length_kb * total_reads_processed);
+                total_rpk += stats.total_reads / gene_length_kb;
             }
         }
     }
-    
-    std::cout << "Genes with coverage: " << genes_with_coverage << std::endl;
-    std::cout << "Total RPK sum: " << total_rpk << std::endl;
-    
-    // REMOVED: resolveAmbiguousAssignmentsEM() call - this should NOT be here!
-    // EM should only be called explicitly from main after all batches
-    
-    // Second pass: calculate TPM
+
     if (total_rpk > 0) {
         for (uint32_t i = 0; i < num_genes; i++) {
             auto& stats = h_coverage_stats[i];
-            
-            if (stats.total_reads > 0 && stats.gene_length > 0) {
+            if (stats.total_reads > 0) {
                 double gene_length_kb = (stats.gene_length * 3.0) / 1000.0;
                 if (gene_length_kb > 0) {
                     double rpk = stats.total_reads / gene_length_kb;
                     stats.tpm = (rpk / total_rpk) * 1e6;
-                    
-                    // Debug TPM calculation for first few genes
-                    if (i < 5 && stats.tpm > 0) {
-                        std::cout << "Gene " << i << " TPM calculation: "
-                                  << "reads=" << stats.total_reads 
-                                  << ", length_kb=" << gene_length_kb
-                                  << ", rpk=" << rpk
-                                  << ", tpm=" << stats.tpm << std::endl;
-                    }
                 }
             }
         }
     }
-    
-    // Copy final stats to GPU if needed
-    cudaMemcpy(d_coverage_stats, h_coverage_stats.data(),
-               num_genes * sizeof(AMRCoverageStats), cudaMemcpyHostToDevice);
+    std::cout << "Coverage statistics finalized and copied to host." << std::endl;
 }
 
 void AMRDetectionPipeline::calculateCoverageStats() {

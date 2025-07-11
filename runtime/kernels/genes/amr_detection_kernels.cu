@@ -10,6 +10,7 @@ namespace cg = cooperative_groups;
 // Constants
 __constant__ char GENETIC_CODE[64];  // Will be initialized with codon table
 __constant__ int BLOOM_HASH_FUNCS = 3;
+constexpr int MAX_MATCHES_PER_READ = 32;  // Must match the value in amr_detection_pipeline.h
 
 // Hash functions for bloom filter and minimizers
 __device__ __forceinline__ uint64_t murmur_hash64(uint64_t key, uint64_t seed) {
@@ -497,27 +498,28 @@ __global__ void update_coverage_stats_kernel(
     const int num_reads,
     const int num_genes
 ) {
-    const int gene_idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (gene_idx >= num_genes) return;
-    
-    AMRCoverageStats& stats = coverage_stats[gene_idx];
-    
-    // Count hits for this gene
-    for (int read_idx = 0; read_idx < num_reads; read_idx++) {
-        const uint32_t num_hits = hit_counts[read_idx];
-        
-        for (uint32_t h = 0; h < num_hits; h++) {
-            const AMRHit& hit = hits[read_idx * 10 + h];
-            
-            if (hit.gene_id == gene_idx) {
-                // Each read counts as 1, regardless of concordance
-                // Concordance was already used during gene assignment
-                atomicAdd(&stats.total_reads, 1);
-                atomicAdd(&stats.total_bases_mapped, hit.ref_end - hit.ref_start);
-                
-                // Update position-specific coverage
-                for (uint16_t pos = hit.ref_start; pos < hit.ref_end && pos < stats.gene_length; pos++) {
-                    atomicAdd(&stats.position_counts[pos], 1);
+    // Use a grid-stride loop to process all genes
+    for (int gene_idx = blockIdx.x * blockDim.x + threadIdx.x;
+         gene_idx < num_genes;
+         gene_idx += gridDim.x * blockDim.x)
+    {
+        AMRCoverageStats& stats = coverage_stats[gene_idx];
+
+        // Iterate through all reads to find hits for this gene
+        for (int read_idx = 0; read_idx < num_reads; read_idx++) {
+            const uint32_t num_hits = hit_counts[read_idx];
+            for (uint32_t h = 0; h < num_hits; h++) {
+                const AMRHit& hit = hits[read_idx * MAX_MATCHES_PER_READ + h]; // Assumes MAX_MATCHES_PER_READ is known or passed
+
+                if (hit.gene_id == gene_idx) {
+                    // Atomically update the aggregate statistics
+                    atomicAdd(&stats.total_reads, 1);
+                    atomicAdd(&stats.total_bases_mapped, hit.ref_end - hit.ref_start);
+
+                    // Atomically update the per-position coverage counts
+                    for (uint16_t pos = hit.ref_start; pos < hit.ref_end && pos < stats.gene_length; pos++) {
+                        atomicAdd(&stats.position_counts[pos], 1);
+                    }
                 }
             }
         }
@@ -532,16 +534,16 @@ __global__ void finalize_coverage_stats_kernel(
 ) {
     const int gene_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (gene_idx >= num_genes) return;
-    
+
     AMRCoverageStats& stats = coverage_stats[gene_idx];
+    if (stats.total_reads == 0) return; // Skip genes with no reads
+
     const uint16_t gene_length = gene_entries[gene_idx].protein_length;
-    
     stats.gene_length = gene_length;
-    
-    // Calculate coverage metrics
+
+    // Calculate total covered positions
     uint32_t total_coverage = 0;
     uint16_t covered_positions = 0;
-    
     for (uint16_t pos = 0; pos < gene_length; pos++) {
         uint32_t depth = stats.position_counts[pos];
         if (depth > 0) {
@@ -549,24 +551,27 @@ __global__ void finalize_coverage_stats_kernel(
             total_coverage += depth;
         }
     }
-    
     stats.covered_positions = covered_positions;
-    
+
+    // Calculate final metrics
     if (covered_positions > 0) {
-        stats.mean_coverage = (float)total_coverage / gene_length;
-        
+        stats.percent_coverage = (float)covered_positions / gene_length * 100.0f;
+        stats.mean_coverage = (float)total_coverage / gene_length; // Avg coverage over all positions
+        stats.mean_depth = (float)total_coverage / covered_positions; // Avg depth over covered positions
+
         // Calculate uniformity (coefficient of variation)
         float sum_squared_diff = 0.0f;
         for (uint16_t pos = 0; pos < gene_length; pos++) {
-            float diff = stats.position_counts[pos] - stats.mean_coverage;
+            float diff = (float)stats.position_counts[pos] - stats.mean_coverage;
             sum_squared_diff += diff * diff;
         }
-        
         float variance = sum_squared_diff / gene_length;
         float std_dev = sqrtf(variance);
-        stats.coverage_uniformity = 1.0f - (std_dev / (stats.mean_coverage + 1e-6f));
+        stats.coverage_uniformity = 1.0f - (std_dev / (stats.mean_coverage + 1e-6f)); // Add epsilon for stability
     } else {
+        stats.percent_coverage = 0.0f;
         stats.mean_coverage = 0.0f;
+        stats.mean_depth = 0.0f;
         stats.coverage_uniformity = 0.0f;
     }
 }

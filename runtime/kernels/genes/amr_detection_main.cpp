@@ -406,6 +406,10 @@ void processSample(AMRDetectionPipeline& pipeline,
     // Close the file
     gzclose(gz_file);
     
+    // Finalize coverage statistics after all batches
+    std::cout << "\nFinalizing coverage statistics..." << std::endl;
+    pipeline.finalizeCoverageStats();
+    
     // Get final coverage statistics and gene entries
     auto coverage_stats = pipeline.getCoverageStats();
     auto gene_entries = pipeline.getGeneEntries();

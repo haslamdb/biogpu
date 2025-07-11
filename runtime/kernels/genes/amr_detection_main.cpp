@@ -243,7 +243,11 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     gzclose(gz_r1);
     gzclose(gz_r2);
     
-    // NOW run EM algorithm AFTER all batches are processed
+    // Finalize coverage statistics after all batches but BEFORE EM
+    std::cout << "\nFinalizing coverage statistics from GPU..." << std::endl;
+    pipeline.finalizeCoverageStats();
+    
+    // NOW run EM algorithm AFTER finalizeCoverageStats
     std::cout << "\n=== CHECKING IF EM SHOULD RUN ===" << std::endl;
     std::cout << "config.use_em = " << (config.use_em ? "true" : "false") << std::endl;
     std::cout << "all_amr_hits.size() = " << all_amr_hits.size() << std::endl;
@@ -261,12 +265,8 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         pipeline.resolveAmbiguousAssignmentsEM();
         
         // Get updated coverage stats after EM (the EM updates these internally)
-        std::cout << "EM algorithm completed - coverage stats updated" << std::endl;
+        std::cout << "EM algorithm completed - coverage stats updated on host" << std::endl;
     }
-    
-    // Finalize coverage statistics after all batches (and EM if enabled)
-    std::cout << "\nFinalizing coverage statistics..." << std::endl;
-    pipeline.finalizeCoverageStats();
     
     // Get final coverage statistics and gene entries
     auto coverage_stats = pipeline.getCoverageStats();
@@ -406,9 +406,23 @@ void processSample(AMRDetectionPipeline& pipeline,
     // Close the file
     gzclose(gz_file);
     
-    // Finalize coverage statistics after all batches
-    std::cout << "\nFinalizing coverage statistics..." << std::endl;
+    // Finalize coverage statistics after all batches but BEFORE EM
+    std::cout << "\nFinalizing coverage statistics from GPU..." << std::endl;
     pipeline.finalizeCoverageStats();
+    
+    // Check if EM should run for single-end (if supported)
+    if (config.use_em && all_amr_hits.size() > 0) {
+        std::cout << "\n=== Running EM Algorithm on Single-End Data ===" << std::endl;
+        std::cout << "Total hits before EM: " << all_amr_hits.size() << std::endl;
+        
+        // Set accumulated hits in pipeline
+        pipeline.setAccumulatedHits(all_amr_hits);
+        
+        // Run the EM algorithm
+        pipeline.resolveAmbiguousAssignmentsEM();
+        
+        std::cout << "EM algorithm completed - coverage stats updated on host" << std::endl;
+    }
     
     // Get final coverage statistics and gene entries
     auto coverage_stats = pipeline.getCoverageStats();

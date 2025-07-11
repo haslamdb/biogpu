@@ -1,36 +1,47 @@
 {
   "sample_name": "569_A_038a",
-  "report_timestamp": "2025-07-11 06:02:46",
+  "report_timestamp": "2025-07-11 05:41:18",
   "summary": {
     "total_reads": 3405007,
     "reads_with_amr": 6970,
-    "total_genes_detected": 110,
-    "high_confidence_genes": 46,
+    "total_genes_detected": 157,
+    "high_confidence_genes": 49,
     "drug_classes_affected": 2
   },
   "drug_class_analysis": [
     {
       "drug_class": "AMINOGLYCOSIDE",
-      "total_genes": 87,
-      "high_confidence_genes": 32,
-      "total_reads": 5675,
+      "total_genes": 118,
+      "high_confidence_genes": 34,
+      "total_reads": 10801,
       "max_tpm": 0,
-      "clinical_interpretation": "HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aacA-ACI5, aph(3'')-Ic, ant(2'')-Ia, aac(6')_Strep, aac(3)-VIa, aac(6')-I30, aac(6')-Iaf, aac(6')-Is, aacA37, aac(6')-Ib-G, aac(2')-Id, aac(6')-Ib-AKT, ant(2'')-Ia, aac(6')-Ib-G, aacA-ENT1, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')-Ib-G, aacA-ENT2, aac(6')-Ib', aac(6')-It, aac(6')-35, aacA-ACI5, aac(6')_Strep, aacA-ACI4, aacA-STR-7, aac(2')-Ib, aac(6')_Serra, aac(6')_E550, aac(6')-Iag, aac(6')-Ib-G, aac(6')-Ia"
+      "clinical_interpretation": "HIGH CONFIDENCE: Aminoglycoside resistance detected. Consider beta-lactams or fluoroquinolones based on susceptibility. Genes detected: aacA-ACI5, aph(3'')-Ic, ant(2'')-Ia, aac(6')_Strep, aac(3)-VIa, aac(6')-I30, aac(6')-Iaf, aac(6')-Is, aacA37, aac(6')-Ib-G, aac(2')-Id, aac(6')-Ib-AKT, ant(2'')-Ia, aac(6')-Ib-G, aacA-ENT1, ant(2'')-Ia, aac(6')-Ib-AKT, aac(6')-Ib-G, aacA-ENT2, aac(6')-Ib', aac(6')-It, aac(6')-35, aacA-ACI5, aac(6')_Strep, aacA-ACI4, aacA-STR-7, aac(2')-Ib, aac(6')_Serra, aph(2'')-Ii, aacA-STR-13, aac(6')_E550, aac(6')-Iag, aac(6')-Ib-G, aac(6')-Ia"
     },
     {
       "drug_class": "BETA_LACTAM",
-      "total_genes": 23,
-      "high_confidence_genes": 14,
-      "total_reads": 2548,
+      "total_genes": 39,
+      "high_confidence_genes": 15,
+      "total_reads": 3287,
       "max_tpm": 0,
-      "clinical_interpretation": "HIGH CONFIDENCE: Beta-lactam resistance detected. Consider alternative antibiotics such as fluoroquinolones or aminoglycosides if susceptible. Genes detected: blaESP-1, blaCTX-M-113, blaGIM-2, blaGOB-11, blaCTX-M-41, blaGES-25, blaCMY-85, blaCTX-M-147, blaCTX-M-84, blaCTX-M-90, blaCTX-M-161, blaCTX-M-112, blaCTX-M-91, blaCTX-M-176"
+      "clinical_interpretation": "HIGH CONFIDENCE: Beta-lactam resistance detected. Consider alternative antibiotics such as fluoroquinolones or aminoglycosides if susceptible. Genes detected: blaESP-1, blaCTX-M-113, blaGIM-2, blaGOB-11, blaCTX-M-41, blaGES-25, blaCMY-85, blaCTX-M-147, blaCTX-M-84, blaCTX-M-90, blaCTX-M-161, blaCTX-M-112, blaEC-18, blaCTX-M-91, blaCTX-M-176"
     }
   ],
   "genes_detected": [
     {
-      "gene_name": "aac(2')-Ib",
+      "gene_name": "aac(2')-IIa",
       "drug_class": "AMINOGLYCOSIDE",
       "read_count": 5,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(2')-Ib",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 6,
       "percent_coverage": 20.9184,
       "mean_depth": 2,
       "tpm": 0,
@@ -41,7 +52,7 @@
     {
       "gene_name": "aac(2')-Id",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 12,
+      "read_count": 22,
       "percent_coverage": 37.9147,
       "mean_depth": 10.7625,
       "tpm": 0,
@@ -52,7 +63,7 @@
     {
       "gene_name": "aac(3)-I",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 5,
+      "read_count": 9,
       "percent_coverage": 15.4839,
       "mean_depth": 1,
       "tpm": 0,
@@ -72,11 +83,44 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aac(3)-IIe",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 3,
+      "percent_coverage": 16.3763,
+      "mean_depth": 1.55319,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aac(3)-IVb",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 8,
+      "read_count": 18,
       "percent_coverage": 10.9023,
       "mean_depth": 1.68966,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(3)-Ia",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 3,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(3)-Ic",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 3,
+      "percent_coverage": 15.2866,
+      "mean_depth": 1,
       "tpm": 0,
       "rpkm": 0,
       "confidence_level": "MODERATE",
@@ -94,9 +138,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aac(3)-Ih",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 3,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aac(3)-VIII",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 22,
+      "read_count": 18,
       "percent_coverage": 15.2778,
       "mean_depth": 1.97727,
       "tpm": 0,
@@ -107,7 +162,7 @@
     {
       "gene_name": "aac(3)-VIa",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 24,
+      "read_count": 21,
       "percent_coverage": 26.6667,
       "mean_depth": 10.3875,
       "tpm": 0,
@@ -118,7 +173,7 @@
     {
       "gene_name": "aac(3)-XI",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 5,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -129,7 +184,7 @@
     {
       "gene_name": "aac(6')-31",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 4,
+      "read_count": 8,
       "percent_coverage": 17.2973,
       "mean_depth": 1.84375,
       "tpm": 0,
@@ -140,7 +195,7 @@
     {
       "gene_name": "aac(6')-35",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 199,
+      "read_count": 253,
       "percent_coverage": 52.2222,
       "mean_depth": 52.8085,
       "tpm": 0,
@@ -151,7 +206,7 @@
     {
       "gene_name": "aac(6')-F72",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 1,
       "percent_coverage": 25,
       "mean_depth": 1,
       "tpm": 0,
@@ -162,7 +217,7 @@
     {
       "gene_name": "aac(6')-I30",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 3,
       "percent_coverage": 22.7027,
       "mean_depth": 2.71429,
       "tpm": 0,
@@ -171,18 +226,7 @@
       "is_complete_gene": false
     },
     {
-      "gene_name": "aac(6')-Ia",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1461,
-      "percent_coverage": 37.0968,
-      "mean_depth": 1480.8,
-      "tpm": 0,
-      "rpkm": 0,
-      "confidence_level": "HIGH",
-      "is_complete_gene": false
-    },
-    {
-      "gene_name": "aac(6')-Iaa",
+      "gene_name": "aac(6')-IIc",
       "drug_class": "AMINOGLYCOSIDE",
       "read_count": 6,
       "percent_coverage": 0,
@@ -193,9 +237,42 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aac(6')-Ia",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 2829,
+      "percent_coverage": 37.0968,
+      "mean_depth": 1480.8,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "HIGH",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(6')-Iaa",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 13,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(6')-Iae",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aac(6')-Iaf",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 25,
+      "read_count": 58,
       "percent_coverage": 58.6956,
       "mean_depth": 13.037,
       "tpm": 0,
@@ -206,7 +283,7 @@
     {
       "gene_name": "aac(6')-Iag",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 4,
+      "read_count": 7,
       "percent_coverage": 53.5714,
       "mean_depth": 3.36667,
       "tpm": 0,
@@ -217,7 +294,7 @@
     {
       "gene_name": "aac(6')-Iai",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 2,
       "percent_coverage": 25.9259,
       "mean_depth": 1.93878,
       "tpm": 0,
@@ -228,7 +305,7 @@
     {
       "gene_name": "aac(6')-Ib'",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 64,
+      "read_count": 375,
       "percent_coverage": 24.7619,
       "mean_depth": 8.25961,
       "tpm": 0,
@@ -239,7 +316,7 @@
     {
       "gene_name": "aac(6')-Ib-AKT",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 12,
       "percent_coverage": 24.3243,
       "mean_depth": 1.51111,
       "tpm": 0,
@@ -261,12 +338,23 @@
     {
       "gene_name": "aac(6')-Ib-G",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 16,
+      "read_count": 25,
       "percent_coverage": 25.4054,
       "mean_depth": 3.59574,
       "tpm": 0,
       "rpkm": 0,
       "confidence_level": "HIGH",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(6')-Ib-cr11",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 3,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
       "is_complete_gene": false
     },
     {
@@ -305,9 +393,20 @@
     {
       "gene_name": "aac(6')-Id",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 411,
+      "read_count": 419,
       "percent_coverage": 0,
       "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(6')-Ie_fam",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 4.13223,
+      "mean_depth": 1,
       "tpm": 0,
       "rpkm": 0,
       "confidence_level": "LOW",
@@ -327,7 +426,7 @@
     {
       "gene_name": "aac(6')-Is",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 282,
+      "read_count": 235,
       "percent_coverage": 30.6122,
       "mean_depth": 2.02222,
       "tpm": 0,
@@ -338,7 +437,7 @@
     {
       "gene_name": "aac(6')-It",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 255,
+      "read_count": 406,
       "percent_coverage": 51.7007,
       "mean_depth": 12.9868,
       "tpm": 0,
@@ -349,8 +448,30 @@
     {
       "gene_name": "aac(6')-Iu",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 2,
       "percent_coverage": 16.3265,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(6')-Iv",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 22.449,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aac(6')-set_A",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 10.8108,
       "mean_depth": 1,
       "tpm": 0,
       "rpkm": 0,
@@ -360,7 +481,7 @@
     {
       "gene_name": "aac(6')_E111",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 41,
+      "read_count": 98,
       "percent_coverage": 13.1034,
       "mean_depth": 56.6316,
       "tpm": 0,
@@ -369,9 +490,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aac(6')_E141",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 2,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aac(6')_E550",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 320,
+      "read_count": 336,
       "percent_coverage": 90.3448,
       "mean_depth": 79.458,
       "tpm": 0,
@@ -382,7 +514,7 @@
     {
       "gene_name": "aac(6')_E553",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 171,
+      "read_count": 239,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -393,7 +525,7 @@
     {
       "gene_name": "aac(6')_E606",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 3,
       "percent_coverage": 16.2162,
       "mean_depth": 1,
       "tpm": 0,
@@ -404,7 +536,7 @@
     {
       "gene_name": "aac(6')_E963",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 2,
       "percent_coverage": 31.8182,
       "mean_depth": 1.93878,
       "tpm": 0,
@@ -415,7 +547,7 @@
     {
       "gene_name": "aac(6')_Entco",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 65,
+      "read_count": 67,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -426,7 +558,7 @@
     {
       "gene_name": "aac(6')_Serra",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 40,
+      "read_count": 98,
       "percent_coverage": 14.2857,
       "mean_depth": 60.5714,
       "tpm": 0,
@@ -437,7 +569,7 @@
     {
       "gene_name": "aac(6')_Strep",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 3,
+      "read_count": 8,
       "percent_coverage": 36.1446,
       "mean_depth": 1,
       "tpm": 0,
@@ -448,7 +580,7 @@
     {
       "gene_name": "aac(6')_Yersi",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 4,
+      "read_count": 6,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -459,7 +591,7 @@
     {
       "gene_name": "aacA-ACI4",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 183,
+      "read_count": 316,
       "percent_coverage": 40.411,
       "mean_depth": 80.1356,
       "tpm": 0,
@@ -470,7 +602,18 @@
     {
       "gene_name": "aacA-ACI5",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 36,
+      "read_count": 28,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aacA-ACI6",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -481,7 +624,7 @@
     {
       "gene_name": "aacA-ENT1",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 4,
+      "read_count": 10,
       "percent_coverage": 32.7869,
       "mean_depth": 1,
       "tpm": 0,
@@ -492,7 +635,7 @@
     {
       "gene_name": "aacA-ENT2",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 269,
+      "read_count": 607,
       "percent_coverage": 62.2951,
       "mean_depth": 32.7105,
       "tpm": 0,
@@ -501,9 +644,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aacA-STR-13",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 33,
+      "percent_coverage": 21.118,
+      "mean_depth": 26.7059,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "HIGH",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aacA-STR-7",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 20,
+      "read_count": 19,
       "percent_coverage": 39.2405,
       "mean_depth": 3.67742,
       "tpm": 0,
@@ -525,7 +679,7 @@
     {
       "gene_name": "aacA37",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 289,
+      "read_count": 548,
       "percent_coverage": 73.1343,
       "mean_depth": 9.22449,
       "tpm": 0,
@@ -534,9 +688,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aacA43",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 2,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aacA47",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 97,
+      "read_count": 81,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -547,7 +712,7 @@
     {
       "gene_name": "ant(2'')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 303,
+      "read_count": 458,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -558,8 +723,19 @@
     {
       "gene_name": "ant(3'')-IIa",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 1,
       "percent_coverage": 7.60456,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "ant(3'')-IIc",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 4,
+      "percent_coverage": 9.12548,
       "mean_depth": 1,
       "tpm": 0,
       "rpkm": 0,
@@ -569,7 +745,7 @@
     {
       "gene_name": "ant(3'')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 2,
       "percent_coverage": 14.1221,
       "mean_depth": 1.59459,
       "tpm": 0,
@@ -580,7 +756,7 @@
     {
       "gene_name": "ant(6)-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 8,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -589,9 +765,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aph(2'')-IIa",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 10.3333,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aph(2'')-IVa",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 25,
+      "read_count": 301,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -602,7 +789,7 @@
     {
       "gene_name": "aph(2'')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 30,
+      "read_count": 23,
       "percent_coverage": 11.4583,
       "mean_depth": 12.7636,
       "tpm": 0,
@@ -613,7 +800,7 @@
     {
       "gene_name": "aph(2'')-If",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 11,
       "percent_coverage": 12.7946,
       "mean_depth": 7.81579,
       "tpm": 0,
@@ -622,9 +809,31 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aph(2'')-Ig",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 2,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aph(2'')-Ii",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 6,
+      "percent_coverage": 32.5503,
+      "mean_depth": 2.27835,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "HIGH",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aph(3'')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 1,
+      "read_count": 2,
       "percent_coverage": 13.5531,
       "mean_depth": 1.59459,
       "tpm": 0,
@@ -633,9 +842,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aph(3'')-Ib",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aph(3'')-Ic",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 135,
+      "read_count": 128,
       "percent_coverage": 41.1765,
       "mean_depth": 43.0762,
       "tpm": 0,
@@ -646,7 +866,7 @@
     {
       "gene_name": "aph(3')-IIIa",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 11,
+      "read_count": 31,
       "percent_coverage": 9.0566,
       "mean_depth": 4,
       "tpm": 0,
@@ -657,7 +877,7 @@
     {
       "gene_name": "aph(3')-Ia",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 199,
+      "read_count": 639,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -666,9 +886,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "aph(3')-VIIIb",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 11.9231,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "aph(3')-Va",
       "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 2,
+      "read_count": 5,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -679,6 +910,61 @@
     {
       "gene_name": "aph(3')-Vb",
       "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 4,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aph(3')-Vc",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 4,
+      "percent_coverage": 18.4906,
+      "mean_depth": 3.87755,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aph(3')-XV",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 45,
+      "percent_coverage": 33.2075,
+      "mean_depth": 15.0114,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aph(6)-Ic",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 3,
+      "percent_coverage": 13.1673,
+      "mean_depth": 2.83784,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "aph(6)-Smalt",
+      "drug_class": "AMINOGLYCOSIDE",
+      "read_count": 1,
+      "percent_coverage": 8.11808,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaCMY-81",
+      "drug_class": "BETA_LACTAM",
       "read_count": 1,
       "percent_coverage": 0,
       "mean_depth": 0,
@@ -688,20 +974,9 @@
       "is_complete_gene": false
     },
     {
-      "gene_name": "aph(3')-XV",
-      "drug_class": "AMINOGLYCOSIDE",
-      "read_count": 28,
-      "percent_coverage": 33.2075,
-      "mean_depth": 15.0114,
-      "tpm": 0,
-      "rpkm": 0,
-      "confidence_level": "MODERATE",
-      "is_complete_gene": false
-    },
-    {
       "gene_name": "blaCMY-85",
       "drug_class": "BETA_LACTAM",
-      "read_count": 25,
+      "read_count": 147,
       "percent_coverage": 30.8901,
       "mean_depth": 6.9322,
       "tpm": 0,
@@ -710,9 +985,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaCMY-87",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 6,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaCMY-90",
       "drug_class": "BETA_LACTAM",
-      "read_count": 14,
+      "read_count": 32,
       "percent_coverage": 17.2775,
       "mean_depth": 3.27273,
       "tpm": 0,
@@ -721,9 +1007,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaCTX-M-102",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 3,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaCTX-M-112",
       "drug_class": "BETA_LACTAM",
-      "read_count": 127,
+      "read_count": 138,
       "percent_coverage": 48.2877,
       "mean_depth": 32.6738,
       "tpm": 0,
@@ -734,7 +1031,7 @@
     {
       "gene_name": "blaCTX-M-113",
       "drug_class": "BETA_LACTAM",
-      "read_count": 6,
+      "read_count": 25,
       "percent_coverage": 26.0274,
       "mean_depth": 5.48684,
       "tpm": 0,
@@ -743,9 +1040,31 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaCTX-M-124",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 4,
+      "percent_coverage": 7.19178,
+      "mean_depth": 3.85714,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaCTX-M-126",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 1,
+      "percent_coverage": 7.53425,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaCTX-M-147",
       "drug_class": "BETA_LACTAM",
-      "read_count": 925,
+      "read_count": 723,
       "percent_coverage": 71.9178,
       "mean_depth": 41.6476,
       "tpm": 0,
@@ -756,7 +1075,7 @@
     {
       "gene_name": "blaCTX-M-151",
       "drug_class": "BETA_LACTAM",
-      "read_count": 10,
+      "read_count": 8,
       "percent_coverage": 10.4918,
       "mean_depth": 6.25,
       "tpm": 0,
@@ -767,7 +1086,7 @@
     {
       "gene_name": "blaCTX-M-161",
       "drug_class": "BETA_LACTAM",
-      "read_count": 117,
+      "read_count": 80,
       "percent_coverage": 48.6301,
       "mean_depth": 22.9296,
       "tpm": 0,
@@ -778,7 +1097,7 @@
     {
       "gene_name": "blaCTX-M-173",
       "drug_class": "BETA_LACTAM",
-      "read_count": 3,
+      "read_count": 15,
       "percent_coverage": 8.21918,
       "mean_depth": 7.95833,
       "tpm": 0,
@@ -789,7 +1108,7 @@
     {
       "gene_name": "blaCTX-M-175",
       "drug_class": "BETA_LACTAM",
-      "read_count": 1,
+      "read_count": 3,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -800,7 +1119,7 @@
     {
       "gene_name": "blaCTX-M-176",
       "drug_class": "BETA_LACTAM",
-      "read_count": 160,
+      "read_count": 293,
       "percent_coverage": 29.4521,
       "mean_depth": 3.17442,
       "tpm": 0,
@@ -811,7 +1130,7 @@
     {
       "gene_name": "blaCTX-M-177",
       "drug_class": "BETA_LACTAM",
-      "read_count": 12,
+      "read_count": 35,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -822,7 +1141,7 @@
     {
       "gene_name": "blaCTX-M-41",
       "drug_class": "BETA_LACTAM",
-      "read_count": 4,
+      "read_count": 6,
       "percent_coverage": 28.7671,
       "mean_depth": 2.95238,
       "tpm": 0,
@@ -833,7 +1152,7 @@
     {
       "gene_name": "blaCTX-M-43",
       "drug_class": "BETA_LACTAM",
-      "read_count": 2,
+      "read_count": 1,
       "percent_coverage": 7.87671,
       "mean_depth": 1,
       "tpm": 0,
@@ -844,7 +1163,7 @@
     {
       "gene_name": "blaCTX-M-46",
       "drug_class": "BETA_LACTAM",
-      "read_count": 1,
+      "read_count": 36,
       "percent_coverage": 16.4384,
       "mean_depth": 19.75,
       "tpm": 0,
@@ -853,9 +1172,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaCTX-M-48",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 1,
+      "percent_coverage": 6.84932,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaCTX-M-52",
       "drug_class": "BETA_LACTAM",
-      "read_count": 4,
+      "read_count": 5,
       "percent_coverage": 33.5616,
       "mean_depth": 1.85714,
       "tpm": 0,
@@ -864,9 +1194,42 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaCTX-M-54",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 1,
+      "percent_coverage": 10.6164,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaCTX-M-68",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 3,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaCTX-M-69",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 5,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaCTX-M-84",
       "drug_class": "BETA_LACTAM",
-      "read_count": 13,
+      "read_count": 23,
       "percent_coverage": 22.2603,
       "mean_depth": 6.89231,
       "tpm": 0,
@@ -875,9 +1238,31 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaCTX-M-85",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 8,
+      "percent_coverage": 10.9589,
+      "mean_depth": 1.84375,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaCTX-M-88",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 19,
+      "percent_coverage": 14.3836,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaCTX-M-90",
       "drug_class": "BETA_LACTAM",
-      "read_count": 414,
+      "read_count": 347,
       "percent_coverage": 74.3151,
       "mean_depth": 60.6498,
       "tpm": 0,
@@ -888,7 +1273,7 @@
     {
       "gene_name": "blaCTX-M-91",
       "drug_class": "BETA_LACTAM",
-      "read_count": 340,
+      "read_count": 599,
       "percent_coverage": 26.3699,
       "mean_depth": 4.16883,
       "tpm": 0,
@@ -897,9 +1282,9 @@
       "is_complete_gene": false
     },
     {
-      "gene_name": "blaDHA-24",
+      "gene_name": "blaDHA-10",
       "drug_class": "BETA_LACTAM",
-      "read_count": 35,
+      "read_count": 1,
       "percent_coverage": 0,
       "mean_depth": 0,
       "tpm": 0,
@@ -908,9 +1293,31 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaDHA-24",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 55,
+      "percent_coverage": 0,
+      "mean_depth": 0,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaEC-18",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 25,
+      "percent_coverage": 25.9259,
+      "mean_depth": 6.47959,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "HIGH",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaESP-1",
       "drug_class": "BETA_LACTAM",
-      "read_count": 4,
+      "read_count": 9,
       "percent_coverage": 25.7732,
       "mean_depth": 3.78667,
       "tpm": 0,
@@ -919,9 +1326,31 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaFOX-13",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 8,
+      "percent_coverage": 44.9086,
+      "mean_depth": 1.52907,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "MODERATE",
+      "is_complete_gene": false
+    },
+    {
+      "gene_name": "blaGES-23",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 5,
+      "percent_coverage": 6.94444,
+      "mean_depth": 5,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaGES-25",
       "drug_class": "BETA_LACTAM",
-      "read_count": 71,
+      "read_count": 94,
       "percent_coverage": 34.375,
       "mean_depth": 31.6768,
       "tpm": 0,
@@ -930,9 +1359,20 @@
       "is_complete_gene": false
     },
     {
+      "gene_name": "blaGES-8",
+      "drug_class": "BETA_LACTAM",
+      "read_count": 1,
+      "percent_coverage": 6.94444,
+      "mean_depth": 1,
+      "tpm": 0,
+      "rpkm": 0,
+      "confidence_level": "LOW",
+      "is_complete_gene": false
+    },
+    {
       "gene_name": "blaGIM-2",
       "drug_class": "BETA_LACTAM",
-      "read_count": 248,
+      "read_count": 512,
       "percent_coverage": 38.247,
       "mean_depth": 107.667,
       "tpm": 0,
@@ -943,7 +1383,7 @@
     {
       "gene_name": "blaGOB-11",
       "drug_class": "BETA_LACTAM",
-      "read_count": 12,
+      "read_count": 9,
       "percent_coverage": 24.2321,
       "mean_depth": 3.49296,
       "tpm": 0,

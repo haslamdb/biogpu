@@ -627,8 +627,8 @@ bool GPUKrakenDatabaseBuilder::load_taxonomy_data(const std::string& taxonomy_pa
         // Extract basic taxonomy information for compatibility
         if (taxon_parents_.empty()) {
             // Build basic parent relationships from loaded taxonomy
-            const auto& parent_lookup = taxonomy_processor_->get_parent_lookup();
-            const auto& name_lookup = taxonomy_processor_->get_name_lookup();
+            const auto& parent_lookup = taxonomy_processor_->get_parent_map();
+            const auto& name_lookup = taxonomy_processor_->get_names_map();
             
             taxon_parents_ = parent_lookup;
             
@@ -1005,6 +1005,16 @@ bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
     uint32_t* d_hit_counter = memory_manager_->get_global_counter();
     batch_data.d_global_counter = d_hit_counter;
     
+    // Debug info before kernel launch
+    std::cout << "DEBUG: About to launch minimizer kernel with:" << std::endl;
+    std::cout << "  batch_data.max_genomes = " << batch_data.max_genomes << std::endl;
+    std::cout << "  accumulated_genome_info_.size() = " << accumulated_genome_info_.size() << std::endl;
+    std::cout << "  batch_data.max_minimizers = " << batch_data.max_minimizers << std::endl;
+    std::cout << "  batch_data.sequence_buffer_size = " << batch_data.sequence_buffer_size << std::endl;
+    std::cout << "  minimizer_params_.k = " << minimizer_params_.k << std::endl;
+    std::cout << "  minimizer_params_.ell = " << minimizer_params_.ell << std::endl;
+    std::cout << "  minimizer_params_.spaces = " << minimizer_params_.spaces << std::endl;
+    
     // Launch minimizer extraction kernel with improved work distribution
     uint32_t total_hits_extracted = 0;
     if (!launch_improved_minimizer_kernel(
@@ -1375,7 +1385,7 @@ bool GPUKrakenDatabaseBuilder::validate_configuration() const {
         return false;
     }
     
-    if (config_.k_value < 15 || config_.k_value > 31) {
+    if (config_.k_value < 15 || config_.k_value > 35) {
         std::cerr << "Invalid k value: " << config_.k_value << std::endl;
         return false;
     }
@@ -1395,8 +1405,16 @@ bool GPUKrakenDatabaseBuilder::coordinate_memory_allocation() {
     size_t max_sequences = config_.memory_config.sequence_batch_size;
     size_t max_sequence_length = max_sequences * 10000000; // 10MB per sequence estimate
     
+    // For streaming/batch processing, allocate enough for multiple sequences per genome
+    // Some bacterial genomes have multiple chromosomes/plasmids
+    size_t sequences_to_allocate = std::max(size_t(100), max_sequences * 5);
+    
+    std::cout << "Allocating sequence memory:" << std::endl;
+    std::cout << "  Max sequences: " << sequences_to_allocate << std::endl;
+    std::cout << "  Total length: " << (max_sequence_length / (1024*1024)) << " MB" << std::endl;
+    
     // Allocate through memory manager
-    if (!memory_manager_->allocate_sequence_memory(max_sequences, max_sequence_length)) {
+    if (!memory_manager_->allocate_sequence_memory(sequences_to_allocate, max_sequence_length)) {
         return false;
     }
     

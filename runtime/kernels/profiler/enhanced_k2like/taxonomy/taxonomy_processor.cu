@@ -812,3 +812,72 @@ namespace PhylogeneticUtils {
         return species_counts;
     }
 }
+
+// Stub implementation for CompactGPUTaxonomy
+namespace BioGPU {
+namespace CompactTaxonomy {
+
+class CompactGPUTaxonomy::Impl {
+public:
+    std::unordered_map<uint32_t, uint32_t> parent_map;
+    std::unordered_map<uint32_t, std::string> names_map;
+    std::unordered_map<uint32_t, std::string> ranks_map;
+    bool enable_cache;
+};
+
+CompactGPUTaxonomy::CompactGPUTaxonomy(bool enable_cache) 
+    : pImpl(std::make_unique<Impl>()) {
+    pImpl->enable_cache = enable_cache;
+}
+
+CompactGPUTaxonomy::~CompactGPUTaxonomy() = default;
+
+bool CompactGPUTaxonomy::build_from_ncbi_files(const std::string& nodes_file, const std::string& names_file) {
+    // Stub implementation - just return true for now
+    std::cout << "CompactGPUTaxonomy: Loading taxonomy files (stub implementation)" << std::endl;
+    return true;
+}
+
+bool CompactGPUTaxonomy::load_compact_taxonomy(const std::string& compact_file) {
+    // Stub implementation
+    return true;
+}
+
+bool CompactGPUTaxonomy::save_compact_taxonomy(const std::string& compact_file) const {
+    // Stub implementation
+    return true;
+}
+
+uint32_t CompactGPUTaxonomy::get_parent(uint32_t taxon_id) const {
+    auto it = pImpl->parent_map.find(taxon_id);
+    return (it != pImpl->parent_map.end()) ? it->second : 0;
+}
+
+std::string CompactGPUTaxonomy::get_name(uint32_t taxon_id) const {
+    auto it = pImpl->names_map.find(taxon_id);
+    return (it != pImpl->names_map.end()) ? it->second : "";
+}
+
+std::string CompactGPUTaxonomy::get_rank(uint32_t taxon_id) const {
+    auto it = pImpl->ranks_map.find(taxon_id);
+    return (it != pImpl->ranks_map.end()) ? it->second : "";
+}
+
+void CompactGPUTaxonomy::get_all_taxon_ids(std::vector<uint32_t>& taxon_ids) const {
+    taxon_ids.clear();
+    for (const auto& pair : pImpl->parent_map) {
+        taxon_ids.push_back(pair.first);
+    }
+}
+
+bool CompactGPUTaxonomy::build_gpu_structures() {
+    // Stub implementation
+    return true;
+}
+
+void CompactGPUTaxonomy::free_gpu_memory() {
+    // Stub implementation
+}
+
+} // namespace CompactTaxonomy
+} // namespace BioGPU

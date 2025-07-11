@@ -3,8 +3,8 @@
 // Build database from genomes + classify reads
 
 // Include the headers
-#include "gpu_kraken_classifier.h"
-#include "gpu_kraken_database_builder.h"
+// #include "gpu_kraken_classifier.h"  // Moved to deprecated - needs refactoring
+#include "core/gpu_database_builder_core.h"
 #include "sample_csv_parser.h"
 #include "classification_report_generator.h"
 
@@ -639,12 +639,24 @@ bool build_database_command(const PipelineConfig& config) {
     try {
         std::cout << "Creating GPUKrakenDatabaseBuilder..." << std::endl;
         
-        // Create the builder with a copy of the classification params to avoid reference issues
-        ClassificationParams params_copy = config.classifier_params;
+        // Create the builder with the new DatabaseBuildConfig
+        DatabaseBuildConfig db_config = GPUKrakenDatabaseBuilder::create_default_config();
+        db_config.k_value = config.classifier_params.k;
+        db_config.ell_value = config.classifier_params.ell;
+        db_config.spaces_value = config.classifier_params.spaces;
+        db_config.memory_config.auto_scale_enabled = config.auto_memory_scaling;
+        db_config.memory_config.max_memory_fraction = config.memory_fraction;
+        db_config.memory_config.minimizer_capacity = config.minimizer_capacity;
+        
+        // Set batch size if specified
+        if (config.gpu_batch_size > 0) {
+            db_config.batch_size = config.gpu_batch_size;
+        }
+        
         std::unique_ptr<GPUKrakenDatabaseBuilder> builder;
         
         try {
-            builder = std::make_unique<GPUKrakenDatabaseBuilder>(config.output_path, params_copy);
+            builder = std::make_unique<GPUKrakenDatabaseBuilder>(config.output_path, db_config);
         } catch (const std::exception& e) {
             std::cerr << "Failed to create database builder: " << e.what() << std::endl;
             return false;
@@ -659,22 +671,6 @@ bool build_database_command(const PipelineConfig& config) {
             return false;
         }
         std::cout << "CUDA context initialized successfully!" << std::endl;
-        
-        // FIXED: Configure memory settings AFTER CUDA initialization
-        if (config.auto_memory_scaling) {
-            std::cout << "Enabling auto memory scaling..." << std::endl;
-            builder->enable_auto_memory_scaling(true, config.memory_fraction);
-        } else {
-            std::cout << "Using manual memory settings..." << std::endl;
-            builder->enable_auto_memory_scaling(false);
-            builder->set_minimizer_capacity(config.minimizer_capacity);
-        }
-        
-        // Set batch size if specified
-        if (config.gpu_batch_size > 0) {
-            std::cout << "Setting batch size to " << config.gpu_batch_size << std::endl;
-            builder->set_batch_size(config.gpu_batch_size);
-        }
         
         std::cout << "Configuration complete, starting database build..." << std::endl;
         std::cout << "Input path: '" << config.genome_dir << "'" << std::endl;

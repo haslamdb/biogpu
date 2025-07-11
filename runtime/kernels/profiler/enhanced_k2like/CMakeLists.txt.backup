@@ -1,0 +1,82 @@
+cmake_minimum_required(VERSION 3.18)
+project(BioGPU LANGUAGES CXX CUDA)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
+
+# Find CUDA
+find_package(CUDA REQUIRED)
+
+# --- Source File Organization ---
+# We now explicitly list the core modules to be included,
+# avoiding the complexity of GLOB and FILTER.
+
+set(BIOGPU_SOURCES
+    # Core Orchestrator
+    gpu_database_builder_core.cu
+
+    # GPU Kernels
+    gpu/gpu_database_kernels.cu
+
+    # Memory Management
+    memory/gpu_memory_manager.cu
+
+    # Processing Modules
+    processing/genome_file_processor.cu
+    processing/minimizer_feature_extractor.cu
+    processing/contamination_detector.cu
+
+    # Taxonomy Module
+    taxonomy/taxonomy_processor.cu
+
+    # Output Module
+    output/feature_exporter.cu
+    
+    # Main application (if it contains non-main functions to be included)
+    # Note: Typically the main entry point is separate.
+)
+
+# --- Library Definition ---
+add_library(biogpu ${BIOGPU_SOURCES})
+
+# --- Target Properties ---
+set_property(TARGET biogpu PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET biogpu PROPERTY CUDA_ARCHITECTURES 70 75 80 86) # Modern architectures
+
+# --- Include Directories ---
+target_include_directories(biogpu PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/gpu
+    ${CMAKE_CURRENT_SOURCE_DIR}/memory
+    ${CMAKE_CURRENT_SOURCE_DIR}/processing
+    ${CMAKE_CURRENT_SOURCE_DIR}/taxonomy
+    ${CMAKE_CURRENT_SOURCE_DIR}/output
+    ${CMAKE_CURRENT_SOURCE_DIR}/features
+)
+
+# --- Link Libraries ---
+target_link_libraries(biogpu 
+    ${CUDA_LIBRARIES}
+    ${CUDA_CUDART_LIBRARY}
+)
+
+# --- Main Executable ---
+add_executable(kraken_pipeline kraken_pipeline_main.cu)
+target_link_libraries(kraken_pipeline biogpu)
+set_property(TARGET kraken_pipeline PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+
+# --- Test Executable ---
+add_executable(test_db_builder test_database_builder.cu)
+target_link_libraries(test_db_builder biogpu)
+set_property(TARGET test_db_builder PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+
+# --- Testing ---
+enable_testing()
+add_test(NAME DatabaseBuildTest COMMAND test_db_builder)
+
+# --- Print Configuration ---
+message(STATUS "Configured BioGPU with a modular architecture.")
+message(STATUS "Main executable: kraken_pipeline")
+message(STATUS "Test executable: test_db_builder")
+

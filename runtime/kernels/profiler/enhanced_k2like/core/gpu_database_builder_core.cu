@@ -1015,13 +1015,11 @@ bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
     std::cout << "  minimizer_params_.ell = " << minimizer_params_.ell << std::endl;
     std::cout << "  minimizer_params_.spaces = " << minimizer_params_.spaces << std::endl;
     
-    // Launch minimizer extraction kernel with improved work distribution
+    // Launch minimizer extraction kernel
     uint32_t total_hits_extracted = 0;
-    if (!launch_improved_minimizer_kernel(
+    if (!launch_minimizer_extraction_kernel(
             batch_data,
             minimizer_params_,
-            0,  // min_clear_hash_value
-            config_.toggle_mask,
             &total_hits_extracted)) {
         std::cerr << "Minimizer extraction kernel failed" << std::endl;
         return false;
@@ -1080,7 +1078,8 @@ bool GPUKrakenDatabaseBuilder::process_accumulated_sequences() {
         }
         
         // Add co-occurrence scoring after uniqueness computation
-        if (config_.enable_cooccurrence_scoring) {
+        // DISABLED: Cooccurrence kernels removed in refactoring
+        if (false && config_.enable_cooccurrence_scoring) {
             std::cout << "Computing co-occurrence scores..." << std::endl;
             
             // Get unique minimizers for co-occurrence analysis

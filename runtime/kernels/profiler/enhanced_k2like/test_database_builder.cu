@@ -31,7 +31,7 @@ int main() {
     std::cout << "--- Running GPUKrakenDatabaseBuilder Integration Test ---" << std::endl;
 
     // 1. Define paths for the test
-    const std::string concatenated_fna_file = "test_tiny.fna";
+    const std::string concatenated_fna_file = "test_clean.fna";
     const std::string temp_db_dir = "temp_real_db_output";
 
     // **Pre-flight Check**: Ensure the concatenated FNA file exists
@@ -59,7 +59,7 @@ int main() {
     try {
         std::cout << "Instantiating GPUKrakenDatabaseBuilder..." << std::endl;
         DatabaseBuildConfig config = GPUKrakenDatabaseBuilder::create_default_config();
-        config.k_value = 35;  // A more standard k-mer size for real data
+        config.k_value = 35;  // Now testing with k=35
         config.ell_value = 31;
         config.memory_config.auto_scale_enabled = true;
         config.memory_config.max_memory_fraction = 80;  // Use 80% of GPU memory

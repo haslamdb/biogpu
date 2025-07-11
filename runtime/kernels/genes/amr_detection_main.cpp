@@ -74,6 +74,33 @@ bool readBatch(gzFile gz_r1, gzFile gz_r2, std::vector<FastqRecord>& batch_r1,
     return true;
 }
 
+// Single-file batch reading function for single-end reads
+bool readBatchSingle(gzFile gz_file, std::vector<FastqRecord>& batch, int max_size) {
+    char buffer[1024];
+    
+    for (int i = 0; i < max_size; i++) {
+        FastqRecord rec;
+        
+        // Read header
+        if (gzgets(gz_file, buffer, 1024) == NULL) return i > 0;
+        rec.header = std::string(buffer);
+        // Read sequence
+        if (gzgets(gz_file, buffer, 1024) == NULL) return false;
+        rec.sequence = std::string(buffer);
+        rec.sequence.pop_back(); // Remove newline
+        // Read + line
+        if (gzgets(gz_file, buffer, 1024) == NULL) return false;
+        // Read quality
+        if (gzgets(gz_file, buffer, 1024) == NULL) return false;
+        rec.quality = std::string(buffer);
+        rec.quality.pop_back();
+        
+        batch.push_back(rec);
+    }
+    
+    return true;
+}
+
 // Prepare batch for GPU processing
 ReadBatch prepareBatch(const std::vector<FastqRecord>& records) {
     ReadBatch batch;
@@ -154,6 +181,7 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     
     const int batch_size = config.reads_per_batch;
     int batch_num = 0;
+    int total_pairs_processed = 0;
     
     // Loop through the file by reading one batch at a time
     while (true) {
@@ -193,6 +221,9 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
         
         // Process batch of paired reads with new approach
         pipeline.processPairedBatch(batch_pairs);
+        
+        // Update total pairs processed
+        total_pairs_processed += batch_pairs.size();
         
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();
@@ -259,7 +290,7 @@ void processSamplePaired(AMRDetectionPipeline& pipeline,
     std::cout << "\nGenerating clinical report..." << std::endl;
     std::cout << "Passing " << all_amr_hits.size() << " hits to report generator" << std::endl;
     report_generator.processAMRResults(all_amr_hits, coverage_stats, 
-                                      gene_entries, num_pairs);
+                                      gene_entries, total_pairs_processed);
     report_generator.generateReports();
     
     // Write basic TSV results (backward compatibility)
@@ -308,42 +339,52 @@ void processSample(AMRDetectionPipeline& pipeline,
     std::string report_prefix = output_dir + "/" + sample_name;
     ClinicalAMRReportGenerator report_generator(report_prefix, sample_name);
     
-    // Read FASTQ file
-    std::cout << "Reading FASTQ file: " << fastq_file << std::endl;
-    auto fastq_data = readFastq(fastq_file);
-    
-    if (fastq_data.empty()) {
-        std::cerr << "No reads found in " << fastq_file << std::endl;
+    // Open FASTQ file
+    std::cout << "Opening FASTQ file: " << fastq_file << std::endl;
+    gzFile gz_file = gzopen(fastq_file.c_str(), "r");
+    if (!gz_file) {
+        std::cerr << "Error: Cannot open FASTQ file: " << fastq_file << std::endl;
         return;
     }
-    
-    std::cout << "Total reads: " << fastq_data.size() << std::endl;
     
     // Collect all AMR hits
     std::vector<AMRHit> all_amr_hits;
     
-    // Process in batches
     const int batch_size = config.reads_per_batch;
-    int num_batches = (fastq_data.size() + batch_size - 1) / batch_size;
+    int batch_num = 0;
+    int total_reads_processed = 0;
     
-    for (int batch = 0; batch < num_batches; batch++) {
-        int start_idx = batch * batch_size;
-        int end_idx = std::min(start_idx + batch_size, (int)fastq_data.size());
+    // Loop through file by reading one batch at a time
+    while (true) {
+        std::vector<FastqRecord> batch_records;
+        if (!readBatchSingle(gz_file, batch_records, batch_size)) {
+            break; // End of file
+        }
         
-        std::cout << "\nProcessing batch " << (batch + 1) << "/" << num_batches 
-                  << " (reads " << start_idx << "-" << end_idx << ")" << std::endl;
+        if (batch_records.empty()) {
+            break;
+        }
+        
+        std::cout << "\nProcessing batch " << ++batch_num << std::endl;
         
         // Extract reads and IDs for this batch
         std::vector<std::string> batch_reads;
         std::vector<std::string> batch_ids;
         
-        for (int i = start_idx; i < end_idx; i++) {
+        for (size_t i = 0; i < batch_records.size(); i++) {
+            // Extract read ID by removing the '@' and potential newline
+            std::string header = batch_records[i].header;
+            header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
+            
             // Skip empty reads
-            if (!fastq_data[i].second.empty()) {
-                batch_ids.push_back(fastq_data[i].first);
-                batch_reads.push_back(fastq_data[i].second);
+            if (!batch_records[i].sequence.empty()) {
+                batch_ids.push_back(header.substr(1)); // Remove '@'
+                batch_reads.push_back(batch_records[i].sequence);
             }
         }
+        
+        // Update total reads processed
+        total_reads_processed += batch_reads.size();
         
         // Process batch
         pipeline.processBatch(batch_reads, batch_ids);
@@ -351,7 +392,7 @@ void processSample(AMRDetectionPipeline& pipeline,
         // Get results from this batch
         auto batch_hits = pipeline.getAMRHits();
         
-        std::cout << "Batch " << (batch + 1) << " hits: " << batch_hits.size() << std::endl;
+        std::cout << "Batch " << batch_num << " hits: " << batch_hits.size() << std::endl;
         
         // Accumulate hits locally for reporting
         all_amr_hits.insert(all_amr_hits.end(), batch_hits.begin(), batch_hits.end());
@@ -361,6 +402,9 @@ void processSample(AMRDetectionPipeline& pipeline,
         // Write batch hits to HDF5
         hdf5_writer.addAMRHits(batch_hits);
     }
+    
+    // Close the file
+    gzclose(gz_file);
     
     // Get final coverage statistics and gene entries
     auto coverage_stats = pipeline.getCoverageStats();
@@ -379,7 +423,7 @@ void processSample(AMRDetectionPipeline& pipeline,
     
     // Generate clinical report
     report_generator.processAMRResults(all_amr_hits, coverage_stats, 
-                                      gene_entries, fastq_data.size());
+                                      gene_entries, total_reads_processed);
     report_generator.generateReports();
     
     // Write basic TSV results (backward compatibility)

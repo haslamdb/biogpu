@@ -55,7 +55,7 @@ struct AMRDetectionConfig {
     int fragment_length_stddev = 100;       // Standard deviation for fragment length
     float max_fragment_length_zscore = 3.0f; // Max z-score for valid fragments
     
-    // Batch processing
+    // Batch processing (for paired-end, this is per pair, so actual reads = 2x)
     int reads_per_batch = 100000;
     int max_read_length = 300;
     

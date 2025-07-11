@@ -295,16 +295,6 @@ cd ~/Documents/Code/biogpu
       --output-prefix test_clean_resistance
   Result: This worked successfully and detected the resistance mutations
 
-  Key Differences:
-
-  - The clean_resistance_pipeline is the production-ready version that has been fully tested
-  - The integrated_resistance_pipeline seems to be a newer version that may need additional configuration files
-
-  Based on the documentation and our refactoring work, the clean_resistance_pipeline is the one you should use for actual clinical
-  analysis. It's the one that successfully detected the fluoroquinolone resistance mutations in your sample data.
-
-  Would you like me to test the new unified pipeline architecture (resistance_pipeline_v2) that we just created? That would require
-  building it first from the source files we created.
 
   ## here's for the genes detection
   ./amr_detection AMR_CDS.fa,AMRProt.fa test_samples.csv amr_results/  

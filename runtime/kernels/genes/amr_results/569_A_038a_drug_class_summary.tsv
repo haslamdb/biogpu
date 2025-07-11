@@ -1,3 +1,3 @@
 drug_class	total_genes	high_confidence	moderate_confidence	low_confidence	total_reads	max_tpm
-AMINOGLYCOSIDE	103	53	43	7	1660	152947
-BETA_LACTAM	39	20	11	8	755	43843.9
+AMINOGLYCOSIDE	106	59	38	9	5736	185634
+BETA_LACTAM	36	18	10	8	2606	74864.9

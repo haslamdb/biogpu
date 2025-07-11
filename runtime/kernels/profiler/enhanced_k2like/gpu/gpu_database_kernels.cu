@@ -128,7 +128,7 @@ __global__ void extract_minimizers_stateful_kernel(
 
         // **FIX**: Correct circular buffer indexing to prevent underflow
         while (deque_head != deque_tail && window_hashes[(deque_tail - 1 + window_len) % window_len] > current_hash) {
-            deque_tail--;
+            deque_tail = (deque_tail == 0) ? window_len - 1 : deque_tail - 1;
         }
         window_hashes[deque_tail % window_len] = current_hash;
         window_pos[deque_tail % window_len] = i;
@@ -164,7 +164,7 @@ __global__ void extract_minimizers_stateful_kernel(
 
         // **FIX**: Correct circular buffer indexing to prevent underflow
         while (deque_head != deque_tail && window_hashes[(deque_tail - 1 + window_len) % window_len] > current_hash) {
-            deque_tail--;
+            deque_tail = (deque_tail == 0) ? window_len - 1 : deque_tail - 1;
         }
         window_hashes[deque_tail % window_len] = current_hash;
         window_pos[deque_tail % window_len] = i - params.ell + 1;

@@ -2,7 +2,7 @@
 
 ## Overview
 
-BioGPU is a comprehensive GPU-accelerated framework for real-time metagenomic analysis, featuring two fully functional pipelines for antimicrobial resistance detection and a taxonomic profiler under active development. Our framework leverages GPU computing to deliver unprecedented speed and accuracy for clinical decision-making. 
+BioGPU is a comprehensive GPU-accelerated framework for real-time metagenomic analysis, featuring two fully functional pipelines for antimicrobial resistance detection and a taxonomic profiler under active development. The framework leverages GPU computing to deliver unprecedented speed and accuracy for clinical decision-making. 
 
 ## Functional Pipelines
 

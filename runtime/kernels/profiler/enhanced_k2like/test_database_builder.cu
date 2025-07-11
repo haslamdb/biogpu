@@ -27,11 +27,11 @@
 #include <string>
 
 
-int main() {
+int main(int argc, char* argv[]) {
     std::cout << "--- Running GPUKrakenDatabaseBuilder Integration Test ---" << std::endl;
 
     // 1. Define paths for the test
-    const std::string concatenated_fna_file = "test_small_concat.fna";
+    const std::string concatenated_fna_file = (argc > 1) ? argv[1] : "test_small_concat.fna";
     const std::string temp_db_dir = "temp_real_db_output";
 
     // **Pre-flight Check**: Ensure the concatenated FNA file exists

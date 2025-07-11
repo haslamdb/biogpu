@@ -7,6 +7,9 @@ set(CMAKE_CUDA_STANDARD 17)
 # Find CUDA
 find_package(CUDA REQUIRED)
 
+# Set CUDA compilation flags
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
+
 # --- Source File Organization ---
 # We now explicitly list the core modules to be included.
 

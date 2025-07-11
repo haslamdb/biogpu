@@ -167,7 +167,7 @@ pipeline ComprehensiveAMR {
 - **Scalability**: Handles clinical batches of 100+ samples efficiently
 
 ## Workflows
-- 
+
 #### Microbiome profiling with K-mer Matching with Extension (Kraken2-style)
 - [ ] **Three-phase k-mer matching algorithm**: Implement prefilter → match → extension workflow
   - **Phase 1: Bloom Filter Pre-screening**:

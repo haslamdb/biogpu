@@ -17,9 +17,13 @@ endif()
 
 # Organize source files by module
 file(GLOB_RECURSE CORE_SOURCES "core/*.cu" "core/*.cpp")
+# Exclude gpu_database_builder_core.cu to avoid duplicate definitions with gpu_kraken_database_builder.cu
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*gpu_database_builder_core.*")
 file(GLOB_RECURSE MEMORY_SOURCES "memory/*.cu" "memory/*.cpp")
 file(GLOB_RECURSE GPU_SOURCES "gpu/*.cu" "gpu/*.cpp")
 file(GLOB_RECURSE TAXONOMY_SOURCES "taxonomy/*.cu" "taxonomy/*.cpp")
+# Temporarily exclude taxonomy_processor.cu to fix undefined references
+list(FILTER TAXONOMY_SOURCES EXCLUDE REGEX ".*taxonomy_processor.*")
 file(GLOB_RECURSE PROCESSING_SOURCES "processing/*.cu" "processing/*.cpp")
 file(GLOB_RECURSE OUTPUT_SOURCES "output/*.cu" "output/*.cpp")
 file(GLOB_RECURSE TOOLS_SOURCES "tools/*.cu" "tools/*.cpp")
@@ -43,7 +47,7 @@ list(FILTER GPU_SOURCES EXCLUDE REGEX ".*hash_mask.*")
 list(FILTER GPU_SOURCES EXCLUDE REGEX ".*lca_bits.*")
 
 # Also exclude files from the ROOT_SOURCES that have issues
-list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_kraken_database_builder.*")
+# list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_kraken_database_builder.*")  # Needed for test_database_builder
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_minimizer_extraction.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*gpu_kraken_classifier_backup.*")
 list(FILTER ROOT_SOURCES EXCLUDE REGEX ".*phase1_enhanced_classification.*")
@@ -121,32 +125,51 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_simple.cu")
     endif()
 endif()
 
-add_executable(test_core_only test_core_only.cu)
-target_link_libraries(test_core_only biogpu)
-set_property(TARGET test_core_only PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET test_core_only PROPERTY CUDA_ARCHITECTURES 70 75 80)
+# Commented out missing test files
+# add_executable(test_core_only test_core_only.cu)
+# target_link_libraries(test_core_only biogpu)
+# set_property(TARGET test_core_only PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+# set_property(TARGET test_core_only PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
-add_executable(test_taxonomy_only test_taxonomy_only.cu)
-target_link_libraries(test_taxonomy_only biogpu)
-set_property(TARGET test_taxonomy_only PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET test_taxonomy_only PROPERTY CUDA_ARCHITECTURES 70 75 80)
+# add_executable(test_taxonomy_only test_taxonomy_only.cu)
+# target_link_libraries(test_taxonomy_only biogpu)
+# set_property(TARGET test_taxonomy_only PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+# set_property(TARGET test_taxonomy_only PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
-add_executable(test_database_serializer test_database_serializer.cu)
-target_link_libraries(test_database_serializer biogpu)
-set_property(TARGET test_database_serializer PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET test_database_serializer PROPERTY CUDA_ARCHITECTURES 70 75 80)
+# add_executable(test_database_serializer test_database_serializer.cu)
+# target_link_libraries(test_database_serializer biogpu)
+# set_property(TARGET test_database_serializer PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+# set_property(TARGET test_database_serializer PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
 # ML structures test
-add_executable(test_ml_structures test_ml_structures.cu)
-target_link_libraries(test_ml_structures biogpu)
-set_property(TARGET test_ml_structures PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET test_ml_structures PROPERTY CUDA_ARCHITECTURES 70 75 80)
+# add_executable(test_ml_structures test_ml_structures.cu)
+# target_link_libraries(test_ml_structures biogpu)
+# set_property(TARGET test_ml_structures PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+# set_property(TARGET test_ml_structures PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
 # Enhanced database simple test
-add_executable(test_enhanced_database_simple test_enhanced_database_simple.cu)
-target_link_libraries(test_enhanced_database_simple biogpu)
-set_property(TARGET test_enhanced_database_simple PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET test_enhanced_database_simple PROPERTY CUDA_ARCHITECTURES 70 75 80)
+# add_executable(test_enhanced_database_simple test_enhanced_database_simple.cu)
+# target_link_libraries(test_enhanced_database_simple biogpu)
+# set_property(TARGET test_enhanced_database_simple PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+# set_property(TARGET test_enhanced_database_simple PROPERTY CUDA_ARCHITECTURES 70 75 80)
+
+# Simple minimizer test (exists)
+add_executable(simple_minimizer_test simple_minimizer_test.cu)
+target_link_libraries(simple_minimizer_test biogpu)
+set_property(TARGET simple_minimizer_test PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET simple_minimizer_test PROPERTY CUDA_ARCHITECTURES 70 75 80)
+
+# Working test (exists)
+add_executable(working_test working_test.cu)
+target_link_libraries(working_test biogpu)
+set_property(TARGET working_test PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET working_test PROPERTY CUDA_ARCHITECTURES 70 75 80)
+
+# Database builder integration test
+add_executable(test_database_builder test_database_builder.cu)
+target_link_libraries(test_database_builder biogpu)
+set_property(TARGET test_database_builder PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET test_database_builder PROPERTY CUDA_ARCHITECTURES 70 75 80)
 
 # Enhanced database build test - skip for now due to missing types
 # if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_enhanced_database_build.cu")
@@ -161,11 +184,14 @@ enable_testing()
 if(TARGET test_simple)
     add_test(NAME SimpleTest COMMAND test_simple)
 endif()
-add_test(NAME CoreTest COMMAND test_core_only)
-add_test(NAME TaxonomyTest COMMAND test_taxonomy_only)
-add_test(NAME DatabaseSerializerTest COMMAND test_database_serializer)
-add_test(NAME MLStructuresTest COMMAND test_ml_structures)
-add_test(NAME EnhancedDatabaseSimpleTest COMMAND test_enhanced_database_simple)
+# add_test(NAME CoreTest COMMAND test_core_only)
+# add_test(NAME TaxonomyTest COMMAND test_taxonomy_only)
+# add_test(NAME DatabaseSerializerTest COMMAND test_database_serializer)
+# add_test(NAME MLStructuresTest COMMAND test_ml_structures)
+# add_test(NAME EnhancedDatabaseSimpleTest COMMAND test_enhanced_database_simple)
+add_test(NAME DatabaseBuilderTest COMMAND test_database_builder)
+add_test(NAME SimpleMinimizerTest COMMAND simple_minimizer_test)
+add_test(NAME WorkingTest COMMAND working_test)
 
 # Print configuration info
 message(STATUS "=== BioGPU Configuration ===")

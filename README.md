@@ -152,13 +152,7 @@ pipeline ComprehensiveAMR {
 }
 ```
 
-## Clinical Applications
-
-### 🧬 **Clinical Deployment**
-- **Real-time resistance screening**: Both point mutations and gene-based resistance detection
-- **Antimicrobial stewardship**: Evidence-based therapy guidance with quantitative metrics
-- **Longitudinal monitoring**: Track resistance evolution during treatment
-- **Outbreak surveillance**: Rapid identification of resistance patterns
+## Workflows
 
 ### 📊 **Validated Performance Targets and Metrics**
 - **Speed**: Process 10-50M reads in <5 minutes on single GPU
@@ -167,63 +161,7 @@ pipeline ComprehensiveAMR {
 - **Specificity**: >97.5% with optimized filtering algorithms
 - **Scalability**: Handles clinical batches of 100+ samples efficiently
 
-
-## Performance Targets
-
-- ✅ Process >10 million reads in <2 minutes on single GPU
-- ✅ >99% sensitivity for known resistance mutations and genes
-- ✅ >99.5% specificity with advanced filtering
-- ✅ Real-time allele frequency tracking for mutation monitoring
-- ✅ Accurate multi-mapping read resolution via EM algorithm
-- ✅ Handle databases larger than GPU memory via hierarchical loading
-- ✅ Clinical-grade reporting with confidence scores
-
-## TODO List
-
-### 1. Complete Taxonomic Profiler Development
-- [ ] **Finalize metadata integration**: Complete organism-specific metadata for improved accuracy
-- [ ] **Validate false positive reduction**: Benchmark against Kraken2 and other tools
-- [ ] **Optimize GPU kernels**: Improve k-mer matching performance
-- [ ] **Clinical validation**: Test with characterized clinical samples
-
-### 2. Production Optimization and Clinical Integration
-
-#### Immediate Workflow Optimizations
-- [ ] **Integration of all three pipelines**: Unified framework for comprehensive analysis
-- [ ] **Batch size tuning**: Optimize for different GPU memory configurations
-- [ ] **Pipeline orchestration**: Automated workflow management
-
-#### Enhanced Clinical Interpretation
-- [ ] **Unified reporting**: Combine resistance and taxonomic results
-- [ ] **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
-- [ ] **Treatment recommendations**: Link resistance profiles to antibiogram data
-
-### 3. Advanced Resistance Detection Enhancements
-
-#### Extended Capabilities
-- [x] ✅ **Allele frequency analysis**: Already implemented for FQ mutations
-- [x] ✅ **Gene abundance quantification**: Implemented with EM algorithm
-- [ ] **Copy number variation**: Extend to detect gene amplification
-- [ ] **Temporal tracking dashboard**: Visualize resistance evolution
-- [ ] **Plasmid reconstruction**: Identify mobile genetic elements
-- [ ] **Novel mutation discovery**: Machine learning for new resistance patterns
-
-#### Expanded Resistance Classes
-- [ ] **Beta-lactamases**: Carbapenem and ESBL resistance detection
-- [ ] **Plasmid-mediated quinolone resistance (PMQR)**: qnr, aac(6')-Ib-cr genes
-- [ ] **Vancomycin resistance genes**: vanA, vanB detection for enterococci
-- [ ] **Aminoglycoside resistance**: aac, aph, ant gene families
-- [ ] **Macrolide resistance**: erm, mef genes for respiratory pathogens
-
-#### Possible future goals
-- [ ] **Real-time monitoring dashboard**: Clinical decision support interface
-- [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
-- [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
-- [ ] **Resistance trend tracking**: Temporal analysis for hospital surveillance
-
-
-### 3. Algorithm Enhancements
-
+- 
 #### Microbiome profiling with K-mer Matching with Extension (Kraken2-style)
 - [ ] **Three-phase k-mer matching algorithm**: Implement prefilter → match → extension workflow
   - **Phase 1: Bloom Filter Pre-screening**:
@@ -308,8 +246,71 @@ pipeline ComprehensiveAMR {
         best_matches[tid].score = best_score;
         best_matches[tid].genome_id = hit.genome_id;
     }
-    ```
-  
+
+## Clinical Applications
+
+### 🧬 **Clinical Deployment**
+- **Real-time resistance screening**: Both point mutations and gene-based resistance detection
+- **Antimicrobial stewardship**: Evidence-based therapy guidance with quantitative metrics
+- **Longitudinal monitoring**: Track resistance evolution during treatment
+- **Outbreak surveillance**: Rapid identification of resistance patterns
+
+## Performance Targets
+
+- ✅ Process >10 million reads in <2 minutes on single GPU
+- ✅ >99% sensitivity for known resistance mutations and genes
+- ✅ >99.5% specificity with advanced filtering
+- ✅ Real-time allele frequency tracking for mutation monitoring
+- ✅ Accurate multi-mapping read resolution via EM algorithm
+- ✅ Handle databases larger than GPU memory via hierarchical loading
+- ✅ Clinical-grade reporting with confidence scores
+
+## TODO List
+
+### 1. Complete Taxonomic Profiler Development
+- [ ] **Finalize metadata integration**: Complete organism-specific metadata for improved accuracy
+- [ ] **Validate false positive reduction**: Benchmark against Kraken2 and other tools
+- [ ] **Optimize GPU kernels**: Improve k-mer matching performance
+- [ ] **Clinical validation**: Test with characterized clinical samples
+
+### 2. Production Optimization and Clinical Integration
+
+#### Immediate Workflow Optimizations
+- [ ] **Integration of all three pipelines**: Unified framework for comprehensive analysis
+- [ ] **Batch size tuning**: Optimize for different GPU memory configurations
+- [ ] **Pipeline orchestration**: Automated workflow management
+
+#### Enhanced Clinical Interpretation
+- [ ] **Unified reporting**: Combine resistance and taxonomic results
+- [ ] **Clinical output formats**: Add structured clinical reporting (FHIR, HL7)
+- [ ] **Treatment recommendations**: Link resistance profiles to antibiogram data
+
+### 3. Advanced Resistance Detection Enhancements
+
+#### Extended Capabilities
+- [x] ✅ **Allele frequency analysis**: Already implemented for FQ mutations
+- [x] ✅ **Gene abundance quantification**: Implemented with EM algorithm
+- [ ] **Copy number variation**: Extend to detect gene amplification
+- [ ] **Temporal tracking dashboard**: Visualize resistance evolution
+- [ ] **Plasmid reconstruction**: Identify mobile genetic elements
+- [ ] **Novel mutation discovery**: Machine learning for new resistance patterns
+
+#### Expanded Resistance Classes
+- [ ] **Beta-lactamases**: Carbapenem and ESBL resistance detection
+- [ ] **Plasmid-mediated quinolone resistance (PMQR)**: qnr, aac(6')-Ib-cr genes
+- [ ] **Vancomycin resistance genes**: vanA, vanB detection for enterococci
+- [ ] **Aminoglycoside resistance**: aac, aph, ant gene families
+- [ ] **Macrolide resistance**: erm, mef genes for respiratory pathogens
+
+#### Possible future goals
+- [ ] **Real-time monitoring dashboard**: Clinical decision support interface
+- [ ] **MIC prediction models**: Correlate mutations with quantitative resistance levels
+- [ ] **Treatment recommendations**: Evidence-based antibiotic selection guidance
+- [ ] **Resistance trend tracking**: Temporal analysis for hospital surveillance
+
+
+### 3. Algorithm Enhancements
+
   - **BioGPU DSL Implementation**:
     ```biogpu
     @gpu_kernel
@@ -394,7 +395,7 @@ pipeline ComprehensiveAMR {
 ### 4. Database Development and Management
 
 #### Resistance Database Expansion
-- [ ] **CARD integration**: Comprehensive Antibiotic Resistance Database
+- [ ] **NCBI integration**: (https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinderPlus/database/latest/)
 - [ ] **Clinical isolate database**: Local hospital resistance patterns
 - [ ] **Mutation effect prediction**: Functional impact scoring
 - [ ] **Literature integration**: Automated PubMed resistance annotation

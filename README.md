@@ -295,11 +295,11 @@ pipeline ComprehensiveAMR {
 - [ ] **Novel mutation discovery**: Machine learning for new resistance patterns
 
 #### Expanded Resistance Classes
-- [ ] **Beta-lactamases**: Carbapenem and ESBL resistance detection
-- [ ] **Plasmid-mediated quinolone resistance (PMQR)**: qnr, aac(6')-Ib-cr genes
-- [ ] **Vancomycin resistance genes**: vanA, vanB detection for enterococci
-- [ ] **Aminoglycoside resistance**: aac, aph, ant gene families
-- [ ] **Macrolide resistance**: erm, mef genes for respiratory pathogens
+- [x] ✅ **Beta-lactamases**: Carbapenem and ESBL resistance detection
+- [x] ✅ **Plasmid-mediated quinolone resistance (PMQR)**: qnr, aac(6')-Ib-cr genes
+- [x] ✅ **Vancomycin resistance genes**: vanA, vanB detection for enterococci
+- [x] ✅ **Aminoglycoside resistance**: aac, aph, ant gene families
+- [x] ✅ **Macrolide resistance**: erm, mef genes 
 
 #### Possible future goals
 - [ ] **Real-time monitoring dashboard**: Clinical decision support interface

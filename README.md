@@ -295,7 +295,8 @@ pipeline ComprehensiveAMR {
 - [ ] **Novel mutation discovery**: Machine learning for new resistance patterns
 
 #### Expanded Resistance Classes
-- [x] ✅ **Beta-lactamases**: Carbapenem and ESBL resistance detection
+- [x] ✅ **Beta-lactamases**: including carbapenem and ESBL resistance detection
+- [x] ✅ **Beta-lactamases**: EM algorithm disentangles assignment of reads to highly conserved regions of BLA proteins
 - [x] ✅ **Plasmid-mediated quinolone resistance (PMQR)**: qnr, aac(6')-Ib-cr genes
 - [x] ✅ **Vancomycin resistance genes**: vanA, vanB detection for enterococci
 - [x] ✅ **Aminoglycoside resistance**: aac, aph, ant gene families

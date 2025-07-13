@@ -81,12 +81,24 @@ __global__ void extract_minimizers_stateful_kernel(
     uint32_t* global_hit_counter,
     MinimizerParams params,
     int max_minimizers,
-    uint64_t xor_mask)
+    uint64_t xor_mask,
+    size_t sequence_buffer_size)
 {
+    // Add shared memory declaration
+    extern __shared__ char shared_mem[];
+    
     int genome_idx = blockIdx.x;
     if (genome_idx >= num_genomes) return;
 
     const GPUGenomeInfo& genome = genome_info[genome_idx];
+    
+    // Add validation
+    if (genome.sequence_offset >= UINT32_MAX - genome.sequence_length) return; // Overflow check
+    if (genome_idx >= num_genomes) return; // Double-check bounds
+    
+    // Bounds check for sequence access
+    if (genome.sequence_offset + genome.sequence_length > sequence_buffer_size) return;
+    
     const char* sequence = sequence_data + genome.sequence_offset;
     const uint32_t seq_length = genome.sequence_length;
 
@@ -94,93 +106,123 @@ __global__ void extract_minimizers_stateful_kernel(
 
     const uint32_t window_len = params.k - params.ell + 1;
     if (window_len > 256) return;
+    if (window_len == 0) return;  // Prevent division by zero
 
-    uint64_t window_hashes[256];
-    uint32_t window_pos[256];
-    uint32_t deque_head = 0, deque_tail = 0;
-
+    // Use shared memory for arrays
+    uint64_t* window_hashes = (uint64_t*)shared_mem;
+    uint32_t* window_pos = (uint32_t*)(window_hashes + window_len);
+    
+    // Process sequence in chunks to avoid issues with very large sequences
+    const uint32_t CHUNK_SIZE = 1000000; // 1MB chunks
+    const uint32_t OVERLAP = params.k; // Overlap to ensure continuity
+    
     unsigned __int128 current_lmer = 0;
     uint64_t lmer_mask = (params.ell < 64) ? ((unsigned __int128)1 << (2 * params.ell)) - 1 : (unsigned __int128)-1;
     uint64_t last_minimizer_hash = UINT64_MAX;
-
-    // Prime the first l-1 bases
-    for (uint32_t i = 0; i < params.ell - 1; i++) {
-        if (i >= seq_length) return;
-        uint64_t base = DnaTo2Bit(sequence[i]);
-        if (base >= 4) return;
-        current_lmer = (current_lmer << 2) | base;
-    }
-
-    // Initialize the first full window of l-mers
-    for (uint32_t i = 0; i < window_len; i++) {
-        uint32_t current_pos = params.ell - 1 + i;
-        if (current_pos >= seq_length) break;
-        uint64_t base = DnaTo2Bit(sequence[current_pos]);
-        if (base >= 4) {
-            deque_head = deque_tail = 0;
-            continue;
-        }
-        current_lmer = ((current_lmer << 2) | base) & lmer_mask;
-
-        unsigned __int128 rc_lmer = reverse_complement_128(current_lmer, params.ell);
-        uint64_t canon_lmer = (uint64_t)(current_lmer < rc_lmer ? current_lmer : rc_lmer);
-        uint64_t current_hash = murmur_hash3(canon_lmer ^ xor_mask);
-
-        // **FIX**: Correct circular buffer indexing to prevent underflow
-        while (deque_head != deque_tail && window_hashes[(deque_tail - 1 + window_len) % window_len] > current_hash) {
-            deque_tail = (deque_tail == 0) ? window_len - 1 : deque_tail - 1;
-        }
-        window_hashes[deque_tail % window_len] = current_hash;
-        window_pos[deque_tail % window_len] = i;
-        deque_tail++;
-    }
-
-    // Output the first minimizer
-    if (deque_head != deque_tail) {
-        uint64_t minimizer_hash = window_hashes[deque_head % window_len];
-        uint32_t write_idx = atomicAdd(global_hit_counter, 1);
-        if (write_idx < max_minimizers) {
-            minimizer_hits[write_idx] = {minimizer_hash, (uint32_t)genome_idx, window_pos[deque_head % window_len], (uint16_t)genome.taxon_id};
-        }
-        last_minimizer_hash = minimizer_hash;
-    }
-
-    // Slide the window across the rest of the sequence
-    for (uint32_t i = params.k; i < seq_length; i++) {
-        if (deque_head != deque_tail && window_pos[deque_head % window_len] == (i - params.k)) {
-            deque_head++;
-        }
-
-        uint64_t base = DnaTo2Bit(sequence[i]);
-        if (base >= 4) {
-            deque_head = deque_tail = 0;
-            continue;
-        }
-        current_lmer = ((current_lmer << 2) | base) & lmer_mask;
+    
+    for (uint32_t chunk_start = 0; chunk_start < seq_length; chunk_start += CHUNK_SIZE) {
+        uint32_t chunk_end = min(chunk_start + CHUNK_SIZE + OVERLAP, seq_length);
+        uint32_t chunk_length = chunk_end - chunk_start;
         
-        unsigned __int128 rc_lmer = reverse_complement_128(current_lmer, params.ell);
-        uint64_t canon_lmer = (uint64_t)(current_lmer < rc_lmer ? current_lmer : rc_lmer);
-        uint64_t current_hash = murmur_hash3(canon_lmer ^ xor_mask);
-
-        // **FIX**: Correct circular buffer indexing to prevent underflow
-        while (deque_head != deque_tail && window_hashes[(deque_tail - 1 + window_len) % window_len] > current_hash) {
-            deque_tail = (deque_tail == 0) ? window_len - 1 : deque_tail - 1;
+        // Skip if chunk is too small
+        if (chunk_length < params.k) continue;
+        
+        // Reset deque for each chunk
+        uint32_t deque_head = 0, deque_tail = 0;
+        
+        // Prime the first l-1 bases of the chunk
+        uint32_t start_pos = (chunk_start == 0) ? 0 : chunk_start;
+        for (uint32_t i = start_pos; i < start_pos + params.ell - 1 && i < chunk_end; i++) {
+            uint64_t base = DnaTo2Bit(sequence[i]);
+            if (base >= 4) {
+                current_lmer = 0;
+                continue;
+            }
+            current_lmer = (current_lmer << 2) | base;
         }
-        window_hashes[deque_tail % window_len] = current_hash;
-        window_pos[deque_tail % window_len] = i - params.ell + 1;
-        deque_tail++;
 
-        uint64_t minimizer_hash = window_hashes[deque_head % window_len];
-        if (minimizer_hash != last_minimizer_hash) {
+        // Initialize the first full window of l-mers
+        for (uint32_t i = 0; i < window_len; i++) {
+            uint32_t current_pos = start_pos + params.ell - 1 + i;
+            if (current_pos >= chunk_end) break;
+            uint64_t base = DnaTo2Bit(sequence[current_pos]);
+            if (base >= 4) {
+                deque_head = deque_tail = 0;
+                continue;
+            }
+            current_lmer = ((current_lmer << 2) | base) & lmer_mask;
+
+            unsigned __int128 rc_lmer = reverse_complement_128(current_lmer, params.ell);
+            uint64_t canon_lmer = (uint64_t)(current_lmer < rc_lmer ? current_lmer : rc_lmer);
+            uint64_t current_hash = murmur_hash3(canon_lmer ^ xor_mask);
+
+            // **FIX**: Correct circular buffer indexing to prevent underflow
+            while (deque_head != deque_tail) {
+                uint32_t prev_idx = (deque_tail == 0) ? window_len - 1 : deque_tail - 1;
+                if (window_hashes[prev_idx] <= current_hash) break;
+                deque_tail = prev_idx;
+            }
+            window_hashes[deque_tail] = current_hash;
+            window_pos[deque_tail] = current_pos - params.ell + 1;
+            deque_tail = (deque_tail + 1) % window_len;
+        }
+
+        // Output the first minimizer if we have one
+        if (deque_head != deque_tail && chunk_start == 0) {
+            uint64_t minimizer_hash = window_hashes[deque_head];
             uint32_t write_idx = atomicAdd(global_hit_counter, 1);
             if (write_idx < max_minimizers) {
-                 minimizer_hits[write_idx] = {minimizer_hash, (uint32_t)genome_idx, window_pos[deque_head % window_len], (uint16_t)genome.taxon_id};
-            } else {
-                break;
+                // Use proper structure assignment to ensure write completes
+                GPUMinimizerHit hit = {minimizer_hash, (uint32_t)genome_idx, window_pos[deque_head], (uint16_t)genome.taxon_id};
+                minimizer_hits[write_idx] = hit;
+                __threadfence(); // Ensure write is visible
             }
             last_minimizer_hash = minimizer_hash;
         }
-    }
+
+        // Slide the window across the rest of the chunk
+        uint32_t slide_start = max(start_pos + params.k, chunk_start);
+        for (uint32_t i = slide_start; i < chunk_end; i++) {
+            if (deque_head != deque_tail && window_pos[deque_head] == (i - params.k)) {
+                deque_head = (deque_head + 1) % window_len;
+            }
+
+            uint64_t base = DnaTo2Bit(sequence[i]);
+            if (base >= 4) {
+                deque_head = deque_tail = 0;
+                continue;
+            }
+            current_lmer = ((current_lmer << 2) | base) & lmer_mask;
+            
+            unsigned __int128 rc_lmer = reverse_complement_128(current_lmer, params.ell);
+            uint64_t canon_lmer = (uint64_t)(current_lmer < rc_lmer ? current_lmer : rc_lmer);
+            uint64_t current_hash = murmur_hash3(canon_lmer ^ xor_mask);
+
+            // **FIX**: Correct circular buffer indexing to prevent underflow
+            while (deque_head != deque_tail) {
+                uint32_t prev_idx = (deque_tail == 0) ? window_len - 1 : deque_tail - 1;
+                if (window_hashes[prev_idx] <= current_hash) break;
+                deque_tail = prev_idx;
+            }
+            window_hashes[deque_tail] = current_hash;
+            window_pos[deque_tail] = i - params.ell + 1;
+            deque_tail = (deque_tail + 1) % window_len;
+
+            uint64_t minimizer_hash = window_hashes[deque_head];
+            if (minimizer_hash != last_minimizer_hash) {
+                uint32_t write_idx = atomicAdd(global_hit_counter, 1);
+                if (write_idx < max_minimizers) {
+                    // Use proper structure assignment to ensure write completes
+                    GPUMinimizerHit hit = {minimizer_hash, (uint32_t)genome_idx, window_pos[deque_head], (uint16_t)genome.taxon_id};
+                    minimizer_hits[write_idx] = hit;
+                    __threadfence(); // Ensure write is visible
+                } else {
+                    return; // Exit if we're out of space
+                }
+                last_minimizer_hash = minimizer_hash;
+            }
+        }
+    } // End of chunk loop
 }
 
 // This kernel computes the final LCA for each unique minimizer.
@@ -231,11 +273,22 @@ bool launch_minimizer_extraction_kernel(
     int threads_per_block = 1; // This kernel is serial per genome
     int grid_size = batch_data.max_genomes;
     uint64_t xor_mask = 0x3c8bfbb395c60474ULL;
+    
+    // Calculate shared memory size
+    uint32_t window_len = params.k - params.ell + 1;
+    size_t shared_mem_size = window_len * (sizeof(uint64_t) + sizeof(uint32_t));
+    
+    // Check if shared memory size is within limits
+    if (shared_mem_size > 48 * 1024) { // 48KB limit
+        std::cerr << "ERROR: Required shared memory " << shared_mem_size 
+                  << " exceeds limit" << std::endl;
+        return false;
+    }
 
-    extract_minimizers_stateful_kernel<<<grid_size, threads_per_block>>>(
+    extract_minimizers_stateful_kernel<<<grid_size, threads_per_block, shared_mem_size>>>(
         batch_data.d_sequence_data, batch_data.d_genome_info, batch_data.max_genomes,
         batch_data.d_minimizer_hits, batch_data.d_global_counter, params,
-        batch_data.max_minimizers, xor_mask
+        batch_data.max_minimizers, xor_mask, batch_data.sequence_buffer_size
     );
 
     CUDA_CHECK_KERNEL(cudaGetLastError());

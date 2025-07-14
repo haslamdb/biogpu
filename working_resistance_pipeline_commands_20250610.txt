@@ -299,3 +299,10 @@ cd ~/Documents/Code/biogpu
   ## here's for the genes detection
   ./amr_detection AMR_CDS.fa,AMRProt.fa test_samples.csv amr_results/  
   ./amr_detection AMR_CDS.fa,AMRProt.fa example_csv.csv amr_results/ --em
+
+  ## ok, so now we are combining the two pipelines step by step. We're workign in runtime/kernels
+
+ ## here's the most recent working test command:
+  ./pipeline_tester_bloom example_csv.csv --bloom-filter combined_minimizer_bloom.bin
+
+  # check gemini for next steps (should be translated search but we have to choose one)

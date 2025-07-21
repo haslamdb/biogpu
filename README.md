@@ -47,9 +47,9 @@ BioGPU is a comprehensive GPU-accelerated framework for real-time metagenomic an
    - Enables monitoring of resistance emergence and evolution
    - Critical for detecting heteroresistance and mixed infections
 
-2. **Expectation Maximization Algorithm-Based Multi-Mapping Resolution** (AMR Gene Pipeline)
-   - Accurately assigns reads that map to multiple AMR genes
-   - Improves quantification accuracy by 15-20% over naive methods
+2. **Highly Accurate Multi-Mapping Resolution** (AMR Gene Pipeline)
+   - Uses expectation maximization algorithm to accurately assign reads that map to multiple AMR genes
+   - Improves quantification accuracy over naive methods
    - Essential for closely related gene families
 
 3. **GPU Optimization Throughout**

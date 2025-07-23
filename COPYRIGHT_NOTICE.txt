@@ -1,5 +1,5 @@
 BioGPU - High-Performance GPU-Accelerated Bioinformatics Framework
-Copyright (c) 2025 David [Your Last Name]
+Copyright (c) 2025 David Haslam
 All Rights Reserved.
 
 This work is submitted for copyright registration with the U.S. Copyright Office.
@@ -7,8 +7,8 @@ This work is submitted for copyright registration with the U.S. Copyright Office
 Project Name: BioGPU
 Type of Work: Computer Program (Source Code)
 Year of Creation: 2024-2025
-Author: David [Your Last Name]
-Repository: https://github.com/[username]/biogpu
+Author: David Haslam
+Repository: https://github.com/haslamdb/biogpu
 
 Description:
 BioGPU is a domain-specific language (DSL) and GPU-accelerated framework for 
@@ -28,7 +28,5 @@ This submission includes representative portions of the source code as permitted
 under U.S. Copyright Office regulations for computer programs.
 
 Contact Information:
-[Your Name]
-[Your Email]
-[Your Address]
-[Your Phone Number]
+David Haslam
+dbhaslam@interface-labs.com

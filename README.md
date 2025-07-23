@@ -1,6 +1,6 @@
 # BioGPU: GPU-Accelerated Microbial Profiling and Antimicrobial Resistance Detection
 
-Copyright (c) 2025 David [Your Last Name]. All Rights Reserved.
+Copyright (c) 2025 David Haslam. All Rights Reserved.
 
 ## Overview
 

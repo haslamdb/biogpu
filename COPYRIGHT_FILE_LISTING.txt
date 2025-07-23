@@ -1,0 +1,91 @@
+BioGPU COPYRIGHT SUBMISSION FILE LISTING
+========================================
+
+This document lists all files included in the copyright submission for BioGPU.
+Files are organized by category and purpose.
+
+1. DOCUMENTATION AND PROJECT OVERVIEW
+-------------------------------------
+README.md                                    - Main project documentation
+COPYRIGHT_NOTICE.txt                         - Copyright notice and description
+CHANGELOG.md                                 - Version history
+README_UNIFIED_PIPELINE.md                   - Unified pipeline documentation
+docs/biogpu_project_plan.md                 - Project planning document
+docs/workflow_documentation.md              - Workflow documentation
+docs/biogpu_taxonomy_documentation.md       - Taxonomy system documentation
+docs/paired_read_documentation.md           - Paired read handling
+docs/bloom_filter_usage_shared_amr_fq.md    - Bloom filter implementation
+
+2. DOMAIN-SPECIFIC LANGUAGE (DSL) DEFINITION
+--------------------------------------------
+src/parser/BioGPU.g4                        - ANTLR grammar defining the DSL syntax
+
+3. COMPILER AND PARSER IMPLEMENTATION
+-------------------------------------
+src/main.cpp                                - Main entry point
+src/compiler/compiler.cpp                   - Core compiler implementation
+src/compiler/parser.cpp                     - Parser implementation
+src/compiler/lexer.cpp                      - Lexical analyzer
+src/compiler/codegen.cpp                    - Code generation
+src/compiler/biogpu_compiler.py             - Python compiler interface
+src/compiler/biogpu_prototype.py            - Prototype implementation
+src/parser/ast.cpp                          - Abstract syntax tree
+src/parser/biogpu_parser.cpp                - BioGPU parser implementation
+
+4. CORE HEADERS AND API DEFINITIONS
+------------------------------------
+include/biogpu_core.h                       - Core framework definitions
+include/biogpu/types/bio_types.h            - Biological data types
+include/biogpu/parser/parser.h              - Parser interface
+include/biogpu/parser/ast.h                 - AST definitions
+include/biogpu/codegen/llvm_codegen.h       - LLVM code generation interface
+include/biogpu/compiler/compiler.h          - Compiler interface
+
+5. GPU-ACCELERATED ALGORITHMS (CUDA)
+------------------------------------
+runtime/kernels/resistance/fq_mutation_detector.cu      - Mutation detection
+runtime/kernels/resistance/bloom_filter.cu              - Bloom filter GPU implementation
+runtime/kernels/resistance/kmer_screening.cu            - K-mer screening
+runtime/kernels/resistance/resistance_detection_gpu.cu  - Resistance detection
+runtime/kernels/profiler/minimizer_extraction.cu       - Minimizer extraction
+runtime/kernels/profiler/gpu_kmer_database.cu          - GPU k-mer database
+runtime/kernels/genes/translated_search_amr.cu         - Translated search
+
+6. HOST-SIDE PIPELINE IMPLEMENTATIONS
+-------------------------------------
+runtime/kernels/resistance/fq_pipeline_host.cpp         - Resistance pipeline host
+runtime/kernels/resistance/global_fq_resistance_mapper.cpp - Global mapper
+runtime/kernels/genes/amr_detection_pipeline.cpp       - AMR detection pipeline
+runtime/kernels/profiler/enhanced_k2like/enhanced_classifier.cc - Classifier
+
+7. DSL EXAMPLE PROGRAMS
+-----------------------
+examples/simple_fq_resistance.biogpu        - Simple resistance detection
+examples/fq_resistance_detection.biogpu     - Full resistance detection
+examples/fq_resistance_test.biogpu          - Test program
+src/stdlib/clinical.biogpu                  - Clinical analysis library
+src/stdlib/metagenomics.biogpu             - Metagenomic analysis library
+
+8. BUILD CONFIGURATION
+----------------------
+CMakeLists.txt                              - Main CMake configuration
+runtime/kernels/CMakeLists.txt              - Kernels build configuration
+runtime/kernels/profiler/CMakeLists.txt     - Profiler build configuration
+runtime/kernels/resistance/CMakeLists.txt   - Resistance build configuration
+scripts/build_production.sh                 - Production build script
+scripts/setup_bloom_filter.sh               - Bloom filter setup
+
+9. SUPPORTING UTILITIES
+-----------------------
+src/python/build_wildtype_protein_db.py     - Database builder
+src/python/download_ncbi_20250529.py        - NCBI data downloader
+runtime/kernels/resistance/clinical_fq_report_generator.cpp - Report generator
+runtime/kernels/resistance/hdf5_alignment_writer.cpp - HDF5 output writer
+
+Total Categories: 9
+Total Files: 60+ core files
+
+Note: This listing includes the most significant files representing the core
+intellectual property of BioGPU. Additional supporting files, test cases, and
+data files are part of the complete project but not included in this submission
+to keep it focused on the primary creative work.

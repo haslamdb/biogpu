@@ -1,0 +1,34 @@
+BioGPU - High-Performance GPU-Accelerated Bioinformatics Framework
+Copyright (c) 2025 David [Your Last Name]
+All Rights Reserved.
+
+This work is submitted for copyright registration with the U.S. Copyright Office.
+
+Project Name: BioGPU
+Type of Work: Computer Program (Source Code)
+Year of Creation: 2024-2025
+Author: David [Your Last Name]
+Repository: https://github.com/[username]/biogpu
+
+Description:
+BioGPU is a domain-specific language (DSL) and GPU-accelerated framework for 
+high-performance bioinformatics analysis. It includes a custom compiler, parser,
+and CUDA-based algorithms for genomic sequence analysis, antimicrobial resistance
+detection, and metagenomic profiling.
+
+Key Components:
+1. Domain-Specific Language (DSL) with custom grammar
+2. LLVM-based compiler and code generator
+3. GPU-accelerated algorithms for sequence analysis
+4. Antimicrobial resistance detection pipeline
+5. Metagenomic profiling tools
+6. Clinical report generation system
+
+This submission includes representative portions of the source code as permitted
+under U.S. Copyright Office regulations for computer programs.
+
+Contact Information:
+[Your Name]
+[Your Email]
+[Your Address]
+[Your Phone Number]

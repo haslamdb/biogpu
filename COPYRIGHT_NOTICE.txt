@@ -1,5 +1,5 @@
 BioGPU - High-Performance GPU-Accelerated Bioinformatics Framework
-Copyright (c) 2025 David Haslam
+Copyright (c) 2025 David Haslam, Interface Laboratories
 All Rights Reserved.
 
 This work is submitted for copyright registration with the U.S. Copyright Office.

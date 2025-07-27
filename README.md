@@ -15,7 +15,7 @@ BioGPU is a comprehensive GPU-accelerated framework for real-time metagenomic an
   - Detection of mutations in DNA gyrase (gyrA/gyrB) and topoisomerase IV (parC/parE) genes
   - Real-time allele frequency calculation for heterogeneous populations
   - Clinical-grade reporting with confidence scores
-  - Optimized for longitudinal studies and treatment monitoring
+  - Optimized for longitudinal studies and treatment monitoring 
 
 ### 2. AMR Gene Detection and Quantitation 
 - **Key Innovation**: Employs Expectation-Maximization (EM) algorithm for accurate assignment of multi-mapping reads

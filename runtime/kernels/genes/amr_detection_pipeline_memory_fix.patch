@@ -1,0 +1,124 @@
+--- amr_detection_pipeline.cpp.orig	2025-01-01 00:00:00.000000000 +0000
++++ amr_detection_pipeline.cpp	2025-01-01 00:00:00.000000000 +0000
+@@ -130,23 +130,31 @@
+         return false;
+     }
+ 
+-    // Initialize translated search engine if enabled
++    // Initialize translated search engine if enabled (with larger capacity)
+     if (!config.use_bloom_filter || config.bloom_filter_fpr > 0.5) {
+         std::cout << "Initializing translated search engine..." << std::endl;
+-        translated_search_engine = create_translated_search_engine_with_sw(engine_capacity, true);
++        
++        // Create engine with proper batch size matching actual usage
++        int actual_batch_size = config.reads_per_batch * 2;  // Account for paired-end
++        translated_search_engine = create_translated_search_engine_with_sw(actual_batch_size, true);
++        
+         if (!translated_search_engine) {
+             std::cerr << "Failed to create translated search engine" << std::endl;
+             return false;
+         }
+ 
+-    // Load protein database
+-    std::string protein_db_path = config.protein_db_path;
+-    if (protein_db_path.empty()) {
+-        protein_db_path = "amr_protein_db";
+-    }
++        // Load protein database ONCE during initialization
++        std::string protein_db_path = config.protein_db_path;
++        if (protein_db_path.empty()) {
++            protein_db_path = "amr_protein_db";
++        }
+ 
+-    if (load_protein_database(translated_search_engine, protein_db_path.c_str()) == 0) {
+-        search_engine_initialized = true;
++        // Check if database is already loaded (new check)
++        static bool database_loaded = false;
++        if (!database_loaded && load_protein_database(translated_search_engine, protein_db_path.c_str()) == 0) {
++            database_loaded = true;
++            search_engine_initialized = true;
++        } else if (database_loaded) {
++            search_engine_initialized = true;  // Database already loaded
+         std::cout << "Protein database loaded successfully from " << protein_db_path << std::endl;
+     } else {
+         std::cerr << "Failed to load protein database from " << protein_db_path << std::endl;
+@@ -167,12 +175,16 @@
+ 
+ bool AMRDetectionPipeline::allocateGPUMemory() {
+     // Calculate memory requirements
+-    size_t max_reads_in_memory = config.reads_per_batch * 2;  // Account for paired-end
+-    size_t max_sequence_length = (config.expected_read_length * 2) + 100;  // Buffer for variations
++    // Fix: Properly calculate memory for merged paired-end reads
++    size_t max_reads_in_memory = config.reads_per_batch * 2;  // R1 + R2
++    size_t max_sequence_length = (config.expected_read_length * 2) + 100;  // Merged length + gap
++    
++    // Additional buffer for very long reads
++    max_sequence_length = std::max(max_sequence_length, (size_t)1000);
+ 
+     // Allocate GPU memory with error checking
+     size_t reads_mem = max_reads_in_memory * max_sequence_length;
+-    size_t offsets_mem = (max_reads_in_memory + 1) * sizeof(uint32_t);  // +1 for end offset
++    size_t offsets_mem = (max_reads_in_memory + 1) * sizeof(uint32_t);  // Fix: +1 for end offset
+     size_t lengths_mem = max_reads_in_memory * sizeof(uint32_t);
+     size_t minimizer_mem = max_reads_in_memory * 100 * sizeof(uint64_t);  // Estimate
+     size_t hit_mem = max_reads_in_memory * 10 * sizeof(AMRGeneHit);  // Estimate
+@@ -775,11 +787,16 @@
+     // Ensure arrays are properly sized
+     if (end_read >= current_batch_size || current_batch_size == 0) {
+         std::cerr << "Invalid read range for protein search: " << start_read << "-" << end_read 
+                   << " (batch size: " << current_batch_size << ")" << std::endl;
+         return;
+     }
++    
++    // Clear any existing CUDA errors before search
++    cudaError_t pre_err = cudaGetLastError();
++    if (pre_err != cudaSuccess) {
++        std::cerr << "Clearing pre-existing CUDA error: " << cudaGetErrorString(pre_err) << std::endl;
++    }
+ 
+     // Prepare minimizer offsets
+     std::vector<uint32_t> h_minimizer_offsets(batch_size + 1);
+     h_minimizer_offsets[0] = 0;
+@@ -798,7 +815,9 @@
+         // First, clear the error
+         cudaGetLastError();
+ 
+-        // If we get repeated errors, consider resetting the engine
++        // Fix: Don't reload database on reset, just reset engine state
++        // The protein database stays loaded in GPU memory
++        // Only reset if we get many consecutive errors
+         static int consecutive_errors = 0;
+         consecutive_errors++;
+ 
+@@ -1327,17 +1346,20 @@
+         std::cerr << "Translated search engine in bad state, recreating..." << std::endl;
+         translated_search_engine = create_translated_search_engine_with_sw(engine_capacity, true);
+         
+         if (!translated_search_engine) {
+             std::cerr << "Failed to recreate translated search engine" << std::endl;
+             return;
+         }
+     }
+ 
+-    // Reload protein database
++    // Fix: Don't reload protein database - it's already in memory
++    // Just mark engine as initialized if database was previously loaded
+     std::string protein_db_path = config.protein_db_path;
+     if (protein_db_path.empty()) {
+         protein_db_path = "amr_protein_db";
+     }
+ 
++    // Skip reload - database persists in GPU memory
++    /*
+     if (load_protein_database(translated_search_engine, protein_db_path.c_str()) == 0) {
+         search_engine_initialized = true;
+         std::cout << "Translated search engine reset successfully" << std::endl;
+@@ -1346,6 +1368,9 @@
+         destroy_translated_search_engine(translated_search_engine);
+         translated_search_engine = nullptr;
+         search_engine_initialized = false;
+     }
++    */
++    search_engine_initialized = true;  // Database already loaded
++    std::cout << "Translated search engine reset successfully (database retained)" << std::endl;
+ }

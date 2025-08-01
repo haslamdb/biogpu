@@ -1,0 +1,215 @@
+# Unified AMR Pipeline CMakeLists.txt
+cmake_minimum_required(VERSION 3.18)
+project(BioGPUUnifiedPipeline LANGUAGES C CXX CUDA)
+
+# Set C++ and CUDA standards
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+# Set CUDA architectures for RTX A6000 and A5000
+set(CMAKE_CUDA_ARCHITECTURES 75 80 86)
+
+# Find required packages
+find_package(CUDA REQUIRED)
+find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS C CXX)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+
+# Check for required dependencies
+if(NOT HDF5_FOUND)
+    message(FATAL_ERROR "HDF5 not found. Please install HDF5 development libraries.")
+endif()
+
+if(NOT JSONCPP_FOUND)
+    message(FATAL_ERROR "jsoncpp not found. Please install jsoncpp development libraries (libjsoncpp-dev).")
+endif()
+
+# Global include directories
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared
+    ${CMAKE_CURRENT_SOURCE_DIR}/resistance
+    ${CMAKE_CURRENT_SOURCE_DIR}/genes
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/io
+    ${HDF5_INCLUDE_DIRS}
+    ${JSONCPP_INCLUDE_DIRS}
+    ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+    ${ZLIB_INCLUDE_DIRS}
+)
+
+# Link directories
+link_directories(${JSONCPP_LIBRARY_DIRS})
+
+# Compiler flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+
+# CUDA specific flags for better performance
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --use_fast_math")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fopenmp")
+
+# Debug flags (optional)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -DDEBUG")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g -G -DDEBUG")
+
+# ===========================
+# Shared Components Library
+# ===========================
+add_library(biogpu_shared STATIC
+    shared/sample_csv_parser.cpp
+    shared/bloom_filter.cu
+)
+
+set_target_properties(biogpu_shared PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# ===========================
+# Common I/O Components
+# ===========================
+add_library(biogpu_io STATIC
+    ../common/io/streaming_fastq_reader.cpp
+)
+
+target_link_libraries(biogpu_io
+    ${ZLIB_LIBRARIES}
+    Threads::Threads
+)
+
+# ===========================
+# Resistance Pipeline Components
+# ===========================
+add_library(resistance_pipeline STATIC
+    resistance/fq_pipeline_host.cpp
+    resistance/fq_mutation_detector.cu
+    resistance/fq_mutation_reporter.cpp
+    resistance/clinical_fq_report_generator.cpp
+    resistance/enhanced_mutation_detection_unified.cu
+    resistance/kmer_screening.cu
+    resistance/resistance_detection_gpu.cu
+    resistance/translated_search_revised.cu
+    resistance/hdf5_alignment_writer.cpp
+    resistance/diagnostic_report.cpp
+    resistance/global_fq_resistance_mapper.cpp
+    resistance/fix_pipeline_resistance_loader.cpp
+    resistance/fixed_database_loader.cpp
+)
+
+set_target_properties(resistance_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+)
+
+# ===========================
+# AMR Gene Detection Components
+# ===========================
+add_library(amr_gene_pipeline STATIC
+    genes/amr_detection_pipeline.cpp
+    genes/amr_detection_kernels.cu
+    genes/amr_detection_kernels_wrapper.cu
+    genes/translated_search_amr.cu
+    genes/hdf5_amr_writer.cpp
+    genes/clinical_amr_report_generator.cpp
+)
+
+set_target_properties(amr_gene_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+)
+
+# ===========================
+# Unified Pipeline Executable
+# ===========================
+add_executable(bio_gpu_pipeline
+    unified_amr_pipeline.cpp
+    
+    # Detector wrapper implementations
+    resistance/resistance_detector.cpp
+    genes/amr_gene_detector.cpp
+)
+
+# Set CUDA properties
+set_target_properties(bio_gpu_pipeline PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+)
+
+# Link libraries
+target_link_libraries(bio_gpu_pipeline
+    biogpu_shared
+    biogpu_io
+    resistance_pipeline
+    amr_gene_pipeline
+    ${CUDA_LIBRARIES}
+    ${CUDART_LIBRARY}
+    ${HDF5_LIBRARIES}
+    ${HDF5_CXX_LIBRARIES}
+    ${JSONCPP_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    Threads::Threads
+    stdc++fs  # For std::filesystem
+)
+
+# ===========================
+# Installation
+# ===========================
+install(TARGETS bio_gpu_pipeline
+    RUNTIME DESTINATION /usr/local/bin
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE 
+                GROUP_READ GROUP_EXECUTE 
+                WORLD_READ WORLD_EXECUTE
+)
+
+# Create a simple build script
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build_unified.sh"
+"#!/bin/bash
+# Build script for BioGPU Unified Pipeline
+set -e
+
+echo \"Building BioGPU Unified Pipeline...\"
+echo \"CUDA Toolkit: ${CUDA_TOOLKIT_ROOT_DIR}\"
+echo \"Target GPUs: RTX A6000 + RTX A5000\"
+
+# Clean build
+if [ -d \"build_unified\" ]; then
+    rm -rf build_unified
+fi
+
+mkdir -p build_unified
+cd build_unified
+
+# Configure
+cmake .. -DCMAKE_BUILD_TYPE=Release \\
+         -DCUDA_TOOLKIT_ROOT_DIR=${CUDA_TOOLKIT_ROOT_DIR} \\
+         -DCMAKE_CUDA_COMPILER=${CMAKE_CUDA_COMPILER}
+
+# Build
+make -j$(nproc)
+
+echo \"Build complete!\"
+echo \"Executable: $(pwd)/bio_gpu_pipeline\"
+echo \"\"
+echo \"To install system-wide:\"
+echo \"  sudo make install\"
+echo \"\"
+echo \"To test:\"
+echo \"  ./bio_gpu_pipeline --help\"
+")
+
+file(CHMOD "${CMAKE_CURRENT_BINARY_DIR}/build_unified.sh"
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+
+# Print configuration summary
+message(STATUS "========================================")
+message(STATUS "BioGPU Unified Pipeline Configuration")
+message(STATUS "========================================")
+message(STATUS "CUDA Version: ${CUDA_VERSION}")
+message(STATUS "CUDA Architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+message(STATUS "HDF5 Version: ${HDF5_VERSION}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Install Prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "========================================")

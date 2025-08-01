@@ -1,0 +1,72 @@
+# Simplified Unified AMR Pipeline CMakeLists.txt
+# This builds just the core framework to verify the structure works
+cmake_minimum_required(VERSION 3.18)
+project(BioGPUUnifiedPipeline LANGUAGES C CXX CUDA)
+
+# Set standards
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+# Set CUDA architectures
+set(CMAKE_CUDA_ARCHITECTURES 75 80 86)
+
+# Find packages
+find_package(CUDA REQUIRED)
+find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
+
+# Include directories
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/io
+    ${JSONCPP_INCLUDE_DIRS}
+    ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+)
+
+# ===========================
+# Shared Components
+# ===========================
+add_library(biogpu_shared_simple STATIC
+    shared/sample_csv_parser.cpp
+)
+
+# ===========================
+# Streaming I/O
+# ===========================
+add_library(biogpu_io_simple STATIC
+    ../common/io/streaming_fastq_reader.cpp
+)
+
+target_link_libraries(biogpu_io_simple
+    ${ZLIB_LIBRARIES}
+    Threads::Threads
+)
+
+# ===========================
+# Test Executable
+# ===========================
+add_executable(bio_gpu_pipeline_test
+    test_unified_pipeline.cpp
+)
+
+target_link_libraries(bio_gpu_pipeline_test
+    biogpu_shared_simple
+    biogpu_io_simple
+    ${CUDA_LIBRARIES}
+    ${CUDART_LIBRARY}
+    ${JSONCPP_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    Threads::Threads
+    stdc++fs
+)
+
+# Print configuration
+message(STATUS "=== Unified Pipeline Test Build ===")
+message(STATUS "CUDA Version: ${CUDA_VERSION}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "=====================================")

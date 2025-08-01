@@ -27,28 +27,19 @@ endif()
 
 # Include directories for resistance kernels
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared)
 
 # Add CUDA include directories for C++ files
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+
+# Add the shared library from parent directory
+add_subdirectory(../shared ${CMAKE_CURRENT_BINARY_DIR}/shared)
 
 # ===========================
 # Core Libraries
 # ===========================
 
-# CSV parser library (NEW)
-add_library(sample_csv_parser STATIC
-    sample_csv_parser.cpp
-)
-
-# Bloom filter library
-add_library(bloom_filter STATIC
-    bloom_filter.cu
-)
-
-set_target_properties(bloom_filter PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86;"
-)
+# Note: sample_csv_parser and bloom_filter are now provided by biogpu_shared library
 
 # Enhanced HDF5 alignment writer library
 add_library(hdf5_writer STATIC
@@ -159,7 +150,7 @@ target_compile_options(fq_pipeline_gpu PRIVATE
 )
 
 target_link_libraries(fq_pipeline_gpu
-    bloom_filter
+    biogpu_shared  # Provides bloom_filter and sample_csv_parser
     hdf5_writer
     translated_search
     kmer_screening
@@ -241,8 +232,7 @@ target_compile_options(clean_resistance_pipeline PRIVATE
 )
 
 target_link_libraries(clean_resistance_pipeline
-    sample_csv_parser    # Link the CSV parser library
-    bloom_filter
+    biogpu_shared    # Provides sample_csv_parser and bloom_filter
     hdf5_writer
     translated_search
     kmer_screening

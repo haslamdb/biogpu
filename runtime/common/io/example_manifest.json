@@ -1,0 +1,62 @@
+{
+  "project": "QuinoloneResistance_Study_2024",
+  "description": "E. coli samples for quinolone resistance profiling",
+  "submission_date": "2024-01-15",
+  "samples": [
+    {
+      "sample_id": "ECOLI_001_D0",
+      "read1": "/data/fastq/ECOLI_001_D0_R1.fastq.gz",
+      "read2": "/data/fastq/ECOLI_001_D0_R2.fastq.gz",
+      "metadata": {
+        "patient_id": "P001",
+        "collection_date": "2024-01-10",
+        "timepoint": "Day0",
+        "treatment": "pre-treatment",
+        "source": "urine"
+      }
+    },
+    {
+      "sample_id": "ECOLI_001_D3",
+      "read1": "/data/fastq/ECOLI_001_D3_R1.fastq.gz",
+      "read2": "/data/fastq/ECOLI_001_D3_R2.fastq.gz",
+      "metadata": {
+        "patient_id": "P001",
+        "collection_date": "2024-01-13",
+        "timepoint": "Day3",
+        "treatment": "ciprofloxacin",
+        "source": "urine"
+      }
+    },
+    {
+      "sample_id": "ECOLI_002_D0",
+      "read1": "/data/fastq/ECOLI_002_D0_R1.fastq.gz",
+      "read2": "/data/fastq/ECOLI_002_D0_R2.fastq.gz",
+      "metadata": {
+        "patient_id": "P002",
+        "collection_date": "2024-01-11",
+        "timepoint": "Day0",
+        "treatment": "pre-treatment",
+        "source": "blood"
+      }
+    },
+    {
+      "sample_id": "ECOLI_002_D3",
+      "read1": "/data/fastq/ECOLI_002_D3_R1.fastq.gz",
+      "read2": "/data/fastq/ECOLI_002_D3_R2.fastq.gz",
+      "metadata": {
+        "patient_id": "P002",
+        "collection_date": "2024-01-14",
+        "timepoint": "Day3",
+        "treatment": "levofloxacin",
+        "source": "blood"
+      }
+    }
+  ],
+  "analysis_parameters": {
+    "reference_genome": "escherichia_coli_k12",
+    "resistance_panel": "quinolone_comprehensive",
+    "min_coverage": 30,
+    "variant_caller": "lofreq",
+    "report_mutations_above": 0.01
+  }
+}

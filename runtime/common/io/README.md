@@ -36,7 +36,7 @@ A production-ready streaming service for the BioGPU pipeline that provides real-
 
 ### Requirements
 
-- Python 3.9+
+- Python 3.12+
 - Docker and Docker Compose
 - CUDA-capable GPU (for BioGPU workers)
 - Redis 7+

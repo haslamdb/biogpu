@@ -1,0 +1,294 @@
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle, Clock, Activity, TrendingUp, Microscope, Shield } from 'lucide-react';
+
+const BioGPUAnalysisDashboard = () => {
+  const [jobStatus, setJobStatus] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [analysisHistory, setAnalysisHistory] = useState([]);
+  const [socket, setSocket] = useState(null);
+
+  // Mock job ID - in real implementation, this would come from props or URL params
+  const jobId = 'job-def-456';
+
+  useEffect(() => {
+    // Connect to WebSocket for real-time updates
+    const connectWebSocket = () => {
+      const ws = new WebSocket(`ws://localhost:8765/ws/job/${jobId}`);
+      
+      ws.onopen = () => {
+        setConnectionStatus('connected');
+        ws.send(JSON.stringify({ job_id: jobId }));
+      };
+
+      ws.onmessage = (event) => {
+        const update = JSON.parse(event.data);
+        setJobStatus(update);
+        setAnalysisHistory(prev => [...prev, update]);
+      };
+
+      ws.onclose = () => {
+        setConnectionStatus('disconnected');
+        // Attempt to reconnect after 3 seconds
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnectionStatus('error');
+      };
+
+      setSocket(ws);
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, [jobId]);
+
+  const getStageIcon = (stage) => {
+    const iconMap = {
+      'submitted': <Clock className="w-5 h-5" />,
+      'quality_check': <Activity className="w-5 h-5" />,
+      'read_mapping': <TrendingUp className="w-5 h-5" />,
+      'taxonomic_classification': <Microscope className="w-5 h-5" />,
+      'resistance_detection': <Shield className="w-5 h-5" />,
+      'report_generation': <CheckCircle className="w-5 h-5" />,
+      'completed': <CheckCircle className="w-5 h-5" />,
+      'failed': <AlertCircle className="w-5 h-5" />
+    };
+    return iconMap[stage] || <Clock className="w-5 h-5" />;
+  };
+
+  const getStageColor = (stage) => {
+    const colorMap = {
+      'submitted': 'text-gray-500',
+      'quality_check': 'text-blue-500',
+      'read_mapping': 'text-indigo-500',
+      'taxonomic_classification': 'text-purple-500',
+      'resistance_detection': 'text-orange-500',
+      'report_generation': 'text-green-500',
+      'completed': 'text-green-600',
+      'failed': 'text-red-500'
+    };
+    return colorMap[stage] || 'text-gray-500';
+  };
+
+  const formatStageName = (stage) => {
+    return stage.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
+  const ConnectionIndicator = () => (
+    <div className="flex items-center gap-2 mb-4">
+      <div className={`w-3 h-3 rounded-full ${
+        connectionStatus === 'connected' ? 'bg-green-500' : 
+        connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+      }`}></div>
+      <span className="text-sm text-gray-600">
+        {connectionStatus === 'connected' ? 'Connected' : 
+         connectionStatus === 'error' ? 'Connection Error' : 'Disconnected'}
+      </span>
+    </div>
+  );
+
+  const ProgressBar = ({ progress }) => (
+    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+      <div 
+        className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+        style={{ width: `${Math.max(progress * 100, 5)}%` }}
+      ></div>
+    </div>
+  );
+
+  const ResultsPreview = ({ data }) => {
+    if (!data) return null;
+
+    const { detected_organisms, resistance_genes_found } = data;
+    
+    return (
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Microscope className="w-5 h-5 text-blue-600" />
+            <h3 className="font-semibold text-blue-900">Microbial Community</h3>
+          </div>
+          <p className="text-blue-700">
+            {detected_organisms || 0} distinct organisms detected
+          </p>
+        </div>
+        
+        <div className="bg-orange-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="w-5 h-5 text-orange-600" />
+            <h3 className="font-semibold text-orange-900">Resistance Profile</h3>
+          </div>
+          <p className="text-orange-700">
+            {resistance_genes_found || 0} fluoroquinolone resistance mutations found
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const AnalysisSteps = () => {
+    const steps = [
+      'submitted',
+      'quality_check', 
+      'read_mapping',
+      'taxonomic_classification',
+      'resistance_detection',
+      'report_generation',
+      'completed'
+    ];
+
+    const currentStageIndex = jobStatus ? steps.indexOf(jobStatus.stage) : -1;
+
+    return (
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold mb-4">Analysis Pipeline</h3>
+        <div className="space-y-3">
+          {steps.map((step, index) => {
+            const isActive = index === currentStageIndex;
+            const isCompleted = index < currentStageIndex;
+            const isFuture = index > currentStageIndex;
+            
+            return (
+              <div key={step} className={`flex items-center gap-3 p-3 rounded-lg ${
+                isActive ? 'bg-blue-50 border-l-4 border-blue-500' :
+                isCompleted ? 'bg-green-50' : 'bg-gray-50'
+              }`}>
+                <div className={`${
+                  isActive ? getStageColor(jobStatus?.stage) :
+                  isCompleted ? 'text-green-600' : 'text-gray-400'
+                }`}>
+                  {getStageIcon(step)}
+                </div>
+                <div className="flex-1">
+                  <div className={`font-medium ${
+                    isActive ? 'text-blue-900' :
+                    isCompleted ? 'text-green-900' : 'text-gray-500'
+                  }`}>
+                    {formatStageName(step)}
+                  </div>
+                  {isActive && jobStatus?.message && (
+                    <div className="text-sm text-blue-700 mt-1">
+                      {jobStatus.message}
+                    </div>
+                  )}
+                </div>
+                {isActive && (
+                  <div className="text-sm font-medium text-blue-600">
+                    {Math.round(jobStatus.progress * 100)}%
+                  </div>
+                )}
+                {isCompleted && (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              BioGPU Analysis Dashboard
+            </h1>
+            <p className="text-gray-600">
+              Sample: {jobStatus?.sample_id || 'Patient789_Day5'}
+            </p>
+          </div>
+          <ConnectionIndicator />
+        </div>
+
+        {jobStatus && (
+          <>
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Overall Progress</span>
+                <span className="text-sm text-gray-600">
+                  {Math.round(jobStatus.progress * 100)}%
+                </span>
+              </div>
+              <ProgressBar progress={jobStatus.progress} />
+            </div>
+
+            <AnalysisSteps />
+
+            {jobStatus.stage === 'completed' && jobStatus.data && (
+              <ResultsPreview data={jobStatus.data} />
+            )}
+
+            {jobStatus.stage === 'failed' && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <h3 className="font-semibold text-red-900">Analysis Failed</h3>
+                </div>
+                <p className="text-red-700 mt-2">{jobStatus.message}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {!jobStatus && (
+          <div className="text-center py-12">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Waiting for analysis to begin...</p>
+          </div>
+        )}
+
+        {jobStatus?.stage === 'completed' && (
+          <div className="mt-8 flex gap-4">
+            <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              View Full Report
+            </button>
+            <button className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+              Download Results
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Analysis History Panel */}
+      {analysisHistory.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-lg font-semibold mb-4">Analysis Log</h2>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {analysisHistory.slice(-10).map((update, index) => (
+              <div key={index} className="text-sm border-l-2 border-gray-200 pl-4 py-2">
+                <div className="flex items-center gap-2">
+                  <span className={`font-medium ${getStageColor(update.stage)}`}>
+                    {formatStageName(update.stage)}
+                  </span>
+                  <span className="text-gray-500">
+                    {Math.round(update.progress * 100)}%
+                  </span>
+                </div>
+                <div className="text-gray-600">{update.message}</div>
+                {update.timestamp && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    {new Date(update.timestamp).toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default BioGPUAnalysisDashboard;

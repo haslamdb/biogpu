@@ -1,0 +1,11 @@
+{
+    "redis_url": "redis://localhost:6379",
+    "kafka_servers": ["localhost:9092"],
+    "biogpu_executable": "/usr/local/bin/bio_gpu_pipeline",
+    "jwt_secret": "your-secret-key-at-least-32-characters-long",
+    "gpu_device_id": 0,
+    "reference_db_path": "/data/microbial_ref_db",
+    "resistance_db_path": "/data/quinolone_resistance_db",
+    "max_retries": 3,
+    "base_retry_delay": 60
+}

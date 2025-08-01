@@ -1,0 +1,1145 @@
+# requirements.txt - Production Python dependencies
+asyncio==3.4.3
+aioredis==2.0.1
+kafka-python-ng==2.2.0
+websockets==11.0.3
+PyJWT==2.8.0
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy[asyncio]==2.0.23
+asyncpg==0.29.0
+pymongo==4.6.0
+pydantic==2.5.0
+httpx==0.25.2
+python-multipart==0.0.6
+redis==5.0.1
+docker==6.1.3
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+numpy==1.24.3
+pandas==2.0.3
+h5py==3.9.0
+pyarrow==14.0.1
+structlog==23.2.0
+python-json-logger==2.0.7
+prometheus-client==0.19.0
+psutil==5.9.6
+
+---
+# docker-compose.production.yml - Production-ready deployment
+version: '3.8'
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "100m"
+    max-file: "3"
+
+services:
+  # Infrastructure Services
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: WARN
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:29092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: biogpu_saas
+      POSTGRES_USER: biogpu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./postgres.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U biogpu -d biogpu_saas"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  mongodb:
+    image: mongo:6
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: biogpu
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongod.conf:/etc/mongod.conf
+    command: mongod --config /etc/mongod.conf
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Monitoring Services
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    logging: *default-logging
+
+  # Application Services
+  api_gateway:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+      - web_static:/var/www/html
+    depends_on:
+      - auth_service
+      - project_service
+      - submission_service
+      - results_service
+      - websocket_service
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
+  auth_service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://biogpu:${POSTGRES_PASSWORD}@postgres:5432/biogpu_saas
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  project_service:
+    build:
+      context: ./services/project
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://biogpu:${POSTGRES_PASSWORD}@postgres:5432/biogpu_saas
+      - MONGODB_URL=mongodb://biogpu:${MONGO_PASSWORD}@mongodb:27017
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  submission_service:
+    build:
+      context: ./services/submission
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - KAFKA_SERVERS=kafka:29092
+      - REDIS_URL=redis://redis:6379
+      - STORAGE_PATH=/data/submissions
+      - MAX_FILE_SIZE=10737418240  # 10GB
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    volumes:
+      - submission_data:/data/submissions
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  results_service:
+    build:
+      context: ./services/results
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - RESULTS_STORAGE_PATH=/data/results
+      - DATABASE_URL=postgresql://biogpu:${POSTGRES_PASSWORD}@postgres:5432/biogpu_saas
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    volumes:
+      - results_data:/data/results
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  websocket_service:
+    build:
+      context: ./services/websocket
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+      - MAX_CONNECTIONS=1000
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # GPU-enabled BioGPU Workers
+  biogpu_worker_1:
+    build:
+      context: ./services/biogpu_worker
+      dockerfile: Dockerfile.gpu
+    restart: unless-stopped
+    environment:
+      - KAFKA_SERVERS=kafka:29092
+      - REDIS_URL=redis://redis:6379
+      - GPU_DEVICE_ID=0
+      - BIOGPU_EXECUTABLE=/usr/local/bin/bio_gpu_pipeline
+      - REFERENCE_DB_PATH=/data/reference_db
+      - RESISTANCE_DB_PATH=/data/resistance_db
+      - JWT_SECRET=${JWT_SECRET}
+      - MAX_RETRIES=3
+      - BASE_RETRY_DELAY=60
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    volumes:
+      - reference_data:/data/reference_db:ro
+      - resistance_data:/data/resistance_db:ro
+      - results_data:/data/results
+      - submission_data:/data/submissions:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  biogpu_worker_2:
+    build:
+      context: ./services/biogpu_worker
+      dockerfile: Dockerfile.gpu
+    restart: unless-stopped
+    environment:
+      - KAFKA_SERVERS=kafka:29092
+      - REDIS_URL=redis://redis:6379
+      - GPU_DEVICE_ID=1
+      - BIOGPU_EXECUTABLE=/usr/local/bin/bio_gpu_pipeline
+      - REFERENCE_DB_PATH=/data/reference_db
+      - RESISTANCE_DB_PATH=/data/resistance_db
+      - JWT_SECRET=${JWT_SECRET}
+      - MAX_RETRIES=3
+      - BASE_RETRY_DELAY=60
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    volumes:
+      - reference_data:/data/reference_db:ro
+      - resistance_data:/data/resistance_db:ro
+      - results_data:/data/results
+      - submission_data:/data/submissions:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  notification_service:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - KAFKA_SERVERS=kafka:29092
+      - FROM_EMAIL=${FROM_EMAIL}
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Dead Letter Queue processor for failed jobs
+  dlq_processor:
+    build:
+      context: ./services/dlq_processor
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - KAFKA_SERVERS=kafka:29092
+      - DATABASE_URL=postgresql://biogpu:${POSTGRES_PASSWORD}@postgres:5432/biogpu_saas
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - LOG_LEVEL=INFO
+      - PROMETHEUS_PORT=8001
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_logs:
+    driver: local
+  kafka_data:
+    driver: local
+  submission_data:
+    driver: local
+  results_data:
+    driver: local
+  reference_data:
+    driver: local
+  resistance_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  web_static:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+---
+# .env.production - Production environment variables
+# Database passwords
+POSTGRES_PASSWORD=your_secure_postgres_password_here
+MONGO_PASSWORD=your_secure_mongo_password_here
+
+# JWT and security
+JWT_SECRET=your_jwt_secret_key_at_least_32_characters_long_for_production
+
+# Email configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your_app_specific_password
+FROM_EMAIL=noreply@biogpu.com
+
+# Monitoring
+GRAFANA_PASSWORD=your_secure_grafana_password
+
+# Alerting
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+
+---
+# Makefile - Production deployment automation
+.PHONY: help build deploy test clean logs backup restore
+
+help: ## Show this help message
+	@echo 'Usage: make [target]'
+	@echo ''
+	@echo 'Targets:'
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $1, $2}' $(MAKEFILE_LIST)
+
+build: ## Build all Docker images
+	@echo "Building BioGPU production images..."
+	docker-compose -f docker-compose.production.yml build --parallel
+
+deploy: ## Deploy the full production stack
+	@echo "Deploying BioGPU SaaS platform..."
+	@if [ ! -f .env.production ]; then \
+		echo "Error: .env.production file not found!"; \
+		echo "Please copy .env.production.example and configure it."; \
+		exit 1; \
+	fi
+	docker-compose -f docker-compose.production.yml up -d
+	@echo "Waiting for services to be healthy..."
+	@sleep 30
+	@echo "Production deployment complete!"
+
+test: ## Run the test suite
+	@echo "Running BioGPU test suite..."
+	pytest tests/ -v --tb=short --cov=biogpu --cov-report=html --cov-report=term-missing
+
+test-integration: ## Run integration tests (requires Docker)
+	@echo "Running integration tests..."
+	pytest tests/ -v -m integration --tb=short
+
+clean: ## Clean up Docker resources
+	@echo "Cleaning up Docker resources..."
+	docker-compose -f docker-compose.production.yml down -v
+	docker system prune -f
+	docker volume prune -f
+
+logs: ## View logs from all services
+	docker-compose -f docker-compose.production.yml logs -f
+
+logs-worker: ## View BioGPU worker logs
+	docker-compose -f docker-compose.production.yml logs -f biogpu_worker_1 biogpu_worker_2
+
+backup: ## Backup all persistent data
+	@echo "Creating backup of production data..."
+	@mkdir -p backups/$(shell date +%Y-%m-%d_%H-%M-%S)
+	docker run --rm -v biogpu_postgres_data:/data -v $(PWD)/backups:/backup alpine tar czf /backup/$(shell date +%Y-%m-%d_%H-%M-%S)/postgres.tar.gz -C /data .
+	docker run --rm -v biogpu_mongodb_data:/data -v $(PWD)/backups:/backup alpine tar czf /backup/$(shell date +%Y-%m-%d_%H-%M-%S)/mongodb.tar.gz -C /data .
+	docker run --rm -v biogpu_results_data:/data -v $(PWD)/backups:/backup alpine tar czf /backup/$(shell date +%Y-%m-%d_%H-%M-%S)/results.tar.gz -C /data .
+
+restore: ## Restore from backup (specify BACKUP_DATE=YYYY-MM-DD_HH-MM-SS)
+	@if [ -z "$(BACKUP_DATE)" ]; then \
+		echo "Error: Please specify BACKUP_DATE=YYYY-MM-DD_HH-MM-SS"; \
+		exit 1; \
+	fi
+	@echo "Restoring from backup $(BACKUP_DATE)..."
+	docker run --rm -v biogpu_postgres_data:/data -v $(PWD)/backups:/backup alpine tar xzf /backup/$(BACKUP_DATE)/postgres.tar.gz -C /data
+	docker run --rm -v biogpu_mongodb_data:/data -v $(PWD)/backups:/backup alpine tar xzf /backup/$(BACKUP_DATE)/mongodb.tar.gz -C /data
+	docker run --rm -v biogpu_results_data:/data -v $(PWD)/backups:/backup alpine tar xzf /backup/$(BACKUP_DATE)/results.tar.gz -C /data
+
+status: ## Show status of all services
+	docker-compose -f docker-compose.production.yml ps
+
+scale-workers: ## Scale BioGPU workers (usage: make scale-workers WORKERS=4)
+	@if [ -z "$(WORKERS)" ]; then \
+		echo "Error: Please specify WORKERS=N"; \
+		exit 1; \
+	fi
+	docker-compose -f docker-compose.production.yml up -d --scale biogpu_worker_1=$(WORKERS)
+
+monitor: ## Open monitoring dashboard
+	@echo "Opening Grafana dashboard at http://localhost:3000"
+	@echo "Default login: admin / (check GRAFANA_PASSWORD in .env)"
+
+---
+# nginx/nginx.conf - Production Nginx configuration
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 2048;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # Logging format
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for" '
+                    'rt=$request_time uct="$upstream_connect_time" '
+                    'uht="$upstream_header_time" urt="$upstream_response_time"';
+
+    access_log /var/log/nginx/access.log main;
+
+    # Performance optimizations
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    client_max_body_size 10G;  # Allow large FASTQ uploads
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml;
+
+    # Rate limiting zones
+    limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
+    limit_req_zone $binary_remote_addr zone=upload:10m rate=5r/m;
+    limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
+
+    # Upstream definitions
+    upstream auth_service {
+        least_conn;
+        server auth_service:8000 max_fails=3 fail_timeout=30s;
+    }
+    
+    upstream project_service {
+        least_conn;
+        server project_service:8000 max_fails=3 fail_timeout=30s;
+    }
+    
+    upstream submission_service {
+        least_conn;
+        server submission_service:8000 max_fails=3 fail_timeout=30s;
+    }
+    
+    upstream results_service {
+        least_conn;
+        server results_service:8000 max_fails=3 fail_timeout=30s;
+    }
+    
+    upstream websocket_service {
+        least_conn;
+        server websocket_service:8765 max_fails=3 fail_timeout=30s;
+    }
+
+    # SSL configuration
+    ssl_session_cache shared:SSL:50m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
+    # Security headers map
+    map $sent_http_content_type $security_headers {
+        ~*text/html "X-Frame-Options: DENY; X-Content-Type-Options: nosniff; X-XSS-Protection: 1; mode=block; Referrer-Policy: strict-origin-when-cross-origin";
+    }
+
+    # HTTP to HTTPS redirect
+    server {
+        listen 80;
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+
+    # Main HTTPS server
+    server {
+        listen 443 ssl http2;
+        server_name biogpu.yourdomain.com;
+        
+        ssl_certificate /etc/nginx/ssl/cert.pem;
+        ssl_certificate_key /etc/nginx/ssl/key.pem;
+        
+        # Security headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubdomains; preload" always;
+        add_header $security_headers always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;" always;
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        # API routes with rate limiting
+        location /api/auth/ {
+            limit_req zone=auth burst=20 nodelay;
+            proxy_pass http://auth_service/;
+            include /etc/nginx/proxy_params;
+        }
+
+        location /api/projects/ {
+            limit_req zone=api burst=50 nodelay;
+            proxy_pass http://project_service/;
+            include /etc/nginx/proxy_params;
+        }
+
+        location /api/submissions/ {
+            limit_req zone=upload burst=10 nodelay;
+            client_max_body_size 10G;
+            proxy_pass http://submission_service/;
+            include /etc/nginx/proxy_params;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /api/results/ {
+            limit_req zone=api burst=50 nodelay;
+            proxy_pass http://results_service/;
+            include /etc/nginx/proxy_params;
+        }
+
+        # WebSocket for real-time updates
+        location /ws/ {
+            proxy_pass http://websocket_service;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            include /etc/nginx/proxy_params;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+        }
+
+        # Static files with caching
+        location /static/ {
+            root /var/www/html;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Main web application
+        location / {
+            root /var/www/html;
+            try_files $uri $uri/ /index.html;
+            expires 1h;
+            add_header Cache-Control "public";
+        }
+
+        # Monitoring endpoints (restrict access)
+        location /metrics {
+            allow 127.0.0.1;
+            allow 172.20.0.0/16;  # Docker network
+            deny all;
+            
+            proxy_pass http://prometheus:9090/metrics;
+            include /etc/nginx/proxy_params;
+        }
+    }
+}
+
+---
+# nginx/proxy_params - Common proxy parameters
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Port $server_port;
+
+proxy_buffering on;
+proxy_buffer_size 4k;
+proxy_buffers 8 4k;
+proxy_busy_buffers_size 8k;
+
+proxy_connect_timeout 30s;
+proxy_send_timeout 60s;
+proxy_read_timeout 60s;
+
+---
+# redis.conf - Production Redis configuration
+# Network
+bind 0.0.0.0
+port 6379
+timeout 300
+
+# General
+daemonize no
+supervised no
+pidfile /var/run/redis_6379.pid
+loglevel notice
+logfile ""
+
+# Snapshotting
+save 900 1
+save 300 10  
+save 60 10000
+stop-writes-on-bgsave-error yes
+rdbcompression yes
+rdbchecksum yes
+dbfilename dump.rdb
+dir /data
+
+# Replication
+replica-serve-stale-data yes
+replica-read-only yes
+
+# Security
+requirepass ${REDIS_PASSWORD}
+
+# Memory management
+maxmemory 768mb
+maxmemory-policy allkeys-lru
+
+# Append only file
+appendonly yes
+appendfilename "appendonly.aof"
+appendfsync everysec
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+
+---
+# postgres.conf - Production PostgreSQL configuration
+# Connection settings
+listen_addresses = '*'
+port = 5432
+max_connections = 200
+superuser_reserved_connections = 3
+
+# Memory settings
+shared_buffers = 512MB
+effective_cache_size = 1GB
+work_mem = 4MB
+maintenance_work_mem = 64MB
+
+# Checkpoint settings
+checkpoint_completion_target = 0.9
+wal_buffers = 16MB
+default_statistics_target = 100
+
+# Logging
+log_destination = 'stderr'
+logging_collector = off
+log_min_messages = warning
+log_min_error_statement = error
+log_min_duration_statement = 1000
+
+# Performance
+random_page_cost = 1.1
+effective_io_concurrency = 200
+
+---
+# mongod.conf - Production MongoDB configuration
+storage:
+  dbPath: /data/db
+  journal:
+    enabled: true
+
+systemLog:
+  destination: file
+  logAppend: true
+  path: /var/log/mongodb/mongod.log
+
+net:
+  port: 27017
+  bindIp: 0.0.0.0
+
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+
+security:
+  authorization: enabled
+
+---
+# prometheus.yml - Monitoring configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'biogpu-services'
+    static_configs:
+      - targets: 
+        - 'auth_service:8001'
+        - 'project_service:8001'
+        - 'submission_service:8001'
+        - 'results_service:8001'
+        - 'websocket_service:8001'
+        - 'notification_service:8001'
+        - 'biogpu_worker_1:8001'
+        - 'biogpu_worker_2:8001'
+        - 'dlq_processor:8001'
+
+  - job_name: 'infrastructure'
+    static_configs:
+      - targets:
+        - 'redis:6379'
+        - 'postgres:5432'
+        - 'kafka:9092'
+
+---
+# alert_rules.yml - Prometheus alerting rules
+groups:
+  - name: biogpu_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 90% for more than 2 minutes."
+
+      - alert: JobProcessingDelayed
+        expr: kafka_consumer_lag_sum > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Job processing is delayed"
+          description: "Kafka consumer lag is over 100 messages for more than 5 minutes."
+
+      - alert: GPUWorkerDown
+        expr: up{job="biogpu-services", instance=~"biogpu_worker.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU worker {{ $labels.instance }} is down"
+          description: "Critical: GPU worker is unavailable for job processing."
+
+---
+# scripts/deploy.sh - Deployment automation script
+#!/bin/bash
+set -e
+
+echo "🚀 Starting BioGPU SaaS Platform Deployment"
+
+# Check prerequisites
+command -v docker >/dev/null 2>&1 || { echo "❌ Docker is required but not installed. Aborting." >&2; exit 1; }
+command -v docker-compose >/dev/null 2>&1 || { echo "❌ Docker Compose is required but not installed. Aborting." >&2; exit 1; }
+
+# Check for NVIDIA runtime if GPU workers are needed
+if command -v nvidia-smi >/dev/null 2>&1; then
+    echo "✅ NVIDIA GPU detected"
+    docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi > /dev/null 2>&1 || {
+        echo "❌ NVIDIA Docker runtime not properly configured. Please install nvidia-container-toolkit."
+        exit 1
+    }
+else
+    echo "⚠️  No NVIDIA GPU detected. GPU workers will not be available."
+fi
+
+# Check environment file
+if [ ! -f .env.production ]; then
+    echo "❌ .env.production file not found!"
+    echo "Please copy .env.production.example and configure it with your settings."
+    exit 1
+fi
+
+# Load environment variables
+set -a
+source .env.production
+set +a
+
+# Create necessary directories
+mkdir -p nginx/ssl nginx/logs backups/{postgres,mongodb,results}
+mkdir -p grafana/{dashboards,datasources}
+
+# Generate SSL certificates if they don't exist
+if [ ! -f nginx/ssl/cert.pem ]; then
+    echo "🔒 Generating self-signed SSL certificates..."
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout nginx/ssl/key.pem \
+        -out nginx/ssl/cert.pem \
+        -subj "/C=US/ST=State/L=City/O=Organization/CN=biogpu.yourdomain.com"
+fi
+
+# Build images
+echo "🏗️  Building Docker images..."
+docker-compose -f docker-compose.production.yml build --parallel
+
+# Start infrastructure services first
+echo "🔧 Starting infrastructure services..."
+docker-compose -f docker-compose.production.yml up -d redis postgres mongodb zookeeper kafka
+
+# Wait for infrastructure to be ready
+echo "⏳ Waiting for infrastructure services to be ready..."
+sleep 30
+
+# Start application services
+echo "🚀 Starting application services..."
+docker-compose -f docker-compose.production.yml up -d
+
+# Wait for all services to be healthy
+echo "🏥 Waiting for all services to be healthy..."
+timeout=300
+elapsed=0
+while [ $elapsed -lt $timeout ]; do
+    if docker-compose -f docker-compose.production.yml ps | grep -q "unhealthy\|starting"; then
+        echo "Services still starting... (${elapsed}s elapsed)"
+        sleep 10
+        elapsed=$((elapsed + 10))
+    else
+        break
+    fi
+done
+
+# Check final status
+echo "📊 Final service status:"
+docker-compose -f docker-compose.production.yml ps
+
+# Create initial Kafka topics
+echo "📝 Creating Kafka topics..."
+docker-compose -f docker-compose.production.yml exec kafka kafka-topics --create --topic new_jobs --bootstrap-server localhost:29092 --partitions 4 --replication-factor 1 || true
+docker-compose -f docker-compose.production.yml exec kafka kafka-topics --create --topic failed_jobs_dlq --bootstrap-server localhost:29092 --partitions 2 --replication-factor 1 || true
+docker-compose -f docker-compose.production.yml exec kafka kafka-topics --create --topic notifications --bootstrap-server localhost:29092 --partitions 2 --replication-factor 1 || true
+
+echo "✅ BioGPU SaaS Platform deployment complete!"
+echo ""
+echo "🌐 Access points:"
+echo "   Web Interface: https://localhost"
+echo "   Grafana Monitoring: http://localhost:3000"
+echo "   Prometheus Metrics: http://localhost:9090"
+echo ""
+echo "📋 Next steps:"
+echo "   1. Configure your domain name in nginx/nginx.conf"
+echo "   2. Set up proper SSL certificates"
+echo "   3. Configure external monitoring and alerting"
+echo "   4. Set up regular backups with 'make backup'"

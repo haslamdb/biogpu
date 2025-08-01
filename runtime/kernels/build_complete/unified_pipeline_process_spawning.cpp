@@ -345,15 +345,29 @@ void run_amr_pipeline(const PipelineOptions& options, ProgressReporter& progress
     fs::create_directories(amr_output);
     
     // Build command line for AMR pipeline
+    // AMR detection expects: <amr_db_path> <input_csv> <output_dir> [options]
+    // First create a temporary CSV file for the AMR pipeline
+    std::string temp_csv = amr_output + "/" + options.sample_id + "_input.csv";
+    std::ofstream csv_file(temp_csv);
+    csv_file << "sample_name,fastq_path" << std::endl;
+    csv_file << options.sample_id << "," << options.r1_path;
+    if (!options.r2_path.empty()) {
+        csv_file << "," << options.r2_path;
+    }
+    csv_file << std::endl;
+    csv_file.close();
+    
     ProcessSpawner amr_proc(exec_path, options.amr_gpu);
-    amr_proc.addArg("--r1", options.r1_path);
-    amr_proc.addArg("--r2", options.r2_path);
-    amr_proc.addArg("--output", amr_output);
-    amr_proc.addArg("--database", options.reference_db);
-    amr_proc.addArg("--sample-id", options.sample_id);
-    amr_proc.addArg("--batch-size", std::to_string(options.batch_size));
-    amr_proc.addArg("--min-identity", std::to_string(options.min_identity));
-    amr_proc.addArg("--min-coverage", std::to_string(options.min_coverage));
+    // Positional arguments
+    amr_proc.addArg(options.reference_db);  // AMR database path
+    amr_proc.addArg(temp_csv);              // Input CSV
+    amr_proc.addArg(amr_output);            // Output directory
+    
+    // Optional arguments
+    amr_proc.addArg("--min-identity");
+    amr_proc.addArg(std::to_string(options.min_identity));
+    amr_proc.addArg("--min-coverage");
+    amr_proc.addArg(std::to_string(options.min_coverage));
     
     if (options.use_bloom_filter) {
         amr_proc.addArg("--use-bloom-filter");

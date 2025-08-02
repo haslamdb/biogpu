@@ -1,0 +1,37 @@
+=====================================
+CLINICAL FLUOROQUINOLONE RESISTANCE REPORT
+=====================================
+
+Generated: 2025-08-02 07:43:49
+
+CLINICAL INTERPRETATION
+----------------------
+No fluoroquinolone resistance markers detected
+Confidence: 5%
+
+RECOMMENDATIONS
+---------------
+• Sample appears susceptible to fluoroquinolones
+
+SUMMARY STATISTICS
+-----------------
+Total reads analyzed: 3405007
+Reads with protein matches: 28
+Reads with mutations: 28
+Reads with FQ resistance: 0
+Performance: 378334 reads/second (3405007 reads in 9.0 seconds)
+
+SPECIES BREAKDOWN
+-----------------
+Acinetobacter_baumannii: Susceptible
+  FQ resistance mutations: 0
+  QRDR mutations: 0
+  Genes affected: adeB
+
+Enterococcus_faecium: Susceptible
+  FQ resistance mutations: 0
+  QRDR mutations: 0
+  Genes affected: adeB
+
+DETAILED MUTATIONS
+-----------------

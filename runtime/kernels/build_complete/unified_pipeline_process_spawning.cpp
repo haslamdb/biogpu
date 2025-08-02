@@ -302,9 +302,9 @@ void run_resistance_pipeline(const PipelineOptions& options, ProgressReporter& p
     // The resistance pipeline expects: <nucleotide_index> <protein_db> <reads_r1> <reads_r2> [options]
     ProcessSpawner resistance_proc(exec_path, options.resistance_gpu);
     
-    // For now, use the fq_resistance_index as both nucleotide and protein db
-    std::string resistance_index = "/home/david/projects/biogpu/data/fq_resistance_index";
-    std::string protein_db = "/home/david/projects/biogpu/data/protein_resistance_db";
+    // Use the integrated_clean_db databases for resistance detection
+    std::string resistance_index = "/home/david/projects/biogpu/data/integrated_clean_db/nucleotide";
+    std::string protein_db = "/home/david/projects/biogpu/data/integrated_clean_db/protein";
     
     // Add positional arguments first
     resistance_proc.addArg(resistance_index);

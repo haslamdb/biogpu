@@ -1,0 +1,27 @@
+=====================================
+CLINICAL FLUOROQUINOLONE RESISTANCE REPORT
+=====================================
+
+Generated: 2025-08-02 07:43:08
+
+CLINICAL INTERPRETATION
+----------------------
+No fluoroquinolone resistance markers detected
+Confidence: 5%
+
+RECOMMENDATIONS
+---------------
+• Sample appears susceptible to fluoroquinolones
+
+SUMMARY STATISTICS
+-----------------
+Total reads analyzed: 3
+Reads with protein matches: 0
+Reads with mutations: 0
+Reads with FQ resistance: 0
+Performance: inf reads/second
+
+SPECIES BREAKDOWN
+-----------------
+DETAILED MUTATIONS
+-----------------

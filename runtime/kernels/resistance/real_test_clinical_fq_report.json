@@ -1,0 +1,229 @@
+{
+  "report_type": "clinical_fluoroquinolone_resistance",
+  "generated": "2025-08-02 07:43:49",
+  "summary": {
+    "overall_interpretation": "No fluoroquinolone resistance markers detected",
+    "resistance_confidence": 0.050,
+    "has_fq_resistance": false,
+    "has_qrdr_mutations": false,
+    "total_reads_analyzed": 3405007,
+    "reads_with_protein_matches": 28,
+    "reads_with_mutations": 28,
+    "reads_with_fq_resistance": 0,
+    "processing_time_seconds": 9.000,
+    "reads_per_second": 378334
+  },
+  "clinical_notes": [
+    "Sample appears susceptible to fluoroquinolones"
+  ],
+  "species_analysis": [
+    {
+      "species": "Acinetobacter_baumannii",
+      "likely_resistant": false,
+      "fq_resistance_mutations": 0,
+      "qrdr_mutations": 0,
+      "genes_affected": ["adeB"]
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "likely_resistant": false,
+      "fq_resistance_mutations": 0,
+      "qrdr_mutations": 0,
+      "genes_affected": ["adeB"]
+    }
+  ],
+  "mutations_detected": [
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "L370V",
+      "position": 370,
+      "change": "L → V",
+      "occurrences": 15,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "P372V",
+      "position": 372,
+      "change": "P → V",
+      "occurrences": 15,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "S383A",
+      "position": 383,
+      "change": "S → A",
+      "occurrences": 15,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "M359I",
+      "position": 359,
+      "change": "M → I",
+      "occurrences": 5,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "V349F",
+      "position": 349,
+      "change": "V → F",
+      "occurrences": 5,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "F356I",
+      "position": 356,
+      "change": "F → I",
+      "occurrences": 3,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "F356V",
+      "position": 356,
+      "change": "F → V",
+      "occurrences": 3,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "L357V",
+      "position": 357,
+      "change": "L → V",
+      "occurrences": 3,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "V349I",
+      "position": 349,
+      "change": "V → I",
+      "occurrences": 3,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "A357W",
+      "position": 357,
+      "change": "A → W",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "A375I",
+      "position": 375,
+      "change": "A → I",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "L358I",
+      "position": 358,
+      "change": "L → I",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "L379I",
+      "position": 379,
+      "change": "L → I",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Acinetobacter_baumannii",
+      "gene": "adeB",
+      "mutation": "M369L",
+      "position": 369,
+      "change": "M → L",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "M359V",
+      "position": 359,
+      "change": "M → V",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    },
+    {
+      "species": "Enterococcus_faecium",
+      "gene": "adeB",
+      "mutation": "V337A",
+      "position": 337,
+      "change": "V → A",
+      "occurrences": 2,
+      "avg_identity": 1,
+      "is_fq_resistance": false,
+      "is_qrdr": false,
+      "clinical_significance": "Non-QRDR mutation"
+    }
+  ]
+}

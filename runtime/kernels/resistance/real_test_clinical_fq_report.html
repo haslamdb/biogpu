@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinical FQ Resistance Report - real_test</title>
+<style>
+
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background-color: white; 
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1); 
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 2.5em; 
+            font-weight: 300;
+        }
+        .header .subtitle { 
+            font-size: 1.2em; 
+            opacity: 0.9; 
+            margin-top: 10px;
+        }
+        .content { 
+            padding: 30px; 
+        }
+        h2, h3 { 
+            color: #2c3e50; 
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .alert { 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+            border-left: 5px solid;
+        }
+        .alert-danger { 
+            background-color: #fff5f5; 
+            color: #c53030; 
+            border-left-color: #e53e3e;
+        }
+        .alert-warning { 
+            background-color: #fffaf0; 
+            color: #d69e2e; 
+            border-left-color: #ed8936;
+        }
+        .alert-success { 
+            background-color: #f0fff4; 
+            color: #38a169; 
+            border-left-color: #48bb78;
+        }
+        .summary-box { 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            border: 1px solid #dee2e6;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin-top: 20px; 
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        th, td { 
+            padding: 12px 15px; 
+            text-align: left; 
+            border-bottom: 1px solid #ecf0f1;
+        }
+        th { 
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: white; 
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+        tr:hover { 
+            background-color: #f8f9fa; 
+        }
+        .resistance { 
+            background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%);
+            font-weight: bold; 
+        }
+        .qrdr { 
+            background: linear-gradient(135deg, #fff0e6 0%, #ffe6cc 100%);
+        }
+        .confidence-bar { 
+            width: 200px; 
+            height: 20px; 
+            background-color: #ecf0f1; 
+            border-radius: 10px; 
+            display: inline-block; 
+            overflow: hidden;
+        }
+        .confidence-fill { 
+            height: 100%; 
+            border-radius: 10px; 
+            transition: width 0.3s ease;
+        }
+        .high-conf { 
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        .med-conf { 
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        .low-conf { 
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+        .nav-links {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .nav-links a {
+            display: inline-block;
+            margin: 10px 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+        .nav-links a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .back-link:hover {
+            background: #5a6268;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+            border-top: 1px solid #dee2e6;
+        }
+        .freq-bar { 
+            width: 100px; 
+            height: 20px; 
+            background-color: #ecf0f1; 
+            border-radius: 10px; 
+            display: inline-block; 
+            overflow: hidden; 
+        }
+        .freq-fill { 
+            height: 100%; 
+            border-radius: 10px; 
+        }
+        .freq-high { 
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); 
+        }
+        .freq-med { 
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); 
+        }
+        .freq-low { 
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); 
+        }
+        </style>
+</head>
+<body>
+<div class='container'>
+<div class='header'>
+<h1>Clinical Fluoroquinolone Resistance Report</h1>
+<div class='subtitle'>Sample: real_test</div>
+<div class='subtitle'>Generated: 2025-08-02 07:43:49</div>
+</div>
+<div class='content'>
+<div class='alert alert-success'>
+<h2 style='margin-top: 0; border: none; padding: 0;'>No fluoroquinolone resistance markers detected</h2>
+<p style='margin-bottom: 0;'>Confidence: <div class='confidence-bar' style='margin-left: 10px;'><div class='confidence-fill low-conf' style='width: 5%'></div></div> 5%</p>
+</div>
+<div class='summary-box'>
+<h3>Clinical Recommendations</h3>
+<ul>
+<li>Sample appears susceptible to fluoroquinolones</li>
+</ul>
+</div>
+<h3>Analysis Summary</h3>
+<div class='stats-grid'>
+<div class='stat-card'>
+<div class='stat-number'>3405007</div>
+<div class='stat-label'>Total Reads Analyzed</div>
+</div>
+<div class='stat-card'>
+<div class='stat-number'>28</div>
+<div class='stat-label'>Protein Matches (0.0%)</div>
+</div>
+<div class='stat-card'>
+<div class='stat-number'>28</div>
+<div class='stat-label'>Reads with Mutations</div>
+</div>
+<div class='stat-card'>
+<div class='stat-number'>0</div>
+<div class='stat-label'>FQ Resistance Reads</div>
+</div>
+<div class='stat-card'>
+<div class='stat-number'>378334</div>
+<div class='stat-label'>Reads/Second (9.0s total)</div>
+</div>
+<div class='stat-card'>
+<div class='stat-number'>0</div>
+<div class='stat-label'>Resistance Positions Analyzed</div>
+</div>
+</div>
+<div class='summary-box'>
+<h3>Species Summary</h3>
+<div style='margin: 10px 0; padding: 10px; border-left: 4px solid #27ae60;'>
+<strong>Acinetobacter_baumannii:</strong> Susceptible</div>
+<div style='margin: 10px 0; padding: 10px; border-left: 4px solid #27ae60;'>
+<strong>Enterococcus_faecium:</strong> Susceptible</div>
+</div>
+<div class='nav-links'>
+<h3>Detailed Reports</h3>
+<a href='real_test_mutations_report.html'>📊 Mutations Analysis</a>
+</div>
+</div>
+<div class='footer'>
+Report generated by Clinical FQ Resistance Pipeline v1.0<br>
+For research use only. Clinical decisions should be based on validated diagnostic methods.
+</div>
+</div>
+</body>
+</html>

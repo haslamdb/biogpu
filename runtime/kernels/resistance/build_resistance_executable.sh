@@ -17,14 +17,14 @@ nvcc -c ../translated_search_revised.cu -O3 -arch=sm_75 -Wno-deprecated-gpu-targ
 nvcc -c ../../shared/bloom_filter.cu -O3 -arch=sm_75 -I../../shared -Wno-deprecated-gpu-targets
 
 echo "Compiling C++ files..."
-g++ -c ../clean_resistance_pipeline_main.cpp -std=c++17 -O3 -I.. -I../../shared
+g++ -c ../clean_resistance_pipeline_main.cpp -std=c++17 -O3 -I.. -I../../shared -I/usr/include/hdf5/serial -I/usr/include/jsoncpp -I/usr/local/cuda-12.9/include
 g++ -c ../fq_mutation_reporter.cpp -std=c++17 -O3
 g++ -c ../diagnostic_report.cpp -std=c++17 -O3
 g++ -c ../global_fq_resistance_mapper.cpp -std=c++17 -O3
-g++ -c ../hdf5_alignment_writer.cpp -std=c++17 -O3
-g++ -c ../resistance_detector.cpp -std=c++17 -O3
+g++ -c ../hdf5_alignment_writer.cpp -std=c++17 -O3 -I/usr/include/hdf5/serial
+g++ -c ../resistance_detector.cpp -std=c++17 -O3 -I.. -I../../shared -I/usr/include/hdf5/serial -I/usr/include/jsoncpp -I/usr/local/cuda-12.9/include
 g++ -c ../clinical_fq_report_generator.cpp -std=c++17 -O3
-g++ -c ../fixed_database_loader.cpp -std=c++17 -O3
+g++ -c ../fixed_database_loader.cpp -std=c++17 -O3 -I/usr/include/jsoncpp
 g++ -c ../../shared/sample_csv_parser.cpp -std=c++17 -O3 -I../../shared
 
 echo "Linking executable..."
@@ -44,7 +44,7 @@ nvcc -o clean_resistance_pipeline \
     clinical_fq_report_generator.o \
     fixed_database_loader.o \
     sample_csv_parser.o \
-    -lcudart -lz -lpthread -lhdf5 -O3
+    -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5_cpp -lhdf5 -L/usr/lib/x86_64-linux-gnu -ljsoncpp -lcudart -lz -lpthread -O3
 
 if [ -f "clean_resistance_pipeline" ]; then
     echo "Build successful!"

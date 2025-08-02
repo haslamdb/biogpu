@@ -4,12 +4,10 @@
 #include <filesystem>
 
 // Include existing resistance pipeline headers
-extern "C" {
-    #include "fq_mutation_detector.cuh"
-    #include "global_fq_resistance_mapper.h"
-}
+#include "fq_mutation_detector.cuh"
+#include "global_fq_resistance_mapper.h"
 #include "hdf5_alignment_writer.h"
-#include "clean_resistance_loader.h"
+#include "clean_resistance_pipeline.h"
 #include "diagnostic_report.h"
 
 namespace fs = std::filesystem;

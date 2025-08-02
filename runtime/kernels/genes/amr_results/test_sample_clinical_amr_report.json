@@ -1,0 +1,17 @@
+{
+  "sample_name": "test_sample",
+  "report_timestamp": "2025-08-01 19:33:39",
+  "summary": {
+    "total_reads": 1,
+    "reads_with_amr": 0,
+    "total_genes_detected": 0,
+    "high_confidence_genes": 0,
+    "drug_classes_affected": 0
+  },
+  "drug_class_analysis": [
+
+  ],
+  "genes_detected": [
+
+  ]
+}

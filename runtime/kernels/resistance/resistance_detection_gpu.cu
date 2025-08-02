@@ -11,6 +11,10 @@
 #include <cub/cub.cuh>
 #include <stdint.h>
 #include <stdio.h>
+#include <vector>
+#include <string>
+
+#include <map>
 
 namespace cg = cooperative_groups;
 

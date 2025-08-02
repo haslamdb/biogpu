@@ -406,6 +406,7 @@ public:
 };
 
 // Integration test
+#ifdef STANDALONE_LOADER
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <database_path>" << std::endl;
@@ -423,3 +424,4 @@ int main(int argc, char** argv) {
     
     return 0;
 }
+#endif

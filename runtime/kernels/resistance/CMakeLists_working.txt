@@ -27,7 +27,6 @@ endif()
 
 # Include directories for resistance kernels
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared)
 
 # Add CUDA include directories for C++ files
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
@@ -36,7 +35,20 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 # Core Libraries
 # ===========================
 
-# Note: sample_csv_parser and bloom_filter are now provided by biogpu_shared library
+# CSV parser library (NEW)
+add_library(sample_csv_parser STATIC
+    sample_csv_parser.cpp
+)
+
+# Bloom filter library
+add_library(bloom_filter STATIC
+    bloom_filter.cu
+)
+
+set_target_properties(bloom_filter PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_ARCHITECTURES "61;70;75;80;86;"
+)
 
 # Enhanced HDF5 alignment writer library
 add_library(hdf5_writer STATIC
@@ -124,76 +136,6 @@ target_link_libraries(fixed_database_loader
 # Executables
 # ===========================
 
-# Clean resistance pipeline executable (WITH CSV PARSER SUPPORT)
-add_executable(clean_resistance_pipeline
-    clean_resistance_pipeline_main.cpp
-    fq_mutation_detector.cu
-    fq_mutation_reporter.cpp
-    clinical_fq_report_generator.cpp
-)
-
-set_target_properties(clean_resistance_pipeline PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-target_compile_options(clean_resistance_pipeline PRIVATE
-    $<$<COMPILE_LANGUAGE:CUDA>:
-        --use_fast_math
-        --generate-line-info
-        -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored
-        --ptxas-options=-v
-        --maxrregcount=64
-        -O3
-    >
-)
-
-target_link_libraries(clean_resistance_pipeline
-    biogpu_shared    # Link the CSV parser library
-    hdf5_writer
-    translated_search
-    kmer_screening
-    resistance_detection_gpu
-    clean_resistance_loader
-    global_fq_mapper
-    diagnostic_reporter
-    enhanced_mutation_detection
-    z
-    cudart
-    cuda
-    ${HDF5_LIBRARIES}
-    ${HDF5_CXX_LIBRARIES}
-)
-
-
-# Clean resistance loader library
-add_library(clean_resistance_loader STATIC
-    fix_pipeline_resistance_loader.cpp
-)
-
-# GPU-accelerated resistance detection library
-add_library(resistance_detection_gpu STATIC
-    resistance_detection_gpu.cu
-)
-
-set_target_properties(resistance_detection_gpu PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_ARCHITECTURES "61;70;75;80;86"
-)
-
-# Fixed database loader for compatibility
-add_library(fixed_database_loader STATIC
-    fixed_database_loader.cpp
-)
-
-target_link_libraries(fixed_database_loader
-    ${JSONCPP_LIBRARIES}
-)
-
-# ===========================
-# Executables
-# ===========================
-
 # Enhanced FQ pipeline (original)
 add_executable(fq_pipeline_gpu
     fq_pipeline_host.cpp
@@ -217,7 +159,7 @@ target_compile_options(fq_pipeline_gpu PRIVATE
 )
 
 target_link_libraries(fq_pipeline_gpu
-    biogpu_shared  # Provides bloom_filter and sample_csv_parser
+    bloom_filter
     hdf5_writer
     translated_search
     kmer_screening
@@ -299,7 +241,8 @@ target_compile_options(clean_resistance_pipeline PRIVATE
 )
 
 target_link_libraries(clean_resistance_pipeline
-    biogpu_shared    # Provides sample_csv_parser and bloom_filter
+    sample_csv_parser    # Link the CSV parser library
+    bloom_filter
     hdf5_writer
     translated_search
     kmer_screening

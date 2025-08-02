@@ -44,6 +44,8 @@ struct PipelineOptions {
     float min_identity = 0.90f;
     float min_coverage = 0.80f;
     int batch_size = 50000;
+    bool use_em = true;  // Default to enabled
+    int em_iterations = 10;
 };
 
 // Progress reporter
@@ -181,6 +183,8 @@ void print_usage(const char* program_name) {
     std::cerr << "  --batch-size <num>       Batch size (default: 50000)" << std::endl;
     std::cerr << "  --disable-resistance     Skip resistance detection" << std::endl;
     std::cerr << "  --disable-amr            Skip AMR gene detection" << std::endl;
+    std::cerr << "  --no-em                  Disable EM algorithm for AMR (default: enabled)" << std::endl;
+    std::cerr << "  --em-iterations <num>    Number of EM iterations (default: 10)" << std::endl;
     std::cerr << "  --help                   Show this help message" << std::endl;
 }
 
@@ -200,6 +204,8 @@ bool parse_arguments(int argc, char* argv[], PipelineOptions& options) {
         {"batch-size", required_argument, 0, 0},
         {"disable-resistance", no_argument, 0, 0},
         {"disable-amr", no_argument, 0, 0},
+        {"no-em", no_argument, 0, 0},
+        {"em-iterations", required_argument, 0, 0},
         {"help", no_argument, 0, 0},
         {0, 0, 0, 0}
     };
@@ -229,6 +235,8 @@ bool parse_arguments(int argc, char* argv[], PipelineOptions& options) {
             else if (opt_name == "batch-size") options.batch_size = std::stoi(optarg);
             else if (opt_name == "disable-resistance") options.run_resistance = false;
             else if (opt_name == "disable-amr") options.run_amr = false;
+            else if (opt_name == "no-em") options.use_em = false;
+            else if (opt_name == "em-iterations") options.em_iterations = std::stoi(optarg);
         }
     }
     
@@ -359,12 +367,29 @@ void run_amr_pipeline(const PipelineOptions& options, ProgressReporter& progress
     // First create a temporary CSV file for the AMR pipeline
     std::string temp_csv = amr_output + "/" + options.sample_id + "_input.csv";
     std::ofstream csv_file(temp_csv);
-    csv_file << "sample_name,fastq_path" << std::endl;
-    csv_file << options.sample_id << "," << options.r1_path;
+    
+    // Extract directory path from R1 file
+    size_t last_slash = options.r1_path.find_last_of("/\\");
+    std::string file_path = (last_slash != std::string::npos) ? 
+                           options.r1_path.substr(0, last_slash) : ".";
+    std::string r1_filename = (last_slash != std::string::npos) ? 
+                             options.r1_path.substr(last_slash + 1) : options.r1_path;
+    
     if (!options.r2_path.empty()) {
-        csv_file << "," << options.r2_path;
+        // Paired-end reads
+        size_t r2_last_slash = options.r2_path.find_last_of("/\\");
+        std::string r2_filename = (r2_last_slash != std::string::npos) ? 
+                                 options.r2_path.substr(r2_last_slash + 1) : options.r2_path;
+        
+        csv_file << "SampleName,FilePath,R1 file,R2 file" << std::endl;
+        csv_file << options.sample_id << "," << file_path << "," 
+                 << r1_filename << "," << r2_filename << std::endl;
+    } else {
+        // Single-end reads
+        csv_file << "SampleName,FilePath,R1 file" << std::endl;
+        csv_file << options.sample_id << "," << file_path << "," 
+                 << r1_filename << std::endl;
     }
-    csv_file << std::endl;
     csv_file.close();
     
     ProcessSpawner amr_proc(exec_path, options.amr_gpu);
@@ -384,6 +409,12 @@ void run_amr_pipeline(const PipelineOptions& options, ProgressReporter& progress
     
     if (options.use_bloom_filter) {
         amr_proc.addArg("--use-bloom-filter");
+    }
+    
+    if (options.use_em) {
+        amr_proc.addArg("--em");
+        amr_proc.addArg("--em-iterations");
+        amr_proc.addArg(std::to_string(options.em_iterations));
     }
     
     progress.report("amr_processing", 50, "Running AMR gene detection");

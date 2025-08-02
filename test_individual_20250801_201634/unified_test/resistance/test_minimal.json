@@ -1,0 +1,26 @@
+{
+  "pipeline": "clean_resistance_detection",
+  "version": "1.0",
+  "configuration": {
+    "bloom_filter": false,
+    "smith_waterman": true
+  },
+  "results": [
+
+  ],
+  "summary": {
+    "total_reads": 1000,
+    "bloom_passed": 1000,
+    "nucleotide_matches": 802,
+    "protein_matches": 0,
+    "resistance_mutations": 0,
+    "fq_resistance_mutations": 0,
+    "allele_frequency_analysis": {
+      "total_positions_analyzed": 0,
+      "positions_with_resistance": 0,
+      "max_resistance_frequency": 0.0000,
+      "allele_frequency_csv": "test_minimal_allele_frequencies.csv"
+    },
+    "processing_completed": true
+  }
+}

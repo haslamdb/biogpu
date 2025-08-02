@@ -291,15 +291,25 @@ void run_resistance_pipeline(const PipelineOptions& options, ProgressReporter& p
     fs::create_directories(resistance_output);
     
     // Build command line for resistance pipeline
+    // The resistance pipeline expects: <nucleotide_index> <protein_db> <reads_r1> <reads_r2> [options]
     ProcessSpawner resistance_proc(exec_path, options.resistance_gpu);
-    resistance_proc.addArg("--r1", options.r1_path);
-    resistance_proc.addArg("--r2", options.r2_path);
-    resistance_proc.addArg("--output", resistance_output + "/" + options.sample_id);
-    resistance_proc.addArg("--fq-csv", options.resistance_db);
-    resistance_proc.addArg("--threads", std::to_string(options.threads));
     
-    if (options.use_bloom_filter) {
-        resistance_proc.addArg("--use-bloom");
+    // For now, use the fq_resistance_index as both nucleotide and protein db
+    std::string resistance_index = "/home/david/projects/biogpu/data/fq_resistance_index";
+    std::string protein_db = "/home/david/projects/biogpu/data/protein_resistance_db";
+    
+    // Add positional arguments first
+    resistance_proc.addArg(resistance_index);
+    resistance_proc.addArg(protein_db);
+    resistance_proc.addArg(options.r1_path);
+    resistance_proc.addArg(options.r2_path);
+    
+    // Add optional arguments
+    resistance_proc.addArg("--output-prefix", resistance_output + "/" + options.sample_id);
+    resistance_proc.addArg("--fq-csv", options.resistance_db);
+    
+    if (!options.use_bloom_filter) {
+        resistance_proc.addArg("--no-bloom");
     }
     
     progress.report("resistance_processing", 50, "Running resistance mutation detection");
@@ -358,8 +368,11 @@ void run_amr_pipeline(const PipelineOptions& options, ProgressReporter& progress
     csv_file.close();
     
     ProcessSpawner amr_proc(exec_path, options.amr_gpu);
+    // AMR pipeline expects database in format: dna.fasta,protein.fasta
+    std::string amr_db_path = "/home/david/projects/biogpu/data/AMR_CDS.fa,/home/david/projects/biogpu/data/AMR_protein.fa";
+    
     // Positional arguments
-    amr_proc.addArg(options.reference_db);  // AMR database path
+    amr_proc.addArg(amr_db_path);          // AMR database path
     amr_proc.addArg(temp_csv);              // Input CSV
     amr_proc.addArg(amr_output);            // Output directory
     

@@ -1,0 +1,9 @@
+BioGPU Unified Pipeline Summary
+==============================
+Sample ID: test_minimal
+Processing time: 0 seconds
+Multi-GPU: Disabled
+Resistance: Completed
+AMR Genes: Completed
+
+Results:

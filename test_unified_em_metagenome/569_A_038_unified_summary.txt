@@ -1,9 +1,0 @@
-BioGPU Unified Pipeline Summary
-==============================
-Sample ID: 569_A_038
-Processing time: 107 seconds
-Multi-GPU: Disabled
-Resistance: Skipped
-AMR Genes: Completed
-
-Results:

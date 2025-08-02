@@ -12,3 +12,9 @@
 # these come from https://www.ncbi.nlm.nih.gov/bioproject/PRJNA313047
 -rw-rw-r-- 1 david david  9147398 Jul  1 15:17 amr_nucl.fasta
 -rw-rw-r-- 1 david david  3412761 Jul  1 15:17 amr_prot.fasta
+
+
+# we can download the AMRFinderPlus data using this script:
+/home/david/Documents/Code/biogpu/scripts/download_amrfinderplus_db.sh
+
+# then manually renamed AMRProt.fa to AMR_protein.fa and moved to /data directory
